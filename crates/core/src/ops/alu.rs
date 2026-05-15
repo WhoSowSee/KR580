@@ -1,6 +1,72 @@
-use crate::Cpu8080State;
+use crate::{Cpu8080State, InstructionOutcome};
+
+pub(crate) fn handles(opcode: u8) -> bool {
+    (0x80..=0xBF).contains(&opcode)
+        || opcode & 0xC7 == 0x04
+        || opcode & 0xC7 == 0x05
+        || matches!(
+            opcode,
+            0xC6 | 0xCE | 0xD6 | 0xDE | 0xE6 | 0xEE | 0xF6 | 0xFE
+        )
+}
 
 impl Cpu8080State {
+    pub(crate) fn execute_alu_opcode(
+        &mut self,
+        opcode: u8,
+        mnemonic: String,
+        pc_before: u16,
+        t_states: u8,
+    ) -> InstructionOutcome {
+        if (0x80..=0xBF).contains(&opcode) {
+            let value = self.read_reg_code(opcode & 7);
+            match (opcode >> 3) & 7 {
+                0 => self.add(value, false),
+                1 => self.add(value, true),
+                2 => self.sub(value, false, true),
+                3 => self.sub(value, true, true),
+                4 => self.ana(value),
+                5 => self.xra(value),
+                6 => self.ora(value),
+                _ => self.sub(value, false, false),
+            }
+            self.pc = self.pc.wrapping_add(1);
+            return self.outcome(Some(opcode), mnemonic, pc_before, t_states, false);
+        }
+
+        if opcode & 0xC7 == 0x04 {
+            let reg = (opcode >> 3) & 7;
+            let value = self.read_reg_code(reg);
+            let result = self.inr_value(value);
+            self.write_reg_code(reg, result);
+            self.pc = self.pc.wrapping_add(1);
+            return self.outcome(Some(opcode), mnemonic, pc_before, t_states, false);
+        }
+
+        if opcode & 0xC7 == 0x05 {
+            let reg = (opcode >> 3) & 7;
+            let value = self.read_reg_code(reg);
+            let result = self.dcr_value(value);
+            self.write_reg_code(reg, result);
+            self.pc = self.pc.wrapping_add(1);
+            return self.outcome(Some(opcode), mnemonic, pc_before, t_states, false);
+        }
+
+        match opcode {
+            0xC6 => self.add(self.fetch_byte(1), false),
+            0xCE => self.add(self.fetch_byte(1), true),
+            0xD6 => self.sub(self.fetch_byte(1), false, true),
+            0xDE => self.sub(self.fetch_byte(1), true, true),
+            0xE6 => self.ana(self.fetch_byte(1)),
+            0xEE => self.xra(self.fetch_byte(1)),
+            0xF6 => self.ora(self.fetch_byte(1)),
+            0xFE => self.sub(self.fetch_byte(1), false, false),
+            _ => unreachable!("ALU dispatch reached non-ALU opcode {opcode:#04X}"),
+        }
+        self.pc = self.pc.wrapping_add(2);
+        self.outcome(Some(opcode), mnemonic, pc_before, t_states, false)
+    }
+
     pub(crate) fn inr_value(&mut self, value: u8) -> u8 {
         let result = value.wrapping_add(1);
         self.flags.auxiliary_carry = (value & 0x0F) == 0x0F;

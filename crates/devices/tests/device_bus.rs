@@ -1,5 +1,5 @@
 use k580_core::{PortBus, PortError};
-use k580_devices::{DeviceStatus, IoBus, NetworkMode};
+use k580_devices::{DeviceStatus, IoBus, NetworkDevice, NetworkMode};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -85,6 +85,53 @@ fn network_no_data_is_non_fatal_and_buffers_are_separate() {
     bus.network.queue_received(0x55);
     assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0x55);
     assert_eq!(bus.snapshot().network.tx_buffer, vec![0x10]);
+}
+
+#[test]
+fn network_worker_transfers_bytes_over_tcp() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let port = runtime.block_on(async {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        port
+    });
+    let mut server = NetworkDevice::default();
+    server.configure(NetworkMode::Server, "127.0.0.1", port);
+    server.start_worker(runtime.handle());
+    runtime.block_on(async { tokio::time::sleep(Duration::from_millis(50)).await });
+
+    let mut client = NetworkDevice::default();
+    client.configure(NetworkMode::Client, "127.0.0.1", port);
+    client.start_worker(runtime.handle());
+
+    runtime.block_on(async {
+        for _ in 0..40 {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+            if server.state().status == DeviceStatus::Connected
+                && client.state().status == DeviceStatus::Connected
+            {
+                break;
+            }
+        }
+    });
+    assert_eq!(server.state().status, DeviceStatus::Connected);
+    assert_eq!(client.state().status, DeviceStatus::Connected);
+
+    client.output_byte(b'N').unwrap();
+    let received = runtime.block_on(async {
+        for _ in 0..40 {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+            let byte = server.input_byte();
+            if byte != 0 {
+                return byte;
+            }
+        }
+        0
+    });
+    assert_eq!(received, b'N');
+    assert_eq!(server.state().rx_total, 1);
+    assert_eq!(client.state().tx_total, 1);
 }
 
 #[test]

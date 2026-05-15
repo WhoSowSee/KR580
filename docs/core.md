@@ -21,6 +21,16 @@ Implemented behavior follows standard Intel 8080/KR580 semantics from `prompt/`:
 - `run_for_t_states(bus, n)` calls `step_tact` exactly `n` times, so it never overshoots the requested T-state quantum.
 - `run_until_halt(bus, max_instructions)` executes instruction boundaries until `HLT` or the explicit safety cap.
 
+## Executor layout
+
+`execute.rs` now owns instruction-boundary orchestration only. Family-specific execution lives in:
+
+- `ops/data.rs` for MOV/MVI/register-pair/memory transfer instructions;
+- `ops/alu.rs` for arithmetic, logic, INR/DCR, and immediate ALU instructions;
+- `ops/control.rs` for jumps, calls, returns, `RST`, and `PCHL`;
+- `ops/stack.rs` for PUSH/POP and PSW stack handling;
+- `ops/misc.rs` for NOP, rotates, DAA, flag toggles, EI/DI, and IN/OUT.
+
 ## Tested opcode areas
 
 The semantic test suite now covers:

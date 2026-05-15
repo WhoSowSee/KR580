@@ -14,12 +14,16 @@ Device operations return typed status or errors. They do not mutate CPU state be
 
 - Monitor keeps a text string, a text-cell framebuffer with attributes, a graphics layer, cursor, current attribute, last command, and a hex/debug buffer.
 - Storage devices append to visible buffers, maintain a bounded tail buffer, count queued bytes, expose last enqueue error, and can attach async file-backed workers.
-- Network exposes explicit mode, connection state, RX buffer, and TX buffer. No-data reads are non-fatal.
+- Network exposes explicit mode, connection state, RX buffer, TX buffer, byte counters, last error, and an optional Tokio-backed TCP worker. No-data reads are non-fatal.
 - Printer accumulates bytes in a spool first, tracks buffered byte count and last enqueue error, and exports/prints through a separate queued action.
 
 ## Port behavior
 
 Invalid ports return `PortError::InvalidPort`. Device-specific enqueue failures are converted into typed `PortError` variants such as `NotReady` and `Disconnected`, so the application can surface failures through events instead of panics or ad hoc strings.
+
+## Network worker
+
+`NetworkDevice::start_worker` spawns a Tokio task for client or server mode. The worker connects or binds explicitly from settings, splits the socket into read/write halves, queues received bytes into the device RX queue, drains outgoing bytes from a channel, and updates visible status/counters. The old manual `queue_received` test hook remains available for deterministic unit tests.
 
 ## Monitor command convention
 

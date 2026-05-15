@@ -4,11 +4,11 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 
 ## Crates
 
-- `k580-core`: deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, typed command/event contracts, and the `PortBus` trait.
+- `k580-core`: deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, typed command/event contracts, and the `PortBus` trait. Opcode execution is split by instruction family under `ops/`.
 - `k580-devices`: `IoBus` for ports `00h..04h`, monitor, floppy, HDD, network, printer, device states, and non-blocking worker queues.
 - `k580-persistence`: versioned `.580` snapshots, raw `.krs` subprograms, JSON settings, and direct `.txt`/`.xlsx`/`.docx` exporters.
 - `k580-app`: application orchestration, crossbeam command/event actor, top-level dependency wiring, and file/export commands.
-- `k580-ui`: iced shell. It renders snapshots and sends commands. It does not own emulator state.
+- `k580-ui`: iced shell split into app state/update, runtime command/event helpers, and view rendering. It renders snapshots and sends commands. It does not own emulator state.
 
 ## Data flow
 
