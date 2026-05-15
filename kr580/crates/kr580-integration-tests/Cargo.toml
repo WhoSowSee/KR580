@@ -1,0 +1,20 @@
+[package]
+name = "kr580-integration-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Workspace-level integration tests."
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+kr580-core = { workspace = true }
+kr580-persistence = { workspace = true }
+kr580-devices = { workspace = true }
+
+[dev-dependencies]
+kr580-core = { workspace = true }
+kr580-persistence = { workspace = true }
+kr580-devices = { workspace = true }

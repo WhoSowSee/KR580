@@ -182,6 +182,87 @@ fn daa_adjusts_after_bcd_addition() {
 }
 
 #[test]
+fn rotate_complement_and_carry_ops_touch_only_documented_state() {
+    let mut cpu = Cpu8080State::default();
+    put_program(&mut cpu, &[0x07, 0x0F, 0x17, 0x1F, 0x2F, 0x37, 0x3F]);
+    cpu.registers.a = 0b1000_0001;
+    cpu.flags = Flags {
+        sign: true,
+        zero: true,
+        auxiliary_carry: true,
+        parity: false,
+        carry: false,
+    };
+
+    step(&mut cpu);
+    assert_eq!(cpu.registers.a, 0b0000_0011);
+    assert!(cpu.flags.carry);
+    assert!(cpu.flags.sign);
+    assert!(cpu.flags.zero);
+    assert!(cpu.flags.auxiliary_carry);
+    assert!(!cpu.flags.parity);
+
+    step(&mut cpu);
+    assert_eq!(cpu.registers.a, 0b1000_0001);
+    assert!(cpu.flags.carry);
+
+    step(&mut cpu);
+    assert_eq!(cpu.registers.a, 0b0000_0011);
+    assert!(cpu.flags.carry);
+
+    step(&mut cpu);
+    assert_eq!(cpu.registers.a, 0b1000_0001);
+    assert!(cpu.flags.carry);
+
+    step(&mut cpu);
+    assert_eq!(cpu.registers.a, 0b0111_1110);
+    assert!(cpu.flags.sign);
+    assert!(cpu.flags.zero);
+    assert!(cpu.flags.auxiliary_carry);
+    assert!(!cpu.flags.parity);
+
+    step(&mut cpu);
+    assert!(cpu.flags.carry);
+    step(&mut cpu);
+    assert!(!cpu.flags.carry);
+}
+
+#[test]
+fn shld_lhld_xchg_and_xthl_roundtrip_memory_and_pairs() {
+    let mut cpu = Cpu8080State::default();
+    put_program(&mut cpu, &[0x22, 0x00, 0x20, 0x2A, 0x00, 0x20, 0xEB, 0xE3]);
+    cpu.registers.h = 0x12;
+    cpu.registers.l = 0x34;
+    cpu.registers.d = 0xAB;
+    cpu.registers.e = 0xCD;
+    cpu.sp = 0x3000;
+    cpu.memory.write(0x3000, 0x78);
+    cpu.memory.write(0x3001, 0x56);
+
+    step(&mut cpu);
+    assert_eq!(cpu.memory.read(0x2000), 0x34);
+    assert_eq!(cpu.memory.read(0x2001), 0x12);
+
+    cpu.registers.h = 0;
+    cpu.registers.l = 0;
+    step(&mut cpu);
+    assert_eq!(cpu.registers.h, 0x12);
+    assert_eq!(cpu.registers.l, 0x34);
+
+    step(&mut cpu);
+    assert_eq!(cpu.registers.d, 0x12);
+    assert_eq!(cpu.registers.e, 0x34);
+    assert_eq!(cpu.registers.h, 0xAB);
+    assert_eq!(cpu.registers.l, 0xCD);
+
+    step(&mut cpu);
+    assert_eq!(cpu.registers.h, 0x56);
+    assert_eq!(cpu.registers.l, 0x78);
+    assert_eq!(cpu.memory.read(0x3000), 0xCD);
+    assert_eq!(cpu.memory.read(0x3001), 0xAB);
+}
+
+#[test]
 fn conditional_jumps_use_normal_carry_meanings() {
     let mut cpu = Cpu8080State::default();
     put_program(&mut cpu, &[0xDA, 0x34, 0x12, 0xD2, 0x78, 0x56]);
@@ -194,6 +275,26 @@ fn conditional_jumps_use_normal_carry_meanings() {
     cpu.flags.carry = false;
     cpu.step_instruction(&mut NullBus::default()).unwrap();
     assert_eq!(cpu.pc, 0x5678);
+}
+
+#[test]
+fn conditional_calls_use_documented_taken_and_not_taken_timing() {
+    let mut cpu = Cpu8080State::default();
+    put_program(&mut cpu, &[0xDC, 0x00, 0x10]);
+    cpu.sp = 0x8000;
+    cpu.flags.carry = false;
+    let out = cpu.step_instruction(&mut NullBus::default()).unwrap();
+    assert_eq!(cpu.pc, 3);
+    assert_eq!(cpu.sp, 0x8000);
+    assert_eq!(out.t_states, 11);
+
+    cpu.pc = 0;
+    cpu.flags.carry = true;
+    let out = cpu.step_instruction(&mut NullBus::default()).unwrap();
+    assert_eq!(cpu.pc, 0x1000);
+    assert_eq!(cpu.sp, 0x7FFE);
+    assert_eq!(cpu.memory.read_word(cpu.sp), 3);
+    assert_eq!(out.t_states, 17);
 }
 
 #[test]
@@ -271,4 +372,20 @@ fn ei_delay_di_and_interrupt_acceptance_follow_prompt() {
     assert!(!cpu.interrupt_enable);
     assert_eq!(cpu.pc, 0x08);
     assert_eq!(cpu.memory.read_word(cpu.sp), 1);
+}
+
+#[test]
+fn run_for_t_states_advances_exact_quantum() {
+    let mut cpu = Cpu8080State::default();
+    put_program(&mut cpu, &[0x00, 0x00]);
+    let mut bus = NullBus::default();
+    cpu.run_for_t_states(&mut bus, 3).unwrap();
+    assert_eq!(cpu.cycle_count, 3);
+    assert_eq!(cpu.pc, 1);
+    assert_eq!(cpu.tact_phase, Some(3));
+
+    cpu.run_for_t_states(&mut bus, 1).unwrap();
+    assert_eq!(cpu.cycle_count, 4);
+    assert_eq!(cpu.pc, 1);
+    assert_eq!(cpu.tact_phase, None);
 }

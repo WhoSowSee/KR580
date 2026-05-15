@@ -10,6 +10,8 @@ pub struct PrinterState {
     pub spool: Vec<u8>,
     pub target_path: Option<PathBuf>,
     pub status: DeviceStatus,
+    pub bytes_buffered: u64,
+    pub last_error: Option<String>,
 }
 
 #[derive(Debug)]
@@ -25,6 +27,8 @@ impl Default for PrinterDevice {
                 spool: Vec::new(),
                 target_path: None,
                 status: DeviceStatus::Ready,
+                bytes_buffered: 0,
+                last_error: None,
             },
             tx: None,
         }
@@ -34,6 +38,7 @@ impl Default for PrinterDevice {
 impl PrinterDevice {
     pub fn output_byte(&mut self, value: u8) {
         self.state.spool.push(value);
+        self.state.bytes_buffered += 1;
     }
 
     pub fn attach_export_path(&mut self, path: impl AsRef<Path>, handle: &tokio::runtime::Handle) {
@@ -66,13 +71,23 @@ impl PrinterDevice {
     }
 
     pub fn print_spool(&mut self) -> Result<(), DeviceError> {
-        let tx = self.tx.as_ref().ok_or(DeviceError::NotReady)?;
-        tx.send(self.state.spool.clone())
-            .map_err(|_| DeviceError::Disconnected)
+        let Some(tx) = self.tx.clone() else {
+            self.state.status = DeviceStatus::NotReady;
+            self.state.last_error = Some(DeviceError::NotReady.to_string());
+            return Err(DeviceError::NotReady);
+        };
+        tx.send(self.state.spool.clone()).map_err(|_| {
+            self.state.status = DeviceStatus::Disconnected;
+            self.state.last_error = Some(DeviceError::Disconnected.to_string());
+            DeviceError::Disconnected
+        })?;
+        self.state.last_error = None;
+        Ok(())
     }
 
     pub fn clear(&mut self) {
         self.state.spool.clear();
+        self.state.bytes_buffered = 0;
     }
 
     pub fn input_byte(&self) -> u8 {

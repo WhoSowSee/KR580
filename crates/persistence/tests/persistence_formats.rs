@@ -41,6 +41,30 @@ fn snapshot_roundtrips_core_state_without_ui_data() {
 }
 
 #[test]
+fn snapshot_bytes_are_deterministic_and_reject_bad_headers() {
+    let mut cpu = Cpu8080State::default();
+    cpu.registers.a = 0x5A;
+    cpu.memory.write(0x0100, 0xC3);
+    let first = Snapshot580Serializer::to_bytes(&cpu);
+    let second = Snapshot580Serializer::to_bytes(&cpu);
+    assert_eq!(first, second);
+
+    let mut unsupported = first.clone();
+    unsupported[4..6].copy_from_slice(&2u16.to_le_bytes());
+    assert!(matches!(
+        Snapshot580Serializer::from_bytes(&unsupported),
+        Err(SnapshotError::UnsupportedVersion(2))
+    ));
+
+    let mut bad_len = first;
+    bad_len[6..10].copy_from_slice(&1u32.to_le_bytes());
+    assert!(matches!(
+        Snapshot580Serializer::from_bytes(&bad_len),
+        Err(SnapshotError::PayloadLengthMismatch)
+    ));
+}
+
+#[test]
 fn snapshot_unknown_low_tag_fails_and_high_tag_is_skipped() {
     let cpu = Cpu8080State::default();
     let base = Snapshot580Serializer::to_bytes(&cpu);
@@ -69,6 +93,23 @@ fn krs_is_raw_slice_with_explicit_base_address() {
     SubprogramSerializer::load_into_state(&mut cpu, &subprogram).unwrap();
     assert_eq!(cpu.memory.read(0x2000), 1);
     assert_eq!(cpu.memory.read(0x2003), 4);
+}
+
+#[test]
+fn krs_load_rejects_memory_overflow() {
+    let subprogram = Subprogram {
+        base_address: 0xFFFE,
+        bytes: vec![1, 2, 3],
+    };
+    let mut cpu = Cpu8080State::default();
+    let err = SubprogramSerializer::load_into_state(&mut cpu, &subprogram).unwrap_err();
+    assert_eq!(
+        err,
+        k580_core::ValidationError::MemoryRange {
+            start: 0xFFFE,
+            end: 0x10001
+        }
+    );
 }
 
 #[test]

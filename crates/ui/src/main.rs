@@ -38,6 +38,8 @@ enum Message {
     OpenSnapshot,
     SaveSnapshot,
     ExportTxt,
+    ExportXlsx,
+    ExportDocx,
     RegisterAChanged(String),
     ApplyRegisterA,
     MemoryAddressChanged(String),
@@ -72,6 +74,8 @@ impl DesktopApp {
             Message::OpenSnapshot => self.open_snapshot(),
             Message::SaveSnapshot => self.save_snapshot(),
             Message::ExportTxt => self.export_txt(),
+            Message::ExportXlsx => self.export_xlsx(),
+            Message::ExportDocx => self.export_docx(),
             Message::RegisterAChanged(value) => self.register_a_input = value,
             Message::ApplyRegisterA => self.apply_register_a(),
             Message::MemoryAddressChanged(value) => self.memory_address_input = value,
@@ -136,6 +140,8 @@ impl DesktopApp {
             button("Open .580").on_press(Message::OpenSnapshot),
             button("Save .580").on_press(Message::SaveSnapshot),
             button("Export .txt").on_press(Message::ExportTxt),
+            button("Export .xlsx").on_press(Message::ExportXlsx),
+            button("Export .docx").on_press(Message::ExportDocx),
         ]
         .spacing(8);
 
@@ -249,6 +255,24 @@ impl DesktopApp {
             .save_file()
         {
             self.dispatch(AppCommand::ExportTxt(path));
+        }
+    }
+
+    fn export_xlsx(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("Spreadsheet", &["xlsx"])
+            .save_file()
+        {
+            self.dispatch(AppCommand::ExportXlsx(path));
+        }
+    }
+
+    fn export_docx(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("Document", &["docx"])
+            .save_file()
+        {
+            self.dispatch(AppCommand::ExportDocx(path));
         }
     }
 

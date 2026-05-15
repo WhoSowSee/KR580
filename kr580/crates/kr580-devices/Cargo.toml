@@ -1,0 +1,14 @@
+[package]
+name = "kr580-devices"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "IoBus implementation and async peripheral devices for KR580 emulator."
+
+[dependencies]
+kr580-core = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+crossbeam-channel = { workspace = true }

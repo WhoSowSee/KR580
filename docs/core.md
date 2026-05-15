@@ -13,3 +13,23 @@ Implemented behavior follows standard Intel 8080/KR580 semantics from `prompt/`:
 - accepted interrupt vectors are modeled as single-byte `RST n` opcodes.
 
 `tact` stepping keeps exact T-state accounting. Architectural instruction effects are committed by the instruction executor; devices are not called at sub-instruction T-state granularity, matching the prompt rule that device effects are instruction-boundary level.
+
+## Execution API
+
+- `step_instruction(bus)` executes one instruction boundary or accepts one pending `RST n` interrupt vector.
+- `step_tact(bus)` advances exactly one T-state in the debug tact model and keeps `cycle_count` exact.
+- `run_for_t_states(bus, n)` calls `step_tact` exactly `n` times, so it never overshoots the requested T-state quantum.
+- `run_until_halt(bus, max_instructions)` executes instruction boundaries until `HLT` or the explicit safety cap.
+
+## Tested opcode areas
+
+The semantic test suite now covers:
+
+- full opcode classification for all 256 byte values;
+- smoke execution for every documented opcode from a controlled CPU state;
+- ADD/ADC/SUB/SBB/CMP/INR/DCR/ANA/ORA/XRA flag edge cases;
+- `DAA`, PSW reserved-bit normalization, stack roundtrips, rotate/carry operations;
+- `SHLD`, `LHLD`, `XCHG`, `XTHL`, `CALL`, `RET`, conditional branch/call timing;
+- `IN`/`OUT` bus routing and EI/DI/HLT interrupt acceptance behavior.
+
+External Intel 8080 binary suites are still a recommended next gate when the binaries are available.
