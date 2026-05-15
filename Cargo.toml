@@ -1,0 +1,28 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/devices",
+    "crates/persistence",
+    "crates/app",
+    "crates/ui",
+]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+version = "0.1.0"
+rust-version = "1.95"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net", "io-util", "fs", "sync"] }
+crossbeam-channel = "0.5"
+iced = { version = "0.14.0", features = ["tokio"] }
+rfd = "0.15"
+rust_xlsxwriter = "0.92"
+docx-rs = "0.4"

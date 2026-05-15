@@ -1,0 +1,18 @@
+[package]
+name = "k580-ui"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+k580-app = { path = "../app" }
+k580-core = { path = "../core" }
+iced.workspace = true
+rfd.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[[bin]]
+name = "k580"
+path = "src/main.rs"

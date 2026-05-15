@@ -1,0 +1,14 @@
+[package]
+name = "k580-persistence"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+k580-core = { path = "../core" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+rust_xlsxwriter.workspace = true
+docx-rs.workspace = true
