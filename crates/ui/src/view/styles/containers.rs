@@ -6,8 +6,8 @@ use iced::widget::container;
 use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_CYAN, TOKYO_MAGENTA, TOKYO_SURFACE,
-    TOKYO_SURFACE_2, TOKYO_TEXT,
+    TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_SURFACE, TOKYO_SURFACE_2,
+    TOKYO_TEXT,
 };
 
 pub(crate) fn app_style(_theme: &Theme) -> container::Style {
@@ -64,17 +64,12 @@ pub(crate) fn transparent_style(_theme: &Theme) -> container::Style {
     surface_style(None, 0.0, 0.0, Color::TRANSPARENT)
 }
 
-/// Mirrors the right-hand text input borders so the spinner blends in.
-/// Focused beats hovered because once the user has tabbed/clicked into the
-/// shell the focus ring should win even if the cursor is still over it.
-pub(crate) fn input_shell_style(_theme: &Theme, focused: bool, hovered: bool) -> container::Style {
-    let border_color = if focused {
-        TOKYO_BLUE
-    } else if hovered {
-        TOKYO_CYAN
-    } else {
-        TOKYO_BORDER
-    };
+/// Lights up the spinner shell border in blue while the embedded text
+/// input owns keyboard focus. The shell stays neutral on hover so the
+/// only feedback that promises "you can type here" is the focus ring,
+/// matching the convention of native form fields.
+pub(crate) fn input_shell_style(_theme: &Theme, focused: bool) -> container::Style {
+    let border_color = if focused { TOKYO_BLUE } else { TOKYO_BORDER };
 
     surface_style(Some(TOKYO_BG), 6.0, 1.0, border_color)
 }
@@ -99,7 +94,9 @@ pub(crate) fn memory_row_container_style(selected: bool) -> container::Style {
         background,
         text_color: Some(TOKYO_TEXT),
         border: Border {
-            radius: 0.0.into(),
+            // Round only the highlighted row; the others stay flat so the
+            // 1-pixel separators between rows still meet edge-to-edge.
+            radius: if selected { 6.0.into() } else { 0.0.into() },
             width: 0.0,
             color: Color::TRANSPARENT,
         },

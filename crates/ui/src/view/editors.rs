@@ -40,7 +40,6 @@ impl DesktopApp {
                 Message::JumpMemoryAddress,
                 MEMORY_ADDRESS_INPUT_ID,
                 self.focused_input == Some(MEMORY_ADDRESS_INPUT_ID),
-                self.hovered_input == Some(MEMORY_ADDRESS_INPUT_ID),
             ),
             text_input("00", &self.memory_value_input)
                 .id(MEMORY_VALUE_INPUT_ID)
@@ -76,7 +75,6 @@ impl DesktopApp {
                 Message::ApplyRegister,
                 REGISTER_NAME_INPUT_ID,
                 self.focused_input == Some(REGISTER_NAME_INPUT_ID),
-                self.hovered_input == Some(REGISTER_NAME_INPUT_ID),
             ),
             text_input("00", &self.register_value_input)
                 .id(REGISTER_VALUE_INPUT_ID)

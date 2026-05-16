@@ -91,10 +91,6 @@ pub(crate) struct DesktopApp {
     /// we sync this from any signal that implies focus (typing, Tab
     /// navigation, explicit focus tasks).
     pub(crate) focused_input: Option<&'static str>,
-    /// Identifier of the spinner shell currently under the mouse pointer.
-    /// Tracked via `mouse_area` enter/exit events because containers do not
-    /// expose hover state out of the box.
-    pub(crate) hovered_input: Option<&'static str>,
     /// Tracks how many frames iced has rendered since startup. We keep the
     /// window cloaked (DWM-hidden on Windows) until the second frame so the
     /// OS never gets a chance to flash its default white client area.
@@ -159,13 +155,11 @@ pub(crate) enum Message {
         focused: iced::widget::Id,
         backward: bool,
     },
-    /// The mouse pointer entered or left a spinner shell. Drives the hover
-    /// state so the spinner border can mirror the bare text input's hover
-    /// styling.
-    SpinnerHovered {
-        id: &'static str,
-        hovered: bool,
-    },
+    /// Result of the periodic `find_focused` poll. Carries the ids of any
+    /// focused widgets iced reports — typically zero or one — so the UI can
+    /// keep `DesktopApp::focused_input` in sync regardless of how the user
+    /// reached the input (typing, Tab, mouse click).
+    FocusPolled(Vec<iced::widget::Id>),
     /// Iced reports that a window has been opened. We respond by cloaking it
     /// via DWM on Windows so the launch flash never reaches the screen.
     WindowOpened(iced::window::Id),
@@ -198,7 +192,6 @@ impl DesktopApp {
                 memory_search_pattern: None,
                 keyboard_modifiers: keyboard::Modifiers::default(),
                 focused_input: None,
-                hovered_input: None,
                 startup_frames_seen: 0,
             },
             Task::none(),
@@ -213,6 +206,14 @@ impl DesktopApp {
                     self.memory_scroll_visible_ticks.saturating_sub(1);
                 self.opcode_scroll_visible_ticks =
                     self.opcode_scroll_visible_ticks.saturating_sub(1);
+                // Poll iced for the currently focused widget. `find_focused`
+                // emits at most one id, but `collect()` always finishes with
+                // a `Vec` (possibly empty), giving us a single deterministic
+                // `FocusPolled` message every tick.
+                use iced::advanced::widget::operation::focusable::find_focused;
+                return iced::advanced::widget::operate(find_focused())
+                    .collect()
+                    .map(Message::FocusPolled);
             }
             Message::StepInstruction => self.dispatch(k580_app::AppCommand::StepInstruction),
             Message::StepTact => self.dispatch(k580_app::AppCommand::StepTact),
@@ -236,7 +237,13 @@ impl DesktopApp {
                 self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
                 self.change_register_value(value);
             }
-            Message::ApplyRegister => self.apply_register(),
+            Message::ApplyRegister => {
+                if self.keyboard_modifiers.command() {
+                    return self
+                        .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
+                }
+                return self.apply_register_and_step(self.keyboard_modifiers.shift());
+            }
             Message::MemorySelected(address) => {
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
                 self.select_memory(address);
@@ -252,24 +259,20 @@ impl DesktopApp {
             }
             Message::JumpMemoryAddress => {
                 if self.keyboard_modifiers.command() {
-                    return self.find_next_memory_address();
+                    // Ctrl+Enter forward search, Ctrl+Shift+Enter backward.
+                    return self
+                        .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
                 }
                 if self.keyboard_modifiers.alt() {
-                    // Alt+Enter steps to the next sequential address without
-                    // touching the search pattern cache. Treat it the same
-                    // as ArrowDown so the highlight, scroll, and pattern
-                    // bookkeeping all stay consistent.
-                    return self.step_memory_address(1);
+                    // Alt+Enter from the address field commits the typed
+                    // address and jumps the memory list to it (the visible
+                    // scroll target).
+                    return self.jump_memory_address();
                 }
-                // Capture the user's pattern *before* jumping: a plain Enter
-                // rewrites the input with the matched 4-digit address, so we
-                // remember the original short form so a follow-up Ctrl+Enter
-                // can keep iterating with the same pattern.
-                let pattern = self.memory_address_input.trim().to_ascii_uppercase();
-                if !pattern.is_empty() {
-                    self.memory_search_pattern = Some(pattern);
-                }
-                return self.jump_memory_address();
+                // Plain Enter / Shift+Enter: stay in the editor, advance or
+                // step back the address in the input itself, without
+                // scrolling the memory list.
+                return self.advance_memory_address(self.keyboard_modifiers.shift());
             }
             Message::MemoryAddressChanged(value) => {
                 self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
@@ -292,18 +295,27 @@ impl DesktopApp {
             }
             Message::HideOpcodeDropdown => self.hide_opcode_dropdown(),
             Message::ApplyMemory => {
-                // Ctrl+Enter is reserved for the address-pattern search, so
-                // even if the focus is on the value field we redirect to the
-                // search instead of overwriting memory by accident.
                 if self.keyboard_modifiers.command() {
-                    return self.find_next_memory_address();
+                    // Ctrl+Enter forward search, Ctrl+Shift+Enter backward.
+                    return self
+                        .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
                 }
                 if self.keyboard_modifiers.alt() {
-                    // Alt+Enter is the "next address" shortcut; from the
-                    // value field it should not commit a write either.
-                    return self.step_memory_address(1);
+                    // Alt+Enter from the value field writes the byte and
+                    // jumps the memory list to the same address.
+                    return self.apply_memory_and_jump();
                 }
-                return self.apply_memory();
+                // Plain Enter / Shift+Enter: behaviour depends on which
+                // memory-editor field the user is working in. From the
+                // address field we just step the address; from the value
+                // field we also commit the byte. Either way focus stays
+                // where it was.
+                let from_address = self.focused_input == Some(MEMORY_ADDRESS_INPUT_ID);
+                let backward = self.keyboard_modifiers.shift();
+                if from_address {
+                    return self.advance_memory_address(backward);
+                }
+                return self.apply_memory_and_step(backward);
             }
             Message::ModifiersChanged(modifiers) => {
                 self.keyboard_modifiers = modifiers;
@@ -321,14 +333,32 @@ impl DesktopApp {
             Message::FocusResolved { focused, backward } => {
                 return self.cycle_focus(focused, backward);
             }
-            Message::SpinnerHovered { id, hovered } => {
-                self.hovered_input = if hovered {
-                    Some(id)
-                } else if self.hovered_input == Some(id) {
-                    None
-                } else {
-                    self.hovered_input
+            Message::FocusPolled(ids) => {
+                use crate::app::{
+                    MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID,
+                    REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
                 };
+                const TRACKED: [&str; 5] = [
+                    MEMORY_ADDRESS_INPUT_ID,
+                    MEMORY_VALUE_INPUT_ID,
+                    REGISTER_NAME_INPUT_ID,
+                    REGISTER_VALUE_INPUT_ID,
+                    MEMORY_INLINE_INPUT_ID,
+                ];
+                let resolved = ids.into_iter().find_map(|id| {
+                    TRACKED
+                        .into_iter()
+                        .find(|known| id == iced::widget::Id::new(known))
+                });
+                // Only refresh the cache when the poll points at one of
+                // *our* tracked inputs. If iced reports nothing or focus
+                // landed on something else (a spinner button, the apply
+                // button, etc.), keep the last known input — otherwise
+                // the brief blur from a button click would race the next
+                // Enter handler and forget which field the user was in.
+                if let Some(id) = resolved {
+                    self.focused_input = Some(id);
+                }
             }
             Message::WindowOpened(id) => {
                 // Cloak immediately, then unhide the window. Because the

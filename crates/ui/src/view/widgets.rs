@@ -4,12 +4,12 @@
 //! reusable button shape, …). Panel-level composition lives in the panel
 //! modules themselves so this file does not turn into another monolith.
 
-use iced::widget::{Space, button, column, container, mouse_area, row, stack, text_input};
-use iced::{Color, Element, Length, Padding, alignment};
+use iced::widget::{Space, button, column, container, row, stack, text_input};
+use iced::{Element, Length, Padding, alignment};
 
 use super::styles::{
-    capsule_button_style, input_borderless_style, input_shell_style, legend_label_style,
-    panel_style, step_button_style,
+    enter_button_style, input_borderless_style, input_shell_style, legend_label_style, panel_style,
+    step_button_style,
 };
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text, ui_text};
 use crate::app::Message;
@@ -59,9 +59,13 @@ pub(super) fn legend_panel<'a>(
 }
 
 /// Builds a `<text_input> + ▲▼` shell that publishes `up`/`down` messages
-/// for the spinner buttons and reports hover/focus state through the
-/// border colour. `id` makes the inner input addressable for focus
-/// operations.
+/// for the spinner buttons and reports focus state through the border
+/// colour. `id` makes the inner input addressable for focus operations.
+///
+/// The arrows live in a stacked overlay rather than next to the input in
+/// a row, so the input gets the full inner width of the shell. That keeps
+/// the focus glow from being clipped on the right edge by a sibling
+/// column, which used to leave a visible artefact behind the buttons.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn spinner_text_input<'a>(
     placeholder: &'static str,
@@ -73,53 +77,78 @@ pub(super) fn spinner_text_input<'a>(
     on_submit: Message,
     id: &'static str,
     focused: bool,
-    hovered: bool,
 ) -> Element<'a, Message> {
-    let shell: Element<'a, Message> = container(
-        row![
-            text_input(placeholder, value)
-                .id(id)
-                .on_input(on_input)
-                .on_submit(on_submit)
-                .font(MONO_FONT)
-                .size(16)
-                .padding(6)
-                .align_x(alignment::Horizontal::Center)
-                .width(Length::Fill)
-                .style(input_borderless_style),
-            column![step_button("▲", up), step_button("▼", down)].spacing(0),
-        ]
-        .spacing(0)
-        .align_y(alignment::Vertical::Center),
-    )
-    .width(width)
-    .style(move |theme| input_shell_style(theme, focused, hovered))
-    .into();
+    // Width reserved for the arrow stack on the right side of the shell.
+    // The same amount is added as left padding so the entered text stays
+    // centred horizontally relative to the visible border.
+    const ARROW_RESERVED: f32 = 18.0;
 
-    mouse_area(shell)
-        .on_enter(Message::SpinnerHovered { id, hovered: true })
-        .on_exit(Message::SpinnerHovered { id, hovered: false })
-        .into()
+    let input: Element<'a, Message> = text_input(placeholder, value)
+        .id(id)
+        .on_input(on_input)
+        .on_submit(on_submit)
+        .font(MONO_FONT)
+        .size(16)
+        .padding(Padding {
+            top: 6.0,
+            right: ARROW_RESERVED,
+            bottom: 6.0,
+            left: ARROW_RESERVED,
+        })
+        .align_x(alignment::Horizontal::Center)
+        .width(Length::Fill)
+        .style(input_borderless_style)
+        .into();
+
+    let arrows: Element<'a, Message> =
+        container(column![step_button("▲", up), step_button("▼", down)].spacing(0))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .padding(Padding {
+                top: 0.0,
+                right: 4.0,
+                bottom: 0.0,
+                left: 0.0,
+            })
+            .align_x(alignment::Horizontal::Right)
+            .align_y(alignment::Vertical::Center)
+            .into();
+
+    let layered: Element<'a, Message> = stack(vec![input, arrows])
+        .width(Length::Fill)
+        .height(Length::Shrink)
+        .into();
+
+    let shell: Element<'a, Message> = container(layered)
+        .width(width)
+        .style(move |theme| input_shell_style(theme, focused))
+        .into();
+
+    shell
 }
 
 pub(super) fn step_button(label: &'static str, message: Message) -> Element<'static, Message> {
-    button(mono_text(label, 9, TOKYO_TEXT).align_x(alignment::Horizontal::Center))
+    button(mono_text(label, 8, TOKYO_TEXT).align_x(alignment::Horizontal::Center))
         .on_press(message)
-        .padding(1)
-        .width(Length::Fixed(18.0))
-        .height(Length::Fixed(17.0))
+        .padding(0)
+        .width(Length::Fixed(14.0))
+        .height(Length::Fixed(13.0))
         .style(move |_theme, status| step_button_style(status))
         .into()
 }
 
 pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
-    icon_button("↵", message, TOKYO_GREEN)
-}
-
-fn icon_button(label: &'static str, message: Message, accent: Color) -> Element<'static, Message> {
-    button(mono_text(label, 14, accent).align_x(alignment::Horizontal::Center))
-        .on_press(message)
-        .padding(6)
-        .style(move |_theme, status| capsule_button_style(status, accent, false))
-        .into()
+    button(
+        mono_text("↵", 14, TOKYO_GREEN)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+    )
+    .on_press(message)
+    .padding(0)
+    .width(Length::Fixed(28.0))
+    .height(Length::Fixed(28.0))
+    .style(move |_theme, status| enter_button_style(status))
+    .into()
 }

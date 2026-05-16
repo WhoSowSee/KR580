@@ -6,7 +6,8 @@ use iced::widget::button;
 use iced::{Background, Border, Color};
 
 use super::super::theme::{
-    TOKYO_BORDER, TOKYO_GREEN, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT,
+    TOKYO_BG, TOKYO_BORDER, TOKYO_GREEN, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3,
+    TOKYO_TEXT,
 };
 
 pub(crate) fn capsule_button_style(
@@ -44,6 +45,30 @@ pub(crate) fn is_button_active(status: button::Status) -> bool {
     matches!(status, button::Status::Hovered | button::Status::Pressed)
 }
 
+/// Style for the `↵` apply buttons next to each editor field. Visually
+/// matches the surrounding text inputs: same background colour, same
+/// border radius, neutral border that does not light up on hover. The
+/// only feedback is a slightly lighter surface tint when the cursor
+/// hovers, with a touch more contrast on press.
+pub(crate) fn enter_button_style(status: button::Status) -> button::Style {
+    let background = match status {
+        button::Status::Pressed => TOKYO_SURFACE_2,
+        button::Status::Hovered => TOKYO_SURFACE,
+        _ => TOKYO_BG,
+    };
+
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: TOKYO_TEXT,
+        border: Border {
+            radius: 6.0.into(),
+            width: 1.0,
+            color: TOKYO_BORDER,
+        },
+        ..button::Style::default()
+    }
+}
+
 pub(crate) fn flat_button_style(text_color: Color) -> button::Style {
     button::Style {
         background: Some(Background::Color(Color::TRANSPARENT)),
@@ -72,10 +97,14 @@ pub(crate) fn menu_button_style(status: button::Status) -> button::Style {
 }
 
 pub(crate) fn step_button_style(status: button::Status) -> button::Style {
+    // Render the spinner arrows as inline glyphs: transparent background,
+    // no border. A subtle surface tint on hover/press is enough to signal
+    // interactivity without making them look like detached chips that sit
+    // on top of the input.
     let background = if is_button_active(status) {
-        TOKYO_SURFACE_3
+        Color::from_rgba8(0x36, 0x3B, 0x59, 0.45)
     } else {
-        TOKYO_SURFACE
+        Color::TRANSPARENT
     };
 
     button::Style {
@@ -83,8 +112,8 @@ pub(crate) fn step_button_style(status: button::Status) -> button::Style {
         text_color: TOKYO_TEXT,
         border: Border {
             radius: 3.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
+            width: 0.0,
+            color: Color::TRANSPARENT,
         },
         ..button::Style::default()
     }

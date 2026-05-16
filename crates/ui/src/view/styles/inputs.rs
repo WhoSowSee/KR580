@@ -6,15 +6,18 @@ use iced::widget::text_input;
 use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BLUE, TOKYO_BORDER, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED,
-    TOKYO_TEXT,
+    TOKYO_BG, TOKYO_BLUE, TOKYO_BORDER, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_TEXT,
 };
 
 pub(crate) fn input_style(_theme: &Theme, status: text_input::Status) -> text_input::Style {
+    // Only the focus ring is exposed: hover stays neutral so two different
+    // signals do not compete for the user's attention. The shell of the
+    // spinner inputs (`input_shell_style`) follows the same rule.
     let border_color = match status {
         text_input::Status::Focused { .. } => TOKYO_BLUE,
-        text_input::Status::Hovered => TOKYO_CYAN,
-        text_input::Status::Active | text_input::Status::Disabled => TOKYO_BORDER,
+        text_input::Status::Hovered | text_input::Status::Active | text_input::Status::Disabled => {
+            TOKYO_BORDER
+        }
     };
 
     text_input::Style {

@@ -45,6 +45,7 @@ impl DesktopApp {
                 cpu,
                 address,
                 selected == Some(address),
+                selected == Some(address.saturating_add(1)),
                 &self.memory_inline_value_input,
             ));
         }
@@ -123,6 +124,7 @@ fn memory_row<'a>(
     cpu: &Cpu8080State,
     address: u16,
     selected: bool,
+    next_selected: bool,
     inline_value_input: &'a str,
 ) -> Element<'a, Message> {
     let value = cpu.memory.read(address);
@@ -154,7 +156,19 @@ fn memory_row<'a>(
         .on_press(Message::MemorySelected(address))
         .into();
 
-    column![line, row_separator()].spacing(0).into()
+    // Hide the divider when this row or the row immediately below it is
+    // selected, so the rounded highlight has clear margins above and
+    // below instead of running into a horizontal line.
+    let separator: Element<'a, Message> = if selected || next_selected {
+        Space::new()
+            .width(Length::Fill)
+            .height(Length::Fixed(1.0))
+            .into()
+    } else {
+        row_separator()
+    };
+
+    column![line, separator].spacing(0).into()
 }
 
 fn cell_button(

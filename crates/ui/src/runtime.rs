@@ -81,7 +81,7 @@ impl DesktopApp {
 
     pub(crate) fn open_snapshot(&mut self) {
         if let Some(path) = rfd::FileDialog::new()
-            .add_filter("KR580 snapshot", &["580"])
+            .add_filter("KR580 file", &["580"])
             .pick_file()
         {
             self.dispatch(AppCommand::LoadSnapshot(path));
@@ -90,7 +90,7 @@ impl DesktopApp {
 
     pub(crate) fn save_snapshot(&mut self) {
         if let Some(path) = rfd::FileDialog::new()
-            .add_filter("KR580 snapshot", &["580"])
+            .add_filter("KR580 file", &["580"])
             .save_file()
         {
             self.dispatch(AppCommand::SaveSnapshot(path));
@@ -169,6 +169,25 @@ impl DesktopApp {
         }
     }
 
+    /// Plain Enter handler for the register editor: applies the typed
+    /// register value, cycles to the next/previous register, and keeps
+    /// focus inside the register editor (whichever of the two fields the
+    /// user was in). The memory list and the memory editor are not
+    /// touched.
+    pub(crate) fn apply_register_and_step(&mut self, backward: bool) -> Task<Message> {
+        let stay_on_value = self.focused_input == Some(REGISTER_VALUE_INPUT_ID);
+        self.apply_register();
+        let delta = if backward { -1 } else { 1 };
+        self.step_register(delta);
+        let target = if stay_on_value {
+            REGISTER_VALUE_INPUT_ID
+        } else {
+            REGISTER_NAME_INPUT_ID
+        };
+        self.focused_input = Some(target);
+        operation::focus(target)
+    }
+
     pub(crate) fn select_memory(&mut self, address: u16) {
         self.opcode_dropdown_address = None;
         self.opcode_search_input.clear();
@@ -184,26 +203,14 @@ impl DesktopApp {
         };
         self.select_memory(next);
 
-        let row_height = MEMORY_ROW_HEIGHT;
-        let viewport = self.memory_viewport_height;
-        let scroll = self.memory_scroll_offset;
-        if viewport <= 0.0 {
-            // Viewport size unknown yet (no MemoryScrolled has fired). Skip scrolling
-            // and leave the highlight where it is; iced will report viewport on the
-            // first scroll event.
+        if self.memory_viewport_height <= 0.0 {
+            // Viewport size unknown yet (no MemoryScrolled has fired). Skip
+            // scrolling and leave the highlight where it is; iced will
+            // report the viewport on the first scroll event.
             return Task::none();
         }
 
-        let row_top = next as f32 * row_height;
-        let row_bottom = row_top + row_height;
-        let view_top = scroll;
-        let view_bottom = scroll + viewport;
-
-        let target_offset = if row_top < view_top {
-            row_top
-        } else if row_bottom > view_bottom {
-            (row_bottom - viewport).max(0.0)
-        } else {
+        let Some(target_offset) = self.scroll_offset_to_reveal(next) else {
             return Task::none();
         };
 
@@ -285,6 +292,9 @@ impl DesktopApp {
         self.opcode_search_input.clear();
     }
 
+    /// Writes the typed byte to the typed address. Does not scroll the
+    /// memory list — callers that want the user moved to the new row must
+    /// chain a scroll task themselves (see `apply_memory_and_jump`).
     pub(crate) fn apply_memory(&mut self) -> Task<Message> {
         match (
             parse_hex_u16(&self.memory_address_input),
@@ -292,10 +302,8 @@ impl DesktopApp {
         ) {
             (Ok(address), Ok(value)) => {
                 self.memory_inline_value_input = format!("{value:02X}");
-                let target_offset = address as f32 * MEMORY_ROW_HEIGHT;
-                self.scroll_memory(target_offset);
                 self.dispatch(AppCommand::SetMemory(address, value));
-                scroll_memory_to(target_offset)
+                Task::none()
             }
             (Err(error), _) | (_, Err(error)) => {
                 self.status = error;
@@ -304,13 +312,38 @@ impl DesktopApp {
         }
     }
 
+    /// Plain Enter handler for the memory cell editor: writes the byte,
+    /// then advances/steps back the address input. The memory list is not
+    /// scrolled — Alt+Enter is the explicit "jump to this row" shortcut.
+    /// Focus stays on the value field so the user can keep typing the
+    /// next byte without reaching for the mouse.
+    pub(crate) fn apply_memory_and_step(&mut self, backward: bool) -> Task<Message> {
+        let write = self.apply_memory();
+        self.step_address_in_input(backward);
+        self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
+        write.chain(operation::focus(MEMORY_VALUE_INPUT_ID))
+    }
+
+    /// Alt+Enter handler for the memory value field: writes the byte and
+    /// jumps the memory list to the same address.
+    pub(crate) fn apply_memory_and_jump(&mut self) -> Task<Message> {
+        let write = self.apply_memory();
+        let jump = self.jump_memory_address();
+        write.chain(jump)
+    }
+
     pub(crate) fn jump_memory_address(&mut self) -> Task<Message> {
         match parse_hex_u16(&self.memory_address_input) {
             Ok(address) => {
                 self.refresh_memory_value(address);
-                let target_offset = address as f32 * MEMORY_ROW_HEIGHT;
-                self.scroll_memory(target_offset);
-                scroll_memory_to(target_offset)
+                // Only scroll if the target row is not already on screen,
+                // so Alt+Enter on a visible address keeps the list still
+                // instead of snapping the row to the top.
+                if let Some(target_offset) = self.scroll_offset_to_reveal(address) {
+                    self.scroll_memory(target_offset);
+                    return scroll_memory_to(target_offset);
+                }
+                Task::none()
             }
             Err(error) => {
                 self.status = error;
@@ -319,15 +352,73 @@ impl DesktopApp {
         }
     }
 
-    /// Walks the address space starting just after the currently selected
-    /// cell and stops on the first address whose 4-digit hex form contains
-    /// the cached search pattern. The pattern is captured from the address
-    /// input on the very first invocation; subsequent calls reuse it so the
-    /// user can iterate through every match (because each successful match
-    /// rewrites the address input with a full 4-digit hex code, which would
-    /// otherwise become the next search pattern). The search wraps around
-    /// the 64 KiB window and always advances by at least one address.
-    pub(crate) fn find_next_memory_address(&mut self) -> Task<Message> {
+    /// Returns the scroll offset that would bring the row containing
+    /// `address` into the visible portion of the memory list, or `None`
+    /// if the row is already on screen. Mirrors the visibility check used
+    /// by `step_memory_address` for ArrowUp/Down navigation.
+    fn scroll_offset_to_reveal(&self, address: u16) -> Option<f32> {
+        let viewport = self.memory_viewport_height;
+        if viewport <= 0.0 {
+            // No layout has been measured yet — fall back to scrolling
+            // unconditionally so the very first jump still lands on the
+            // requested row.
+            return Some(address as f32 * MEMORY_ROW_HEIGHT);
+        }
+
+        let row_top = address as f32 * MEMORY_ROW_HEIGHT;
+        let row_bottom = row_top + MEMORY_ROW_HEIGHT;
+        let view_top = self.memory_scroll_offset;
+        let view_bottom = view_top + viewport;
+
+        if row_top < view_top {
+            Some(row_top)
+        } else if row_bottom > view_bottom {
+            Some((row_bottom - viewport).max(0.0))
+        } else {
+            None
+        }
+    }
+
+    /// Steps the address shown in `memory_address_input` by one, wrapping
+    /// around the 64 KiB window. Refreshes the memory value input for the
+    /// new address, exits the search context, but **does not** scroll the
+    /// memory list and does not touch the focus. Callers decide which
+    /// input to leave focused.
+    fn step_address_in_input(&mut self, backward: bool) {
+        let current = parse_hex_u16(&self.memory_address_input).unwrap_or(0) as i32;
+        let total = MEMORY_ADDRESS_COUNT as i32;
+        let delta = if backward { -1 } else { 1 };
+        let next = ((current + delta).rem_euclid(total)) as u16;
+
+        self.memory_address_input = format!("{next:04X}");
+        self.refresh_memory_value(next);
+        // Plain Enter exits the search context: the user is now manually
+        // moving through addresses, not iterating over a pattern match.
+        self.memory_search_pattern = None;
+    }
+
+    /// Plain Enter handler from the address field: step the address by one
+    /// and keep the address input focused.
+    pub(crate) fn advance_memory_address(&mut self, backward: bool) -> Task<Message> {
+        self.step_address_in_input(backward);
+        self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
+        operation::focus(MEMORY_ADDRESS_INPUT_ID)
+    }
+
+    /// Walks the address space starting just after (or before) the
+    /// currently selected cell and stops on the first address whose
+    /// 4-digit hex form contains the cached search pattern. The pattern
+    /// is captured from the address input on the very first invocation;
+    /// subsequent calls reuse it so the user can iterate through every
+    /// match (because each successful match rewrites the address input
+    /// with a full 4-digit hex code, which would otherwise become the
+    /// next search pattern). The search wraps around the 64 KiB window
+    /// and always advances by at least one address in `backward`'s
+    /// direction.
+    pub(crate) fn find_next_memory_address_in_direction(
+        &mut self,
+        backward: bool,
+    ) -> Task<Message> {
         if self.memory_search_pattern.is_none() {
             let pattern = self.memory_address_input.trim().to_ascii_uppercase();
             if pattern.is_empty() {
@@ -345,12 +436,13 @@ impl DesktopApp {
             }
         };
 
-        let start = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
-        let total = MEMORY_ADDRESS_COUNT as u32;
+        let start = parse_hex_u16(&self.memory_address_input).unwrap_or(0) as i32;
+        let total = MEMORY_ADDRESS_COUNT as i32;
+        let direction = if backward { -1 } else { 1 };
 
         let mut next_match = None;
         for step in 1..=total {
-            let candidate = ((start as u32 + step) % total) as u16;
+            let candidate = ((start + direction * step).rem_euclid(total)) as u16;
             if format!("{candidate:04X}").contains(&pattern) {
                 next_match = Some(candidate);
                 break;
