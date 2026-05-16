@@ -4,14 +4,24 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 rust-version.workspace = true
+build = "build.rs"
 
 [dependencies]
 k580-app = { path = "../app" }
 k580-core = { path = "../core" }
-iced.workspace = true
+iced = { workspace = true, features = ["image"] }
 rfd.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+] }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
 
 [[bin]]
 name = "k580"
