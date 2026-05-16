@@ -8,7 +8,16 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `k580-devices`: `IoBus` for ports `00h..04h`, monitor, floppy, HDD, network, printer, device states, and non-blocking worker queues.
 - `k580-persistence`: versioned `.580` snapshots, raw `.krs` subprograms, JSON settings, and direct `.txt`/`.xlsx`/`.docx` exporters.
 - `k580-app`: application orchestration, crossbeam command/event actor, top-level dependency wiring, and file/export commands.
-- `k580-ui`: iced shell split into app state/update, runtime command/event helpers, and view rendering. It renders snapshots and sends commands. It does not own emulator state.
+- `k580-ui`: iced shell split into app state/update, runtime command/event helpers, view rendering, and a small Windows-only platform shim. It renders snapshots and sends commands. It does not own emulator state.
+
+## Repository layout
+
+- `crates/`: the workspace crates listed above.
+- `prompt/`: the implementation source of truth.
+- `docs/`: reference documentation (this directory).
+- `assets/icons/`: pre-rendered icon set consumed at build and run time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
+- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `assets/icons/` from the master image.
+- `target/`: cargo build artefacts (gitignored).
 
 ## Data flow
 
