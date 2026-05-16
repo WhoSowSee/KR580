@@ -1,10 +1,11 @@
 use crate::app::{
-    DesktopApp, MEMORY_ADDRESS_COUNT, MEMORY_OVERSCAN_ROWS, MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT,
-    MEMORY_SCROLL_ID, Message, register_name,
+    DesktopApp, MEMORY_ADDRESS_COUNT, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID,
+    MEMORY_OVERSCAN_ROWS, MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID,
+    MEMORY_VALUE_INPUT_ID, Message, REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID, register_name,
 };
 use iced::widget::{
-    Column, Row, Space, Text, button, column, container, opaque, row, scrollable, stack, text,
-    text_input,
+    Column, Row, Space, Text, button, column, container, mouse_area, opaque, row, scrollable,
+    stack, text, text_input,
 };
 use iced::{Background, Border, Color, Element, Font, Length, Padding, Theme, alignment};
 use k580_core::{Cpu8080State, RegisterName, decode_opcode};
@@ -270,11 +271,14 @@ impl DesktopApp {
             rows = rows.push(memory_spacer(MEMORY_ADDRESS_COUNT - render_end));
         }
 
+        let memory_scroll_reveal = self.memory_scroll_visible_ticks > 0;
         let scrollable_memory: Element<'_, Message> = scrollable(rows)
             .id(MEMORY_SCROLL_ID)
             .height(Length::Fill)
-            .style(scrollable_style)
-            .on_scroll(|viewport| Message::MemoryScrolled(viewport.absolute_offset().y))
+            .style(move |theme, status| scrollable_style(memory_scroll_reveal, theme, status))
+            .on_scroll(|viewport| {
+                Message::MemoryScrolled(viewport.absolute_offset().y, viewport.bounds().height)
+            })
             .into();
 
         let memory_body: Element<'_, Message> = if let Some(address) = self.opcode_dropdown_address
@@ -283,7 +287,12 @@ impl DesktopApp {
 
             stack(vec![
                 scrollable_memory,
-                opcode_dropdown_overlay(address, &self.opcode_search_input, top),
+                opcode_dropdown_overlay(
+                    address,
+                    &self.opcode_search_input,
+                    self.opcode_scroll_visible_ticks > 0,
+                    top,
+                ),
             ])
             .width(Length::Fill)
             .height(Length::Fill)
@@ -309,8 +318,12 @@ impl DesktopApp {
                 Message::MemoryAddressPrevious,
                 Length::Fixed(96.0),
                 Message::JumpMemoryAddress,
+                MEMORY_ADDRESS_INPUT_ID,
+                self.focused_input == Some(MEMORY_ADDRESS_INPUT_ID),
+                self.hovered_input == Some(MEMORY_ADDRESS_INPUT_ID),
             ),
             text_input("00", &self.memory_value_input)
+                .id(MEMORY_VALUE_INPUT_ID)
                 .on_input(Message::MemoryValueChanged)
                 .on_submit(Message::ApplyMemory)
                 .font(MONO_FONT)
@@ -341,8 +354,12 @@ impl DesktopApp {
                 Message::RegisterPrevious,
                 Length::Fixed(62.0),
                 Message::ApplyRegister,
+                REGISTER_NAME_INPUT_ID,
+                self.focused_input == Some(REGISTER_NAME_INPUT_ID),
+                self.hovered_input == Some(REGISTER_NAME_INPUT_ID),
             ),
             text_input("00", &self.register_value_input)
+                .id(REGISTER_VALUE_INPUT_ID)
                 .on_input(Message::RegisterValueChanged)
                 .on_submit(Message::ApplyRegister)
                 .font(MONO_FONT)
@@ -504,6 +521,7 @@ fn memory_value_cell<'a>(
 ) -> Element<'a, Message> {
     if selected {
         text_input("00", inline_value_input)
+            .id(MEMORY_INLINE_INPUT_ID)
             .on_input(move |value| Message::InlineMemoryValueChanged(address, value))
             .on_submit(Message::ApplyInlineMemoryValue(address))
             .font(MONO_FONT)
@@ -552,12 +570,17 @@ fn row_separator() -> Element<'static, Message> {
         .into()
 }
 
-fn opcode_dropdown_overlay<'a>(address: u16, search: &'a str, top: f32) -> Element<'a, Message> {
+fn opcode_dropdown_overlay<'a>(
+    address: u16,
+    search: &'a str,
+    reveal: bool,
+    top: f32,
+) -> Element<'a, Message> {
     column![
         Space::new().height(Length::Fixed(top)),
         row![
             Space::new().width(Length::Fill),
-            opaque(opcode_dropdown(address, search)),
+            opaque(opcode_dropdown(address, search, reveal)),
             Space::new().width(Length::Fixed(24.0)),
         ]
         .width(Length::Fill),
@@ -567,7 +590,7 @@ fn opcode_dropdown_overlay<'a>(address: u16, search: &'a str, top: f32) -> Eleme
     .into()
 }
 
-fn opcode_dropdown<'a>(address: u16, search: &'a str) -> Element<'a, Message> {
+fn opcode_dropdown<'a>(address: u16, search: &'a str, reveal: bool) -> Element<'a, Message> {
     let mut options = Column::new().spacing(0);
 
     for choice in filtered_opcode_choices(search) {
@@ -585,7 +608,8 @@ fn opcode_dropdown<'a>(address: u16, search: &'a str) -> Element<'a, Message> {
         row_separator(),
         scrollable(options)
             .height(Length::Fixed(172.0))
-            .style(scrollable_style),
+            .style(move |theme, status| scrollable_style(reveal, theme, status))
+            .on_scroll(|_| Message::OpcodeScrolled),
     ]
     .spacing(4);
 
@@ -877,6 +901,7 @@ fn bus_bar(label: impl Into<String>, accent: Color) -> Element<'static, Message>
     .into()
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spinner_text_input<'a>(
     placeholder: &'static str,
     value: &'a str,
@@ -885,10 +910,14 @@ fn spinner_text_input<'a>(
     down: Message,
     width: Length,
     on_submit: Message,
+    id: &'static str,
+    focused: bool,
+    hovered: bool,
 ) -> Element<'a, Message> {
-    container(
+    let shell: Element<'a, Message> = container(
         row![
             text_input(placeholder, value)
+                .id(id)
                 .on_input(on_input)
                 .on_submit(on_submit)
                 .font(MONO_FONT)
@@ -903,8 +932,13 @@ fn spinner_text_input<'a>(
         .align_y(alignment::Vertical::Center),
     )
     .width(width)
-    .style(input_shell_style)
-    .into()
+    .style(move |theme| input_shell_style(theme, focused, hovered))
+    .into();
+
+    mouse_area(shell)
+        .on_enter(Message::SpinnerHovered { id, hovered: true })
+        .on_exit(Message::SpinnerHovered { id, hovered: false })
+        .into()
 }
 
 fn step_button(label: &'static str, message: Message) -> Element<'static, Message> {
@@ -1006,8 +1040,19 @@ fn status_bar_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_SURFACE), 7.0, 1.0, TOKYO_BORDER)
 }
 
-fn input_shell_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BG), 6.0, 1.0, TOKYO_BORDER)
+fn input_shell_style(_theme: &Theme, focused: bool, hovered: bool) -> container::Style {
+    // Mirror the right-hand text input borders so the spinner blends in.
+    // Focused beats hovered because once a user has tabbed/clicked into the
+    // shell, the focus ring should win even if the cursor is still over it.
+    let border_color = if focused {
+        TOKYO_BLUE
+    } else if hovered {
+        TOKYO_CYAN
+    } else {
+        TOKYO_BORDER
+    };
+
+    surface_style(Some(TOKYO_BG), 6.0, 1.0, border_color)
 }
 
 fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
@@ -1245,7 +1290,7 @@ fn memory_row_container_style(selected: bool) -> container::Style {
     }
 }
 
-fn scrollable_style(theme: &Theme, status: scrollable::Status) -> scrollable::Style {
+fn scrollable_style(reveal: bool, theme: &Theme, status: scrollable::Status) -> scrollable::Style {
     const SCROLLER_HOVER: Color = Color::from_rgb(
         0x9A as f32 / 255.0,
         0xA5 as f32 / 255.0,
@@ -1263,6 +1308,17 @@ fn scrollable_style(theme: &Theme, status: scrollable::Status) -> scrollable::St
     style.horizontal_rail.background = None;
     style.horizontal_rail.border = Border::default();
 
+    let interacting = matches!(
+        status,
+        scrollable::Status::Hovered {
+            is_horizontal_scrollbar_hovered: true,
+            ..
+        } | scrollable::Status::Hovered {
+            is_vertical_scrollbar_hovered: true,
+            ..
+        } | scrollable::Status::Dragged { .. },
+    );
+
     let scroller_override = match status {
         scrollable::Status::Dragged { .. } => Some(SCROLLER_DRAG),
         scrollable::Status::Hovered {
@@ -1279,6 +1335,11 @@ fn scrollable_style(theme: &Theme, status: scrollable::Status) -> scrollable::St
     if let Some(color) = scroller_override {
         style.vertical_rail.scroller.background = Background::Color(color);
         style.horizontal_rail.scroller.background = Background::Color(color);
+    }
+
+    if !reveal && !interacting {
+        style.vertical_rail.scroller.background = Background::Color(Color::TRANSPARENT);
+        style.horizontal_rail.scroller.background = Background::Color(Color::TRANSPARENT);
     }
 
     style
