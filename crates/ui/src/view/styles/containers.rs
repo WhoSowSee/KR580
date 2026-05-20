@@ -75,12 +75,10 @@ pub(crate) fn input_shell_style(_theme: &Theme, focused: bool) -> container::Sty
 }
 
 pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
-    surface_style(
-        Some(Color::from_rgb8(0x19, 0x1B, 0x2A)),
-        7.0,
-        1.0,
-        TOKYO_BORDER,
-    )
+    // Match the surrounding board panels (memory list, register editor, etc.)
+    // so the floating picker reads as part of the same surface instead of a
+    // darker pop-up sitting on top of it.
+    surface_style(Some(TOKYO_BOARD), 7.0, 1.0, TOKYO_BORDER)
 }
 
 pub(crate) fn memory_row_container_style(selected: bool) -> container::Style {
