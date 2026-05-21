@@ -88,12 +88,16 @@ struct OpcodeChoice {
 }
 
 impl OpcodeChoice {
-    fn new(value: u8) -> Self {
-        let mnemonic = decode_opcode(value)
-            .map(|instruction| instruction.mnemonic)
-            .unwrap_or_else(|_| "UNDOC".to_owned());
-
-        Self { value, mnemonic }
+    /// Build an `OpcodeChoice` from a raw byte, or `None` if the byte
+    /// does not decode to a documented 8080 instruction. We deliberately
+    /// drop undocumented bytes from the picker entirely (instead of
+    /// listing them as `UNDOC`), because the user can never usefully
+    /// select one — the core refuses to execute them, and the
+    /// undocumented label was both visually noisy in the full list and
+    /// matched literal "UNDOC" searches as if it were a real mnemonic.
+    fn new(value: u8) -> Option<Self> {
+        let mnemonic = decode_opcode(value).ok()?.mnemonic;
+        Some(Self { value, mnemonic })
     }
 }
 
@@ -101,7 +105,7 @@ fn filtered_opcode_choices(search: &str) -> Vec<OpcodeChoice> {
     let search = search.trim().to_ascii_uppercase();
 
     (0..=u8::MAX)
-        .map(OpcodeChoice::new)
+        .filter_map(OpcodeChoice::new)
         .filter(|choice| {
             search.is_empty()
                 || format!("{:02X} {}", choice.value, choice.mnemonic)
