@@ -11,4 +11,4 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 rust_xlsxwriter.workspace = true
-docx-rs.workspace = true
+calamine.workspace = true

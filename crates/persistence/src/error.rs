@@ -34,8 +34,16 @@ pub enum ExportError {
     Io(#[from] std::io::Error),
     #[error("spreadsheet export error: {0}")]
     Spreadsheet(String),
-    #[error("document export error: {0}")]
-    Document(String),
+}
+
+#[derive(Debug, Error)]
+pub enum ImportError {
+    #[error("import I/O error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("spreadsheet import error: {0}")]
+    Spreadsheet(String),
+    #[error("malformed import file: {0}")]
+    Malformed(String),
 }
 
 #[derive(Debug, Error)]
@@ -46,6 +54,8 @@ pub enum PersistenceError {
     Settings(#[from] SettingsError),
     #[error(transparent)]
     Export(#[from] ExportError),
+    #[error(transparent)]
+    Import(#[from] ImportError),
     #[error("subprogram I/O error: {0}")]
     SubprogramIo(#[from] std::io::Error),
 }

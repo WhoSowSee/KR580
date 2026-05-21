@@ -1,7 +1,7 @@
 use k580_core::{Cpu8080State, Flags};
 use k580_persistence::{
-    ExportModel, Exporters, Settings, SettingsError, SettingsStore, Snapshot580Serializer,
-    SnapshotError, Subprogram, SubprogramSerializer,
+    ExportModel, Exporters, Importers, Settings, SettingsError, SettingsStore,
+    Snapshot580Serializer, SnapshotError, Subprogram, SubprogramSerializer,
 };
 use std::path::PathBuf;
 
@@ -132,26 +132,73 @@ fn exporters_write_stable_direct_files() {
     let mut cpu = Cpu8080State::default();
     cpu.registers.a = 0x42;
     cpu.memory.write(0, 0x76);
-    let model = ExportModel::from_cpu(&cpu, 0, 4);
+    let model = ExportModel::from_cpu(&cpu);
     let dir = unique_temp_dir();
     std::fs::create_dir_all(&dir).unwrap();
     let txt = dir.join("state.txt");
     let xlsx = dir.join("state.xlsx");
-    let docx = dir.join("state.docx");
 
     Exporters::write_txt(&txt, &model).unwrap();
     Exporters::write_xlsx(&xlsx, &model).unwrap();
-    Exporters::write_docx(&docx, &model).unwrap();
 
     let text = std::fs::read_to_string(&txt).unwrap();
     assert!(text.contains("[Registers]"));
     assert!(text.contains("A=42"));
     assert!(std::fs::metadata(&xlsx).unwrap().len() > 0);
-    assert!(std::fs::metadata(&docx).unwrap().len() > 0);
 
     std::fs::remove_file(txt).ok();
     std::fs::remove_file(xlsx).ok();
-    std::fs::remove_file(docx).ok();
+    std::fs::remove_dir(dir).ok();
+}
+
+#[test]
+fn importers_round_trip_txt_and_xlsx() {
+    let mut cpu = Cpu8080State::default();
+    cpu.registers.a = 0xA5;
+    cpu.registers.b = 0x12;
+    cpu.registers.c = 0x34;
+    cpu.pc = 0x1234;
+    cpu.sp = 0xABCD;
+    cpu.flags = Flags {
+        sign: true,
+        zero: false,
+        auxiliary_carry: true,
+        parity: false,
+        carry: true,
+    };
+    cpu.memory.write(0, 0x76);
+    cpu.memory.write(1, 0xC3);
+    cpu.memory.write(2, 0x00);
+    cpu.memory.write(3, 0x10);
+    cpu.cycle_count = 4242;
+
+    let model = ExportModel::from_cpu(&cpu);
+    let dir = unique_temp_dir();
+    std::fs::create_dir_all(&dir).unwrap();
+    let txt = dir.join("state.txt");
+    let xlsx = dir.join("state.xlsx");
+
+    Exporters::write_txt(&txt, &model).unwrap();
+    Exporters::write_xlsx(&xlsx, &model).unwrap();
+
+    let from_txt = Importers::read_txt(&txt).unwrap();
+    assert_eq!(from_txt, model);
+
+    let from_xlsx = Importers::read_xlsx(&xlsx).unwrap();
+    assert_eq!(from_xlsx, model);
+
+    let mut restored = Cpu8080State::default();
+    from_txt.apply_to(&mut restored).unwrap();
+    assert_eq!(restored.registers, cpu.registers);
+    assert_eq!(restored.flags, cpu.flags);
+    assert_eq!(restored.pc, cpu.pc);
+    assert_eq!(restored.sp, cpu.sp);
+    assert_eq!(restored.cycle_count, cpu.cycle_count);
+    assert_eq!(restored.memory.read(0), 0x76);
+    assert_eq!(restored.memory.read(3), 0x10);
+
+    std::fs::remove_file(txt).ok();
+    std::fs::remove_file(xlsx).ok();
     std::fs::remove_dir(dir).ok();
 }
 

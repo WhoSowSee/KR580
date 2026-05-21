@@ -9,8 +9,8 @@ use iced::{Color, Element, Length, Padding, alignment};
 use std::time::Duration;
 
 use super::styles::{
-    action_button_style, enter_button_style, input_borderless_style,
-    input_shell_style, inset_style, legend_label_style, panel_style, step_button_style,
+    action_button_style, enter_button_style, input_borderless_style, input_shell_style,
+    inset_style, legend_label_style, panel_style, step_button_style,
 };
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text, ui_text};
 use crate::app::Message;

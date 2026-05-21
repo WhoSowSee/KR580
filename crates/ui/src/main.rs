@@ -11,6 +11,7 @@ mod view;
 
 use app::DesktopApp;
 use iced::{Color, Size, Theme, theme, window};
+use std::path::PathBuf;
 
 /// Initial background painted by the OS before iced renders its first frame.
 /// Matches `TOKYO_BOARD` in `view.rs` so the launch flash blends into the UI.
@@ -31,25 +32,41 @@ fn main() -> iced::Result {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
-    iced::application(DesktopApp::new, DesktopApp::update, DesktopApp::view)
-        .title("KR580 Emulator")
-        .subscription(DesktopApp::subscription)
-        .theme(DesktopApp::theme)
-        .style(app_style)
-        .window(window::Settings {
-            size: Size::new(1180.0, 720.0),
-            maximized: false,
-            min_size: Some(Size::new(1180.0, 720.0)),
-            icon: window::icon::from_file_data(ICON_PNG, None).ok(),
-            // Start hidden so the OS does not flash a white frame before the
-            // first iced paint. `DesktopApp::update` re-shows the window via
-            // `window::set_mode(_, Windowed)` after the first `Tick`.
-            visible: false,
-            ..window::Settings::default()
-        })
-        .centered()
-        .antialiasing(true)
-        .run()
+    // When the OS launches us via "Open with → k580.exe" on a `.580`
+    // file (or the user runs `k580 path/to/snap.580` from a shell), the
+    // path arrives as `argv[1]`. Filter to existing files so a typo or
+    // a stale shortcut leaves us in the empty-state instead of bubbling
+    // a load error before iced even paints. The closure handed to
+    // `iced::application` clones the option per construction so iced can
+    // re-invoke the bootstrap if it ever needs to (current iced 0.14
+    // calls it exactly once, but the signature is `Fn`, not `FnOnce`).
+    let initial_snapshot_path: Option<PathBuf> = std::env::args()
+        .nth(1)
+        .map(PathBuf::from)
+        .filter(|path| path.is_file());
+    iced::application(
+        move || DesktopApp::with_initial_path(initial_snapshot_path.clone()),
+        DesktopApp::update,
+        DesktopApp::view,
+    )
+    .title("KR580 Emulator")
+    .subscription(DesktopApp::subscription)
+    .theme(DesktopApp::theme)
+    .style(app_style)
+    .window(window::Settings {
+        size: Size::new(1180.0, 720.0),
+        maximized: false,
+        min_size: Some(Size::new(1180.0, 720.0)),
+        icon: window::icon::from_file_data(ICON_PNG, None).ok(),
+        // Start hidden so the OS does not flash a white frame before the
+        // first iced paint. `DesktopApp::update` re-shows the window via
+        // `window::set_mode(_, Windowed)` after the first `Tick`.
+        visible: false,
+        ..window::Settings::default()
+    })
+    .centered()
+    .antialiasing(true)
+    .run()
 }
 
 fn app_style(_state: &DesktopApp, _theme: &Theme) -> theme::Style {

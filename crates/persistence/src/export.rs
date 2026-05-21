@@ -1,12 +1,10 @@
 use crate::ExportError;
-use docx_rs::{Docx, Paragraph, Run};
 use k580_core::Cpu8080State;
 use rust_xlsxwriter::Workbook;
 use std::path::Path;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ExportModel {
-    pub format_version: u32,
     pub registers: Vec<(String, String)>,
     pub flags: Vec<(String, bool)>,
     pub memory: Vec<(u16, u8)>,
@@ -15,7 +13,21 @@ pub struct ExportModel {
 pub struct Exporters;
 
 impl ExportModel {
-    pub fn from_cpu(state: &Cpu8080State, memory_start: u16, memory_len: usize) -> Self {
+    /// Builds an export model from the live CPU state. Memory is emitted
+    /// **sparsely**: only cells that differ from the default `0x00` are
+    /// included, scanning the full 64 KiB address space. The emulator
+    /// boots with a zeroed RAM, so `value != 0` is exactly the set of
+    /// bytes the user has actually touched (via `SetMemory`, snapshot
+    /// load, or import) — anything else is implicit and gets restored to
+    /// zero on import via `ExportModel::apply_to`.
+    ///
+    /// This replaces an earlier dense range (`0x0000..=0x00FF`) which
+    /// dumped the first 256 bytes regardless of content. The user
+    /// reported the dump was illogical — most rows were `0000=00` noise
+    /// that obscured the handful of actually-edited cells, and bytes
+    /// past `0x00FF` were silently lost. Scanning all 64 KiB with a
+    /// non-zero filter solves both problems at once.
+    pub fn from_cpu(state: &Cpu8080State) -> Self {
         let registers = vec![
             ("A".to_owned(), hex8(state.registers.a)),
             ("B".to_owned(), hex8(state.registers.b)),
@@ -35,12 +47,13 @@ impl ExportModel {
             ("P".to_owned(), state.flags.parity),
             ("CY".to_owned(), state.flags.carry),
         ];
-        let memory = (0..memory_len)
-            .map(|offset| memory_start.wrapping_add(offset as u16))
-            .map(|address| (address, state.memory.read(address)))
+        let memory = (0u16..=u16::MAX)
+            .filter_map(|address| {
+                let value = state.memory.read(address);
+                (value != 0).then_some((address, value))
+            })
             .collect();
         Self {
-            format_version: 1,
             registers,
             flags,
             memory,
@@ -56,93 +69,82 @@ impl Exporters {
 
     pub fn write_xlsx(path: impl AsRef<Path>, model: &ExportModel) -> Result<(), ExportError> {
         let mut workbook = Workbook::new();
-        {
-            let sheet = workbook.add_worksheet();
+        let sheet = workbook.add_worksheet();
+        sheet
+            .set_name("State")
+            .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
+        // One sheet, three sections stacked vertically: registers, then
+        // flags, then memory. Each section starts with its own header row
+        // (`Field/Value`, `Flag/Set`, `Address/Value`) and is separated
+        // from the next by a single blank row. The importer keys on the
+        // header row strings to switch sections, mirroring how
+        // `parse_txt` keys on `[Registers]` / `[Flags]` / `[Memory]`.
+        // Splitting into two sheets earlier was over-engineered: every
+        // user opens the file, sees one tab, scrolls. The second tab was
+        // pure friction.
+        let mut row: u32 = 0;
+        sheet
+            .write_string(row, 0, "Field")
+            .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
+        sheet
+            .write_string(row, 1, "Value")
+            .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
+        row += 1;
+        for (name, value) in &model.registers {
             sheet
-                .set_name("CPU")
+                .write_string(row, 0, name)
                 .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
             sheet
-                .write_string(0, 0, "Field")
+                .write_string(row, 1, value)
                 .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-            sheet
-                .write_string(0, 1, "Value")
-                .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-            for (row, (name, value)) in model.registers.iter().enumerate() {
-                let row = (row + 1) as u32;
-                sheet
-                    .write_string(row, 0, name)
-                    .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-                sheet
-                    .write_string(row, 1, value)
-                    .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-            }
-            let flag_start = model.registers.len() as u32 + 3;
-            sheet
-                .write_string(flag_start, 0, "Flag")
-                .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-            sheet
-                .write_string(flag_start, 1, "Set")
-                .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-            for (idx, (name, set)) in model.flags.iter().enumerate() {
-                let row = flag_start + idx as u32 + 1;
-                sheet
-                    .write_string(row, 0, name)
-                    .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-                sheet
-                    .write_string(row, 1, set.to_string())
-                    .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-            }
+            row += 1;
         }
-        {
-            let sheet = workbook.add_worksheet();
+        row += 1; // blank separator
+        sheet
+            .write_string(row, 0, "Flag")
+            .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
+        sheet
+            .write_string(row, 1, "Set")
+            .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
+        row += 1;
+        for (name, set) in &model.flags {
             sheet
-                .set_name("Memory")
+                .write_string(row, 0, name)
                 .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
             sheet
-                .write_string(0, 0, "Address")
+                .write_string(row, 1, set.to_string())
+                .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
+            row += 1;
+        }
+        row += 1; // blank separator
+        sheet
+            .write_string(row, 0, "Address")
+            .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
+        sheet
+            .write_string(row, 1, "Value")
+            .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
+        row += 1;
+        for (address, value) in &model.memory {
+            sheet
+                .write_string(row, 0, hex16(*address))
                 .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
             sheet
-                .write_string(0, 1, "Value")
+                .write_string(row, 1, hex8(*value))
                 .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-            for (idx, (address, value)) in model.memory.iter().enumerate() {
-                let row = (idx + 1) as u32;
-                sheet
-                    .write_string(row, 0, hex16(*address))
-                    .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-                sheet
-                    .write_string(row, 1, hex8(*value))
-                    .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-            }
+            row += 1;
         }
         workbook
             .save(path)
             .map_err(|e| ExportError::Spreadsheet(e.to_string()))
     }
 
-    pub fn write_docx(path: impl AsRef<Path>, model: &ExportModel) -> Result<(), ExportError> {
-        let mut doc = Docx::new().add_paragraph(heading("KR580 CPU State"));
-        doc = doc.add_paragraph(heading("Registers"));
-        for (name, value) in &model.registers {
-            doc = doc.add_paragraph(line(format!("{name}: {value}")));
-        }
-        doc = doc.add_paragraph(heading("Flags"));
-        for (name, set) in &model.flags {
-            doc = doc.add_paragraph(line(format!("{name}: {set}")));
-        }
-        doc = doc.add_paragraph(heading("Memory"));
-        for (address, value) in &model.memory {
-            doc = doc.add_paragraph(line(format!("{}: {}", hex16(*address), hex8(*value))));
-        }
-        let file = std::fs::File::create(path)?;
-        doc.build()
-            .pack(file)
-            .map_err(|e| ExportError::Document(e.to_string()))
-    }
-
+    /// Serialises the model as the human-readable TXT format. The output
+    /// is three sections — `[Registers]`, `[Flags]`, `[Memory]` — each
+    /// listing `key=value` pairs and separated by a blank line. No
+    /// banner, no version line: the format has a single shape and the
+    /// importer is the source of truth for what's parseable.
     pub fn to_text(model: &ExportModel) -> String {
         let mut out = String::new();
-        out.push_str("KR580 CPU State\n");
-        out.push_str(&format!("formatVersion: {}\n\n", model.format_version));
         out.push_str("[Registers]\n");
         for (name, value) in &model.registers {
             out.push_str(&format!("{name}={value}\n"));
@@ -159,18 +161,10 @@ impl Exporters {
     }
 }
 
-fn heading(text: impl Into<String>) -> Paragraph {
-    Paragraph::new().add_run(Run::new().bold().add_text(text.into()))
-}
-
-fn line(text: impl Into<String>) -> Paragraph {
-    Paragraph::new().add_run(Run::new().add_text(text.into()))
-}
-
-fn hex8(value: u8) -> String {
+pub(crate) fn hex8(value: u8) -> String {
     format!("{value:02X}")
 }
 
-fn hex16(value: u16) -> String {
+pub(crate) fn hex16(value: u16) -> String {
     format!("{value:04X}")
 }

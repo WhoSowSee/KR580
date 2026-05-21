@@ -8,6 +8,16 @@
 use iced::Point;
 use iced::keyboard;
 use k580_core::RegisterName;
+use std::path::PathBuf;
+
+/// Identifies a top-level dropdown in the menu bar. Only one menu may
+/// be open at a time, and the bar's `view` decides whether to render
+/// the floating panel by comparing this against `DesktopApp::open_menu`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MenuId {
+    /// "Файл" — new / open / save / save-as / export-submenu.
+    File,
+}
 
 #[derive(Clone, Debug)]
 pub(crate) enum Message {
@@ -21,8 +31,6 @@ pub(crate) enum Message {
     /// is never emitted; the same button reverts to `StepInstruction`.
     RestartProgram,
     StepTact,
-    Run,
-    Stop,
     /// Toggle the visual run/pause state of the action panel's leftmost
     /// button. Mirrors the reference KR-580 emulator: clicking the play
     /// glyph arms the "running" state (icon swaps to a red pause), and
@@ -35,10 +43,44 @@ pub(crate) enum Message {
     ResetCpu,
     ResetRam,
     OpenSnapshot,
+    /// Load a snapshot from a known path without opening a picker
+    /// dialog. Emitted at startup when the user double-clicks a `.580`
+    /// file in Explorer (the OS hands the path to us as `argv[1]`),
+    /// and could be reused in the future for any "open this specific
+    /// file" flow that bypasses the picker. The handler shares the
+    /// post-load reconciliation with `OpenSnapshot` so the spinner
+    /// and inline editor pick up the loaded PC.
+    LoadSnapshotFromPath(PathBuf),
     SaveSnapshot,
-    ExportTxt,
-    ExportXlsx,
-    ExportDocx,
+    /// "Сохранить как" entry from the File dropdown. Currently behaves
+    /// the same as `SaveSnapshot` because `rfd::FileDialog::save_file`
+    /// already opens a "save as" picker every time — we don't yet
+    /// remember a previously-used snapshot path. Wired as its own
+    /// message so the menu maps cleanly to user-visible labels and
+    /// future work can split the two without churning the menu code.
+    SaveSnapshotAs,
+    /// Wipe RAM and registers in one shot. Bound to "Новый файл" in
+    /// the File dropdown — the gesture mirrors "discard current work
+    /// and start with a blank slate", so we send both `ResetRam` and
+    /// `ResetCpu` to the worker.
+    NewFile,
+    /// Open a single save dialog that accepts both TXT and XLSX
+    /// (the two formats `Exporters` produce). The handler routes
+    /// the chosen path to the matching `AppCommand::ExportTxt` /
+    /// `AppCommand::ExportXlsx` based on the file extension picked
+    /// in the OS file dialog. Wired to "Экспорт" in the File menu —
+    /// the menu has no submenu for exports so the user picks the
+    /// format once, in the place where the OS already lets them
+    /// pick it (the file picker), instead of twice.
+    Export,
+    /// Open a single file picker that accepts both TXT and XLSX
+    /// (the two formats `Exporters` produce). The handler routes the
+    /// chosen path to the matching `AppCommand::ImportTxt` /
+    /// `AppCommand::ImportXlsx` based on the file extension. Wired
+    /// to "Импорт" in the File menu — the menu has no submenu for
+    /// imports so the user does not pick the format twice
+    /// (extension + dialog filter).
+    Import,
     RegisterSelected(RegisterName),
     RegisterNameChanged(String),
     RegisterPrevious,
@@ -144,4 +186,24 @@ pub(crate) enum Message {
     /// Iced has rendered a frame. After the second frame we know the wgpu
     /// surface is presenting our content, so we can safely uncloak.
     FrameRendered,
+    /// User clicked a top-level menu label in the menu bar. Toggles
+    /// the corresponding dropdown: opens it if no menu was open, closes
+    /// it if the same menu was already open, switches to the new menu
+    /// otherwise.
+    MenuToggled(MenuId),
+    /// Close any currently-open menu. Emitted by the scrim-`mouse_area`
+    /// that wraps the app while a dropdown is open (catches clicks in
+    /// dead space) and by every actionable menu item just before it
+    /// dispatches its real message, so the dropdown disappears before
+    /// whatever the item triggers (a file dialog, an emulator command,
+    /// …) takes over.
+    MenuClosed,
+    /// Run a list of messages in order on the next update tick. Used
+    /// by menu items so a single press can close the dropdown *and*
+    /// dispatch the action it represents — without this batch wrapper
+    /// the dropdown would still be visible for a frame or two while
+    /// the action's file dialog opened on top of it. The handler
+    /// drains the vector via `Task::batch(Task::done(...))`, which
+    /// preserves the original order.
+    MenuBatch(Vec<Message>),
 }

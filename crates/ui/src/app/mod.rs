@@ -19,12 +19,13 @@ pub(crate) use constants::{
     MEMORY_VALUE_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_ORDER, REGISTER_VALUE_INPUT_ID,
     parse_register_name, register_name,
 };
-pub(crate) use messages::Message;
+pub(crate) use messages::{MenuId, Message};
 
 use iced::{Point, event, keyboard, mouse, time};
 use iced::{Subscription, Task, Theme};
 use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use k580_core::RegisterName;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::platform;
@@ -84,11 +85,39 @@ pub(crate) struct DesktopApp {
     /// window cloaked (DWM-hidden on Windows) until the second frame so the
     /// OS never gets a chance to flash its default white client area.
     pub(crate) startup_frames_seen: u8,
+    /// Identifier of the top-level menu that is currently dropped down,
+    /// or `None` if the menu bar is at rest. Set by `MenuToggled` and
+    /// cleared by `MenuClosed`. The menu-bar view reads this to decide
+    /// whether to render the floating dropdown panel, and the root
+    /// `view` adds a transparent scrim that closes the menu on stray
+    /// clicks while it is open.
+    pub(crate) open_menu: Option<MenuId>,
+    /// Filesystem path of the snapshot that the user is currently
+    /// editing, set whenever `OpenSnapshot` succeeds and after every
+    /// successful `SaveSnapshot` / `SaveSnapshotAs`. With this stored,
+    /// "Сохранить" overwrites the file in place instead of asking the
+    /// user where to put it again — that is the gesture every desktop
+    /// app implements and the absence of it is exactly what the user
+    /// reported as "когда я нажимаю Сохранить, мне снова предлагают
+    /// сохранить, хотя я его уже открыл". `Сохранить как` ignores it
+    /// (and replaces it on success).
+    pub(crate) current_snapshot_path: Option<PathBuf>,
 }
 
 impl DesktopApp {
-    pub(crate) fn new() -> (Self, Task<Message>) {
+    /// Constructs the app and, when an initial snapshot path is given,
+    /// queues a `LoadSnapshotFromPath` task so the file is opened as
+    /// soon as the iced runtime starts pumping messages. This is the
+    /// entry point used by `main` when the OS hands us a `.580` file
+    /// via `argv[1]` — the user double-clicks the file in Explorer
+    /// and expects the emulator to come up already pointed at it.
+    /// Pass `None` for the normal "blank slate" launch.
+    pub(crate) fn with_initial_path(initial: Option<PathBuf>) -> (Self, Task<Message>) {
         let handle = spawn_emulator();
+        let startup_task = match initial {
+            Some(path) => Task::done(Message::LoadSnapshotFromPath(path)),
+            None => Task::none(),
+        };
         (
             Self {
                 handle,
@@ -114,8 +143,15 @@ impl DesktopApp {
                 running: false,
                 last_tact_was_boundary: false,
                 startup_frames_seen: 0,
+                open_menu: None,
+                // The path is set by `load_snapshot_from_path` on the
+                // first tick — pre-seeding here would just duplicate
+                // that write and add no observable behaviour, since
+                // the user cannot interact with the app before the
+                // startup task drains.
+                current_snapshot_path: None,
             },
-            Task::none(),
+            startup_task,
         )
     }
 
@@ -228,16 +264,31 @@ impl DesktopApp {
             Message::StepInstruction => return self.step_instruction_and_advance(),
             Message::RestartProgram => self.restart_program(),
             Message::StepTact => return self.step_tact_and_maybe_advance(),
-            Message::Run => self.dispatch(k580_app::AppCommand::Run),
-            Message::Stop => self.dispatch(k580_app::AppCommand::Stop),
             Message::ToggleRun => self.toggle_run(),
             Message::ResetCpu => self.dispatch(k580_app::AppCommand::ResetCpu),
             Message::ResetRam => self.dispatch(k580_app::AppCommand::ResetRam),
             Message::OpenSnapshot => self.open_snapshot(),
+            Message::LoadSnapshotFromPath(path) => self.load_snapshot_from_path(path),
             Message::SaveSnapshot => self.save_snapshot(),
-            Message::ExportTxt => self.export_txt(),
-            Message::ExportXlsx => self.export_xlsx(),
-            Message::ExportDocx => self.export_docx(),
+            Message::SaveSnapshotAs => self.save_snapshot_as(),
+            Message::NewFile => {
+                // Wipe RAM and registers in one shot. Order matters
+                // less than it looks because both reset commands fan
+                // out to the worker thread serially, but we send RAM
+                // first so the snapshot the user sees on the next
+                // tick is consistent with "blank slate, PC at 0".
+                self.dispatch(k580_app::AppCommand::ResetRam);
+                self.dispatch(k580_app::AppCommand::ResetCpu);
+                self.running = false;
+                // Drop the remembered snapshot path: a "new file" has
+                // no associated path on disk, so the next "Сохранить"
+                // must prompt for one — same behaviour as every text
+                // editor.
+                self.current_snapshot_path = None;
+                self.status = "Новый файл".to_owned();
+            }
+            Message::Export => self.export_file(),
+            Message::Import => self.import_file(),
             Message::RegisterSelected(register) => self.select_register(register),
             Message::RegisterNameChanged(value) => {
                 // Mirror focus into our cosmetic tracker so the shell
@@ -438,6 +489,33 @@ impl DesktopApp {
                         .discard();
                 }
             }
+            Message::MenuToggled(menu) => {
+                // Toggle: clicking the same label twice closes the
+                // dropdown, clicking a different label switches to
+                // it. Either way the export submenu collapses,
+                // because its visibility belongs to whatever
+                // top-level menu was open before — once we navigate
+                // away, leaving it expanded would resurrect stale
+                // state on the next "Файл" click.
+                self.open_menu = if self.open_menu == Some(menu) {
+                    None
+                } else {
+                    Some(menu)
+                };
+            }
+            Message::MenuClosed => {
+                self.open_menu = None;
+            }
+            Message::MenuBatch(messages) => {
+                // Fan a list of messages out into a `Task::batch` of
+                // `Task::done` calls. Iced runs the batched tasks in
+                // submission order, which is what lets a menu item
+                // close the dropdown first and *then* dispatch its
+                // real action — the user never sees the menu linger
+                // behind a file dialog or an emulator command.
+                let tasks = messages.into_iter().map(Task::done).collect::<Vec<_>>();
+                return Task::batch(tasks);
+            }
         }
         Task::none()
     }
@@ -461,6 +539,34 @@ impl DesktopApp {
                     }),
                     _,
                 ) => Some(Message::HideOpcodeDropdown),
+                // File-menu shortcuts. Match Ctrl-modified character keys
+                // *before* the Tab/arrow handlers and *unconditionally*
+                // (no `Status::Ignored` filter): we want Ctrl+S to save
+                // even when a `text_input` has focus, otherwise the user
+                // has to click out of every input first. We translate via
+                // `to_latin(physical_key)` so a Russian keyboard layout
+                // — where `н` sits on the physical N key — still resolves
+                // to `Some('n')` and fires the same shortcut.
+                (
+                    iced::Event::Keyboard(keyboard::Event::KeyPressed {
+                        key,
+                        physical_key,
+                        modifiers,
+                        ..
+                    }),
+                    _,
+                ) if modifiers.command() => {
+                    let latin = key.to_latin(physical_key)?;
+                    match (latin, modifiers.shift()) {
+                        ('n', false) => Some(Message::NewFile),
+                        ('o', false) => Some(Message::OpenSnapshot),
+                        ('s', false) => Some(Message::SaveSnapshot),
+                        ('s', true) => Some(Message::SaveSnapshotAs),
+                        ('i', false) => Some(Message::Import),
+                        ('e', false) => Some(Message::Export),
+                        _ => None,
+                    }
+                }
                 (
                     iced::Event::Keyboard(keyboard::Event::KeyPressed {
                         key: keyboard::Key::Named(keyboard::key::Named::Tab),

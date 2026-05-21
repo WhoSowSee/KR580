@@ -23,7 +23,8 @@ pub enum AppCommand {
     SetMemory(u16, u8),
     ExportTxt(PathBuf),
     ExportXlsx(PathBuf),
-    ExportDocx(PathBuf),
+    ImportTxt(PathBuf),
+    ImportXlsx(PathBuf),
     Shutdown,
 }
 

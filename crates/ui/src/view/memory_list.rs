@@ -186,10 +186,7 @@ fn memory_row<'a>(
             container(Space::new())
                 .height(Length::Fixed(1.0))
                 .width(Length::Fill)
-                .style(|_theme| solid_style(
-                    iced::Color::from_rgba8(0x41, 0x48, 0x68, 0.26),
-                    0.0
-                )),
+                .style(|_theme| solid_style(iced::Color::from_rgba8(0x41, 0x48, 0x68, 0.26), 0.0)),
         ]
         .into()
     };

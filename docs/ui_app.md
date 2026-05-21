@@ -10,9 +10,9 @@
 Register and memory edits are parsed and validated before commands are
 sent.
 
-Native file dialogs use `rfd`. The UI exposes `.580` open/save and `.txt`,
-`.xlsx`, `.docx` export actions. It does not serialize files, run CPU
-instructions directly, or store emulator state in widgets.
+Native file dialogs use `rfd`. The UI exposes `.580` open/save and
+`.txt`/`.xlsx` export and import actions. It does not serialize files,
+run CPU instructions directly, or store emulator state in widgets.
 
 ## UI module split
 

@@ -36,6 +36,12 @@ impl From<k580_persistence::ExportError> for AppError {
     }
 }
 
+impl From<k580_persistence::ImportError> for AppError {
+    fn from(value: k580_persistence::ImportError) -> Self {
+        Self::Persistence(value.to_string())
+    }
+}
+
 impl From<std::io::Error> for AppError {
     fn from(value: std::io::Error) -> Self {
         Self::Io(value.to_string())

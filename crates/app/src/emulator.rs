@@ -1,7 +1,9 @@
 use crate::{AppCommand, AppError, AppEvent, AppSnapshot};
 use k580_core::{Cpu8080State, PortBus};
 use k580_devices::IoBus;
-use k580_persistence::{ExportModel, Exporters, Snapshot580Serializer, SubprogramSerializer};
+use k580_persistence::{
+    ExportModel, Exporters, Importers, Snapshot580Serializer, SubprogramSerializer,
+};
 
 #[derive(Debug, Default)]
 pub struct Emulator {
@@ -97,7 +99,14 @@ impl Emulator {
             }
             AppCommand::ExportTxt(path) => Exporters::write_txt(path, &self.export_model())?,
             AppCommand::ExportXlsx(path) => Exporters::write_xlsx(path, &self.export_model())?,
-            AppCommand::ExportDocx(path) => Exporters::write_docx(path, &self.export_model())?,
+            AppCommand::ImportTxt(path) => {
+                let model = Importers::read_txt(path)?;
+                model.apply_to(&mut self.cpu)?;
+            }
+            AppCommand::ImportXlsx(path) => {
+                let model = Importers::read_xlsx(path)?;
+                model.apply_to(&mut self.cpu)?;
+            }
             AppCommand::Shutdown => events.push(AppEvent::Stopped),
         }
         if self.cpu.halted {
@@ -107,6 +116,6 @@ impl Emulator {
     }
 
     fn export_model(&self) -> ExportModel {
-        ExportModel::from_cpu(&self.cpu, 0, 256)
+        ExportModel::from_cpu(&self.cpu)
     }
 }

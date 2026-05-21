@@ -10,9 +10,7 @@ use iced::{Element, Length, Padding, alignment};
 use super::icons;
 use super::styles::{input_borderless_style, input_shell_style};
 use super::theme::{MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_RED, TOKYO_YELLOW};
-use super::widgets::{
-    enter_button, icon_action_button, legend_panel, spinner_text_input,
-};
+use super::widgets::{enter_button, icon_action_button, legend_panel, spinner_text_input};
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message, REGISTER_NAME_INPUT_ID,
     REGISTER_VALUE_INPUT_ID,

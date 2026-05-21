@@ -18,8 +18,9 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
   handling, Tokio TCP worker roundtrip, and printer spool/export
   behavior.
 - `k580-persistence`: `.580` roundtrip/determinism/header validation,
-  raw `.krs` behavior, settings JSON versioning, and `.txt`/`.xlsx`/
-  `.docx` direct exporters.
+  raw `.krs` behavior, settings JSON versioning, `.txt`/`.xlsx`
+  direct exporters, and `.txt`/`.xlsx` importers (round-trip an
+  `ExportModel` back into a `Cpu8080State`).
 - `k580-app`: command-mediated state mutation and actor event
   publication.
 

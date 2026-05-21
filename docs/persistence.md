@@ -28,7 +28,10 @@ Settings are UTF-8 JSON with `settingsVersion: 1` and top-level `network`, `stor
 Exporters use direct generators and never scrape UI widgets:
 
 - `.txt`: stable plain-text sections;
-- `.xlsx`: `rust_xlsxwriter` workbook with stable `CPU` and `Memory` sheets;
-- `.docx`: `docx-rs` document with stable sections.
+- `.xlsx`: `rust_xlsxwriter` workbook with stable `CPU` and `Memory` sheets.
 
-The UI exposes all three export actions, and `k580-app` routes them through the same `ExportModel` built from core state.
+The UI exposes both export actions, and `k580-app` routes them through the same `ExportModel` built from core state.
+
+## Imports
+
+`k580-persistence::Importers` round-trips the same two formats back into an `ExportModel`, and `ExportModel::apply_to(&mut Cpu8080State)` writes the parsed registers, flags, and memory cells into a CPU state. The XLSX reader uses `calamine`; the TXT reader parses the same `[Registers]/[Flags]/[Memory]` sections that the exporter emits, so a file written by `Exporters::write_txt` reloads byte-for-byte.
