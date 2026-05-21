@@ -6,20 +6,19 @@
 //! user opens it.
 
 use iced::widget::{
-    Column, Space, Text, button, column, container, mouse_area, row, scrollable, stack, text_input,
+    Column, Space, Text, column, container, mouse_area, row, scrollable, stack, text_input,
 };
 use iced::{Element, Length, alignment};
 use k580_core::{Cpu8080State, decode_opcode};
 
 use super::opcode_dropdown::opcode_dropdown_overlay;
 use super::styles::{
-    cell_button_style, inline_value_input_style, memory_row_container_style, scrollable_style,
-    transparent_style, value_button_style,
+    inline_value_input_style, memory_row_container_style, scrollable_style, solid_style,
+    transparent_style,
 };
 use super::theme::{
     MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text,
 };
-use super::utils::row_separator;
 use super::widgets::legend_panel;
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_COUNT, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
@@ -105,7 +104,7 @@ fn memory_header() -> Element<'static, Message> {
                 .width(Length::FillPortion(1))
                 .align_x(alignment::Horizontal::Center),
         ]
-        .spacing(6),
+        .spacing(0),
     )
     .padding(5)
     .width(Length::Fill)
@@ -143,55 +142,114 @@ fn memory_row<'a>(
         .unwrap_or_else(|_| "-".to_owned());
     let accent = if selected { TOKYO_BLUE } else { TOKYO_MUTED };
 
-    let line: Element<'a, Message> = container(
+    // The cells fill the entire row height (including the strip where
+    // the 1-pixel separator is painted). Each cell's `mouse_area` is
+    // `Length::Fill`, so clicks on the bottom-edge pixel land on
+    // whichever cell is directly above them — the separator itself is
+    // a purely cosmetic overlay.
+    let cells_row: Element<'a, Message> = container(
         row![
-            cell_button(
-                mono_text(format!("{address:04X}"), 14, accent),
-                Length::FillPortion(1),
-                Message::MemorySelected(address),
-            ),
+            address_cell(address, accent),
             memory_value_cell(value, address, selected, inline_value_input),
-            command_cell_button(command, address),
+            command_cell(command, address),
         ]
-        .spacing(6)
+        .spacing(0)
         .align_y(alignment::Vertical::Center),
     )
-    .padding(4)
-    .height(Length::Fixed(MEMORY_ROW_HEIGHT - 1.0))
+    .height(Length::Fixed(MEMORY_ROW_HEIGHT))
     .width(Length::Fill)
     .style(move |_theme| memory_row_container_style(selected))
     .into();
 
-    let line: Element<'a, Message> = mouse_area(line)
-        .on_press(Message::MemorySelected(address))
-        .into();
-
-    // Hide the divider when this row or the row immediately below it is
-    // selected, so the rounded highlight has clear margins above and
-    // below instead of running into a horizontal line.
-    let separator: Element<'a, Message> = if selected || next_selected {
+    // The 1-pixel divider between rows used to live in its own
+    // `mouse_area` underneath the row. That worked but added a third
+    // hit-tested element per row, and a separate dispatch path for
+    // separator clicks. Now the cells_row owns the full
+    // `MEMORY_ROW_HEIGHT`, and we just paint a 1-pixel line on top of
+    // it via a non-interactive `container`. `container` does not
+    // capture pointer events, so a click landing on the separator
+    // pixel falls straight through to whichever cell `mouse_area` sits
+    // beneath it — the cell takes the gesture and routes it through
+    // its own `on_press` / `on_double_click`. When the current row or
+    // the row below it is selected we hide the line entirely so the
+    // rounded highlight doesn't bump into a horizontal stripe.
+    let separator_overlay: Element<'a, Message> = if selected || next_selected {
         Space::new()
             .width(Length::Fill)
-            .height(Length::Fixed(1.0))
+            .height(Length::Fixed(MEMORY_ROW_HEIGHT))
             .into()
     } else {
-        row_separator()
+        column![
+            Space::new()
+                .width(Length::Fill)
+                .height(Length::Fixed(MEMORY_ROW_HEIGHT - 1.0)),
+            container(Space::new())
+                .height(Length::Fixed(1.0))
+                .width(Length::Fill)
+                .style(|_theme| solid_style(
+                    iced::Color::from_rgba8(0x41, 0x48, 0x68, 0.26),
+                    0.0
+                )),
+        ]
+        .into()
     };
 
-    column![line, separator].spacing(0).into()
+    stack![cells_row, separator_overlay]
+        .width(Length::Fill)
+        .height(Length::Fixed(MEMORY_ROW_HEIGHT))
+        .into()
 }
 
-fn cell_button(
-    content: Text<'static>,
-    width: Length,
-    message: Message,
-) -> Element<'static, Message> {
-    button(content.width(width).align_x(alignment::Horizontal::Center))
-        .on_press(message)
-        .padding(0)
-        .width(width)
-        .style(move |_theme, status| cell_button_style(status))
+/// Wraps a centred text in a `mouse_area` that fires `on_press` on a
+/// single click and `on_double_click` on a double click, with a fixed
+/// `FillPortion(1)` width so all three columns line up. The reason we
+/// don't use `button` for the address/command cells: `button::update`
+/// captures `ButtonPressed`, and `mouse_area::update` returns early on
+/// `shell.is_event_captured()` — so wrapping a row of buttons in an
+/// outer `mouse_area` would make the outer one blind to every click.
+/// Switching to `mouse_area` per cell lets each cell route its own
+/// gestures (single click, double click) independently while still
+/// leaving the press uncaptured for sibling listeners.
+fn cell_mouse_area<'a>(
+    label: Text<'a>,
+    on_press: Message,
+    on_double_click: Message,
+) -> Element<'a, Message> {
+    let body = container(
+        label
+            .width(Length::Fill)
+            .align_x(alignment::Horizontal::Center),
+    )
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .align_y(alignment::Vertical::Center);
+    mouse_area(body)
+        .on_press(on_press)
+        .on_double_click(on_double_click)
+        .interaction(iced::mouse::Interaction::Pointer)
         .into()
+}
+
+fn address_cell(address: u16, accent: iced::Color) -> Element<'static, Message> {
+    container(cell_mouse_area(
+        mono_text(format!("{address:04X}"), 14, accent),
+        Message::MemorySelected(address),
+        Message::MemoryEnter(address),
+    ))
+    .width(Length::FillPortion(1))
+    .height(Length::Fill)
+    .into()
+}
+
+fn command_cell(command: String, address: u16) -> Element<'static, Message> {
+    container(cell_mouse_area(
+        mono_text(command, 14, TOKYO_TEXT),
+        Message::OpcodeDropdownToggled(address),
+        Message::MemoryEnter(address),
+    ))
+    .width(Length::FillPortion(1))
+    .height(Length::Fill)
+    .into()
 }
 
 fn memory_value_cell<'a>(
@@ -221,28 +279,19 @@ fn memory_value_cell<'a>(
 }
 
 fn value_cell_button(value: u8, address: u16) -> Element<'static, Message> {
-    button(
-        mono_text(format!("{value:02X}"), 14, TOKYO_GREEN)
-            .width(Length::Fill)
-            .align_x(alignment::Horizontal::Center),
-    )
-    .on_press(Message::MemorySelected(address))
-    .padding(0)
+    container(cell_mouse_area(
+        mono_text(format!("{value:02X}"), 14, TOKYO_GREEN),
+        // Single click on the value column unambiguously means "let me
+        // type here", so it goes straight to `MemoryEnter` (select +
+        // focus the inline editor). Double-click does the same thing,
+        // which makes the gesture forgiving — clicking twice quickly
+        // still ends up in editing mode instead of falling back to
+        // bare selection.
+        Message::MemoryEnter(address),
+        Message::MemoryEnter(address),
+    ))
     .width(Length::FillPortion(1))
-    .style(move |_theme, status| value_button_style(status))
-    .into()
-}
-
-fn command_cell_button(command: String, address: u16) -> Element<'static, Message> {
-    button(
-        mono_text(command, 14, TOKYO_TEXT)
-            .width(Length::Fill)
-            .align_x(alignment::Horizontal::Center),
-    )
-    .on_press(Message::OpcodeDropdownToggled(address))
-    .padding(0)
-    .width(Length::FillPortion(1))
-    .style(move |_theme, status| cell_button_style(status))
+    .height(Length::Fill)
     .into()
 }
 

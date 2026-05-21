@@ -21,8 +21,8 @@ pub(crate) use constants::{
 };
 pub(crate) use messages::Message;
 
+use iced::{Point, event, keyboard, mouse, time};
 use iced::{Subscription, Task, Theme};
-use iced::{event, keyboard, time};
 use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use k580_core::RegisterName;
 use std::time::Duration;
@@ -62,6 +62,15 @@ pub(crate) struct DesktopApp {
     /// we sync this from any signal that implies focus (typing, Tab
     /// navigation, explicit focus tasks).
     pub(crate) focused_input: Option<&'static str>,
+    /// Latest known cursor position, refreshed on every
+    /// `mouse::Event::CursorMoved` from the global event listener. The
+    /// `MousePressed` handler uses this to reconcile focus state against
+    /// the click coordinates, because `mouse::Event::ButtonPressed` only
+    /// carries the button identity. Defaults to the origin until iced
+    /// reports the first cursor movement; in practice the user has to
+    /// move the cursor before they can click anything, so the default
+    /// is never observed.
+    pub(crate) latest_cursor_position: Point,
     /// Visual "armed" state of the action panel's run/pause toggle.
     /// Decoupled from `AppCommand::Run` dispatch (see `Message::ToggleRun`)
     /// so empty pages never burn 100k T-states on a stray click.
@@ -101,6 +110,7 @@ impl DesktopApp {
                 memory_search_pattern: None,
                 keyboard_modifiers: keyboard::Modifiers::default(),
                 focused_input: None,
+                latest_cursor_position: Point::ORIGIN,
                 running: false,
                 last_tact_was_boundary: false,
                 startup_frames_seen: 0,
@@ -117,14 +127,53 @@ impl DesktopApp {
                     self.memory_scroll_visible_ticks.saturating_sub(1);
                 self.opcode_scroll_visible_ticks =
                     self.opcode_scroll_visible_ticks.saturating_sub(1);
-                // Poll iced for the currently focused widget. `find_focused`
-                // emits at most one id, but `collect()` always finishes with
-                // a `Vec` (possibly empty), giving us a single deterministic
-                // `FocusPolled` message every tick.
-                use iced::advanced::widget::operation::focusable::find_focused;
-                return iced::advanced::widget::operate(find_focused())
-                    .collect()
-                    .map(Message::FocusPolled);
+            }
+            Message::CursorMoved(point) => {
+                // Cache the latest cursor position so the next
+                // `MousePressed` knows where the click landed. The
+                // mouse::Event::ButtonPressed variant carries only
+                // the button identity, not the coordinates, so we
+                // have to track them ourselves.
+                self.latest_cursor_position = point;
+            }
+            Message::MousePressed => {
+                // Authoritative focus reconciliation: walk the
+                // widget tree, leave the focusable under the cursor
+                // alone, and clear `state.is_focused` on every
+                // other focusable. This bypasses iced's per-widget
+                // event propagation, which the column→stack
+                // capture race in `runtime::focus_ops` makes
+                // unreliable across sibling panels. The result
+                // comes back as `FocusReconciled` so we can update
+                // the cosmetic indicator from the same coordinates
+                // we used to drive the actual state mutation.
+                return iced::advanced::widget::operate(crate::runtime::reconcile_focus_at(
+                    self.latest_cursor_position,
+                ))
+                .map(Message::FocusReconciled);
+            }
+            Message::FocusReconciled(hit) => {
+                const TRACKED: [&str; 5] = [
+                    MEMORY_ADDRESS_INPUT_ID,
+                    MEMORY_VALUE_INPUT_ID,
+                    REGISTER_NAME_INPUT_ID,
+                    REGISTER_VALUE_INPUT_ID,
+                    MEMORY_INLINE_INPUT_ID,
+                ];
+
+                // Map the bare `Id` back to one of our static string
+                // identifiers so the cosmetic shell border can index
+                // into its own table. Untracked focusables (the
+                // opcode-search input, for example, which is unkeyed)
+                // resolve to `None` and clear the indicator entirely
+                // — the user clicked into a region we don't decorate
+                // with a focus ring.
+                let resolved = hit.as_ref().and_then(|id| {
+                    TRACKED
+                        .into_iter()
+                        .find(|known| *id == iced::widget::Id::new(known))
+                });
+                self.focused_input = resolved;
             }
             Message::StepInstruction => return self.step_instruction_and_advance(),
             Message::RestartProgram => self.restart_program(),
@@ -141,14 +190,27 @@ impl DesktopApp {
             Message::ExportDocx => self.export_docx(),
             Message::RegisterSelected(register) => self.select_register(register),
             Message::RegisterNameChanged(value) => {
-                self.focused_input = Some(REGISTER_NAME_INPUT_ID);
+                // Mirror focus into our cosmetic tracker so the shell
+                // border updates the same frame the user starts typing.
+                // `MousePressed` -> `reconcile_focus_at` already does
+                // this on click; this write covers the case where the
+                // user reaches the field via Tab and starts typing
+                // before the next click event arrives.
                 self.change_register_name(value);
+                self.focused_input = Some(REGISTER_NAME_INPUT_ID);
             }
             Message::RegisterPrevious => self.step_register(-1),
             Message::RegisterNext => self.step_register(1),
             Message::RegisterValueChanged(value) => {
-                self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
+                // See RegisterNameChanged — same rationale. We
+                // deliberately do NOT return any focus operation here:
+                // operations from `*Changed` handlers are queued and
+                // can drain after the user has clicked into a different
+                // panel, which would steal focus from the freshly
+                // clicked input. The authoritative focus mutation
+                // happens in `MousePressed` -> `reconcile_focus_at`.
                 self.change_register_value(value);
+                self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
             }
             Message::ApplyRegister => {
                 if self.keyboard_modifiers.command() {
@@ -158,8 +220,48 @@ impl DesktopApp {
                 return self.apply_register_and_step(self.keyboard_modifiers.shift());
             }
             Message::MemorySelected(address) => {
-                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+                // Single-click on the row: only move the highlight.
+                // Focus stays where it was, so the user does not get
+                // dropped into editing mode by an accidental click on
+                // the address or command columns. To start editing,
+                // they have to click the value column directly or
+                // double-click the row.
                 self.select_memory(address);
+            }
+            Message::MemoryEnter(address) => {
+                // Either a double-click on the row or a single-click on
+                // the value cell — both gestures unambiguously mean
+                // "I want to type a new byte here".
+                //
+                // We can't focus the inline editor synchronously: the
+                // very same `ButtonPressed` that triggered this message
+                // also fires `Message::MousePressed` from the global
+                // `event::listen_with` subscription, which dispatches
+                // `reconcile_focus_at(cursor)` and clears focus from
+                // every focusable whose bounds don't contain the click
+                // point. For double-clicks on the address or command
+                // columns the click point is *outside* the inline
+                // editor's bounds, so a synchronously-issued
+                // `operation::focus` would be promptly undone by the
+                // reconcile pass.
+                //
+                // Bouncing through `RefocusInline` defers the focus to
+                // the next update tick, well after the reconcile has
+                // run. The cosmetic tracker is set immediately so the
+                // shell border updates the same frame.
+                self.select_memory(address);
+                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+                return Task::done(Message::RefocusInline);
+            }
+            Message::RefocusInline => {
+                // Deferred follow-up to ArrowUp/ArrowDown inside the
+                // inline editor: by the time this message lands the
+                // row at the new address has been laid out, so the
+                // freshly-spawned `text_input` is in the tree and the
+                // focus operation can target it. The cosmetic tracker
+                // is already correct since we never changed it during
+                // the step.
+                return iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID);
             }
             Message::MemoryAddressPrevious => return self.step_memory_address(-1),
             Message::MemoryAddressNext => return self.step_memory_address(1),
@@ -189,16 +291,21 @@ impl DesktopApp {
                 return self.advance_memory_address(self.keyboard_modifiers.shift());
             }
             Message::MemoryAddressChanged(value) => {
-                self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
+                // See RegisterNameChanged — same rationale. Mirror
+                // focus for cosmetic styling, but do not return any
+                // focus operation: queued ops would race with later
+                // clicks and steal focus from the freshly clicked
+                // input.
                 self.change_memory_address(value);
+                self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
             }
             Message::MemoryValueChanged(value) => {
-                self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
                 self.change_memory_value(value);
+                self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
             }
             Message::InlineMemoryValueChanged(address, value) => {
+                self.change_inline_memory_value(address, value);
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
-                self.change_inline_memory_value(address, value)
             }
             Message::ApplyInlineMemoryValue(address) => {
                 let backward = self.keyboard_modifiers.shift();
@@ -208,7 +315,6 @@ impl DesktopApp {
                 // address, which would normally drop focus. Re-focus it
                 // here so the user can keep typing the next byte without
                 // reaching for the mouse.
-                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
                 return step.chain(iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID));
             }
             Message::OpcodeDropdownToggled(address) => self.toggle_opcode_dropdown(address),
@@ -256,29 +362,6 @@ impl DesktopApp {
             }
             Message::FocusResolved { focused, backward } => {
                 return self.cycle_focus(focused, backward);
-            }
-            Message::FocusPolled(ids) => {
-                const TRACKED: [&str; 5] = [
-                    MEMORY_ADDRESS_INPUT_ID,
-                    MEMORY_VALUE_INPUT_ID,
-                    REGISTER_NAME_INPUT_ID,
-                    REGISTER_VALUE_INPUT_ID,
-                    MEMORY_INLINE_INPUT_ID,
-                ];
-                let resolved = ids.into_iter().find_map(|id| {
-                    TRACKED
-                        .into_iter()
-                        .find(|known| id == iced::widget::Id::new(known))
-                });
-                // Only refresh the cache when the poll points at one of
-                // *our* tracked inputs. If iced reports nothing or focus
-                // landed on something else (a spinner button, the apply
-                // button, etc.), keep the last known input — otherwise
-                // the brief blur from a button click would race the next
-                // Enter handler and forget which field the user was in.
-                if let Some(id) = resolved {
-                    self.focused_input = Some(id);
-                }
             }
             Message::WindowOpened(id) => {
                 // Cloak immediately, then unhide the window. Because the
@@ -360,6 +443,29 @@ impl DesktopApp {
                     }
                     _ => None,
                 },
+                // Track the cursor on every move regardless of whether
+                // a widget captured the event — we need the latest
+                // position cached so the next `ButtonPressed` knows
+                // where the click landed. CursorMoved events fire
+                // continuously during dragging, but the message
+                // handler is a single field write so the cost is
+                // negligible.
+                (iced::Event::Mouse(mouse::Event::CursorMoved { position }), _) => {
+                    Some(Message::CursorMoved(position))
+                }
+                // Fire reconciliation on every left mouse press,
+                // regardless of capture status. Listening to captured
+                // presses is the whole point: when text_input::update
+                // captures a press inside panel A's input, the column
+                // still propagates to panel B's stack, but B's stack
+                // bails out and B's text_inputs never see the click.
+                // The reconcile pass walks the tree from the outside
+                // and clears every focusable not under the cursor,
+                // fixing whatever stale state the broken propagation
+                // left behind.
+                (iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)), _) => {
+                    Some(Message::MousePressed)
+                }
                 _ => None,
             }),
         ];
@@ -395,7 +501,37 @@ impl DesktopApp {
                 self.step_memory_value_input(direction);
                 Task::none()
             }
-            Some(MEMORY_INLINE_INPUT_ID) => self.step_memory_address(-direction),
+            Some(MEMORY_INLINE_INPUT_ID) => {
+                // Stepping the memory address moves the highlight onto a
+                // different row, which means iced drops the inline
+                // `text_input` from the row that was selected and
+                // spawns a fresh one with the same id under the new
+                // row. Chaining `operation::focus` directly here would
+                // run before the rebuild, so the focus would land on
+                // the widget that is about to disappear and the caret
+                // would vanish.
+                //
+                // Bouncing through a `RefocusInline` message defers the
+                // focus operation to the next update tick: by then the
+                // new row is laid out, the new `text_input` is in the
+                // tree, and `operation::focus(MEMORY_INLINE_INPUT_ID)`
+                // hits it. The cosmetic `focused_input` tracker is
+                // already pointing at this id, so we leave it alone.
+                //
+                // We also call `step_memory_address_browse` instead of
+                // `step_memory_address`: the latter goes through
+                // `select_memory -> sync_pc_to_cursor -> dispatch_sync`,
+                // which blocks on a worker round-trip. The blocking
+                // path was eating focus on the inline editor (the
+                // `StateChanged` event came back synchronously in the
+                // middle of the handler and the resulting view rebuild
+                // landed before our `Task::done(RefocusInline)` made it
+                // out the door). The browse-mode step keeps PC
+                // untouched and updates only the spinner / inline
+                // value so the row swap is purely cosmetic.
+                let scroll = self.step_memory_address_browse(-direction);
+                scroll.chain(Task::done(Message::RefocusInline))
+            }
             // Memory address field and "no focus" both fall through to
             // memory navigation: stepping the address there *is* what the
             // user wants, and the unfocused case keeps the legacy global

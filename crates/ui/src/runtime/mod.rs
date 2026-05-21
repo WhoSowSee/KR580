@@ -7,12 +7,16 @@
 //! - `register` — register name/value editing.
 //! - `memory` — memory list, address spinner, inline editor, search.
 //! - `focus` — Tab/Shift+Tab cycling.
+//! - `focus_ops` — custom Focusable operation (post-click reconciliation).
 //! - `parse` — small free helpers (hex parsing, saturating step).
 
 mod focus;
+mod focus_ops;
 mod memory;
 mod parse;
 mod register;
+
+pub(crate) use focus_ops::reconcile_focus_at;
 
 use crate::app::DesktopApp;
 use k580_app::{AppCommand, AppEvent, AppSnapshot};

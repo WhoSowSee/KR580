@@ -46,6 +46,48 @@ impl DesktopApp {
         scroll_memory_to(target_offset)
     }
 
+    /// Same as [`step_memory_address`] but skips the `SetPc` round-trip
+    /// to the worker thread. Used by ArrowUp/ArrowDown inside the
+    /// inline byte editor, where the user's mental model is "I'm
+    /// browsing memory, the program counter has nothing to do with
+    /// it" — and where the synchronous `dispatch_sync(SetPc)` inside
+    /// `select_memory` was making the inline `text_input` lose focus
+    /// on every keystroke. The address spinner remains the source of
+    /// truth for the highlighted row, so callers that *do* want PC to
+    /// follow the cursor (a single click, an Enter press) keep
+    /// reaching for `select_memory`.
+    pub(crate) fn step_memory_address_browse(&mut self, delta: i32) -> Task<Message> {
+        let address = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
+        let next = if delta.is_negative() {
+            address.saturating_sub((-delta) as u16)
+        } else {
+            address.saturating_add(delta as u16)
+        };
+
+        // Mirror the cosmetic side of `select_memory` without the
+        // worker round-trip: clear the opcode dropdown context, write
+        // the new address into the spinner, and refresh the inline
+        // editor's value so the freshly-rendered row shows the byte
+        // that lives there.
+        self.opcode_dropdown_address = None;
+        self.opcode_search_input.clear();
+        self.memory_address_input = format!("{next:04X}");
+        self.refresh_memory_value(next);
+        self.memory_search_pattern = None;
+
+        if self.memory_viewport_height <= 0.0 {
+            return Task::none();
+        }
+
+        let Some(target_offset) = self.scroll_offset_to_reveal(next) else {
+            return Task::none();
+        };
+
+        self.scroll_memory(target_offset);
+        self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+        scroll_memory_to(target_offset)
+    }
+
     pub(crate) fn scroll_memory(&mut self, offset: f32) {
         self.memory_scroll_offset = offset.max(0.0);
         self.memory_scroll_first_row = (self.memory_scroll_offset / MEMORY_ROW_HEIGHT)

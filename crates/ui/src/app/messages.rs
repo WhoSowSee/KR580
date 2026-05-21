@@ -5,6 +5,7 @@
 //! messages should be added here together with a one-paragraph doc that
 //! explains what user gesture maps to them.
 
+use iced::Point;
 use iced::keyboard;
 use k580_core::RegisterName;
 
@@ -44,7 +45,27 @@ pub(crate) enum Message {
     RegisterNext,
     RegisterValueChanged(String),
     ApplyRegister,
+    /// Single-click on a memory row: select the address (move the
+    /// highlight onto it) but do **not** focus the inline value editor.
+    /// The user has to either click the value cell directly or
+    /// double-click the row to enter editing mode.
     MemorySelected(u16),
+    /// Enter inline editing for `address`: select the row and put
+    /// keyboard focus onto the inline value `text_input`. Emitted by
+    /// double-click on the row, single-click on the value cell, and the
+    /// programmatic "step memory address" path that wants the caret to
+    /// follow the highlight (e.g. ArrowUp/ArrowDown while the inline
+    /// editor was already focused).
+    MemoryEnter(u16),
+    /// Re-focus the inline value editor after the surrounding row has
+    /// been re-built. Emitted by `handle_arrow_key` after stepping the
+    /// memory address: stepping deselects the old row, which causes
+    /// iced to drop the inline `text_input` from the tree, so chaining
+    /// `operation::focus` to the same task hits a widget that no longer
+    /// exists. Bouncing through a separate message defers the focus
+    /// operation to the next frame, after iced has rebuilt the row at
+    /// the new address with a fresh `text_input` carrying the same id.
+    RefocusInline,
     MemoryAddressPrevious,
     MemoryAddressNext,
     MemoryAddressPageUp,
@@ -89,11 +110,26 @@ pub(crate) enum Message {
         focused: iced::widget::Id,
         backward: bool,
     },
-    /// Result of the periodic `find_focused` poll. Carries the ids of any
-    /// focused widgets iced reports — typically zero or one — so the UI can
-    /// keep `DesktopApp::focused_input` in sync regardless of how the user
-    /// reached the input (typing, Tab, mouse click).
-    FocusPolled(Vec<iced::widget::Id>),
+    /// Latest known cursor position, broadcast by iced on every
+    /// `mouse::Event::CursorMoved`. Cached so the `MousePressed` handler
+    /// can look up the click coordinates without having to dig them out
+    /// of any individual widget — `mouse::Event::ButtonPressed` carries
+    /// only the button identity, not the position.
+    CursorMoved(Point),
+    /// The user pressed the left mouse button somewhere in the window.
+    /// The handler runs `reconcile_focus_at(self.latest_cursor_position)`
+    /// to clear stale `is_focused` flags on every focusable widget that
+    /// the click did not land on. This bypasses iced's per-widget
+    /// propagation, which the column→stack capture race in
+    /// `runtime/focus_ops.rs` makes unreliable across sibling panels.
+    MousePressed,
+    /// Result of the `reconcile_focus_at` operation: the id of the
+    /// focusable that the most recent click landed on, or `None` if the
+    /// click missed every focusable (or hit an unkeyed one). Used to
+    /// drive the cosmetic `focused_input` indicator authoritatively
+    /// from cursor coordinates rather than relying on iced's natural
+    /// focus-tracking, which the column→stack race breaks.
+    FocusReconciled(Option<iced::widget::Id>),
     /// Iced reports that a window has been opened. We respond by cloaking it
     /// via DWM on Windows so the launch flash never reaches the screen.
     WindowOpened(iced::window::Id),
