@@ -45,20 +45,19 @@ pub(crate) fn is_button_active(status: button::Status) -> bool {
 }
 
 /// Style for the action buttons in the "Управление" panel (Run, Step,
-/// Reset…). Reuses the same surface palette as the editor `↵` button so
-/// the row of action chips reads as part of the surrounding panels, and
-/// uses `accent` only for the border affordance on hover/press. The
-/// neutral idle border keeps the panel calm; the colour shows up only
-/// when the user is about to commit, mirroring the existing register /
-/// memory editor convention.
-pub(crate) fn action_button_style(status: button::Status, accent: Color) -> button::Style {
-    let active = is_button_active(status);
+/// Reset…). Reuses the same chrome as the editor `↵` button: neutral
+/// border at all times, with only the surface tone shifting on hover /
+/// press. The colour-coded affordance comes from the SVG glyph itself
+/// (each button has its own `accent` tint), so the border can stay calm
+/// without losing the per-button identity. Keeps the row of action
+/// chips visually coherent with the surrounding inputs instead of
+/// flaring up a coloured frame whenever the cursor lands on a chip.
+pub(crate) fn action_button_style(status: button::Status) -> button::Style {
     let background = match status {
         button::Status::Pressed => TOKYO_SURFACE_2,
         button::Status::Hovered => TOKYO_SURFACE,
         _ => TOKYO_BG,
     };
-    let border_color = if active { accent } else { TOKYO_BORDER };
 
     button::Style {
         background: Some(Background::Color(background)),
@@ -66,7 +65,7 @@ pub(crate) fn action_button_style(status: button::Status, accent: Color) -> butt
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: border_color,
+            color: TOKYO_BORDER,
         },
         ..button::Style::default()
     }

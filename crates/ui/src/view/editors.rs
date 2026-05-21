@@ -11,7 +11,7 @@ use super::icons;
 use super::styles::{input_borderless_style, input_shell_style};
 use super::theme::{MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_RED, TOKYO_YELLOW};
 use super::widgets::{
-    enter_button, icon_action_button, legend_panel, spinner_text_input, vertical_divider,
+    enter_button, icon_action_button, legend_panel, spinner_text_input,
 };
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message, REGISTER_NAME_INPUT_ID,
@@ -128,16 +128,27 @@ impl DesktopApp {
         legend_panel("Регистр и его значение", content, Length::Shrink)
     }
 
-    /// Composes the "Управление" panel: a single horizontal strip of
-    /// square SVG icon buttons that mirrors the toolbar of the reference
-    /// KR-580 emulator. The execution group (run / step instruction /
-    /// step tact) sits on the left, a thin vertical divider separates
-    /// it from the memory-state group on the right (reset RAM / reset
-    /// registers). Each button's accent colour tints the SVG glyph at
-    /// rest and lights up the border on hover/press; the tooltip body
-    /// explains what the glyph does so the icon-only layout stays
-    /// discoverable.
+    /// Composes the bottom toolbar: two side-by-side framed panels that
+    /// mirror the toolbar of the reference KR-580 emulator. The left
+    /// panel ("Выполнение") groups the execution-flow buttons (run /
+    /// step instruction / step tact); the right panel ("Сброс") groups
+    /// the destructive memory-state buttons (reset RAM / reset
+    /// registers). Splitting them into separate frames replaces the old
+    /// `vertical_divider` strip — the gap between the two `legend_panel`
+    /// frames now does the same visual job, and each group gets its own
+    /// title so the user can tell at a glance what the buttons do
+    /// before reading the per-button tooltip. Each button's accent
+    /// colour tints the SVG glyph at rest; the surrounding chrome stays
+    /// neutral and only the surface tone shifts on hover/press.
     fn actions_panel(&self) -> Element<'_, Message> {
+        // Horizontal gap between icon chips inside each action panel.
+        // Kept identical for "Выполнение" and "Сброс" so the rhythm of
+        // the two strips matches; `legend_panel`'s 10 px inner padding
+        // plus the centring `container` then makes the gap from the
+        // edge chip to its frame's border read as the same distance in
+        // both panels.
+        const CHIP_SPACING: f32 = 14.0;
+
         // The two leftmost buttons are tumblers driven by `self.running`.
         //
         // 1. The first button toggles between a green play glyph
@@ -169,7 +180,8 @@ impl DesktopApp {
                 "Выполнить команду",
             )
         };
-        let strip = row![
+
+        let execution_strip = row![
             icon_action_button(run_icon, Message::ToggleRun, run_accent, run_tooltip),
             icon_action_button(step_icon, step_message, TOKYO_BLUE, step_tooltip),
             icon_action_button(
@@ -178,7 +190,11 @@ impl DesktopApp {
                 TOKYO_YELLOW,
                 "Выполнить такт",
             ),
-            vertical_divider(),
+        ]
+        .spacing(CHIP_SPACING)
+        .align_y(alignment::Vertical::Center);
+
+        let reset_strip = row![
             icon_action_button(
                 icons::reset_ram(),
                 Message::ResetRam,
@@ -192,13 +208,46 @@ impl DesktopApp {
                 "Сброс регистров",
             ),
         ]
-        .spacing(8)
+        .spacing(CHIP_SPACING)
         .align_y(alignment::Vertical::Center);
 
-        let content = container(strip)
-            .width(Length::Fill)
-            .align_x(alignment::Horizontal::Center);
+        let execution_panel = legend_panel(
+            "Выполнение",
+            container(execution_strip)
+                .width(Length::Fill)
+                .align_x(alignment::Horizontal::Center),
+            Length::Shrink,
+        );
+        let reset_panel = legend_panel(
+            "Сброс",
+            container(reset_strip)
+                .width(Length::Fill)
+                .align_x(alignment::Horizontal::Center),
+            Length::Shrink,
+        );
 
-        legend_panel("Управление", content, Length::Shrink)
+        // Pin each frame's width so the empty space *inside* the
+        // border around the chip strip is identical in both panels.
+        // `FillPortion(3) / FillPortion(2)` would split the column
+        // proportionally to the chip count — but that gives the
+        // smaller "Сброс" group too much breathing room while
+        // squeezing "Выполнение" almost flush against its border.
+        //
+        // The two strips have a fixed difference of 52 px in content
+        // width (one extra chip + one extra `CHIP_SPACING` gap), so
+        // hard-coding widths that differ by exactly 52 px guarantees
+        // each centred strip leaves the same amount of slack on each
+        // side, which reads as "the edge chip sits the same distance
+        // from the frame edge in both panels".
+        const EXECUTION_PANEL_WIDTH: f32 = 186.0;
+        const RESET_PANEL_WIDTH: f32 = 134.0;
+
+        row![
+            container(execution_panel).width(Length::Fixed(EXECUTION_PANEL_WIDTH)),
+            container(reset_panel).width(Length::Fixed(RESET_PANEL_WIDTH)),
+        ]
+        .spacing(8)
+        .align_y(alignment::Vertical::Center)
+        .into()
     }
 }
