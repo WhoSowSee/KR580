@@ -93,16 +93,6 @@ impl DesktopApp {
         self.memory_inline_value_input = value;
     }
 
-    /// Bumps the byte buffered in the inline memory editor by `delta`,
-    /// saturating at `0x00`/`0xFF`. Same Enter-to-commit contract as the
-    /// other value-step helpers, so ArrowUp on a row showing `FF` simply
-    /// stays put instead of wrapping.
-    pub(crate) fn step_inline_memory_value_input(&mut self, delta: i32) {
-        let current = parse_hex_u8(&self.memory_inline_value_input).unwrap_or(0);
-        let next = saturating_step_u8(current, delta);
-        self.memory_inline_value_input = format!("{next:02X}");
-    }
-
     pub(crate) fn apply_inline_memory_value(&mut self, address: u16) {
         match parse_hex_u8(&self.memory_inline_value_input) {
             Ok(value) => {

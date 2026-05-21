@@ -200,7 +200,17 @@ impl DesktopApp {
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
                 self.change_inline_memory_value(address, value)
             }
-            Message::ApplyInlineMemoryValue(address) => self.apply_inline_memory_value(address),
+            Message::ApplyInlineMemoryValue(address) => {
+                let backward = self.keyboard_modifiers.shift();
+                self.apply_inline_memory_value(address);
+                let step = self.step_memory_address(if backward { -1 } else { 1 });
+                // The inline editor widget is rebuilt against the new
+                // address, which would normally drop focus. Re-focus it
+                // here so the user can keep typing the next byte without
+                // reaching for the mouse.
+                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+                return step.chain(iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID));
+            }
             Message::OpcodeDropdownToggled(address) => self.toggle_opcode_dropdown(address),
             Message::OpcodeSearchChanged(value) => self.opcode_search_input = value,
             Message::OpcodeSelected(address, value) => self.select_opcode(address, value),
@@ -385,10 +395,7 @@ impl DesktopApp {
                 self.step_memory_value_input(direction);
                 Task::none()
             }
-            Some(MEMORY_INLINE_INPUT_ID) => {
-                self.step_inline_memory_value_input(direction);
-                Task::none()
-            }
+            Some(MEMORY_INLINE_INPUT_ID) => self.step_memory_address(-direction),
             // Memory address field and "no focus" both fall through to
             // memory navigation: stepping the address there *is* what the
             // user wants, and the unfocused case keeps the legacy global

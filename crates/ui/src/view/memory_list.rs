@@ -128,9 +128,19 @@ fn memory_row<'a>(
     inline_value_input: &'a str,
 ) -> Element<'a, Message> {
     let value = cpu.memory.read(address);
-    let command = decode_opcode(value)
+    // For the selected row mirror whatever byte the user is currently
+    // typing into the inline editor; for any other row decode the byte
+    // that is actually stored in memory. This makes the "Команда"
+    // column update live as the user types instead of waiting for
+    // Enter to commit the write.
+    let preview_value = if selected {
+        parse_hex_u8_preview(inline_value_input).unwrap_or(value)
+    } else {
+        value
+    };
+    let command = decode_opcode(preview_value)
         .map(|instruction| instruction.mnemonic)
-        .unwrap_or_else(|_| "???".to_owned());
+        .unwrap_or_else(|_| "-".to_owned());
     let accent = if selected { TOKYO_BLUE } else { TOKYO_MUTED };
 
     let line: Element<'a, Message> = container(
@@ -238,6 +248,17 @@ fn command_cell_button(command: String, address: u16) -> Element<'static, Messag
 
 fn parse_hex_u16_preview(input: &str) -> Option<u16> {
     u16::from_str_radix(
+        input
+            .trim()
+            .trim_start_matches("0x")
+            .trim_start_matches("0X"),
+        16,
+    )
+    .ok()
+}
+
+fn parse_hex_u8_preview(input: &str) -> Option<u8> {
+    u8::from_str_radix(
         input
             .trim()
             .trim_start_matches("0x")
