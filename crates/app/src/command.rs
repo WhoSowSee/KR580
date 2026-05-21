@@ -19,6 +19,7 @@ pub enum AppCommand {
     ReadPort(u8),
     WritePort(u8, u8),
     SetRegister(RegisterName, u8),
+    SetPc(u16),
     SetMemory(u16, u8),
     ExportTxt(PathBuf),
     ExportXlsx(PathBuf),

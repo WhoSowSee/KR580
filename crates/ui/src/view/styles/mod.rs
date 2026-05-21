@@ -11,13 +11,15 @@ mod inputs;
 mod scrollable;
 
 pub(super) use buttons::{
-    capsule_button_style, cell_button_style, enter_button_style, menu_button_style,
-    mux_button_style, opcode_option_style, step_button_style, value_button_style,
+    action_button_style, capsule_button_style, cell_button_style, enter_button_style,
+    menu_button_style, mux_button_style, opcode_option_style, step_button_style,
+    value_button_style,
 };
 pub(super) use containers::{
-    alu_style, app_style, board_style, input_shell_style, inset_style, legend_label_style,
-    memory_row_container_style, menu_bar_style, mux_header_style, mux_panel_style,
-    opcode_dropdown_style, panel_style, schematic_block_style, solid_style, transparent_style,
+    alu_style, app_style, board_style, divider_style, input_shell_style, inset_style,
+    legend_label_style, memory_row_container_style, menu_bar_style, mux_header_style,
+    mux_panel_style, opcode_dropdown_style, panel_style, schematic_block_style, solid_style,
+    transparent_style,
 };
 pub(super) use inputs::{inline_value_input_style, input_borderless_style, input_style};
 pub(super) use scrollable::scrollable_style;

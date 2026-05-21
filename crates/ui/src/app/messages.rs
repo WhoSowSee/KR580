@@ -12,9 +12,25 @@ use k580_core::RegisterName;
 pub(crate) enum Message {
     Tick,
     StepInstruction,
+    /// Reset the CPU registers/flags and re-run the program from
+    /// `0x0000`. Bound to the second action-panel button while the run
+    /// state is armed: the icon swaps from `step-forward` to
+    /// `refresh-ccw`, mirroring the reference KR-580 emulator's "restart
+    /// from the beginning" gesture. With the run state idle this message
+    /// is never emitted; the same button reverts to `StepInstruction`.
+    RestartProgram,
     StepTact,
     Run,
     Stop,
+    /// Toggle the visual run/pause state of the action panel's leftmost
+    /// button. Mirrors the reference KR-580 emulator: clicking the play
+    /// glyph arms the "running" state (icon swaps to a red pause), and
+    /// clicking again disarms it. The handler dispatches a real
+    /// `AppCommand::Run` only when the byte at `cpu.pc` is non-zero,
+    /// i.e. there is actually a program loaded at the current address —
+    /// otherwise the press is purely cosmetic and no T-states are
+    /// consumed.
+    ToggleRun,
     ResetCpu,
     ResetRam,
     OpenSnapshot,

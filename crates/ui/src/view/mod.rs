@@ -24,6 +24,7 @@
 //! near the markup that produces it.
 
 mod editors;
+mod icons;
 mod memory_list;
 mod menu;
 mod opcode_dropdown;

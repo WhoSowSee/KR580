@@ -45,6 +45,34 @@ pub(crate) fn is_button_active(status: button::Status) -> bool {
     matches!(status, button::Status::Hovered | button::Status::Pressed)
 }
 
+/// Style for the action buttons in the "Управление" panel (Run, Step,
+/// Reset…). Reuses the same surface palette as the editor `↵` button so
+/// the row of action chips reads as part of the surrounding panels, and
+/// uses `accent` only for the border affordance on hover/press. The
+/// neutral idle border keeps the panel calm; the colour shows up only
+/// when the user is about to commit, mirroring the existing register /
+/// memory editor convention.
+pub(crate) fn action_button_style(status: button::Status, accent: Color) -> button::Style {
+    let active = is_button_active(status);
+    let background = match status {
+        button::Status::Pressed => TOKYO_SURFACE_2,
+        button::Status::Hovered => TOKYO_SURFACE,
+        _ => TOKYO_BG,
+    };
+    let border_color = if active { accent } else { TOKYO_BORDER };
+
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: TOKYO_TEXT,
+        border: Border {
+            radius: 6.0.into(),
+            width: 1.0,
+            color: border_color,
+        },
+        ..button::Style::default()
+    }
+}
+
 /// Style for the `↵` apply buttons next to each editor field. Visually
 /// matches the surrounding text inputs: same background colour, same
 /// border radius, neutral border that does not light up on hover. The

@@ -60,6 +60,14 @@ pub(crate) fn legend_label_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
 }
 
+/// Thin vertical line used between icon-button groups in the action
+/// panel. Painted with the same colour as the surrounding panel border
+/// so it reads as a continuation of the frame rather than as a foreign
+/// pixel column.
+pub(crate) fn divider_style(_theme: &Theme) -> container::Style {
+    surface_style(Some(TOKYO_BORDER), 0.0, 0.0, Color::TRANSPARENT)
+}
+
 pub(crate) fn transparent_style(_theme: &Theme) -> container::Style {
     surface_style(None, 0.0, 0.0, Color::TRANSPARENT)
 }

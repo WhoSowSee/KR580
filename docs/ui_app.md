@@ -55,6 +55,80 @@ The actor publishes `StateChanged`, `InstructionBoundaryReached`,
 `ErrorRaised`, and `Stopped`. Events are notifications only; the latest
 `AppSnapshot` remains the authoritative render source.
 
+## Side panel layout
+
+The right-hand 330 px column stacks four legend-framed panels in this
+order, top to bottom:
+
+1. **«Список ячеек ОЗУ»** — virtualised memory list with the inline
+   value editor and the opcode dropdown.
+2. **«Ячейка ОЗУ и ее значение»** — address spinner + value field +
+   `↵` apply button.
+3. **«Регистр и его значение»** — register name spinner + value field +
+   `↵` apply button.
+4. **«Управление»** — action button strip described below.
+
+### «Управление» action panel
+
+A single horizontal strip of square 38×38 SVG icon buttons that mirror
+the toolbar of the reference KR-580 emulator. The execution group sits
+on the left, then a thin vertical divider, then the memory-state
+(reset) group on the right (the divider colour matches the surrounding
+panel border so it reads as a piece of the frame):
+
+| Group | Icon | Message | Accent | Tooltip |
+|---|---|---|---|---|
+| run  | `play.svg` / `pause.svg` | `Message::ToggleRun`       | green / red | Выполнить программу / Пауза |
+| run  | `step-forward.svg` / `refresh-ccw.svg` | `Message::StepInstruction` / `Message::RestartProgram` | blue | Выполнить команду / Перезапустить программу |
+| run  | `redo-dot.svg`        | `Message::StepTact`        | yellow  | Выполнить такт |
+| reset | `reset-ram.svg`       | `Message::ResetRam`        | red     | Сброс ОЗУ |
+| reset | `reset-registers.svg` | `Message::ResetCpu`        | magenta | Сброс регистров |
+
+The first two buttons are tumblers driven by `DesktopApp::running`.
+
+The leftmost (run/pause) button mirrors the reference KR-580 emulator.
+At rest it paints `play.svg` in green; once armed it swaps to
+`pause.svg` in red. Toggling the icon is decoupled from dispatching
+`AppCommand::Run`: when the byte at `cpu.pc` is `0x00` the press is
+purely cosmetic — the icon flips and the status line reads
+`No program at <PC>` / `Stopped`, but no T-states are consumed. With a
+program loaded at the current PC the toggle drives the real
+`Run` / `Stop` commands, so users who actually loaded code keep the
+original behaviour. This avoids the prior bug where every click on an
+empty RAM page burned ~100k T-states inside
+`cpu.run_until_halt(&mut bus, 100_000)`.
+
+The second (step / restart) button is `step-forward` at rest and
+`refresh-ccw` while running. At rest it sends
+`Message::StepInstruction`, which dispatches a single
+`AppCommand::StepInstruction` and then jumps the memory list / address
+spinner to the new program counter so the highlighted cell follows the
+CPU as the user steps through code. While running it sends
+`Message::RestartProgram`, which dispatches `AppCommand::ResetCpu`
+followed by `AppCommand::Run`: the registers and flags are wiped, the
+program counter goes back to `0x0000`, the run state stays armed, and
+the program executes again from the beginning. Memory is preserved
+(no `ResetRam`), so the loaded program survives the restart.
+
+The SVG sources live under `assets/icons/actions/` and are embedded at
+build time with `include_bytes!`; `crates/ui/src/view/icons.rs` holds
+one `LazyLock<svg::Handle>` per icon and exposes a thin getter for each.
+The `play` and `step-forward` icons come from the Lucide set; the
+`redo-dot` icon is also Lucide and reads as "step one tick around the
+loop"; `reset-ram` and `reset-registers` are custom KR-580 glyphs (a
+DIMM silhouette and a stacked-register block, each annotated with a
+circular reset arrow). All five files declare
+`stroke="currentColor"`, so the iced `svg` widget tints them at
+runtime via `svg::Style { color: Some(accent) }` — the accent is the
+glyph colour at rest and the border colour on hover/press, while the
+surface stays on the neutral `TOKYO_BG` / `TOKYO_BORDER` palette of the
+editor `↵` button. Tooltip bodies use `inset_style` so they belong to
+the same chrome family as the rest of the side panel. The same actions
+remain available from the top menu bar — this panel is a discoverable
+in-context surface for the same commands; no new `AppCommand` or
+`Message` variants were added. iced's `svg` Cargo feature is enabled
+in `crates/ui/Cargo.toml` so the renderer pulls in the resvg backend.
+
 ## Keyboard shortcuts
 
 The UI exposes the following shortcuts. Modifier names follow iced's

@@ -4,12 +4,12 @@
 //! reusable button shape, …). Panel-level composition lives in the panel
 //! modules themselves so this file does not turn into another monolith.
 
-use iced::widget::{Space, button, column, container, row, stack, text_input};
-use iced::{Element, Length, Padding, alignment};
+use iced::widget::{Space, button, column, container, row, stack, svg, text_input, tooltip};
+use iced::{Color, Element, Length, Padding, alignment};
 
 use super::styles::{
-    enter_button_style, input_borderless_style, input_shell_style, legend_label_style, panel_style,
-    step_button_style,
+    action_button_style, divider_style, enter_button_style, input_borderless_style,
+    input_shell_style, inset_style, legend_label_style, panel_style, step_button_style,
 };
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text, ui_text};
 use crate::app::Message;
@@ -138,8 +138,19 @@ pub(super) fn step_button(label: &'static str, message: Message) -> Element<'sta
 }
 
 pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
+    // The glyph is `chevrons-right` from the Lucide set: twin
+    // right-pointing chevrons, tinted green to mirror the action-panel
+    // accent palette ("commit and move on"). Sized to 18 px so it sits
+    // visually centred inside the 28 px square chrome.
+    const GLYPH_SIZE: f32 = 18.0;
+    let glyph = svg(super::icons::chevrons_right())
+        .width(Length::Fixed(GLYPH_SIZE))
+        .height(Length::Fixed(GLYPH_SIZE))
+        .style(|_theme, _status| svg::Style {
+            color: Some(TOKYO_GREEN),
+        });
     button(
-        mono_text("↵", 14, TOKYO_GREEN)
+        container(glyph)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(alignment::Horizontal::Center)
@@ -151,4 +162,72 @@ pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
     .height(Length::Fixed(28.0))
     .style(move |_theme, status| enter_button_style(status))
     .into()
+}
+
+/// A square icon-only action button with a hover tooltip. Used to
+/// compose the "Управление" panel as a single horizontal row of glyph
+/// chips, mirroring the toolbar look of the reference KR-580 emulator.
+/// The SVG glyph is tinted with `accent`; the surrounding border picks
+/// up the same accent on hover/press so the resting strip stays calm
+/// but each button is unambiguously identified by colour the moment the
+/// cursor lands on it. The tooltip body uses the editor `inset_style`
+/// so it visually belongs to the same chrome family as the rest of the
+/// side panel.
+pub(super) fn icon_action_button(
+    handle: svg::Handle,
+    message: Message,
+    accent: Color,
+    hint: &'static str,
+) -> Element<'static, Message> {
+    const BUTTON_SIZE: f32 = 38.0;
+    const GLYPH_SIZE: f32 = 20.0;
+
+    // Tint the SVG geometry by overriding `currentColor` with the
+    // accent — the source files are authored with `stroke="currentColor"`
+    // so the same handle can be reused at any tone.
+    let glyph = svg(handle)
+        .width(Length::Fixed(GLYPH_SIZE))
+        .height(Length::Fixed(GLYPH_SIZE))
+        .style(move |_theme, _status| svg::Style {
+            color: Some(accent),
+        });
+
+    let face = button(
+        container(glyph)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+    )
+    .on_press(message)
+    .padding(0)
+    .width(Length::Fixed(BUTTON_SIZE))
+    .height(Length::Fixed(BUTTON_SIZE))
+    .style(move |_theme, status| action_button_style(status, accent));
+
+    let body = container(ui_text(hint, 12, TOKYO_TEXT))
+        .padding(Padding {
+            top: 4.0,
+            right: 8.0,
+            bottom: 4.0,
+            left: 8.0,
+        })
+        .style(inset_style);
+
+    tooltip(face, body, tooltip::Position::Top)
+        .gap(4.0)
+        .padding(0.0)
+        .snap_within_viewport(true)
+        .into()
+}
+
+/// Thin vertical bar that separates groups of icon buttons inside the
+/// action panel. Visually matches the panel border so the divider reads
+/// as a piece of the frame rather than its own widget.
+pub(super) fn vertical_divider() -> Element<'static, Message> {
+    container(Space::new())
+        .width(Length::Fixed(1.0))
+        .height(Length::Fixed(28.0))
+        .style(divider_style)
+        .into()
 }

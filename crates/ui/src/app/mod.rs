@@ -62,6 +62,15 @@ pub(crate) struct DesktopApp {
     /// we sync this from any signal that implies focus (typing, Tab
     /// navigation, explicit focus tasks).
     pub(crate) focused_input: Option<&'static str>,
+    /// Visual "armed" state of the action panel's run/pause toggle.
+    /// Decoupled from `AppCommand::Run` dispatch (see `Message::ToggleRun`)
+    /// so empty pages never burn 100k T-states on a stray click.
+    pub(crate) running: bool,
+    /// Set on `TactAdvanced { instruction_boundary: true }`; cleared by
+    /// the step-tact handler. PC mutates on the first tact in core, so
+    /// before/after comparison would teleport — the handler waits for
+    /// this flag instead.
+    pub(crate) last_tact_was_boundary: bool,
     /// Tracks how many frames iced has rendered since startup. We keep the
     /// window cloaked (DWM-hidden on Windows) until the second frame so the
     /// OS never gets a chance to flash its default white client area.
@@ -92,6 +101,8 @@ impl DesktopApp {
                 memory_search_pattern: None,
                 keyboard_modifiers: keyboard::Modifiers::default(),
                 focused_input: None,
+                running: false,
+                last_tact_was_boundary: false,
                 startup_frames_seen: 0,
             },
             Task::none(),
@@ -115,10 +126,12 @@ impl DesktopApp {
                     .collect()
                     .map(Message::FocusPolled);
             }
-            Message::StepInstruction => self.dispatch(k580_app::AppCommand::StepInstruction),
-            Message::StepTact => self.dispatch(k580_app::AppCommand::StepTact),
+            Message::StepInstruction => return self.step_instruction_and_advance(),
+            Message::RestartProgram => self.restart_program(),
+            Message::StepTact => return self.step_tact_and_maybe_advance(),
             Message::Run => self.dispatch(k580_app::AppCommand::Run),
             Message::Stop => self.dispatch(k580_app::AppCommand::Stop),
+            Message::ToggleRun => self.toggle_run(),
             Message::ResetCpu => self.dispatch(k580_app::AppCommand::ResetCpu),
             Message::ResetRam => self.dispatch(k580_app::AppCommand::ResetRam),
             Message::OpenSnapshot => self.open_snapshot(),

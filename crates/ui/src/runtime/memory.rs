@@ -64,6 +64,7 @@ impl DesktopApp {
         self.memory_address_input = value;
         if let Ok(address) = parse_hex_u16(&self.memory_address_input) {
             self.refresh_memory_value(address);
+            self.sync_pc_to_cursor(address);
         }
     }
 
@@ -315,6 +316,86 @@ impl DesktopApp {
     pub(super) fn set_memory_address(&mut self, address: u16) {
         self.memory_address_input = format!("{address:04X}");
         self.refresh_memory_value(address);
+        self.sync_pc_to_cursor(address);
+    }
+
+    /// Mirrors the user-visible cursor into `cpu.pc` so single-stepping
+    /// from a freshly clicked cell runs against that byte. Does nothing
+    /// when an instruction is mid-flight (`tact_phase.is_some()`) because
+    /// rewriting PC there would restart the current instruction from the
+    /// cursor on every tact, never letting the boundary count down to
+    /// zero. Also short-circuits when PC already matches, to avoid
+    /// pointless `SetPc` round-trips on cosmetic updates (e.g. the
+    /// `follow_pc_into_memory_list` reflow after a step).
+    pub(super) fn sync_pc_to_cursor(&mut self, address: u16) {
+        if self.snapshot.cpu.tact_phase.is_some() || self.snapshot.cpu.pc == address {
+            return;
+        }
+        self.dispatch_sync(AppCommand::SetPc(address));
+    }
+
+    /// Dispatches a single-instruction step and then jumps the memory
+    /// list / address spinner to the new program counter so the user can
+    /// see exactly which cell the CPU will execute next. Mirrors the
+    /// "follow PC" affordance of the reference KR-580 emulator's
+    /// step-instruction toolbar button: after each press the highlight
+    /// auto-advances by however many bytes the executed opcode consumed.
+    ///
+    /// Two subtle rules:
+    ///
+    /// 1. The address shown in the memory spinner is treated as the
+    ///    user-visible cursor — if it differs from `cpu.pc`, we sync PC
+    ///    to it *before* stepping so "step from where I clicked" works.
+    /// 2. We use `dispatch_sync` rather than the fire-and-forget
+    ///    `dispatch`, otherwise the read of `self.snapshot.cpu.pc`
+    ///    races the worker channel and the user has to click twice
+    ///    before the highlight catches up.
+    pub(crate) fn step_instruction_and_advance(&mut self) -> Task<Message> {
+        self.dispatch_sync(AppCommand::StepInstruction);
+        self.follow_pc_into_memory_list()
+    }
+
+    /// Dispatches a single-tact step and follows PC into the memory
+    /// list only when the executed tact lands on an instruction
+    /// boundary. PC is first synced to the address shown in the spinner
+    /// (cursor takes precedence) so a fresh tact runs against the byte
+    /// the user is looking at.
+    ///
+    /// The 8080 core mutates PC on the *first* tact and then merely
+    /// counts the remaining T-states down to zero, so comparing PC
+    /// before/after would teleport the cursor on every press. The
+    /// handler watches `last_tact_was_boundary` instead, which the
+    /// event consumer raises on `TactAdvanced { instruction_boundary:
+    /// true }`. The flag is cleared *before* dispatch so a stale value
+    /// from a previous press cannot leak through.
+    pub(crate) fn step_tact_and_maybe_advance(&mut self) -> Task<Message> {
+        self.last_tact_was_boundary = false;
+        self.dispatch_sync(AppCommand::StepTact);
+        if !self.last_tact_was_boundary {
+            return Task::none();
+        }
+        self.last_tact_was_boundary = false;
+        self.follow_pc_into_memory_list()
+    }
+
+    /// Refresh the memory spinner / inline editor / scroll position to
+    /// point at the current `cpu.pc`. Shared by the step-instruction and
+    /// step-tact handlers so both feel the same after the CPU moves.
+    fn follow_pc_into_memory_list(&mut self) -> Task<Message> {
+        let pc = self.snapshot.cpu.pc;
+        self.select_memory(pc);
+
+        if self.memory_viewport_height <= 0.0 {
+            return Task::none();
+        }
+
+        let Some(target_offset) = self.scroll_offset_to_reveal(pc) else {
+            return Task::none();
+        };
+
+        self.scroll_memory(target_offset);
+        self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+        scroll_memory_to(target_offset)
     }
 
     pub(super) fn refresh_memory_value(&mut self, address: u16) {
