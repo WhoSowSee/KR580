@@ -55,7 +55,6 @@ impl Emulator {
         match command {
             AppCommand::ResetCpu => self.cpu.reset_cpu(),
             AppCommand::ResetRam => self.cpu.reset_ram(),
-            AppCommand::ResetRegisters => self.cpu.reset_registers(),
             AppCommand::SetRegister(register, value) => self.cpu.set_register(register, value),
             AppCommand::SetPc(address) => self.cpu.pc = address,
             AppCommand::SetMemory(address, value) => self.cpu.set_memory(address, value),

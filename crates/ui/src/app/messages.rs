@@ -17,6 +17,11 @@ use std::path::PathBuf;
 pub(crate) enum MenuId {
     /// "Файл" — new / open / save / save-as / export-submenu.
     File,
+    /// "МП-Система" — выполнить программу / команду / такт, очистить
+    /// ОЗУ / регистры. Mirrors the run/step/reset gestures already
+    /// available on the action panel so the user does not have to
+    /// hunt for the icon glyphs to find them.
+    Mp,
 }
 
 #[derive(Clone, Debug)]

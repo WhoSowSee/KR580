@@ -564,6 +564,30 @@ impl DesktopApp {
                         ('s', true) => Some(Message::SaveSnapshotAs),
                         ('i', false) => Some(Message::Import),
                         ('e', false) => Some(Message::Export),
+                        // МП-Система. Ctrl+letter for the three execution
+                        // gestures (R = Run, T = sTep instruction — "S"
+                        // is taken by Save, T is the natural next pick;
+                        // Y sits next to T on both QWERTY and ЙЦУКЕН so
+                        // "step instruction → step tact" reads as a
+                        // finer-grained variant of the same gesture).
+                        // Ctrl+Shift+letter for the destructive resets:
+                        // capitalised intuition + a guaranteed-not-while-
+                        // typing modifier on RAM/registers wipes. R doubles
+                        // as "Run" and "Reset RAM" without colliding because
+                        // the Shift bit picks the destructive twin, the
+                        // same way Save / Save As share the S key.
+                        // Ctrl+Shift+G mirrors the action panel's "Сброс
+                        // регистров" button — both dispatch `ResetCpu`,
+                        // which per `prompt/09_quality_gates.md` is the
+                        // single "clean power-on" gesture: registers,
+                        // PC, SP, interrupt state, halt, **and**
+                        // cycle_count. There is no separate "registers
+                        // only" semantic in the spec.
+                        ('r', false) => Some(Message::ToggleRun),
+                        ('t', false) => Some(Message::StepInstruction),
+                        ('y', false) => Some(Message::StepTact),
+                        ('r', true) => Some(Message::ResetRam),
+                        ('g', true) => Some(Message::ResetCpu),
                         _ => None,
                     }
                 }

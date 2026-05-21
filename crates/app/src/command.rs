@@ -10,7 +10,6 @@ pub enum AppCommand {
     SaveSnapshot(PathBuf),
     LoadSubprogram { path: PathBuf, base_address: u16 },
     ResetRam,
-    ResetRegisters,
     StepTact,
     RunForTStates(u64),
     StepInstruction,

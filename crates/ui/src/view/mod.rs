@@ -39,7 +39,7 @@ use iced::{Element, Length};
 
 use styles::app_style;
 
-use crate::app::{DesktopApp, Message};
+use crate::app::{DesktopApp, MenuId, Message};
 
 /// Vertical offset of the floating menu dropdown from the top of the
 /// app root. The menu bar is 34 px tall and the root container has 8 px
@@ -48,12 +48,14 @@ use crate::app::{DesktopApp, Message};
 const MENU_DROPDOWN_TOP: f32 = 42.0;
 
 /// Horizontal offset of the floating menu dropdown from the app's left
-/// edge. Tuned so the dropdown sits just under the "Файл" label —
-/// `8 px root padding` + `Эмулятор KR580VM80A` glyph width + `18 px
-/// row spacing`. The exact pixel target is approximate (text metrics
-/// vary with the OS font fallback), but the dropdown only needs to
-/// land "near" the trigger, not dead-centre under it.
-const MENU_DROPDOWN_LEFT: f32 = 175.0;
+/// edge, **per top-level menu**. Each value puts the dropdown roughly
+/// under its trigger label — `8 px root padding` + the cumulative width
+/// of every label and 18 px gap that precedes the trigger in
+/// `menu_bar`. The numbers are approximate (text metrics vary with the
+/// OS font fallback) and only need to land "near" the trigger, not
+/// dead-centre under it.
+const FILE_MENU_DROPDOWN_LEFT: f32 = 175.0;
+const MP_MENU_DROPDOWN_LEFT: f32 = 215.0;
 
 impl DesktopApp {
     pub(crate) fn view(&self) -> Element<'_, Message> {
@@ -80,7 +82,17 @@ impl DesktopApp {
         // catching the dropdown's own clicks would dismiss it before
         // the actual menu item could process the press.
         let app_with_menu: Element<'_, Message> = if let Some(dropdown) = self.menu_dropdown() {
-            stack![app_root, menu_dropdown_overlay(dropdown)]
+            // Per-menu horizontal offset: each top-level label sits at
+            // a different x in the menu bar, and the dropdown should
+            // land under its own trigger rather than under the first
+            // one. `open_menu` is `Some(_)` whenever `menu_dropdown`
+            // returned a panel, so the unwrap path is unreachable.
+            let left = match self.open_menu {
+                Some(MenuId::File) => FILE_MENU_DROPDOWN_LEFT,
+                Some(MenuId::Mp) => MP_MENU_DROPDOWN_LEFT,
+                None => FILE_MENU_DROPDOWN_LEFT,
+            };
+            stack![app_root, menu_dropdown_overlay(dropdown, left)]
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into()
@@ -108,15 +120,15 @@ impl DesktopApp {
     }
 }
 
-/// Pads the dropdown into the corner under the "Файл" trigger using a
-/// pair of `Space`s, then `opaque`-wraps it so the surrounding
-/// scrim's `mouse_area` does not see clicks landing on the dropdown
-/// itself.
-fn menu_dropdown_overlay(dropdown: Element<'_, Message>) -> Element<'_, Message> {
+/// Pads the dropdown into the corner under its trigger using a pair of
+/// `Space`s, then `opaque`-wraps it so the surrounding scrim's
+/// `mouse_area` does not see clicks landing on the dropdown itself.
+/// `left` is the per-menu horizontal offset picked by `view()`.
+fn menu_dropdown_overlay(dropdown: Element<'_, Message>, left: f32) -> Element<'_, Message> {
     column![
         Space::new().height(Length::Fixed(MENU_DROPDOWN_TOP)),
         row![
-            Space::new().width(Length::Fixed(MENU_DROPDOWN_LEFT)),
+            Space::new().width(Length::Fixed(left)),
             opaque(dropdown),
             Space::new().width(Length::Fill),
         ]

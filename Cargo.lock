@@ -2071,6 +2071,7 @@ version = "0.1.0"
 dependencies = [
  "calamine",
  "k580-core",
+ "k580-devices",
  "rust_xlsxwriter",
  "serde",
  "serde_json",

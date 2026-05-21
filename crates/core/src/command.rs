@@ -4,7 +4,6 @@ use crate::{RegisterName, ValidationError};
 pub enum CoreCommand {
     ResetCpu,
     ResetRam,
-    ResetRegisters,
     StepTact,
     RunForTStates(u64),
     StepInstruction,

@@ -12,3 +12,6 @@ serde_json.workspace = true
 thiserror.workspace = true
 rust_xlsxwriter.workspace = true
 calamine.workspace = true
+
+[dev-dependencies]
+k580-devices = { path = "../devices" }

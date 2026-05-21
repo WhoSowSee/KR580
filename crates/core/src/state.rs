@@ -49,13 +49,6 @@ impl Cpu8080State {
         self.memory.clear();
     }
 
-    pub fn reset_registers(&mut self) {
-        self.registers = Registers::default();
-        self.flags = Flags::default();
-        self.pc = 0;
-        self.sp = 0;
-    }
-
     pub fn request_interrupt(&mut self, vector_byte: u8) {
         self.interrupt_request_pending = true;
         self.interrupt_vector_byte = Some(vector_byte);
