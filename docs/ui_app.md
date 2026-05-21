@@ -20,17 +20,33 @@ instructions directly, or store emulator state in widgets.
   options, sets the app-level theme/style, and wires the embedded window
   icon. It also pins the Windows subsystem to GUI on release builds (see
   "Console window suppression").
-- `app.rs` defines `DesktopApp`, message types, update routing, theme, the
-  subscription, and the constants used to identify focusable inputs and
-  scrollables.
-- `runtime.rs` contains app-facing command dispatch, event draining, file
-  dialogs, input parsing, the address-pattern search, and the focus-cycle
-  resolver.
+- `app/` defines `DesktopApp`, message routing, theme, and the keyboard
+  subscription:
+  - `app/mod.rs` — state container, `update`, `subscription`, and
+    `handle_arrow_key`, the router that maps a raw ArrowUp/ArrowDown
+    press to the editor that currently owns focus.
+  - `app/messages.rs` — the `Message` enum.
+  - `app/constants.rs` — widget identifiers, register order, and the
+    name lookup helpers. Re-exported from `crate::app::*` so the rest
+    of the crate keeps importing them by short path.
+- `runtime/` contains app-facing command dispatch, event draining, file
+  dialogs, and the per-panel update logic. The methods all hang off
+  `impl DesktopApp` and are grouped by responsibility:
+  - `runtime/mod.rs` — `dispatch`, `pull_events`, `apply_snapshot`,
+    file-dialog helpers.
+  - `runtime/register.rs` — register name/value editing, including
+    `step_register_value_input` for ArrowUp/ArrowDown ±1 stepping.
+  - `runtime/memory.rs` — memory list, address spinner, inline editor,
+    Ctrl+Enter pattern search, and the matching value-step helpers
+    (`step_memory_value_input`, `step_inline_memory_value_input`).
+  - `runtime/focus.rs` — Tab/Shift+Tab cycling between fields.
+  - `runtime/parse.rs` — small free helpers (hex parsing, normalization,
+    `saturating_step_u8`).
 - `view.rs` renders the current snapshot, lays out every panel, and owns
   every widget style.
-- `platform.rs` is a Windows-only helper used by `app.rs` for DWM cloaking
-  during launch (see "Launch flash mitigation"). On non-Windows targets it
-  compiles down to a no-op.
+- `platform.rs` is a Windows-only helper used by `app/mod.rs` for DWM
+  cloaking during launch (see "Launch flash mitigation"). On non-Windows
+  targets it compiles down to a no-op.
 
 ## Event handling
 
@@ -52,6 +68,8 @@ The UI exposes the following shortcuts. Modifier names follow iced's
 | Enter (in value field) | Write the typed byte into the currently selected address. |
 | Ctrl+Enter | Find the next address whose 4-digit hex form contains the cached search pattern, advancing past the current cell and wrapping around 64 KiB. The pattern is captured before the first plain Enter so iterating after an initial jump uses the original short hex (`FF`) rather than the matched address (`00FF`). The pattern is reset whenever the user edits the address field by hand. |
 | Alt+Enter | Step to the next sequential address (same as ArrowDown). Never writes memory, never touches the search pattern cache. |
+| ArrowUp / ArrowDown (in address field) | Step the highlighted address by one. |
+| ArrowUp / ArrowDown (in value field) | Bump the byte in the value field by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to memory until Enter; ArrowUp on `FF` and ArrowDown on `00` are no-ops. |
 | Tab / Shift+Tab | Cycle focus between the two fields of this panel only. |
 
 ### Register editor (name + value pair)
@@ -59,6 +77,8 @@ The UI exposes the following shortcuts. Modifier names follow iced's
 | Shortcut | Effect |
 |---|---|
 | Enter | Apply the typed value to the typed register. |
+| ArrowUp / ArrowDown (in name field) | Cycle to the previous/next register in `A B C D E H L`. |
+| ArrowUp / ArrowDown (in value field) | Bump the byte in the value field by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to the register until Enter; ArrowUp on `FF` and ArrowDown on `00` are no-ops. |
 | Tab / Shift+Tab | Cycle focus between the two fields of this panel only. |
 
 ### Memory list (the inline value cell of the selected row)
@@ -68,7 +88,8 @@ The UI exposes the following shortcuts. Modifier names follow iced's
 | Enter | Apply the typed value to the selected address. |
 | Tab / Shift+Tab | Move the selection to the next/previous address and refocus the inline editor for the new row. |
 | Esc | Hide the opcode dropdown if it is open. |
-| ArrowUp / ArrowDown | Move the highlighted address by one. |
+| ArrowUp / ArrowDown (inline editor focused) | Bump the byte in the inline editor by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to memory until Enter. |
+| ArrowUp / ArrowDown (no editor focused) | Move the highlighted address by one. |
 | PageUp / PageDown | Move the highlighted address by 16. |
 
 ### Global
@@ -76,6 +97,8 @@ The UI exposes the following shortcuts. Modifier names follow iced's
 | Shortcut | Effect |
 |---|---|
 | Esc | Hide the opcode dropdown if it is open. |
+| ArrowUp / ArrowDown | Routed by `DesktopApp::handle_arrow_key` to the editor that currently owns focus (see the panel-specific tables above). With nothing tracked focused they fall back to memory list navigation. |
+| PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
 
 ## Focus rings and styling
 

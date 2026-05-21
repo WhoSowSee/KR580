@@ -1,3 +1,26 @@
+//! Application shell: the iced state container, message routing, theme
+//! selection, and the keyboard subscription.
+//!
+//! The two heaviest sub-pieces live in dedicated modules:
+//!
+//! - `messages` owns the `Message` enum (it grows often and would crowd
+//!   the state container otherwise).
+//! - `constants` owns the widget identifiers, the register order, and a
+//!   couple of register-name helpers. They are re-exported from this
+//!   module so the rest of the crate can keep importing them as
+//!   `crate::app::FOO`.
+
+mod constants;
+mod messages;
+
+pub(crate) use constants::{
+    MEMORY_ADDRESS_COUNT, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
+    MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, MEMORY_SCROLL_VISIBLE_TICKS,
+    MEMORY_VALUE_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_ORDER, REGISTER_VALUE_INPUT_ID,
+    parse_register_name, register_name,
+};
+pub(crate) use messages::Message;
+
 use iced::{Subscription, Task, Theme};
 use iced::{event, keyboard, time};
 use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
@@ -5,58 +28,6 @@ use k580_core::RegisterName;
 use std::time::Duration;
 
 use crate::platform;
-
-pub(crate) const MEMORY_ADDRESS_COUNT: usize = 0x1_0000;
-pub(crate) const MEMORY_OVERSCAN_ROWS: usize = 12;
-pub(crate) const MEMORY_RENDER_ROWS: usize = 96;
-pub(crate) const MEMORY_ROW_HEIGHT: f32 = 28.0;
-pub(crate) const MEMORY_SCROLL_ID: &str = "memory-scroll";
-
-/// Stable widget identifiers for every text input we want to drive with
-/// keyboard navigation. They define isolated focus rings so that Tab/Shift+Tab
-/// only cycles inside the panel that currently owns the focus instead of
-/// walking through every focusable widget in the application.
-pub(crate) const MEMORY_ADDRESS_INPUT_ID: &str = "memory-address-input";
-pub(crate) const MEMORY_VALUE_INPUT_ID: &str = "memory-value-input";
-pub(crate) const REGISTER_NAME_INPUT_ID: &str = "register-name-input";
-pub(crate) const REGISTER_VALUE_INPUT_ID: &str = "register-value-input";
-/// The inline value editor inside the memory list. Only one such input is
-/// rendered at a time (for the currently selected address), so a single ID
-/// keeps focus continuity when the user steps from one row to the next.
-pub(crate) const MEMORY_INLINE_INPUT_ID: &str = "memory-inline-input";
-
-/// Number of 100 ms ticks the memory scrollbar stays visible after the last
-/// scroll event. 12 ticks ≈ 1.2 seconds.
-pub(crate) const MEMORY_SCROLL_VISIBLE_TICKS: u8 = 12;
-
-pub(crate) const REGISTER_ORDER: [RegisterName; 7] = [
-    RegisterName::A,
-    RegisterName::B,
-    RegisterName::C,
-    RegisterName::D,
-    RegisterName::E,
-    RegisterName::H,
-    RegisterName::L,
-];
-
-pub(crate) fn register_name(register: RegisterName) -> &'static str {
-    match register {
-        RegisterName::A => "A",
-        RegisterName::B => "B",
-        RegisterName::C => "C",
-        RegisterName::D => "D",
-        RegisterName::E => "E",
-        RegisterName::H => "H",
-        RegisterName::L => "L",
-    }
-}
-
-pub(crate) fn parse_register_name(input: &str) -> Option<RegisterName> {
-    REGISTER_ORDER
-        .iter()
-        .copied()
-        .find(|register| register_name(*register).eq_ignore_ascii_case(input.trim()))
-}
 
 pub(crate) struct DesktopApp {
     pub(crate) handle: EmulatorHandle,
@@ -95,77 +66,6 @@ pub(crate) struct DesktopApp {
     /// window cloaked (DWM-hidden on Windows) until the second frame so the
     /// OS never gets a chance to flash its default white client area.
     pub(crate) startup_frames_seen: u8,
-}
-
-#[derive(Clone, Debug)]
-pub(crate) enum Message {
-    Tick,
-    StepInstruction,
-    StepTact,
-    Run,
-    Stop,
-    ResetCpu,
-    ResetRam,
-    OpenSnapshot,
-    SaveSnapshot,
-    ExportTxt,
-    ExportXlsx,
-    ExportDocx,
-    RegisterSelected(RegisterName),
-    RegisterNameChanged(String),
-    RegisterPrevious,
-    RegisterNext,
-    RegisterValueChanged(String),
-    ApplyRegister,
-    MemorySelected(u16),
-    MemoryAddressPrevious,
-    MemoryAddressNext,
-    MemoryAddressPageUp,
-    MemoryAddressPageDown,
-    MemoryScrolled(f32, f32),
-    JumpMemoryAddress,
-    MemoryAddressChanged(String),
-    MemoryValueChanged(String),
-    InlineMemoryValueChanged(u16, String),
-    ApplyInlineMemoryValue(u16),
-    OpcodeDropdownToggled(u16),
-    OpcodeSearchChanged(String),
-    OpcodeSelected(u16, u8),
-    OpcodeScrolled,
-    HideOpcodeDropdown,
-    ApplyMemory,
-    /// Latest keyboard modifier state, broadcast by iced whenever any of the
-    /// modifier keys change. Cached so message handlers can disambiguate
-    /// modified shortcuts (Ctrl+Enter, Alt+Enter) before the text input's
-    /// own `on_submit` fires.
-    ModifiersChanged(keyboard::Modifiers),
-    /// Move keyboard focus inside the focus group of the currently focused
-    /// input. `backward` swaps direction (Shift+Tab). Groups are isolated:
-    /// the memory address/value pair, the register name/value pair, and the
-    /// inline memory list cycle independently.
-    FocusCycle {
-        backward: bool,
-    },
-    /// Internal continuation of `FocusCycle`: carries the id of the widget
-    /// that owned focus when Tab was pressed. We compute the destination in
-    /// the `update` handler because only there can we tweak app state (e.g.
-    /// shift the inline-edited address) before issuing the actual focus
-    /// task.
-    FocusResolved {
-        focused: iced::widget::Id,
-        backward: bool,
-    },
-    /// Result of the periodic `find_focused` poll. Carries the ids of any
-    /// focused widgets iced reports — typically zero or one — so the UI can
-    /// keep `DesktopApp::focused_input` in sync regardless of how the user
-    /// reached the input (typing, Tab, mouse click).
-    FocusPolled(Vec<iced::widget::Id>),
-    /// Iced reports that a window has been opened. We respond by cloaking it
-    /// via DWM on Windows so the launch flash never reaches the screen.
-    WindowOpened(iced::window::Id),
-    /// Iced has rendered a frame. After the second frame we know the wgpu
-    /// surface is presenting our content, so we can safely uncloak.
-    FrameRendered,
 }
 
 impl DesktopApp {
@@ -252,6 +152,7 @@ impl DesktopApp {
             Message::MemoryAddressNext => return self.step_memory_address(1),
             Message::MemoryAddressPageUp => return self.step_memory_address(-16),
             Message::MemoryAddressPageDown => return self.step_memory_address(16),
+            Message::ArrowKey(direction) => return self.handle_arrow_key(direction),
             Message::MemoryScrolled(offset, viewport_height) => {
                 self.memory_viewport_height = viewport_height;
                 self.scroll_memory(offset);
@@ -334,10 +235,6 @@ impl DesktopApp {
                 return self.cycle_focus(focused, backward);
             }
             Message::FocusPolled(ids) => {
-                use crate::app::{
-                    MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID,
-                    REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
-                };
                 const TRACKED: [&str; 5] = [
                     MEMORY_ADDRESS_INPUT_ID,
                     MEMORY_VALUE_INPUT_ID,
@@ -422,11 +319,15 @@ impl DesktopApp {
                     iced::Event::Keyboard(keyboard::Event::KeyPressed { key, .. }),
                     iced::event::Status::Ignored,
                 ) => match key {
+                    // ArrowUp/ArrowDown are routed by the message handler:
+                    // the destination depends on which input owns focus and
+                    // we don't want to read app state from inside the
+                    // (Fn, not FnMut) listener closure.
                     keyboard::Key::Named(keyboard::key::Named::ArrowUp) => {
-                        Some(Message::MemoryAddressPrevious)
+                        Some(Message::ArrowKey(1))
                     }
                     keyboard::Key::Named(keyboard::key::Named::ArrowDown) => {
-                        Some(Message::MemoryAddressNext)
+                        Some(Message::ArrowKey(-1))
                     }
                     keyboard::Key::Named(keyboard::key::Named::PageUp) => {
                         Some(Message::MemoryAddressPageUp)
@@ -448,5 +349,38 @@ impl DesktopApp {
         }
 
         Subscription::batch(subscriptions)
+    }
+
+    /// Routes ArrowUp/ArrowDown to whichever editor currently owns focus.
+    /// `direction` is `+1` for ArrowUp and `-1` for ArrowDown, matching
+    /// the convention "up increments, down decrements" used by numeric
+    /// byte fields. With nothing tracked focused we fall back to memory
+    /// list navigation, which is the legacy app-wide shortcut.
+    fn handle_arrow_key(&mut self, direction: i32) -> Task<Message> {
+        match self.focused_input {
+            Some(REGISTER_NAME_INPUT_ID) => {
+                // ArrowUp moves to the register listed *above* the current
+                // one in `REGISTER_ORDER`, which means stepping by `-1`.
+                self.step_register(-direction);
+                Task::none()
+            }
+            Some(REGISTER_VALUE_INPUT_ID) => {
+                self.step_register_value_input(direction);
+                Task::none()
+            }
+            Some(MEMORY_VALUE_INPUT_ID) => {
+                self.step_memory_value_input(direction);
+                Task::none()
+            }
+            Some(MEMORY_INLINE_INPUT_ID) => {
+                self.step_inline_memory_value_input(direction);
+                Task::none()
+            }
+            // Memory address field and "no focus" both fall through to
+            // memory navigation: stepping the address there *is* what the
+            // user wants, and the unfocused case keeps the legacy global
+            // shortcut.
+            _ => self.step_memory_address(-direction),
+        }
     }
 }

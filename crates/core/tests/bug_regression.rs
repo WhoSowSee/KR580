@@ -161,7 +161,11 @@ fn bug01_jp_uses_sign_not_parity() {
         cpu.memory.write(i as u16, *b);
     }
     run_until_halt(&mut cpu);
-    assert_eq!(cpu.get_register(RegisterName::A), 0x22, "JP must jump on S=0");
+    assert_eq!(
+        cpu.get_register(RegisterName::A),
+        0x22,
+        "JP must jump on S=0"
+    );
 }
 
 /// BUG-01 reproducer for JM with S=1, P=0.
@@ -178,7 +182,11 @@ fn bug01_jm_uses_sign_not_parity() {
         cpu.memory.write(i as u16, *b);
     }
     run_until_halt(&mut cpu);
-    assert_eq!(cpu.get_register(RegisterName::A), 0x22, "JM must jump on S=1");
+    assert_eq!(
+        cpu.get_register(RegisterName::A),
+        0x22,
+        "JM must jump on S=1"
+    );
 }
 
 /// BUG-02 reproducer (RRC must use bit0, not old CY).
