@@ -117,18 +117,26 @@ pub(crate) enum Message {
     /// only the button identity, not the position.
     CursorMoved(Point),
     /// The user pressed the left mouse button somewhere in the window.
-    /// The handler runs `reconcile_focus_at(self.latest_cursor_position)`
-    /// to clear stale `is_focused` flags on every focusable widget that
-    /// the click did not land on. This bypasses iced's per-widget
-    /// propagation, which the column→stack capture race in
-    /// `runtime/focus_ops.rs` makes unreliable across sibling panels.
+    /// The handler runs `find_focusable_at(self.latest_cursor_position)`
+    /// to identify which focusable claims the click, and — only when
+    /// it finds one — chains `unfocus_except(id)` to clear stale
+    /// `is_focused` flags on every other focusable. This bypasses
+    /// iced's per-widget propagation, which the column→stack capture
+    /// race in `runtime/focus_ops.rs` makes unreliable across sibling
+    /// panels. The two-pass split also keeps repeat clicks inside an
+    /// already-focused input safe: when a layout race makes the click
+    /// momentarily fall outside the input's reported bounds, no hit
+    /// is found and no unfocus pass runs, so focus is preserved
+    /// instead of being wiped mid-edit.
     MousePressed,
-    /// Result of the `reconcile_focus_at` operation: the id of the
-    /// focusable that the most recent click landed on, or `None` if the
-    /// click missed every focusable (or hit an unkeyed one). Used to
-    /// drive the cosmetic `focused_input` indicator authoritatively
-    /// from cursor coordinates rather than relying on iced's natural
-    /// focus-tracking, which the column→stack race breaks.
+    /// Result of the `find_focusable_at` operation: the id of the
+    /// focusable that the most recent click landed on, or `None` if
+    /// the click missed every focusable (or hit an unkeyed one).
+    /// Used to drive the cosmetic `focused_input` indicator
+    /// authoritatively from cursor coordinates rather than relying on
+    /// iced's natural focus-tracking, which the column→stack race
+    /// breaks. The handler also chains the follow-up `unfocus_except`
+    /// pass when a hit is found.
     FocusReconciled(Option<iced::widget::Id>),
     /// Iced reports that a window has been opened. We respond by cloaking it
     /// via DWM on Windows so the launch flash never reaches the screen.

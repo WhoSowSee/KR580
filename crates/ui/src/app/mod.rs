@@ -137,17 +137,36 @@ impl DesktopApp {
                 self.latest_cursor_position = point;
             }
             Message::MousePressed => {
-                // Authoritative focus reconciliation: walk the
-                // widget tree, leave the focusable under the cursor
-                // alone, and clear `state.is_focused` on every
-                // other focusable. This bypasses iced's per-widget
-                // event propagation, which the column→stack
-                // capture race in `runtime::focus_ops` makes
-                // unreliable across sibling panels. The result
-                // comes back as `FocusReconciled` so we can update
-                // the cosmetic indicator from the same coordinates
-                // we used to drive the actual state mutation.
-                return iced::advanced::widget::operate(crate::runtime::reconcile_focus_at(
+                // Authoritative focus reconciliation, in two passes.
+                //
+                // Pass 1 (`find_focusable_at`) is read-only: it walks
+                // the widget tree and returns the id of the focusable
+                // whose bounds contain the click point, or `None` if
+                // the click missed every focusable.
+                //
+                // Pass 2 (`unfocus_except`) is the mutation: given a
+                // confirmed hit id, it walks the tree again and
+                // clears `state.is_focused` on every focusable that
+                // is *not* the hit. This is what fixes the
+                // column→stack capture race described in
+                // `runtime::focus_ops` — text_inputs in sibling
+                // panels never see the click, so without this pass
+                // they would keep stale `Some(_)` flags from earlier
+                // typing.
+                //
+                // Pass 2 only runs when pass 1 found a hit. A `None`
+                // result is treated as "leave focus alone" instead
+                // of "clear everything" because of a layout race:
+                // iced processes the click in the freshly-clicked
+                // input's `update` *before* draining the operation
+                // queue, and the layout may shift by a pixel or two
+                // in between, making the input's reported bounds
+                // miss the click point. A single-pass operation
+                // would then unfocus the input that just processed
+                // the click, dropping the caret mid-edit. Splitting
+                // the work and bailing out on `None` keeps repeat
+                // clicks inside an already-focused input safe.
+                return iced::advanced::widget::operate(crate::runtime::find_focusable_at(
                     self.latest_cursor_position,
                 ))
                 .map(Message::FocusReconciled);
@@ -173,7 +192,38 @@ impl DesktopApp {
                         .into_iter()
                         .find(|known| *id == iced::widget::Id::new(known))
                 });
-                self.focused_input = resolved;
+
+                // Update the cosmetic tracker first so the focus ring
+                // matches the new state on the same frame. Two cases
+                // here:
+                //
+                // * `hit = Some(id)` — pass 1 found a focusable
+                //   under the click. Update the ring and chain pass
+                //   2 (`unfocus_except`) to clear stale focus on
+                //   every *other* focusable. We deliberately do not
+                //   touch the hit widget's state: iced's
+                //   `text_input::update` has already set
+                //   `is_focused = Some(_)` for it, and calling
+                //   `state.focus()` ourselves would snap the caret
+                //   to the end via `move_cursor_to_end`.
+                //
+                // * `hit = None` — pass 1 found nothing. Either the
+                //   click landed in dead space (panel border, label,
+                //   gap between widgets) or a layout race left the
+                //   focused input's bounds momentarily not matching
+                //   the click point. In neither case is wiping all
+                //   focus the right move: dead-space clicks should
+                //   leave focus alone (otherwise the user can never
+                //   keep typing after clicking the surrounding
+                //   chrome), and races are exactly the scenario the
+                //   split is designed to absorb. So we simply do not
+                //   issue a pass 2 here, leaving every focusable's
+                //   state untouched.
+                if let Some(id) = hit {
+                    self.focused_input = resolved;
+                    return iced::advanced::widget::operate(crate::runtime::unfocus_except(id))
+                        .discard();
+                }
             }
             Message::StepInstruction => return self.step_instruction_and_advance(),
             Message::RestartProgram => self.restart_program(),

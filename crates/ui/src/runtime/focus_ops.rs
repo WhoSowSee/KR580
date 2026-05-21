@@ -1,4 +1,4 @@
-//! Custom widget operation that reconciles focus state from cursor
+//! Custom widget operations that reconcile focus state from cursor
 //! coordinates after every mouse press.
 //!
 //! Why we need this in iced 0.14.2:
@@ -36,102 +36,136 @@
 //!    up with two focused widgets, two carets, and the user sees the
 //!    one they just clicked appear to "instantly reset" away.
 //!
-//! `reconcile_focus_at(point)` fixes this at the source: a global
-//! `event::listen_with` for `mouse::Event::ButtonPressed(Left)` fires
-//! a message regardless of capture status; the handler runs this
-//! operation, which authoritatively assigns focus to whatever
-//! focusable bounds contain the point and clears every other
-//! focusable. No race, no stale state, no flash, no dependency on
-//! iced's per-widget propagation.
+//! The fix is split across **two** operations on purpose:
+//!
+//! * [`find_focusable_at`] is a read-only scan that returns the id of
+//!   the focusable whose bounds contain `point`, or `None` if no
+//!   focusable claims the point.
+//! * [`unfocus_except`] then walks the tree mutating state, clearing
+//!   `is_focused` on everyone *except* the id we just identified.
+//!
+//! Why not do both in a single pass? Because the message handler that
+//! dispatches the operation runs **after** `text_input::update` has
+//! already processed the click in the freshly-clicked input. By then
+//! the layout has been recomputed for the next frame, and the bounds
+//! visited by the operation can drift by a pixel or two — enough that
+//! a click in an already-focused input no longer falls inside its own
+//! reported bounds. A single-pass operation that unconditionally
+//! unfocuses every "miss" would then unfocus the very input that just
+//! processed the click, dropping focus mid-edit.
+//!
+//! Splitting the work lets the handler treat "no focusable claims the
+//! point" as a benign signal: the user clicked in dead space *or* the
+//! layout drifted, and either way the safe action is to leave focus
+//! alone. Only when we positively identify a hit do we issue the
+//! unfocus pass — at which point clearing every *other* focusable is
+//! unambiguously correct, because the hit acts as the anchor.
 //!
 //! `text_input::draw` (line 501) renders the caret straight off
 //! `state.is_focused`, so a cosmetic shell-driven blue ring would
 //! mask but not fix the underlying multi-focus state. The only
 //! reliable fix is to clear stale state atomically — which is what
-//! this operation does.
+//! these operations do.
 
 use iced::Point;
 use iced::Rectangle;
 use iced::advanced::widget::Id;
 use iced::advanced::widget::operation::{Focusable, Operation, Outcome};
 
-/// Builds an [`Operation`] that walks every focusable widget and calls
-/// `state.unfocus()` on those whose bounds do **not** contain `point`,
-/// leaving any focusable whose bounds **do** contain the point alone.
-/// Returns the id of the focusable that contains the point (or `None`
-/// if the click missed every focusable, or hit an unkeyed one).
+/// Builds an [`Operation`] that walks every focusable widget and
+/// returns the id of the one whose bounds contain `point`, **without
+/// mutating any state**. Returns `None` if no focusable claims the
+/// point — either because the click landed in dead space (a panel
+/// border, a label, the empty area between widgets) or because the
+/// layout has drifted between the press event and the operation drain
+/// (see the module-level note about why we split the reconciliation
+/// in two).
 ///
-/// This is the authoritative cleanup we run on every
-/// `mouse::Event::ButtonPressed(Left)` from a global
-/// `event::listen_with` subscription. The reason we need it instead
-/// of trusting iced's own per-widget propagation is the column→stack
-/// capture race described at the module level: when the user clicks
-/// panel B after panel A captured an earlier press in the same batch,
-/// panel B's `framed_panel` never sees the event because B's
-/// `stack::update` returns early on `shell.is_event_captured()`. The
-/// text_inputs inside panel B then keep whatever `is_focused` they
-/// had before the click — typically a stale `Some(_)` — and the user
-/// sees two carets or focus appears to jump back to a
-/// previously-edited input.
-///
-/// Crucially, this operation does **not** call `state.focus()` on the
-/// hit widget. iced's `text_input::State::focus` calls
-/// `move_cursor_to_end()` (line 1520 of text_input.rs), which would
-/// yank the caret to the end of the value on every click — unusable
-/// for any field longer than one character. We rely on the fact that
-/// `text_input::update` (line 725) has *already* set
-/// `state.is_focused = Some(_)` on the hit widget by the time this
-/// operation runs, since iced processes the click event before
-/// draining the operation queue. Our job is purely to clear the
-/// stale `Some(_)`s on widgets that the click did not land on.
-pub(crate) fn reconcile_focus_at(point: Point) -> impl Operation<Option<Id>> {
-    struct ReconcileFocusAt {
+/// Always paired with [`unfocus_except`] in the `MousePressed`
+/// handler: the read-only scan first identifies who owns the click,
+/// then a second pass clears everyone else. The handler treats a
+/// `None` result as "leave focus alone" rather than "clear
+/// everything", which is what makes repeated clicks inside the same
+/// already-focused input safe — even if a layout race makes its
+/// bounds momentarily fail to contain the click, no other operation
+/// fires to wipe its `is_focused`.
+pub(crate) fn find_focusable_at(point: Point) -> impl Operation<Option<Id>> {
+    struct FindFocusableAt {
         point: Point,
         hit: Option<Id>,
     }
 
-    impl Operation<Option<Id>> for ReconcileFocusAt {
-        fn focusable(&mut self, id: Option<&Id>, bounds: Rectangle, state: &mut dyn Focusable) {
-            if bounds.contains(self.point) {
-                // The click landed inside this focusable. Leave its
-                // state alone — iced has already set `is_focused =
-                // Some(_)` for us in `text_input::update`. Capture
-                // the id so the caller can update its cosmetic
-                // tracker. Unkeyed focusables (like the opcode-search
-                // input that has no static id) cannot be tracked, so
-                // we leave `hit` as `None` for them.
-                if let Some(id) = id {
-                    self.hit = Some(id.clone());
-                }
-            } else {
-                // The click did not land inside this focusable. Clear
-                // any stale `is_focused = Some(_)` it may still hold
-                // from an earlier interaction. This is the exact same
-                // state mutation iced *would* have performed in
-                // `text_input::update` (line 725) if the column→stack
-                // capture race had not aborted the traversal early.
-                state.unfocus();
+    impl Operation<Option<Id>> for FindFocusableAt {
+        fn focusable(&mut self, id: Option<&Id>, bounds: Rectangle, _state: &mut dyn Focusable) {
+            // Read-only: we never call `state.unfocus()` /
+            // `state.focus()` here. Multiple focusables claiming the
+            // point is impossible in practice (text_inputs do not
+            // overlap), but if it ever happened the *last* one
+            // visited would win — fine, since at that point any
+            // single one is a defensible answer.
+            if id.is_some() && bounds.contains(self.point) {
+                self.hit = id.cloned();
             }
         }
 
         fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<Option<Id>>)) {
-            // Walk the entire tree. Skipping any subtree (even one
-            // that we are confident does not contain the cursor)
-            // would let stale focus state survive in widgets we never
-            // visited.
+            // Walk the entire tree. Pruning subtrees on bounds
+            // mismatch would be a valid optimisation, but the focus
+            // count is small (5 tracked inputs) so the simpler
+            // unfiltered walk is fine.
             operate(self);
         }
 
         fn finish(&self) -> Outcome<Option<Id>> {
-            // Always emit `Some(...)` so the resulting `Task` resolves
-            // to a deterministic value and the message handler always
-            // gets to run. The inner `Option<Id>` is `None` when the
-            // click missed every focusable (e.g. clicked on a panel
-            // border or the empty space between widgets), which the
-            // handler treats as "drop the cosmetic indicator".
+            // `Outcome::Some(None)` means "scan completed, no
+            // focusable claimed the point". The handler reads this
+            // and skips the follow-up unfocus pass.
             Outcome::Some(self.hit.clone())
         }
     }
 
-    ReconcileFocusAt { point, hit: None }
+    FindFocusableAt { point, hit: None }
+}
+
+/// Builds an [`Operation`] that walks every focusable widget and
+/// calls `state.unfocus()` on those whose id does **not** match
+/// `except`. The widget identified by `except` is left alone —
+/// `text_input::update` has already set `is_focused = Some(_)` on it
+/// (or it was already focused from a prior interaction), and we
+/// deliberately avoid calling `state.focus()` because iced's
+/// implementation snaps the caret to the end of the value, which
+/// would make repeated clicks inside the same input lose the user's
+/// caret position.
+///
+/// Always preceded by [`find_focusable_at`] in the `MousePressed`
+/// handler — see the module docs for why the work is split into two
+/// passes.
+pub(crate) fn unfocus_except(except: Id) -> impl Operation<()> {
+    struct UnfocusExcept {
+        except: Id,
+    }
+
+    impl Operation<()> for UnfocusExcept {
+        fn focusable(&mut self, id: Option<&Id>, _bounds: Rectangle, state: &mut dyn Focusable) {
+            // Match strictly on id. Bounds are intentionally ignored
+            // here: by the time this operation runs we have *already*
+            // committed to a hit, and any layout drift since the
+            // initial scan is no longer relevant — we trust the id
+            // we were handed.
+            let is_target = matches!(id, Some(id) if id == &self.except);
+            if !is_target {
+                state.unfocus();
+            }
+        }
+
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<()>)) {
+            operate(self);
+        }
+
+        fn finish(&self) -> Outcome<()> {
+            Outcome::Some(())
+        }
+    }
+
+    UnfocusExcept { except }
 }
