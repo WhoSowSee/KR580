@@ -242,14 +242,44 @@ fn address_cell(address: u16, accent: iced::Color) -> Element<'static, Message> 
 }
 
 fn command_cell(command: String, address: u16) -> Element<'static, Message> {
-    container(cell_mouse_area(
-        mono_text(command, 14, TOKYO_TEXT),
-        Message::OpcodeDropdownToggled(address),
-        Message::MemoryEnter(address),
-    ))
-    .width(Length::FillPortion(1))
-    .height(Length::Fill)
-    .into()
+    // The opcode dropdown should open only when the user clicks the
+    // mnemonic itself, not when they click anywhere in the column's
+    // empty horizontal slack. Two listeners do the work:
+    //
+    //   * The text glyph is wrapped in a `mouse_area` that fires
+    //     `OpcodeDropdownToggled`. Its bounds match the rendered
+    //     text exactly (no `width: Fill`), so only clicks on the
+    //     mnemonic open the picker.
+    //   * The surrounding cell is a second `mouse_area` (full
+    //     column width) that fires `MemorySelected` on click. This
+    //     mirrors the address column: clicking the empty space of
+    //     the row still moves the highlight, just without entering
+    //     edit mode or opening the dropdown.
+    //
+    // `mouse_area::update` ignores presses that an inner widget
+    // already captured, so a click on the mnemonic reaches only the
+    // inner listener; a click in the slack reaches only the outer
+    // one.
+    let glyph: Element<'static, Message> = mouse_area(mono_text(command, 14, TOKYO_TEXT))
+        .on_press(Message::OpcodeDropdownToggled(address))
+        .on_double_click(Message::MemoryEnter(address))
+        .interaction(iced::mouse::Interaction::Pointer)
+        .into();
+
+    let body = container(glyph)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(alignment::Horizontal::Center)
+        .align_y(alignment::Vertical::Center);
+
+    let cell = mouse_area(body)
+        .on_press(Message::MemorySelected(address))
+        .on_double_click(Message::MemoryEnter(address));
+
+    container(cell)
+        .width(Length::FillPortion(1))
+        .height(Length::Fill)
+        .into()
 }
 
 fn memory_value_cell<'a>(
