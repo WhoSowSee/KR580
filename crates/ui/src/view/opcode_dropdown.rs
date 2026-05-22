@@ -13,7 +13,7 @@ use super::styles::{
 };
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text};
 use super::utils::row_separator;
-use crate::app::Message;
+use crate::app::{Message, OPCODE_SEARCH_INPUT_ID};
 
 pub(super) fn opcode_dropdown_overlay<'a>(
     address: u16,
@@ -44,6 +44,7 @@ fn opcode_dropdown<'a>(address: u16, search: &'a str, reveal: bool) -> Element<'
 
     let content = column![
         text_input("Поиск: hex или мнемоника", search)
+            .id(OPCODE_SEARCH_INPUT_ID)
             .on_input(Message::OpcodeSearchChanged)
             .font(MONO_FONT)
             .size(13)

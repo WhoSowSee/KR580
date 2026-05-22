@@ -21,6 +21,17 @@ impl DesktopApp {
         self.set_memory_address(address);
     }
 
+    /// Reads the currently selected memory address from the spinner
+    /// input. The spinner mirrors the highlight, so the returned
+    /// value is what every "act on the selected row" gesture should
+    /// target — `EnterPressed` recovering inline editing after Esc,
+    /// for example. Returns `None` when the field somehow holds a
+    /// non-hex value; callers fall back to a no-op rather than
+    /// guessing an address.
+    pub(crate) fn selected_memory_address(&self) -> Option<u16> {
+        parse_hex_u16(&self.memory_address_input).ok()
+    }
+
     pub(crate) fn step_memory_address(&mut self, delta: i32) -> Task<Message> {
         let address = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
         let next = if delta.is_negative() {

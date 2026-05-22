@@ -146,6 +146,30 @@ pub(crate) enum Message {
     /// thin layer keeps the Esc handler honest about which gesture
     /// it represents in any given moment.
     EscPressed,
+    /// Raw Enter keypress from the global keyboard subscription,
+    /// fired only when the press was reported with
+    /// `Status::Ignored` — i.e. no focusable consumed it. The
+    /// handler reads the currently selected memory address from
+    /// `memory_address_input` and dispatches `MemoryEnter` so the
+    /// inline value editor receives focus on that row. This is the
+    /// keyboard-only counterpart to double-clicking the row, and
+    /// the recovery path after Esc / a dead-space click cleared
+    /// focus — without it the user has to reach for the mouse to
+    /// resume editing. Inside any text input the press never lands
+    /// here because `text_input::on_submit` captures it first.
+    EnterPressed,
+    /// Raw E keypress (no modifiers) from the global keyboard
+    /// subscription, fired only when the press was reported with
+    /// `Status::Ignored` — i.e. no text input owned the caret. The
+    /// handler opens the floating opcode picker for the currently
+    /// selected memory row and chains a focus task onto its search
+    /// field, so the user can immediately start typing a hex byte
+    /// or a mnemonic. This is the keyboard-only counterpart to
+    /// clicking the command column: it recovers the picker from a
+    /// no-focus state without forcing the user back to the mouse.
+    /// Inside any text input the press is captured by the input
+    /// itself and never reaches this branch.
+    OpenOpcodePicker,
     ApplyMemory,
     /// Latest keyboard modifier state, broadcast by iced whenever any of the
     /// modifier keys change. Cached so message handlers can disambiguate

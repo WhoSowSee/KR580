@@ -26,6 +26,11 @@ pub(crate) const REGISTER_VALUE_INPUT_ID: &str = "register-value-input";
 /// rendered at a time (for the currently selected address), so a single ID
 /// keeps focus continuity when the user steps from one row to the next.
 pub(crate) const MEMORY_INLINE_INPUT_ID: &str = "memory-inline-input";
+/// Search field inside the floating opcode picker. Carries an id so the
+/// hotkey-driven open path (E from "no-focus") can chain a focus task
+/// straight after toggling the dropdown — the user expects to start typing
+/// the mnemonic immediately, the same way the click-driven open feels.
+pub(crate) const OPCODE_SEARCH_INPUT_ID: &str = "opcode-search-input";
 
 /// Number of 100 ms ticks the memory scrollbar stays visible after the last
 /// scroll event. 12 ticks ≈ 1.2 seconds.

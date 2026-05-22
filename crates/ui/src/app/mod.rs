@@ -16,8 +16,8 @@ mod messages;
 pub(crate) use constants::{
     MEMORY_ADDRESS_COUNT, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
     MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, MEMORY_SCROLL_VISIBLE_TICKS,
-    MEMORY_VALUE_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_ORDER, REGISTER_VALUE_INPUT_ID,
-    parse_register_name, register_name,
+    MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_ORDER,
+    REGISTER_VALUE_INPUT_ID, parse_register_name, register_name,
 };
 pub(crate) use messages::{MenuId, Message};
 
@@ -586,6 +586,60 @@ impl DesktopApp {
                 self.hide_opcode_dropdown();
                 return resolve;
             }
+            Message::EnterPressed => {
+                // The keyboard subscription only emits this message
+                // when the press was `Status::Ignored` — i.e. no
+                // focusable consumed it. So there is no need to gate
+                // on `self.focused_input` here: any text_input that
+                // owned focus would have captured the Enter and
+                // routed it through its own `on_submit`
+                // (`ApplyMemory`, `ApplyRegister`,
+                // `ApplyInlineMemoryValue`, …) before this branch
+                // ever ran.
+                //
+                // Re-enter inline editing for whichever row the
+                // memory address spinner is currently pointing at.
+                // The spinner mirrors the highlight, so this is the
+                // row the user has been navigating with arrows or
+                // PageUp/PageDown. A non-hex address shouldn't
+                // happen in normal use (the spinner only renders
+                // four hex digits), but we still bail silently
+                // rather than panic — the press becomes a no-op the
+                // same way a pre-edit click on dead space would.
+                let Some(address) = self.selected_memory_address() else {
+                    return Task::none();
+                };
+                return Task::done(Message::MemoryEnter(address));
+            }
+            Message::OpenOpcodePicker => {
+                // Same gating story as `EnterPressed`: the listener
+                // only forwards E when iced reports `Status::Ignored`,
+                // so any text input that owned focus has already
+                // consumed the keypress (the user was typing the
+                // letter, not invoking a shortcut).
+                //
+                // Toggle the floating opcode picker on the currently
+                // selected row and chain a focus task onto its search
+                // field. `toggle_opcode_dropdown` is the same path the
+                // click on the command column takes, so the visual
+                // state is identical — the only added work is the
+                // focus task, which is harmless if the dropdown was
+                // already open (re-focusing the same widget is a
+                // no-op).
+                let Some(address) = self.selected_memory_address() else {
+                    return Task::none();
+                };
+                self.toggle_opcode_dropdown(address);
+                // If the toggle just *closed* the dropdown (the user
+                // pressed E twice), don't bother focusing — the search
+                // field is no longer in the tree. Open-state is the
+                // post-toggle invariant we need to check.
+                if self.opcode_dropdown_address.is_none() {
+                    return Task::none();
+                }
+                self.focused_input = Some(OPCODE_SEARCH_INPUT_ID);
+                return iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID);
+            }
             Message::ApplyMemory => {
                 if self.keyboard_modifiers.command() {
                     // Ctrl+Enter forward search, Ctrl+Shift+Enter backward.
@@ -793,6 +847,35 @@ impl DesktopApp {
                     }
                     keyboard::Key::Named(keyboard::key::Named::PageDown) => {
                         Some(Message::MemoryAddressPageDown)
+                    }
+                    // Enter outside any text input: the iced runtime
+                    // reports the press as `Status::Ignored` because no
+                    // focusable claimed it. Route it through a dedicated
+                    // message so the update handler can re-enter inline
+                    // editing on the currently selected memory row —
+                    // recovers from Esc / dead-space click without
+                    // forcing the user back to the mouse.
+                    keyboard::Key::Named(keyboard::key::Named::Enter) => {
+                        Some(Message::EnterPressed)
+                    }
+                    // Bare E (no modifiers) outside any text input:
+                    // open the floating opcode picker on the current
+                    // row and focus its search field. Same gating
+                    // story as Enter — `Status::Ignored` means no
+                    // input owned the keystroke, so the user is not
+                    // trying to type the letter into an editor. The
+                    // Ctrl+E shortcut for "Экспорт" is handled by the
+                    // earlier `modifiers.command()` arm and does not
+                    // reach here. We deliberately do not check
+                    // `modifiers` again: the previous branch already
+                    // matched anything with Ctrl/Cmd, so by the time
+                    // we land in `Status::Ignored` it is plain E,
+                    // Shift+E, AltGr+E, etc. — all of which the user
+                    // would expect to drop them into the picker, and
+                    // none of which produces a printable character
+                    // that needs preserving (no input is focused).
+                    keyboard::Key::Character(ref c) if c.eq_ignore_ascii_case("e") => {
+                        Some(Message::OpenOpcodePicker)
                     }
                     _ => None,
                 },
