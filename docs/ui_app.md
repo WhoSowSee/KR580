@@ -1,9 +1,10 @@
 # App and UI
 
 `k580-app` owns the emulator and exposes PascalCase commands such as
-`ResetCpu`, `StepTact`, `RunForTStates`, `StepInstruction`, `SetRegister`,
-`SetMemory`, `ReadPort`, `WritePort`, `LoadSnapshot`, `SaveSnapshot`,
-`LoadSubprogram`, and direct export commands.
+`ResetCpu`, `StepTact`, `RunForTStates`, `StepInstruction`, `Run`, `Stop`,
+`SetStepInterval`, `SetRegister`, `SetMemory`, `ReadPort`, `WritePort`,
+`LoadSnapshot`, `SaveSnapshot`, `LoadSubprogram`, and direct export
+commands.
 
 `k580-ui` is an iced application shell. It renders an `AppSnapshot`, sends
 `AppCommand` values to the actor, and drains `AppEvent` notifications.
@@ -88,15 +89,47 @@ The first two buttons are tumblers driven by `DesktopApp::running`.
 
 The leftmost (run/pause) button mirrors the reference KR-580 emulator.
 At rest it paints `play.svg` in green; once armed it swaps to
-`pause.svg` in red. Toggling the icon is decoupled from dispatching
-`AppCommand::Run`: when the byte at `cpu.pc` is `0x00` the press is
-purely cosmetic — the icon flips and the status line reads
-`No program at <PC>` / `Stopped`, but no T-states are consumed. With a
-program loaded at the current PC the toggle drives the real
-`Run` / `Stop` commands, so users who actually loaded code keep the
-original behaviour. This avoids the prior bug where every click on an
-empty RAM page burned ~100k T-states inside
-`cpu.run_until_halt(&mut bus, 100_000)`.
+`pause.svg` in red. **Pause is unconditional**: a click while the run
+is armed always sends `AppCommand::Stop`, regardless of where PC has
+walked to. This matters because a paced run carries PC through
+whatever bytes follow the user's program — once it walks off the
+loaded code into a stretch of `0x00` (the default RAM fill), any
+gate that compares the *current* `cpu.memory.read(pc)` against zero
+would mistake the running program for an empty page and silently
+swallow the click. The user reported this as «не могу остановить
+программу, только сбросом регистров»: typed `13` at 0x0000, ran it,
+PC walked through INX D + NOPs, and pause did nothing because the
+byte at the new PC was zero. The current handler returns Stop first
+and only then reaches the run-arming gates, so Stop is reachable
+from any execution state.
+
+Run-arming is the gated half. With the toggle disarmed, the handler
+checks both the halted bit and the byte at `cpu.pc`: a halted CPU
+surfaces the reset-registers notice (Variant A — see below), and a
+blank page (byte is `0x00`) yields a `No program at <PC>` hint with
+no worker activity. Tying the visual flag to the same condition that
+gates the dispatch prevents the desync the user reported earlier as
+«программа выглядит будто работает, но ничего не выполняется»:
+previously, an unconditional icon flip on an empty page survived a
+subsequent `Import` / `OpenSnapshot`, leaving the panel painted red
+while the worker sat idle. Two extra safeguards back this up —
+`load_snapshot_from_path` and `import_file` both clear `self.running`
+before they touch the worker, so any prior cosmetic state from
+before the document changed is dropped. This also avoids the older
+bug where every click on an empty RAM page burned ~100k T-states
+inside `cpu.run_until_halt(&mut bus, 100_000)`.
+
+`AppCommand::Run` no longer blocks the worker. It only flips an
+`is_running` flag on the emulator; the actual instruction-by-instruction
+advance is driven by the worker's `select!` loop (see
+`docs/architecture.md`), which fires one `tick()` per
+`step_interval`. Each `tick()` executes a single instruction, publishes
+`InstructionBoundaryReached` + `StateChanged`, and decrements an internal
+`MAX_INSTRUCTIONS_PER_RUN` budget so a runaway program eventually pauses
+itself instead of burning the worker thread. `AppCommand::Stop` clears
+the flag and emits `Stopped`. The combined effect: the highlighted memory
+cell, register readouts, PC, and cycle counter all animate live as the
+program executes — no more "click play, see only the final state".
 
 The second (step / restart) button is `step-forward` at rest and
 `refresh-ccw` while running. At rest it sends
@@ -128,6 +161,162 @@ remain available from the top menu bar — this panel is a discoverable
 in-context surface for the same commands; no new `AppCommand` or
 `Message` variants were added. iced's `svg` Cargo feature is enabled
 in `crates/ui/Cargo.toml` so the renderer pulls in the resvg backend.
+
+## «Содержимое ячеек ОЗУ» follows PC during Run
+
+While the run is armed, the highlight in the memory list (and the
+address spinner / inline value buffer) tracks `cpu.pc` automatically.
+Implementation:
+
+- The actor publishes one `StateChanged` per executed instruction.
+- The 100 ms `Message::Tick` subscription folds those snapshots into
+  `DesktopApp` via `pull_events` → `apply_snapshot`.
+- After draining the events, `Tick` calls `follow_pc_during_run` when
+  `self.running` is true. The helper compares the spinner's current
+  address with `cpu.pc`; if they differ it rewrites the spinner,
+  refreshes `memory_value_input`, scrolls the viewport to keep the new
+  row in view, and returns the same `scroll_memory_to` task the
+  step-instruction button uses.
+
+Two guards protect interactive editing:
+
+- `follow_pc_during_run` does **not** call `sync_pc_to_cursor`. PC is
+  the source of truth during a paced run; pushing `SetPc(pc)` back at
+  the worker would be a useless round-trip and could race the next
+  instruction step.
+- The inline value buffer (`memory_inline_value_input`) is left alone
+  whenever `focused_input == Some(MEMORY_INLINE_INPUT_ID)`, so a user
+  who is mid-edit on a faraway cell does not see their typing wiped
+  out. Only the spinner moves; the inline editor catches up the moment
+  focus leaves it.
+
+When the worker auto-pauses — `HaltStateChanged`, `ErrorRaised`, or
+`Stopped` — the `consume_event` handler clears `self.running`, so the
+play/pause icon swaps back to green and the Tick branch stops chasing a
+frozen counter.
+
+### Final-tick follow-PC at high speed
+
+At slow paces (e.g. the default 10 Hz) the worker delivers one
+`StateChanged` per Tick, so the highlight inevitably catches up. At
+high speed (e.g. 1000 Hz) it can deliver a long burst of `StateChanged`
+followed by a terminal `HaltStateChanged` / `Stopped` inside the same
+100 ms tick. By the time the Tick branch re-reads `self.running` the
+flag is already `false`, so the closing `follow_pc_during_run` would
+not fire and the highlight would be left on whichever row the last
+per-instruction snapshot landed on — visibly mid-program even though
+the CPU has actually halted.
+
+`DesktopApp::pending_follow_pc` resolves this:
+
+- `consume_event` sets `pending_follow_pc = true` in every auto-pause
+  branch right after clearing `self.running`.
+- The Tick handler treats `running || pending_follow_pc` as the
+  condition for `follow_pc_during_run`, then consumes the flag
+  (`pending_follow_pc = false`) so the helper runs exactly once after
+  the run ends.
+- When the auto-pause was a halt, `follow_pc_during_run` aims at
+  `pc.wrapping_sub(1)` — PC sits one byte past the HLT opcode after
+  the halt, but the user expects the highlight on the HLT row itself,
+  which is what then gets the red row chrome.
+
+### Halted-row highlight
+
+When `cpu.halted` is true and `pc - 1` points at a `0x76` (HLT) byte,
+that row in the memory list paints in red instead of the usual blue
+selection: `view::styles::containers::memory_row_container_style`
+takes a second `halted` argument and returns a red-tinted background
+(`TOKYO_RED` at 0.22 alpha) with the same 6 px corner radius as the
+regular selection — no extra border, so the highlight reads as a
+peer of the blue selection rather than as competing chrome on top of
+it. The address column on the same row also switches to `TOKYO_RED`
+so the row reads as a single coherent "the program ended here"
+banner. The byte check defends against corner cases where PC sits one
+past an unrelated byte after a SetPc on a halted state — the halt
+visual follows the actual opcode, not the counter alone.
+
+### Halt-blocked controls (Variant A)
+
+After HLT the action panel's run/pause toggle, `Выполнить команду`
+(`step_instruction_and_advance`), and `Выполнить такт`
+(`step_tact_and_maybe_advance`) all early-return without doing any CPU
+work. Each refusal sets `DesktopApp::halt_notice` to
+`Программа завершена. Сброс регистров для повторного запуска.`, and
+the view paints that string as a framed top-center floating notice
+(`view::halt_notice_overlay`, `inset_style` body, `opaque`-wrapped to
+keep pointer events from leaking through the visible frame). The
+notice sits above the menu bar's dropdown band — same `stack!` pattern
+as the file menu — so it reads as a discrete UI element instead of a
+status-bar line that blends into the dark schematic. The buttons stay
+clickable on purpose so a press immediately shows the explanation
+instead of failing silently. The only way to unblock execution is
+`Сброс регистров` (`AppCommand::ResetCpu`), which clears the halt
+flag, brings PC back to `0x0000`, and lets the toggle / step buttons
+drive the CPU again. RAM is preserved by reset, so the loaded program
+survives the unblock and runs again from the top.
+
+The notice is cleared automatically: `apply_snapshot` resets
+`halt_notice` to `None` whenever the new snapshot has
+`cpu.halted == false`, so any gesture that flips the halt bit off
+(typically `ResetCpu`, but also any snapshot load / new file that
+lands a non-halted CPU) makes the notice disappear without bookkeeping
+at the dispatch sites.
+
+`runtime::memory::sync_pc_to_cursor` also early-returns on halt. The
+function normally mirrors a freshly-clicked memory cell into `cpu.pc`
+so a subsequent step runs against that byte, but on a halted CPU
+there is no next step (the gestures are blocked), and the
+`SetPc` round-trip is actively harmful: `dispatch_sync` waits for a
+`StateChanged`, which on a halted CPU is the same post-halt snapshot
+the worker keeps republishing (`pc = halt_pc + 1`); `apply_snapshot`
+then reads that PC back into the spinner and the visible address
+jumps one cell forward on every click. Skipping the dispatch lets
+the user browse memory freely after HLT — the next reset reattaches
+PC to whatever address they end up clicking on.
+
+### Esc reverts unsaved inline memory edits
+
+Inside the inline `Значение` editor, Esc discards a byte the user has
+typed but not yet committed with Enter, restoring the buffer to the
+byte that actually lives in memory at the highlighted address. The
+spinner-side `memory_value_input` is restored alongside the inline
+buffer so the side panel stays in sync, and focus stays on the inline
+editor so the user can keep typing.
+
+The keyboard subscription emits `Message::EscPressed`; the `update`
+router checks `self.focused_input` and calls
+`cancel_inline_memory_edit` when the inline editor owns focus,
+falling back to `hide_opcode_dropdown` (the legacy Esc binding)
+otherwise. Routing in `update` rather than the `Fn` event listener
+keeps the listener stateless. With the inline buffer already matching
+storage the handler is a no-op so a stray Esc does not snap the caret
+to the end of the field.
+
+## Speed slider (left schematic panel)
+
+The schematic board on the left edge of the window carries a paced-run
+control next to the Cycle/Tick readout. It is a single horizontal
+`slider` widget framed by a `schematic_block_style` capsule, labelled
+`Скорость: N шаг/сек` (where `N` is the live value). It sits in the
+`low_control` row inside `crates/ui/src/view/schematic.rs`, between the
+cycle/tick block and the placeholder Sync &amp; Control readout.
+
+| Property | Value |
+|---|---|
+| Range | `MIN_STEP_HZ = 1` … `MAX_STEP_HZ = 1000` instructions/sec |
+| Default | `DEFAULT_STEP_HZ = 10` |
+| Storage | `DesktopApp::step_hz: u32` |
+| Emit | `Message::SpeedChanged(u32)` |
+| Dispatch | `AppCommand::SetStepInterval(Duration::from_micros(1_000_000 / hz))` |
+
+The slider's `on_change` handler in `app/mod.rs` clamps the value into
+the documented range, stores it on `DesktopApp`, and ships
+`SetStepInterval` to the worker. The worker clamps again at
+`MIN_STEP_INTERVAL = 1ms` (re-exported from `k580_app::actor`) before it
+overwrites `Emulator::step_interval`. The next `select!` iteration
+re-arms the timer with the new interval, so dragging the slider while a
+program is running adjusts the visible animation rate immediately —
+without restarting the program or losing the run-armed state.
 
 ## Keyboard shortcuts
 
@@ -161,7 +350,7 @@ The UI exposes the following shortcuts. Modifier names follow iced's
 |---|---|
 | Enter | Apply the typed value to the selected address. |
 | Tab / Shift+Tab | Move the selection to the next/previous address and refocus the inline editor for the new row. |
-| Esc | Hide the opcode dropdown if it is open. |
+| Esc | Discard the unsaved byte typed into the inline editor and restore it to the value currently in memory. With no pending edit, falls through to closing the opcode dropdown. |
 | ArrowUp / ArrowDown (inline editor focused) | Bump the byte in the inline editor by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to memory until Enter. |
 | ArrowUp / ArrowDown (no editor focused) | Move the highlighted address by one. |
 | PageUp / PageDown | Move the highlighted address by 16. |
@@ -170,7 +359,7 @@ The UI exposes the following shortcuts. Modifier names follow iced's
 
 | Shortcut | Effect |
 |---|---|
-| Esc | Hide the opcode dropdown if it is open. |
+| Esc | Routed by `Message::EscPressed`: reverts an unsaved inline-edit byte when the inline editor owns focus, otherwise hides the opcode dropdown if it is open. |
 | ArrowUp / ArrowDown | Routed by `DesktopApp::handle_arrow_key` to the editor that currently owns focus (see the panel-specific tables above). With nothing tracked focused they fall back to memory list navigation. |
 | PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
 

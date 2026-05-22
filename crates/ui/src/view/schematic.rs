@@ -4,7 +4,7 @@
 //! `AppSnapshot`: status strip, registers, ALU block, multiplexer, control
 //! lamps, buses, and the I/O device row.
 
-use iced::widget::{Row, Space, button, column, container, row};
+use iced::widget::{Row, Space, button, column, container, row, slider};
 use iced::{Color, Element, Length, alignment};
 use k580_core::{Cpu8080State, RegisterName};
 
@@ -16,7 +16,7 @@ use super::theme::{
     MONO_FONT, TOKYO_BLUE, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_RED,
     TOKYO_TEXT, TOKYO_YELLOW, mono_text, ui_text,
 };
-use crate::app::{DesktopApp, Message, register_name};
+use crate::app::{DesktopApp, MAX_STEP_HZ, MIN_STEP_HZ, Message, register_name};
 
 impl DesktopApp {
     pub(super) fn schematic_panel(&self) -> Element<'_, Message> {
@@ -117,11 +117,7 @@ impl DesktopApp {
         let low_control = row![
             cycle_tick_panel(cpu),
             Space::new().width(Length::Fill),
-            column![
-                ui_text("Decimal Adjust", 12, TOKYO_MUTED),
-                ui_text("Schema", 12, TOKYO_MUTED),
-            ]
-            .align_x(alignment::Horizontal::Center),
+            speed_panel(self.step_hz),
             Space::new().width(Length::Fill),
             schematic_readout("Sync & Control Block", "CTRL", TOKYO_TEXT),
         ]
@@ -331,6 +327,31 @@ fn cycle_tick_panel(cpu: &Cpu8080State) -> Element<'static, Message> {
         .spacing(6),
     )
     .padding(10)
+    .style(schematic_block_style)
+    .into()
+}
+
+/// Speed slider for the paced `Run` loop. Lives in the lower-left
+/// strip next to the Cycle/Tick panel: same vertical band, same
+/// "control surface" semantics. Drag the slider, the worker thread
+/// picks up the new instructions-per-second budget on the next
+/// command tick.
+///
+/// Built as a fresh element on every redraw because slider state is
+/// derived from `step_hz`, which lives on `DesktopApp`. iced's
+/// `slider` is a thin wrapper around `f64` internally; the
+/// conversion at both ends keeps the message type honest as `u32`.
+fn speed_panel(step_hz: u32) -> Element<'static, Message> {
+    let label = format!("Скорость: {step_hz} шаг/сек");
+    container(
+        column![
+            ui_text(label, 12, TOKYO_MUTED),
+            slider(MIN_STEP_HZ..=MAX_STEP_HZ, step_hz, Message::SpeedChanged).width(Length::Fill),
+        ]
+        .spacing(6),
+    )
+    .padding(10)
+    .width(Length::Fixed(220.0))
     .style(schematic_block_style)
     .into()
 }

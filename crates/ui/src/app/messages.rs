@@ -39,11 +39,14 @@ pub(crate) enum Message {
     /// Toggle the visual run/pause state of the action panel's leftmost
     /// button. Mirrors the reference KR-580 emulator: clicking the play
     /// glyph arms the "running" state (icon swaps to a red pause), and
-    /// clicking again disarms it. The handler dispatches a real
-    /// `AppCommand::Run` only when the byte at `cpu.pc` is non-zero,
-    /// i.e. there is actually a program loaded at the current address —
-    /// otherwise the press is purely cosmetic and no T-states are
-    /// consumed.
+    /// clicking the pause glyph disarms it. Pause is unconditional —
+    /// the handler dispatches `AppCommand::Stop` regardless of where
+    /// PC has walked to. Run-arming is gated on the byte at `cpu.pc`
+    /// being non-zero (and the CPU not halted): on an empty page the
+    /// press is a status-bar no-op (`No program at <PC>`), so the
+    /// visual flag never goes out of sync with the worker and a
+    /// subsequent import or snapshot load cannot inherit a stale
+    /// "armed" state.
     ToggleRun,
     ResetCpu,
     ResetRam,
@@ -135,6 +138,14 @@ pub(crate) enum Message {
     OpcodeSelected(u16, u8),
     OpcodeScrolled,
     HideOpcodeDropdown,
+    /// Raw Esc keypress from the global keyboard subscription. The
+    /// listener cannot read app state (it's a `Fn` closure), so the
+    /// router lives in `update`: with the inline memory editor
+    /// focused, Esc reverts the pending edit; otherwise it closes
+    /// the opcode dropdown — the previous Esc binding. Adding this
+    /// thin layer keeps the Esc handler honest about which gesture
+    /// it represents in any given moment.
+    EscPressed,
     ApplyMemory,
     /// Latest keyboard modifier state, broadcast by iced whenever any of the
     /// modifier keys change. Cached so message handlers can disambiguate
@@ -211,4 +222,11 @@ pub(crate) enum Message {
     /// drains the vector via `Task::batch(Task::done(...))`, which
     /// preserves the original order.
     MenuBatch(Vec<Message>),
+    /// Speed slider on the left-hand schematic panel: number of
+    /// instructions per second the paced `Run` loop should aim for.
+    /// The handler converts to a `Duration` (`1s / hz`) and ships
+    /// `AppCommand::SetStepInterval` to the worker. Clamped on the
+    /// slider widget itself, so the value is always in the documented
+    /// range.
+    SpeedChanged(u32),
 }

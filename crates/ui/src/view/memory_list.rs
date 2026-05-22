@@ -17,7 +17,7 @@ use super::styles::{
     transparent_style,
 };
 use super::theme::{
-    MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text,
+    MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT, mono_text, ui_text,
 };
 use super::widgets::legend_panel;
 use crate::app::{
@@ -40,11 +40,23 @@ impl DesktopApp {
 
         for address in render_start..render_end {
             let address = address as u16;
+            // The HLT row gets a red highlight when the program has
+            // halted on it. After HLT the 8080 advances PC one byte
+            // past the halt opcode, so the matching condition is
+            // "PC sits exactly one past this row, and this row holds
+            // a 0x76 (HLT)". The byte check defends against rare
+            // corner cases (e.g. a halted CPU whose PC happened to
+            // land one past an unrelated byte after a SetPc; the
+            // halt visual should follow the actual opcode, not the
+            // counter).
+            let halted_here =
+                cpu.halted && address.wrapping_add(1) == cpu.pc && cpu.memory.read(address) == 0x76;
             rows = rows.push(memory_row(
                 cpu,
                 address,
                 selected == Some(address),
                 selected == Some(address.saturating_add(1)),
+                halted_here,
                 &self.memory_inline_value_input,
             ));
         }
@@ -124,6 +136,7 @@ fn memory_row<'a>(
     address: u16,
     selected: bool,
     next_selected: bool,
+    halted_here: bool,
     inline_value_input: &'a str,
 ) -> Element<'a, Message> {
     let value = cpu.memory.read(address);
@@ -140,7 +153,16 @@ fn memory_row<'a>(
     let command = decode_opcode(preview_value)
         .map(|instruction| instruction.mnemonic)
         .unwrap_or_else(|_| "-".to_owned());
-    let accent = if selected { TOKYO_BLUE } else { TOKYO_MUTED };
+    // Halt accent overrides the regular selected/unselected accent so
+    // the address column on the HLT row reads in the same red as the
+    // surrounding row chrome.
+    let accent = if halted_here {
+        TOKYO_RED
+    } else if selected {
+        TOKYO_BLUE
+    } else {
+        TOKYO_MUTED
+    };
 
     // The cells fill the entire row height (including the strip where
     // the 1-pixel separator is painted). Each cell's `mouse_area` is
@@ -158,7 +180,7 @@ fn memory_row<'a>(
     )
     .height(Length::Fixed(MEMORY_ROW_HEIGHT))
     .width(Length::Fill)
-    .style(move |_theme| memory_row_container_style(selected))
+    .style(move |_theme| memory_row_container_style(selected, halted_here))
     .into();
 
     // The 1-pixel divider between rows used to live in its own
@@ -171,9 +193,10 @@ fn memory_row<'a>(
     // pixel falls straight through to whichever cell `mouse_area` sits
     // beneath it — the cell takes the gesture and routes it through
     // its own `on_press` / `on_double_click`. When the current row or
-    // the row below it is selected we hide the line entirely so the
-    // rounded highlight doesn't bump into a horizontal stripe.
-    let separator_overlay: Element<'a, Message> = if selected || next_selected {
+    // the row below it is selected (or this row carries the halt
+    // accent) we hide the line entirely so the rounded highlight
+    // doesn't bump into a horizontal stripe.
+    let separator_overlay: Element<'a, Message> = if selected || next_selected || halted_here {
         Space::new()
             .width(Length::Fill)
             .height(Length::Fixed(MEMORY_ROW_HEIGHT))

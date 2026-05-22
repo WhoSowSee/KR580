@@ -1,6 +1,7 @@
 use crate::{AppCommand, AppError, AppEvent, AppSnapshot, Emulator};
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, after, never, select};
 use std::thread;
+use std::time::Duration;
 
 pub struct EmulatorHandle {
     command_tx: Sender<AppCommand>,
@@ -79,19 +80,55 @@ pub fn initial_snapshot() -> AppSnapshot {
     Emulator::default().snapshot()
 }
 
+/// Worker loop. Two responsibilities:
+///
+/// 1. Receive commands from the UI and apply them synchronously.
+/// 2. While `Run` is armed, fire `tick()` on every `step_interval`
+///    deadline so the program advances one instruction at a time
+///    and the UI sees a fresh snapshot per step.
+///
+/// The dual nature is why we use `select!` instead of `recv()`: a
+/// blocking `recv()` would freeze the run loop until the user
+/// happened to send another command, which is exactly the bug we
+/// are fixing. With `select!` the timer ticks independently and the
+/// command channel still wakes the worker the instant a press
+/// arrives.
 fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
     let mut emulator = Emulator::default();
     publish(
         &event_tx,
         AppEvent::StateChanged(Box::new(emulator.snapshot())),
     );
-    while let Ok(command) = command_rx.recv() {
-        let shutdown = matches!(command, AppCommand::Shutdown);
-        for event in emulator.handle_command(command) {
-            publish(&event_tx, event);
-        }
-        if shutdown {
-            break;
+    loop {
+        // `never()` parks the timer arm when we are paused, so the
+        // select degenerates to a plain `recv()` and we don't burn
+        // CPU spinning on a deadline that nobody will read.
+        let tick: Receiver<std::time::Instant> = if emulator.is_running() {
+            after(emulator.step_interval())
+        } else {
+            never()
+        };
+        select! {
+            recv(command_rx) -> command => {
+                let Ok(command) = command else { break };
+                let shutdown = matches!(command, AppCommand::Shutdown);
+                for event in emulator.handle_command(command) {
+                    publish(&event_tx, event);
+                }
+                if shutdown {
+                    break;
+                }
+            }
+            recv(tick) -> _ => {
+                // The tick channel only fires when `is_running()`
+                // was true at select-time. Forward the events
+                // unconditionally — `tick()` handles its own
+                // re-entrancy (halt, budget exhausted, errors) and
+                // always returns a fresh snapshot.
+                for event in emulator.tick() {
+                    publish(&event_tx, event);
+                }
+            }
         }
     }
 }
@@ -101,3 +138,9 @@ fn publish(event_tx: &Sender<AppEvent>, event: AppEvent) {
         tracing::debug!("UI event receiver dropped");
     }
 }
+
+/// Smallest interval the worker will accept. Mirrors the floor in
+/// `Emulator::apply` for `SetStepInterval` so callers that want to
+/// know "fastest sensible speed" without poking at internals can
+/// reach for this constant.
+pub const MIN_STEP_INTERVAL: Duration = Duration::from_millis(1);

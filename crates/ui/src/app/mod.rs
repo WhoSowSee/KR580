@@ -30,6 +30,27 @@ use std::time::Duration;
 
 use crate::platform;
 
+/// Default speed of the paced `Run` loop, in instructions per second.
+/// 10 Hz mirrors `k580_app::DEFAULT_STEP_INTERVAL` (100 ms between
+/// instructions) — slow enough that a human eye can follow each PC
+/// update, fast enough that a 50-instruction program still finishes
+/// in roughly five seconds.
+pub(crate) const DEFAULT_STEP_HZ: u32 = 10;
+
+/// Lower bound exposed by the speed slider. One instruction per
+/// second is the slowest "still feels alive" pace; anything below
+/// that and the user starts wondering whether the emulator has
+/// hung. The worker enforces a `1 ms` floor independently, so this
+/// only constrains what the slider can produce.
+pub(crate) const MIN_STEP_HZ: u32 = 1;
+
+/// Upper bound exposed by the speed slider. 1000 Hz keeps a 50-step
+/// program flickering past in well under a second; pushing it any
+/// higher just floods the UI with redraws faster than the eye can
+/// see anything change. Users who want raw throughput can still call
+/// `RunForTStates` from the menu, which bypasses the pacing entirely.
+pub(crate) const MAX_STEP_HZ: u32 = 1000;
+
 pub(crate) struct DesktopApp {
     pub(crate) handle: EmulatorHandle,
     pub(crate) snapshot: AppSnapshot,
@@ -76,6 +97,20 @@ pub(crate) struct DesktopApp {
     /// Decoupled from `AppCommand::Run` dispatch (see `Message::ToggleRun`)
     /// so empty pages never burn 100k T-states on a stray click.
     pub(crate) running: bool,
+    /// One-shot signal that the next `Message::Tick` must run
+    /// `follow_pc_during_run` even though `self.running` is already
+    /// `false`. Set in `consume_event` for the auto-pause branches
+    /// (`HaltStateChanged`, `ErrorRaised`, `Stopped`). At high speed —
+    /// e.g. 1000 Hz — the worker can drain a long burst of
+    /// `StateChanged` snapshots followed by a terminal `Stopped` /
+    /// `HaltStateChanged` inside a single 100 ms tick. Without this
+    /// flag, `consume_event` clears `self.running` *before* the Tick
+    /// branch reads it, so the closing `follow_pc_during_run` never
+    /// runs and the highlight is left on whichever row the previous
+    /// tick reached. The flag is consumed (set back to `false`) the
+    /// moment Tick processes it, so it never strands the highlight in
+    /// follow-mode after the run truly stops.
+    pub(crate) pending_follow_pc: bool,
     /// Set on `TactAdvanced { instruction_boundary: true }`; cleared by
     /// the step-tact handler. PC mutates on the first tact in core, so
     /// before/after comparison would teleport — the handler waits for
@@ -102,6 +137,24 @@ pub(crate) struct DesktopApp {
     /// сохранить, хотя я его уже открыл". `Сохранить как` ignores it
     /// (and replaces it on success).
     pub(crate) current_snapshot_path: Option<PathBuf>,
+    /// Speed of the paced `Run` loop in instructions per second.
+    /// Bound to the slider on the left-hand schematic panel; the
+    /// `SpeedChanged` handler turns it into a `Duration` and ships
+    /// `AppCommand::SetStepInterval` to the worker. Default matches
+    /// `k580_app::DEFAULT_STEP_INTERVAL`.
+    pub(crate) step_hz: u32,
+    /// Floating notification shown at the top centre of the window
+    /// when a run/step gesture is refused because the CPU has halted
+    /// (Variant A: halt-blocked controls — see `docs/ui_app.md`).
+    /// Lives outside `self.status` because the status bar is the
+    /// wrong place for the message: at 13 px on the dark board the
+    /// multi-line Russian hint blended into the chrome, and the user
+    /// asked for it to come back as a separate framed notice that
+    /// sits above the schematic the same way the file-menu dropdown
+    /// does. Cleared by `ResetCpu` (the only gesture that unblocks
+    /// the run state) and by every successful step / run path so the
+    /// message disappears the moment the user is no longer halt-blocked.
+    pub(crate) halt_notice: Option<String>,
 }
 
 impl DesktopApp {
@@ -141,6 +194,7 @@ impl DesktopApp {
                 focused_input: None,
                 latest_cursor_position: Point::ORIGIN,
                 running: false,
+                pending_follow_pc: false,
                 last_tact_was_boundary: false,
                 startup_frames_seen: 0,
                 open_menu: None,
@@ -150,6 +204,13 @@ impl DesktopApp {
                 // the user cannot interact with the app before the
                 // startup task drains.
                 current_snapshot_path: None,
+                // 10 instructions per second matches
+                // `DEFAULT_STEP_INTERVAL = 100 ms` over in `k580_app`.
+                // Slow enough that the eye can follow each PC update,
+                // fast enough that a 50-instruction program still
+                // finishes in five seconds.
+                step_hz: DEFAULT_STEP_HZ,
+                halt_notice: None,
             },
             startup_task,
         )
@@ -163,6 +224,32 @@ impl DesktopApp {
                     self.memory_scroll_visible_ticks.saturating_sub(1);
                 self.opcode_scroll_visible_ticks =
                     self.opcode_scroll_visible_ticks.saturating_sub(1);
+                // Drag the memory highlight along with PC while the
+                // paced Run loop is firing. `pull_events` has just
+                // folded the latest snapshot in, so `cpu.pc` already
+                // reflects the most recent worker tick; if the user's
+                // visible spinner address has fallen behind, snap the
+                // selection forward and re-anchor the viewport. Done
+                // here (not inside `consume_event`) because issuing the
+                // scroll Task from this branch keeps it on the same
+                // frame as the snapshot apply, and because Tick is the
+                // single place where we already centralise per-frame
+                // bookkeeping for the memory list.
+                //
+                // `pending_follow_pc` covers the "fast run that already
+                // halted inside this tick" case: at e.g. 1000 Hz the
+                // worker can publish a long burst of `StateChanged`
+                // followed by a terminal `Stopped` / `HaltStateChanged`
+                // before we ever return from `pull_events`, so by the
+                // time we read `self.running` it is already `false` and
+                // the highlight would be stranded mid-program. The flag
+                // is set on those auto-pause branches and consumed here
+                // so the closing tick still chases PC to its final
+                // resting place (HLT for the halt path).
+                if self.running || self.pending_follow_pc {
+                    self.pending_follow_pc = false;
+                    return self.follow_pc_during_run();
+                }
             }
             Message::CursorMoved(point) => {
                 // Cache the latest cursor position so the next
@@ -425,6 +512,18 @@ impl DesktopApp {
                 self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }
             Message::HideOpcodeDropdown => self.hide_opcode_dropdown(),
+            Message::EscPressed => {
+                // Pick the gesture by current focus: with the inline
+                // memory editor active, Esc reverts the pending edit;
+                // any other context falls back to closing the opcode
+                // dropdown — the legacy Esc binding. Keeping the
+                // routing in `update` (where we can read `self`)
+                // avoids leaking state into the `Fn` event listener.
+                if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
+                    return self.cancel_inline_memory_edit();
+                }
+                self.hide_opcode_dropdown();
+            }
             Message::ApplyMemory => {
                 if self.keyboard_modifiers.command() {
                     // Ctrl+Enter forward search, Ctrl+Shift+Enter backward.
@@ -516,6 +615,18 @@ impl DesktopApp {
                 let tasks = messages.into_iter().map(Task::done).collect::<Vec<_>>();
                 return Task::batch(tasks);
             }
+            Message::SpeedChanged(hz) => {
+                // Clamp defensively even though the slider already
+                // constrains the range — keeps the field honest for
+                // future call sites (e.g. a hex-typed speed input).
+                let hz = hz.clamp(MIN_STEP_HZ, MAX_STEP_HZ);
+                self.step_hz = hz;
+                // Convert "instructions per second" to "duration per
+                // instruction". The worker floors at 1 ms, so even
+                // the maximum slider value lands in legal territory.
+                let interval = Duration::from_micros(1_000_000 / u64::from(hz));
+                self.dispatch(k580_app::AppCommand::SetStepInterval(interval));
+            }
         }
         Task::none()
     }
@@ -538,7 +649,7 @@ impl DesktopApp {
                         ..
                     }),
                     _,
-                ) => Some(Message::HideOpcodeDropdown),
+                ) => Some(Message::EscPressed),
                 // File-menu shortcuts. Match Ctrl-modified character keys
                 // *before* the Tab/arrow handlers and *unconditionally*
                 // (no `Status::Ignored` filter): we want Ctrl+S to save

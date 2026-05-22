@@ -151,9 +151,12 @@ impl DesktopApp {
         //
         // 1. The first button toggles between a green play glyph
         //    ("armed for run") and a red pause glyph ("running"). The
-        //    actual `AppCommand::Run` dispatch is gated on the byte at
-        //    `cpu.pc` inside `DesktopApp::toggle_run`, so an empty memory
-        //    page only swaps the icon without consuming any T-states.
+        //    flip and the actual `AppCommand::Run` dispatch are both
+        //    gated on the byte at `cpu.pc` inside
+        //    `DesktopApp::toggle_run`: an empty memory page is a
+        //    no-op (status-bar hint, neither icon swap nor T-states),
+        //    so `self.running` is only ever `true` while the worker
+        //    is genuinely chasing a real instruction stream.
         // 2. The second button is `step-forward` at rest and
         //    `refresh-ccw` while running. In the running state it sends
         //    `Message::RestartProgram`, which resets the CPU and re-runs

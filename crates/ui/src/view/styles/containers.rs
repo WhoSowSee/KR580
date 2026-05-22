@@ -81,7 +81,27 @@ pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 7.0, 1.0, TOKYO_BORDER)
 }
 
-pub(crate) fn memory_row_container_style(selected: bool) -> container::Style {
+pub(crate) fn memory_row_container_style(selected: bool, halted: bool) -> container::Style {
+    // Halted rows take precedence over the regular selected/unselected
+    // styling: when the program ended on HLT, the row that holds that
+    // opcode lights up red so the user sees at a glance which
+    // instruction terminated execution. Only the fill is recoloured —
+    // no extra border — to match the visual weight of the regular
+    // selection highlight (per user feedback: a 1px border on top of
+    // the surrounding row chrome read as noisy).
+    if halted {
+        return container::Style {
+            background: Some(Background::Color(Color::from_rgba8(0xF7, 0x76, 0x8E, 0.22))),
+            text_color: Some(TOKYO_TEXT),
+            border: Border {
+                radius: 6.0.into(),
+                width: 0.0,
+                color: Color::TRANSPARENT,
+            },
+            ..container::Style::default()
+        };
+    }
+
     let background = if selected {
         Some(Background::Color(Color::from_rgba8(0x7A, 0xA2, 0xF7, 0.18)))
     } else {

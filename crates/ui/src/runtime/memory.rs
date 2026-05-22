@@ -147,6 +147,53 @@ impl DesktopApp {
         }
     }
 
+    /// Esc handler for the inline memory value editor. Restores the
+    /// buffer to the byte that actually lives at the currently
+    /// highlighted address — discarding whatever the user has typed
+    /// but not yet committed with Enter. Mirrors the standard
+    /// "Esc reverts an unsaved edit" affordance every desktop text
+    /// field implements.
+    ///
+    /// Three values move in lockstep:
+    ///
+    /// * `memory_inline_value_input` — what the inline `text_input`
+    ///   on the highlighted row renders; this is the visible buffer
+    ///   the user has been typing into.
+    /// * `memory_value_input` — the spinner-side mirror, kept in sync
+    ///   by `change_inline_memory_value` so the side-panel cell editor
+    ///   shows the same byte. Reverting only the inline buffer would
+    ///   leave the side panel out of sync until the next selection
+    ///   change.
+    /// * `memory_address_input` — already correct (Esc does not move
+    ///   the cursor), but we re-derive the address from it because the
+    ///   inline editor only fires `ApplyInlineMemoryValue(address)` /
+    ///   `InlineMemoryValueChanged(address, …)` with a known address
+    ///   and `cancel_inline_memory_edit` lacks that parameter. With an
+    ///   unparseable address (cannot happen in normal use) we bail
+    ///   and refocus without touching the buffers.
+    ///
+    /// We refocus the inline editor explicitly: although the
+    /// `text_input` is rebuilt around the same id every frame, an
+    /// extra focus task here defends against the case where Esc was
+    /// fired from the global keyboard subscription before iced has
+    /// resolved the inline editor as the focus owner — we want the
+    /// caret to stay where the user expects it.
+    pub(crate) fn cancel_inline_memory_edit(&mut self) -> Task<Message> {
+        let Ok(address) = parse_hex_u16(&self.memory_address_input) else {
+            return operation::focus(crate::app::MEMORY_INLINE_INPUT_ID);
+        };
+        let stored = format!("{:02X}", self.snapshot.cpu.memory.read(address));
+        // No-op if the buffer already matches storage: nothing to
+        // revert and we should leave focus alone — rebuilding the
+        // `text_input` would just snap the caret to the end.
+        if self.memory_inline_value_input.eq_ignore_ascii_case(&stored) {
+            return Task::none();
+        }
+        self.memory_inline_value_input = stored.clone();
+        self.memory_value_input = stored;
+        operation::focus(crate::app::MEMORY_INLINE_INPUT_ID)
+    }
+
     pub(crate) fn toggle_opcode_dropdown(&mut self, address: u16) {
         if self.opcode_dropdown_address == Some(address) {
             self.opcode_dropdown_address = None;
@@ -359,8 +406,27 @@ impl DesktopApp {
     /// zero. Also short-circuits when PC already matches, to avoid
     /// pointless `SetPc` round-trips on cosmetic updates (e.g. the
     /// `follow_pc_into_memory_list` reflow after a step).
+    ///
+    /// Halt is the third early-return: after HLT the CPU sits on the
+    /// byte past the halt opcode, but every step/run gesture is
+    /// halt-blocked (Variant A) until the user resets the registers.
+    /// In that state PC is *not* the address the next step will run
+    /// from — there is no next step — so syncing the cursor into PC
+    /// is meaningless. Worse, it's actively harmful: a freshly clicked
+    /// `SetPc(addr)` blocks on a `StateChanged`, which on a halted CPU
+    /// is the same post-halt snapshot the worker keeps republishing
+    /// (PC = halt_pc + 1). `apply_snapshot` then has nothing to
+    /// preserve from `memory_address_input` because the spinner only
+    /// just changed, so the visible address jumps to PC = `addr + 1`.
+    /// That is the "click any row, get bumped one cell forward" bug
+    /// reported on halted snapshots. Skipping the dispatch entirely
+    /// here lets the user browse memory freely after HLT — and the
+    /// next reset reattaches PC to whatever they end up clicking.
     pub(super) fn sync_pc_to_cursor(&mut self, address: u16) {
-        if self.snapshot.cpu.tact_phase.is_some() || self.snapshot.cpu.pc == address {
+        if self.snapshot.cpu.tact_phase.is_some()
+            || self.snapshot.cpu.halted
+            || self.snapshot.cpu.pc == address
+        {
             return;
         }
         self.dispatch_sync(AppCommand::SetPc(address));
@@ -383,6 +449,19 @@ impl DesktopApp {
     ///    races the worker channel and the user has to click twice
     ///    before the highlight catches up.
     pub(crate) fn step_instruction_and_advance(&mut self) -> Task<Message> {
+        // After HLT the CPU sits one byte past the HLT opcode and a
+        // fresh `StepInstruction` would just walk into the byte after
+        // forever — exactly the bug Variant A is meant to block. Per
+        // docs/ui_app.md, refuse the gesture and surface a top-center
+        // notification (the floating frame above the schematic) about
+        // the only way out — register reset. The action panel buttons
+        // stay clickable on purpose so the user can read the
+        // explanation by pressing them.
+        if self.snapshot.cpu.halted {
+            self.halt_notice =
+                Some("Программа завершена. Сброс регистров для повторного запуска.".to_owned());
+            return Task::none();
+        }
         self.dispatch_sync(AppCommand::StepInstruction);
         self.follow_pc_into_memory_list()
     }
@@ -401,6 +480,14 @@ impl DesktopApp {
     /// true }`. The flag is cleared *before* dispatch so a stale value
     /// from a previous press cannot leak through.
     pub(crate) fn step_tact_and_maybe_advance(&mut self) -> Task<Message> {
+        // Same halt-block as `step_instruction_and_advance`: a tact
+        // step on a halted CPU would just spin the cycle counter on
+        // the byte past HLT. See Variant A in docs/ui_app.md.
+        if self.snapshot.cpu.halted {
+            self.halt_notice =
+                Some("Программа завершена. Сброс регистров для повторного запуска.".to_owned());
+            return Task::none();
+        }
         self.last_tact_was_boundary = false;
         self.dispatch_sync(AppCommand::StepTact);
         if !self.last_tact_was_boundary {
@@ -422,6 +509,94 @@ impl DesktopApp {
         }
 
         let Some(target_offset) = self.scroll_offset_to_reveal(pc) else {
+            return Task::none();
+        };
+
+        self.scroll_memory(target_offset);
+        self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+        scroll_memory_to(target_offset)
+    }
+
+    /// "Follow PC" affordance for the paced `Run` loop. Called from
+    /// `Message::Tick` after `pull_events` has folded the latest worker
+    /// snapshot in: if the run is armed and the visible spinner address
+    /// has fallen behind `cpu.pc`, drag the highlight forward so the user
+    /// sees the program walking through the memory list one cell at a
+    /// time. Returns the scroll task so iced re-anchors the viewport on
+    /// the same frame.
+    ///
+    /// Differs from [`follow_pc_into_memory_list`] in two ways:
+    ///
+    /// 1. It does **not** call `sync_pc_to_cursor`. During a paced run
+    ///    PC is the source of truth — pushing `SetPc(pc)` back at the
+    ///    worker on every tick would be a useless round-trip and could
+    ///    race the next instruction step. The `select_memory` path is
+    ///    avoided for the same reason; we only mirror its cosmetic
+    ///    side-effects (clear the opcode dropdown, refresh the inline
+    ///    value buffer).
+    /// 2. It refuses to overwrite `memory_inline_value_input` only when
+    ///    the buffer holds *unsaved* user input — i.e. the buffer
+    ///    differs from the byte that actually lives under the old
+    ///    highlight. The naïve "skip if MEMORY_INLINE_INPUT_ID is
+    ///    focused" guard was too aggressive: the cosmetic
+    ///    `focused_input` tracker frequently stays armed on the inline
+    ///    id long after the user has stopped typing (it is set on every
+    ///    click into a memory row), so `Run` would freeze the inline
+    ///    cell on the byte from whichever address the user clicked
+    ///    last, while the address column kept stepping forward. The
+    ///    rendered effect was "all values shift by one row" — exactly
+    ///    the symptom from the screenshot.
+    pub(crate) fn follow_pc_during_run(&mut self) -> Task<Message> {
+        // After HLT the 8080 advances PC past the halt opcode (PC sits
+        // one byte after HLT), but the user expects the highlight to
+        // land *on* the HLT row — that's the row that gets the red
+        // halt-styling in the memory list, and it matches the mental
+        // model "the program ended on this instruction". Aim one byte
+        // back when halted; guard against a `pc == 0` underflow that
+        // could only happen if a program halted at address 0, which
+        // is degenerate but cheap to defend against.
+        let target = if self.snapshot.cpu.halted && self.snapshot.cpu.pc > 0 {
+            self.snapshot.cpu.pc.wrapping_sub(1)
+        } else {
+            self.snapshot.cpu.pc
+        };
+        let current_address = parse_hex_u16(&self.memory_address_input).ok();
+        if current_address == Some(target) {
+            return Task::none();
+        }
+
+        // Snapshot the byte that lives under the old highlight *before*
+        // we move the spinner. If the inline buffer matches it, the
+        // user has nothing unsaved there — we can safely migrate the
+        // buffer onto the new address. If they diverge, the user typed
+        // something we must not stomp on.
+        let inline_was_clean = match current_address {
+            Some(addr) => {
+                let stored = format!("{:02X}", self.snapshot.cpu.memory.read(addr));
+                self.memory_inline_value_input.eq_ignore_ascii_case(&stored)
+            }
+            // No parseable address means whatever sits in the buffer
+            // can't be tied to a memory cell anyway — treat as clean.
+            None => true,
+        };
+
+        // Cosmetic half of `select_memory` — clear the opcode dropdown
+        // context so the previous row's hover state does not bleed onto
+        // the new highlight.
+        self.opcode_dropdown_address = None;
+        self.opcode_search_input.clear();
+        self.memory_address_input = format!("{target:04X}");
+        self.memory_value_input = format!("{:02X}", self.snapshot.cpu.memory.read(target));
+
+        if inline_was_clean {
+            self.memory_inline_value_input = self.memory_value_input.clone();
+        }
+
+        if self.memory_viewport_height <= 0.0 {
+            return Task::none();
+        }
+
+        let Some(target_offset) = self.scroll_offset_to_reveal(target) else {
             return Task::none();
         };
 

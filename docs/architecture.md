@@ -34,3 +34,39 @@ UI messages become `AppCommand` values. The app actor owns `Cpu8080State` and `I
 ## Runtime shape
 
 `k580-ui` sends commands through a crossbeam channel to the emulator actor in `k580-app`. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. Disk/printer operations are queued to Tokio-backed workers where host I/O is needed, keeping the UI thread away from blocking device work.
+
+## Actor pacing loop
+
+The worker thread in `k580-app::actor::run_worker` does not block on
+`recv()`. Instead it uses `crossbeam_channel::select!` to wait
+simultaneously on the command channel and a timer:
+
+- **Paused (`!emulator.is_running()`)** — the timer arm is wired to
+  `crossbeam_channel::never()`, so the `select!` degenerates to a plain
+  command-channel `recv()`. The worker is fully idle until the UI sends
+  the next command.
+- **Running (`emulator.is_running()`)** — the timer arm is wired to
+  `crossbeam_channel::after(emulator.step_interval())`. Whichever arm
+  fires first wins: a command interrupts the wait immediately and is
+  applied without skipping a beat, and a timer tick calls
+  `emulator.tick()`, which advances exactly one instruction and emits
+  `InstructionBoundaryReached`, `HaltStateChanged` (if the CPU halted on
+  this step), `Stopped` (if the budget exhausted or an error fired), and
+  a fresh `StateChanged`.
+
+`AppCommand::Run` only flips `Emulator::running = true` and resets the
+per-arming `instructions_since_run` counter. `AppCommand::Stop` clears
+the flag. `AppCommand::SetStepInterval(duration)` overwrites
+`Emulator::step_interval` (clamped to `MIN_STEP_INTERVAL = 1ms`); the
+next `select!` iteration re-arms the timer at the new pace. Defaults:
+`DEFAULT_STEP_INTERVAL = 100ms` (10 instructions/sec) and
+`MAX_INSTRUCTIONS_PER_RUN = 100_000` instructions per arming before the
+worker auto-pauses with `Stopped`.
+
+This decoupling is what makes the UI animation visible: the previous
+`Run` implementation called `cpu.run_until_halt(&mut bus, 100_000)`
+synchronously inside the worker, which produced exactly one
+`StateChanged` after the whole burst — the user only ever saw the
+final state. With the selector loop the UI receives one snapshot per
+instruction, so the highlighted cell, registers, and PC step through
+the program live.

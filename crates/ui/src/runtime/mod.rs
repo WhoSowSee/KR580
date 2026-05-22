@@ -59,33 +59,79 @@ impl DesktopApp {
     }
 
     /// Flips the visual run/pause state of the action panel's leftmost
-    /// button and conditionally dispatches the underlying CPU command.
-    /// Mirrors the reference KR-580 emulator: clicking the play glyph on a
-    /// page that has no program (the byte at `cpu.pc` is `0x00`) is purely
-    /// cosmetic — the icon swaps to a red pause and back without burning
-    /// any T-states. When a program *is* present the toggle still drives
-    /// the real `Run` / `Stop` commands, so a user who has actually loaded
-    /// code keeps the original behaviour.
+    /// button and dispatches the matching CPU command. Pause is
+    /// unconditional: with the run already armed, a click always
+    /// sends `AppCommand::Stop`, regardless of where PC has walked
+    /// to. Run-arming is gated — a halted CPU surfaces the
+    /// reset-registers notice instead, and a blank page (the byte at
+    /// `cpu.pc` is `0x00`) yields a status-bar hint with no worker
+    /// activity. Together that keeps Stop reachable from any execution
+    /// state while still preventing the play icon from going armed
+    /// when there is nothing to actually execute.
     pub(crate) fn toggle_run(&mut self) {
-        self.running = !self.running;
+        // Pause always wins. With the run already armed, a click on
+        // the (currently red) pause glyph is unconditional: send
+        // `AppCommand::Stop`, drop `self.running`, and let the worker
+        // produce its `Stopped` event. The early-return matters
+        // because the gates below would otherwise refuse the press —
+        // a paced run advances PC into whatever bytes follow the
+        // user's program, and once PC walks off the loaded code into
+        // a stretch of `0x00` (the default RAM fill), the
+        // `has_program` check below would mistake the running
+        // program for an empty page and silently swallow the click.
+        // The user reported this as «не могу остановить программу,
+        // только сбросом регистров»: they typed `13` at 0x0000,
+        // ran the program, PC walked through INX D + NOPs, and
+        // pressing pause did nothing because the byte at the
+        // current PC was zero. Putting the pause shortcut first
+        // makes Stop reachable from any execution state.
+        if self.running {
+            self.running = false;
+            self.dispatch(AppCommand::Stop);
+            return;
+        }
+
+        // Run-arming path. Two gates protect against actions that
+        // would either burn cycles for no observable effect or
+        // stall on the very first instruction: a halted CPU has to
+        // be reset before it can run again, and a blank page has
+        // nothing to execute. Both branches are no-ops on the worker
+        // (no `Run` is dispatched), so `self.running` stays false
+        // and the play icon stays green.
+        //
+        // After HLT the CPU is wedged on the byte past HLT and a new
+        // `Run` would just hit the same wall on the very first
+        // `step_instruction`. Per docs/ui_app.md (Variant A: halt-blocked
+        // controls), refuse to arm the run and leave the user a hint
+        // about the only gesture that actually unblocks anything —
+        // resetting the registers brings PC back to 0x0000.
+        if self.snapshot.cpu.halted {
+            self.halt_notice =
+                Some("Программа завершена. Сброс регистров для повторного запуска.".to_owned());
+            return;
+        }
         let pc = self.snapshot.cpu.pc;
         let has_program = self.snapshot.cpu.memory.read(pc) != 0;
         if !has_program {
-            // Empty memory at PC — only the icon flips. No CPU work, no
-            // status churn beyond a hint so the user understands why
-            // nothing is moving.
-            self.status = if self.running {
-                format!("No program at {pc:04X}")
-            } else {
-                "Stopped".to_owned()
-            };
+            // Empty memory at PC: refuse to arm the run at all. An
+            // earlier iteration flipped the visual `self.running`
+            // flag without sending `AppCommand::Run`, on the theory
+            // that an empty page deserves a free cosmetic pause
+            // icon. That left the door open to a desync: if the user
+            // then imported a file, opened a snapshot, or even just
+            // typed a byte through the inline editor, the action
+            // panel kept flashing the red pause and `Message::Tick`
+            // kept chasing PC even though no instruction had ever
+            // been executed — the program *looked* like it was
+            // running. Suppressing the flip here keeps the visible
+            // state honest. Note this gate runs **after** the early
+            // pause-return above, so it only applies to the
+            // disarmed-to-armed transition.
+            self.status = format!("No program at {pc:04X}");
             return;
         }
-        if self.running {
-            self.dispatch(AppCommand::Run);
-        } else {
-            self.dispatch(AppCommand::Stop);
-        }
+        self.running = true;
+        self.dispatch(AppCommand::Run);
     }
 
     /// Resets the CPU registers/flags and re-runs the program from
@@ -129,9 +175,43 @@ impl DesktopApp {
             AppEvent::PortWritten { port, value } => {
                 self.status = format!("OUT {port:02X} <- {value:02X}")
             }
-            AppEvent::HaltStateChanged(_) => self.status = "CPU halted".to_owned(),
-            AppEvent::ErrorRaised(error) => self.status = error.to_string(),
-            AppEvent::Stopped => self.status = "Stopped".to_owned(),
+            AppEvent::HaltStateChanged(_) => {
+                // The worker has flipped its own `is_running` flag off
+                // (the emulator pauses itself on halt). Mirror that on
+                // the UI so the play/pause icon swaps back to green play
+                // and the `Message::Tick` "follow PC" branch stops
+                // chasing a frozen counter.
+                self.running = false;
+                // At high speed the worker can drain a burst of
+                // `StateChanged` *and* the terminal `HaltStateChanged`
+                // inside one 100 ms Tick. By the time the Tick branch
+                // re-reads `self.running` the flag is already `false`,
+                // so the closing `follow_pc_during_run` would not fire
+                // and the highlight would stay on whichever row the
+                // last per-instruction snapshot landed on. The pending
+                // flag forces one more follow-pass on the next Tick so
+                // the highlight reaches the HLT line before going idle.
+                self.pending_follow_pc = true;
+                self.status = "CPU halted".to_owned();
+            }
+            AppEvent::ErrorRaised(error) => {
+                // An error from the core or the bus also auto-pauses the
+                // worker; keep UI state aligned for the same reason as
+                // the halt branch above.
+                self.running = false;
+                self.pending_follow_pc = true;
+                self.status = error.to_string();
+            }
+            AppEvent::Stopped => {
+                // Sent both for an explicit `AppCommand::Stop` and when
+                // the worker auto-pauses (`MAX_INSTRUCTIONS_PER_RUN`
+                // exhausted or halt/error path). Either way the run is
+                // no longer armed; clear the flag so `toggle_run` and
+                // the Tick handler agree with the worker.
+                self.running = false;
+                self.pending_follow_pc = true;
+                self.status = "Stopped".to_owned();
+            }
         }
     }
 
@@ -155,6 +235,17 @@ impl DesktopApp {
             .is_some_and(|value| self.memory_inline_value_input == *value);
 
         self.snapshot = snapshot;
+
+        // The halt-blocked notice (top-center floating frame) lives
+        // alongside the snapshot's halted bit: the moment the worker
+        // publishes a fresh state where `halted == false`, the user
+        // has unblocked themselves (typically via Сброс регистров,
+        // the only gesture that clears the flag), so the notice
+        // should disappear with no further bookkeeping at the
+        // dispatch sites.
+        if !self.snapshot.cpu.halted {
+            self.halt_notice = None;
+        }
 
         if register_value_follows_snapshot {
             self.register_value_input = format!(
@@ -196,6 +287,17 @@ impl DesktopApp {
     pub(crate) fn load_snapshot_from_path(&mut self, path: PathBuf) {
         self.current_snapshot_path = Some(path.clone());
         let display = path.display().to_string();
+        // Disarm the cosmetic run flag *before* the load goes out:
+        // `toggle_run` on a blank page is purely visual (no
+        // `AppCommand::Run` is dispatched when the byte at PC is
+        // zero), so a stale `self.running == true` survives the
+        // open and leaves the action panel flashing the red pause
+        // icon even though the worker has not executed a single
+        // instruction. With the load swapping the document under
+        // the user's feet, any prior \"armed\" state is meaningless —
+        // start the new file in the same neutral state a fresh
+        // launch would.
+        self.running = false;
         self.dispatch_sync(AppCommand::LoadSnapshot(path));
         let pc = self.snapshot.cpu.pc;
         self.set_memory_address(pc);
@@ -339,6 +441,15 @@ impl DesktopApp {
         else {
             return;
         };
+        // Disarm the cosmetic run flag for the same reason
+        // `load_snapshot_from_path` does: a prior `toggle_run` on a
+        // blank page leaves `self.running == true` without any actual
+        // worker activity, and the import then layers fresh bytes on
+        // top of that stale armed state — the play/pause icon stays
+        // red, `Message::Tick` keeps trying to follow PC, and the
+        // user sees a program that *looks* like it is running while
+        // the worker is in fact idle.
+        self.running = false;
         let extension = path
             .extension()
             .and_then(|ext| ext.to_str())

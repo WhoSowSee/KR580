@@ -37,7 +37,8 @@ mod widgets;
 use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
 
-use styles::app_style;
+use styles::{app_style, inset_style};
+use theme::{TOKYO_TEXT, ui_text};
 
 use crate::app::{DesktopApp, MenuId, Message};
 
@@ -46,6 +47,12 @@ use crate::app::{DesktopApp, MenuId, Message};
 /// of padding around its edge, so 42 px puts the dropdown flush with
 /// the bar's bottom border.
 const MENU_DROPDOWN_TOP: f32 = 42.0;
+
+/// Vertical offset of the halt-blocked notice overlay from the top of
+/// the app root. Sits comfortably below the menu bar (34 px tall +
+/// 8 px root padding) with a small gap so the framed message reads
+/// as a separate floating element rather than glued to the bar.
+const HALT_NOTICE_TOP: f32 = 56.0;
 
 /// Horizontal offset of the floating menu dropdown from the app's left
 /// edge, **per top-level menu**. Each value puts the dropdown roughly
@@ -100,6 +107,26 @@ impl DesktopApp {
             app_root
         };
 
+        // The halt-blocked notice (Variant A) sits above everything
+        // else: when a step/run gesture is refused on a halted CPU,
+        // the user gets a framed message floating at the top centre
+        // of the window explaining how to unblock themselves. The
+        // overlay is non-interactive — it carries no buttons — so the
+        // surrounding scrim's mouse_area still catches clicks
+        // anywhere on screen and routes them to the matching close
+        // message. We still wrap the framed text in `opaque` so
+        // pointer events do not leak through it; the visual frame
+        // would otherwise pretend to be clickable.
+        let app_with_overlays: Element<'_, Message> =
+            if let Some(notice) = self.halt_notice.as_deref() {
+                stack![app_with_menu, halt_notice_overlay(notice)]
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into()
+            } else {
+                app_with_menu
+            };
+
         // One scrim covers both interactive overlays we have today
         // (opcode picker and menu dropdown). When either is open we
         // wrap the whole thing in a `mouse_area` whose press emits
@@ -107,15 +134,15 @@ impl DesktopApp {
         // themselves do not bubble up because the dropdowns sit
         // inside `opaque` wrappers that swallow pointer events.
         if self.opcode_dropdown_address.is_some() {
-            mouse_area(app_with_menu)
+            mouse_area(app_with_overlays)
                 .on_press(Message::HideOpcodeDropdown)
                 .into()
         } else if self.open_menu.is_some() {
-            mouse_area(app_with_menu)
+            mouse_area(app_with_overlays)
                 .on_press(Message::MenuClosed)
                 .into()
         } else {
-            app_with_menu
+            app_with_overlays
         }
     }
 }
@@ -130,6 +157,32 @@ fn menu_dropdown_overlay(dropdown: Element<'_, Message>, left: f32) -> Element<'
         row![
             Space::new().width(Length::Fixed(left)),
             opaque(dropdown),
+            Space::new().width(Length::Fill),
+        ]
+        .width(Length::Fill),
+    ]
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
+}
+
+/// Floating notice anchored to the top centre of the window. Used for
+/// the halt-blocked Variant A message — see `docs/ui_app.md` and the
+/// `halt_notice` field on `DesktopApp`. The framed body uses
+/// `inset_style` so the message reads as a discrete UI element with a
+/// border on the dark schematic background. `opaque` wraps the body so
+/// pointer events do not leak through the visible frame, but the
+/// notice has no on-press of its own — clicks just do nothing
+/// (consistent with passive notifications).
+fn halt_notice_overlay(notice: &str) -> Element<'_, Message> {
+    let body = container(ui_text(notice.to_owned(), 13, TOKYO_TEXT))
+        .padding([8, 16])
+        .style(inset_style);
+    column![
+        Space::new().height(Length::Fixed(HALT_NOTICE_TOP)),
+        row![
+            Space::new().width(Length::Fill),
+            opaque(body),
             Space::new().width(Length::Fill),
         ]
         .width(Length::Fill),
