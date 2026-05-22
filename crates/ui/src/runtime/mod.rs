@@ -426,17 +426,21 @@ impl DesktopApp {
     }
 
     pub(crate) fn import_file(&mut self) {
-        // Two separate filters so the OS "Files of type" dropdown
-        // shows TXT and XLSX as distinct entries the user can switch
-        // between. Unlike export, import takes the file as-is — the
+        // The first filter combines both extensions so the picker
+        // surfaces TXT and XLSX side-by-side by default — the user
+        // does not have to flip the dropdown to see a snapshot they
+        // know they exported. The two narrow filters stay below for
+        // when the user explicitly wants to scope the listing to one
+        // format. Unlike export, import takes the file as-is — the
         // user is pointing at an existing file, so no extension
         // rewriting; we only look at the actual extension to pick the
         // parser. Falls through to TXT for a missing/unknown extension
         // because that is the more lenient parser and the user gets a
         // typed error in the status bar instead of a silent no-op.
         let Some(path) = rfd::FileDialog::new()
-            .add_filter("KR580 text export", &["txt"])
-            .add_filter("KR580 spreadsheet export", &["xlsx"])
+            .add_filter("KR580 file", &["txt", "xlsx"])
+            .add_filter("KR580 txt file", &["txt"])
+            .add_filter("KR580 spreadsheet file", &["xlsx"])
             .pick_file()
         else {
             return;
