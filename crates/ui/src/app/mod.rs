@@ -347,6 +347,53 @@ impl DesktopApp {
                     return iced::advanced::widget::operate(crate::runtime::unfocus_except(id))
                         .discard();
                 }
+                // Pass-1 missed every focusable. Two scenarios fold
+                // into this branch and we cannot tell them apart from
+                // coordinates alone:
+                //
+                // 1. Dead-space click — the user clicked a panel
+                //    border, label, or gap. Iced's text_input::update
+                //    has already cleared `state.is_focused` on the
+                //    previously focused input (every input that does
+                //    not contain the click runs that clearing branch),
+                //    so the caret is gone but our cosmetic tracker
+                //    still points at the now-stale widget.
+                //
+                // 2. Layout-race false negative — the click landed on
+                //    a focusable but a sub-pixel layout shift between
+                //    the click event and our reconcile pass made the
+                //    bounds miss. In this case iced's per-widget code
+                //    *did* see the click and `state.is_focused` is
+                //    still set on whatever input owns the caret.
+                //
+                // Polling `find_focused_optional()` lets iced be the
+                // authoritative oracle: a `None` reply means scenario
+                // 1 (clear the cosmetic tracker), a `Some` means
+                // scenario 2 (leave it alone). The `_optional` variant
+                // wraps the answer in `Option<Id>` and always reports
+                // back via `Outcome::Some(option)` — the built-in
+                // `find_focused` returns `Outcome::None` when nothing
+                // is focused, which would silently drop the message
+                // exactly when we need it the most.
+                return iced::advanced::widget::operate(crate::runtime::find_focused_optional())
+                    .map(Message::ResolveFocusedTracker);
+            }
+            Message::ResolveFocusedTracker(focused) => {
+                // Iced says no focusable owns the caret right now —
+                // the previous owner (Esc consumed it, or a
+                // dead-space click cleared it) is gone. Drop the
+                // cosmetic tracker so the shell border on the prior
+                // input fades the same frame.
+                //
+                // A `Some(_)` reply means a focusable still has the
+                // caret. We deliberately do nothing in that case:
+                // the `*Changed`, `MemoryEnter`, and click-reconcile
+                // paths are responsible for keeping the tracker in
+                // sync on focus *acquisition*, and overwriting it
+                // here would race with those.
+                if focused.is_none() {
+                    self.focused_input = None;
+                }
             }
             Message::StepInstruction => return self.step_instruction_and_advance(),
             Message::RestartProgram => self.restart_program(),
@@ -519,10 +566,25 @@ impl DesktopApp {
                 // dropdown — the legacy Esc binding. Keeping the
                 // routing in `update` (where we can read `self`)
                 // avoids leaking state into the `Fn` event listener.
+                //
+                // Either way iced has consumed the Esc by clearing
+                // `state.is_focused` on whatever text_input was
+                // focused, so the cosmetic tracker is stale. Chain a
+                // `find_focused_optional()` poll onto whatever task
+                // the gesture produces; the resolver clears the
+                // tracker when iced confirms no focusable owns the
+                // caret. The `_optional` variant is what makes the
+                // message arrive even when nothing is focused — the
+                // built-in `find_focused` returns `Outcome::None` in
+                // that case and the message is silently dropped.
+                let resolve =
+                    iced::advanced::widget::operate(crate::runtime::find_focused_optional())
+                        .map(Message::ResolveFocusedTracker);
                 if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
-                    return self.cancel_inline_memory_edit();
+                    return self.cancel_inline_memory_edit().chain(resolve);
                 }
                 self.hide_opcode_dropdown();
+                return resolve;
             }
             Message::ApplyMemory => {
                 if self.keyboard_modifiers.command() {

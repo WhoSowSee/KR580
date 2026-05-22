@@ -196,6 +196,20 @@ pub(crate) enum Message {
     /// breaks. The handler also chains the follow-up `unfocus_except`
     /// pass when a hit is found.
     FocusReconciled(Option<iced::widget::Id>),
+    /// Result of an `iced::find_focused()` poll fired after a gesture
+    /// that may have left iced and the cosmetic `focused_input`
+    /// tracker in disagreement: Esc (which iced consumes by clearing
+    /// `state.is_focused` on the active text_input) and dead-space
+    /// clicks (where iced clears the previous focus too, but
+    /// `FocusReconciled(None)` deliberately leaves our tracker alone
+    /// to absorb layout-race false negatives). When the poll returns
+    /// `None` we know iced really has no focused widget, so the
+    /// cosmetic shell border on the prior input is stale and gets
+    /// cleared. A `Some` reply means a focusable still owns the
+    /// caret — usually because of the same layout-race scenario the
+    /// click reconciler exists to absorb — and we leave the tracker
+    /// alone.
+    ResolveFocusedTracker(Option<iced::widget::Id>),
     /// Iced reports that a window has been opened. We respond by cloaking it
     /// via DWM on Windows so the launch flash never reaches the screen.
     WindowOpened(iced::window::Id),

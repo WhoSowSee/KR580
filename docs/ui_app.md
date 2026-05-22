@@ -381,6 +381,28 @@ they explicitly Tab to one, or when they click an inline memory row. This
 drives the same blue/cyan/border colour scheme that iced applies to the
 plain right-hand text input, so both visual styles match.
 
+Two gestures clear the caret without going through any of the
+acquire-side write paths and so leave `focused_input` stale on their
+own: Esc (iced consumes it by clearing `state.is_focused` on the
+focused text_input) and a left-click in dead space (every text_input
+that does not contain the click runs the same clearing branch in
+`text_input::update`). Both paths chain a `find_focused_optional()`
+operation onto whatever else they do — Esc fires it from
+`Message::EscPressed`, dead-space clicks fire it from the
+`FocusReconciled(None)` branch — and the `Message::ResolveFocusedTracker`
+handler clears `focused_input` iff iced reports no focusable still owns
+the caret. The `_optional` variant lives in `runtime::focus_ops` because
+the built-in `iced::advanced::widget::operation::focusable::find_focused`
+returns `Outcome::None` when nothing is focused, which would silently
+drop the message exactly when we need it most. Wrapping the answer in
+`Option<Id>` and returning `Outcome::Some(option)` makes the report
+unconditional.
+
+The `FocusReconciled(Some(_))` branch never needs the poll: the
+two-pass click reconciler in `runtime::focus_ops` already chained
+`unfocus_except(hit)` and updated `focused_input` to the resolved id
+on the same frame.
+
 ## Launch flash mitigation (Windows)
 
 On Windows the desktop window manager paints the client area with the

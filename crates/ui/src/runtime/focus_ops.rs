@@ -128,6 +128,52 @@ pub(crate) fn find_focusable_at(point: Point) -> impl Operation<Option<Id>> {
 }
 
 /// Builds an [`Operation`] that walks every focusable widget and
+/// returns the id of whichever one currently has `is_focused() ==
+/// true`, or `None` if none of them do.
+///
+/// Differs from `iced::advanced::widget::operation::focusable::
+/// find_focused` in one critical way: that built-in version produces
+/// `Outcome::None` when nothing is focused, which causes the
+/// `Task::map` continuation to silently drop the message. We need
+/// the message to arrive *especially* when nothing is focused —
+/// that's the entire signal we use to clear the cosmetic shell-border
+/// tracker after Esc or a dead-space click.
+///
+/// Wrapping the answer in `Option<Id>` and always returning
+/// `Outcome::Some(option)` makes the report unconditional, so the
+/// `ResolveFocusedTracker` handler runs in both the "nothing focused"
+/// and "something focused" cases and can branch on the value.
+pub(crate) fn find_focused_optional() -> impl Operation<Option<Id>> {
+    struct FindFocused {
+        focused: Option<Id>,
+    }
+
+    impl Operation<Option<Id>> for FindFocused {
+        fn focusable(&mut self, id: Option<&Id>, _bounds: Rectangle, state: &mut dyn Focusable) {
+            // Last-writer-wins is fine: only one focusable should
+            // ever report `is_focused() == true` at a time, and if
+            // any layout race produces a transient pair, picking
+            // either one for the cosmetic indicator is defensible.
+            if state.is_focused() && id.is_some() {
+                self.focused = id.cloned();
+            }
+        }
+
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<Option<Id>>)) {
+            operate(self);
+        }
+
+        fn finish(&self) -> Outcome<Option<Id>> {
+            // Always reportable: `Outcome::Some(None)` means "scan
+            // completed, no focusable was focused".
+            Outcome::Some(self.focused.clone())
+        }
+    }
+
+    FindFocused { focused: None }
+}
+
+/// Builds an [`Operation`] that walks every focusable widget and
 /// calls `state.unfocus()` on those whose id does **not** match
 /// `except`. The widget identified by `except` is left alone —
 /// `text_input::update` has already set `is_focused = Some(_)` on it

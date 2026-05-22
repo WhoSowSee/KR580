@@ -16,7 +16,7 @@ mod memory;
 mod parse;
 mod register;
 
-pub(crate) use focus_ops::{find_focusable_at, unfocus_except};
+pub(crate) use focus_ops::{find_focusable_at, find_focused_optional, unfocus_except};
 
 use crate::app::DesktopApp;
 use k580_app::{AppCommand, AppEvent, AppSnapshot};
