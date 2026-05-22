@@ -6,7 +6,7 @@ use iced::widget::button;
 use iced::{Background, Border, Color};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BORDER, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT,
+    TOKYO_BG, TOKYO_BORDER, TOKYO_RED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT,
 };
 
 pub(crate) fn capsule_button_style(
@@ -178,6 +178,57 @@ pub(crate) fn opcode_option_style(status: button::Status) -> button::Style {
         background: Some(Background::Color(background)),
         text_color: TOKYO_TEXT,
         border: Border::default(),
+        ..button::Style::default()
+    }
+}
+
+/// Style for the minimise / maximise caption buttons in the custom
+/// title bar. Transparent at rest so the bar reads as a single
+/// contiguous surface; a faint surface tint lights up on hover so the
+/// caption zone still telegraphs interactivity. Mirrors the native
+/// caption convention: no border, square corners would conflict with
+/// the rest of the chrome so we keep the 4 px radius the menu uses.
+pub(crate) fn caption_button_style(status: button::Status) -> button::Style {
+    let background = match status {
+        button::Status::Hovered => TOKYO_SURFACE_2,
+        button::Status::Pressed => TOKYO_SURFACE_3,
+        _ => Color::TRANSPARENT,
+    };
+
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: TOKYO_TEXT,
+        border: Border {
+            radius: 4.0.into(),
+            ..Border::default()
+        },
+        ..button::Style::default()
+    }
+}
+
+/// Style for the close caption button. Same flat-by-default chrome as
+/// `caption_button_style`, except the hover/press surface flares red
+/// so the destructive action lands with the same affordance as the
+/// native window manager's close glyph. We do not recolour the SVG
+/// stroke itself — the red surface already reads "warning", and the
+/// glyph stays legible against it.
+pub(crate) fn close_caption_button_style(status: button::Status) -> button::Style {
+    let background = match status {
+        button::Status::Hovered => TOKYO_RED,
+        button::Status::Pressed => Color {
+            a: 0.85,
+            ..TOKYO_RED
+        },
+        _ => Color::TRANSPARENT,
+    };
+
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: TOKYO_TEXT,
+        border: Border {
+            radius: 4.0.into(),
+            ..Border::default()
+        },
         ..button::Style::default()
     }
 }

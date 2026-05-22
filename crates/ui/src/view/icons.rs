@@ -45,6 +45,16 @@ static FILE_DOWN: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("file-down").as_slice()));
 static FILE_UP: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("file-up").as_slice()));
+static WINDOW_MINIMIZE: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("window-minimize").as_slice()));
+static WINDOW_MAXIMIZE: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("window-maximize").as_slice()));
+static WINDOW_RESTORE: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("window-restore").as_slice()));
+static WINDOW_CLOSE: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("window-close").as_slice()));
+static CPU: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("cpu").as_slice()));
 
 /// Lucide `play` — solid right-pointing triangle. Used for "run program".
 pub(super) fn play() -> svg::Handle {
@@ -137,4 +147,42 @@ pub(super) fn file_down() -> svg::Handle {
 /// emulator into a file on disk, so the arrow points up out of the page.
 pub(super) fn file_up() -> svg::Handle {
     FILE_UP.clone()
+}
+
+/// Lucide `minus` — single horizontal stroke. Used for the "minimise"
+/// caption button in our custom title bar; matches the convention every
+/// desktop window manager uses for the leftmost caption glyph.
+pub(super) fn window_minimize() -> svg::Handle {
+    WINDOW_MINIMIZE.clone()
+}
+
+/// Lucide-style empty square — used as the "maximise" caption button
+/// glyph when the window is currently restored. Reads as "fill the
+/// screen" the same way the native Windows caption does.
+pub(super) fn window_maximize() -> svg::Handle {
+    WINDOW_MAXIMIZE.clone()
+}
+
+/// Two overlapping squares — used as the "restore" caption glyph when
+/// the window is already maximised. Mirrors the native restore icon
+/// so the caption tells the user "you can shrink me back".
+pub(super) fn window_restore() -> svg::Handle {
+    WINDOW_RESTORE.clone()
+}
+
+/// Lucide `x` — diagonal cross. Used for the "close" caption button;
+/// the surrounding button styles tint the hover surface red so the
+/// destructive action has the same affordance as the native chrome.
+pub(super) fn window_close() -> svg::Handle {
+    WINDOW_CLOSE.clone()
+}
+
+/// Lucide `cpu` — square IC silhouette with eight pin stubs. Sits at
+/// the very left of the menu bar as a tiny brand mark, replacing the
+/// "Эмулятор KR580VM80A" wordmark we removed: the user wanted a
+/// quieter title bar, but losing every signifier of "this is a CPU
+/// emulator" leaves the bar visually anonymous, and the IC glyph
+/// reads as that signifier in a single 16 px square.
+pub(super) fn cpu() -> svg::Handle {
+    CPU.clone()
 }

@@ -58,6 +58,13 @@ fn main() -> iced::Result {
         maximized: false,
         min_size: Some(Size::new(1180.0, 720.0)),
         icon: window::icon::from_file_data(ICON_PNG, None).ok(),
+        // Drop the native title bar and frame: we render our own
+        // caption (drag handle + minimise/maximise/close) inside the
+        // existing menu bar, so the OS chrome would just duplicate
+        // the affordances. Resize edges still work — winit reports
+        // the cursor-at-edge state to the GPU surface and the OS
+        // hands us the resize loop without needing a visible frame.
+        decorations: false,
         // Start hidden so the OS does not flash a white frame before the
         // first iced paint. `DesktopApp::update` re-shows the window via
         // `window::set_mode(_, Windowed)` after the first `Tick`.

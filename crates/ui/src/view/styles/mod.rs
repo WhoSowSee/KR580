@@ -11,8 +11,9 @@ mod inputs;
 mod scrollable;
 
 pub(super) use buttons::{
-    action_button_style, capsule_button_style, enter_button_style, menu_button_style,
-    mux_button_style, opcode_option_style, step_button_style,
+    action_button_style, capsule_button_style, caption_button_style, close_caption_button_style,
+    enter_button_style, menu_button_style, mux_button_style, opcode_option_style,
+    step_button_style,
 };
 pub(super) use containers::{
     alu_style, app_style, board_style, input_shell_style, inset_style, legend_label_style,

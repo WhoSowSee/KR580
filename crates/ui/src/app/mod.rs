@@ -155,6 +155,21 @@ pub(crate) struct DesktopApp {
     /// the run state) and by every successful step / run path so the
     /// message disappears the moment the user is no longer halt-blocked.
     pub(crate) halt_notice: Option<String>,
+    /// Cached identifier of the main window. Captured on the very
+    /// first `WindowOpened` so the custom caption buttons (drag /
+    /// minimise / toggle-maximise / close) can dispatch
+    /// `iced::window::*` tasks without an extra `get_latest` round
+    /// trip per click. `None` until the first frame; the buttons
+    /// short-circuit to `Task::none()` while it is unset.
+    pub(crate) window_id: Option<iced::window::Id>,
+    /// Latest known maximised state of the main window. Driven by the
+    /// `WindowMaximizedChanged` poll — see the matching message in
+    /// `app::messages`. The maximise/restore caption button reads it
+    /// to decide which of the two glyphs (`window-maximize` /
+    /// `window-restore`) to render: without this flag the icon would
+    /// stay frozen on "maximise" even after the window already fills
+    /// the screen.
+    pub(crate) window_maximized: bool,
 }
 
 impl DesktopApp {
@@ -211,6 +226,8 @@ impl DesktopApp {
                 // finishes in five seconds.
                 step_hz: DEFAULT_STEP_HZ,
                 halt_notice: None,
+                window_id: None,
+                window_maximized: false,
             },
             startup_task,
         )
@@ -684,9 +701,24 @@ impl DesktopApp {
                 // window is cloaked, DWM never composites the white client
                 // area; the user only sees the window once we uncloak it
                 // after iced has presented its first real frame.
+                //
+                // Cache the id so the custom caption buttons (drag /
+                // minimise / toggle-maximise / close) can dispatch
+                // `iced::window::*` tasks without a `get_latest` round
+                // trip per click, and seed the maximised flag so the
+                // maximise/restore glyph matches the OS-side state from
+                // the very first frame instead of frozen on "maximise".
+                //
+                // `set_rounded_corners` opts the borderless window into
+                // Windows 11's DWM rounded-corner treatment so the user
+                // does not see a sharp 90° client area; on other
+                // platforms (and on Windows 10) the call is a no-op.
+                self.window_id = Some(id);
                 return Task::batch([
                     iced::window::run(id, |window| platform::cloak_window(window, true)).discard(),
+                    iced::window::run(id, |window| platform::set_rounded_corners(window)).discard(),
                     iced::window::set_mode(id, iced::window::Mode::Windowed),
+                    iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
                 ]);
             }
             Message::FrameRendered => {
@@ -742,6 +774,48 @@ impl DesktopApp {
                 // the maximum slider value lands in legal territory.
                 let interval = Duration::from_micros(1_000_000 / u64::from(hz));
                 self.dispatch(k580_app::AppCommand::SetStepInterval(interval));
+            }
+            Message::WindowDragStart => {
+                // Hand the press over to the OS so it can run its
+                // native drag loop on the borderless window. iced
+                // proxies the call straight to winit's
+                // `drag_window`, which only succeeds while a left
+                // button is currently pressed — perfect fit for the
+                // `mouse_area::on_press` we wire this to.
+                let Some(id) = self.window_id else {
+                    return Task::none();
+                };
+                return iced::window::drag(id);
+            }
+            Message::WindowMinimize => {
+                let Some(id) = self.window_id else {
+                    return Task::none();
+                };
+                return iced::window::minimize(id, true);
+            }
+            Message::WindowToggleMaximize => {
+                let Some(id) = self.window_id else {
+                    return Task::none();
+                };
+                // Optimistic flip first so the caption glyph swaps
+                // immediately on click; the trailing `is_maximized`
+                // poll reconciles the flag against the OS-side
+                // result in case the toggle was refused (e.g. the
+                // window manager blocked maximisation).
+                self.window_maximized = !self.window_maximized;
+                return Task::batch([
+                    iced::window::toggle_maximize(id),
+                    iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
+                ]);
+            }
+            Message::WindowClose => {
+                let Some(id) = self.window_id else {
+                    return Task::none();
+                };
+                return iced::window::close(id);
+            }
+            Message::WindowMaximizedChanged(maximized) => {
+                self.window_maximized = maximized;
             }
         }
         Task::none()

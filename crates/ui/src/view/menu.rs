@@ -9,12 +9,22 @@
 //! click on top of the format selection that the OS file picker already
 //! handles, and on the МП-Система side every entry is a single
 //! emulator command anyway.
+//!
+//! The bar doubles as the custom title bar: the empty zone between the
+//! menu triggers and the caption buttons is wrapped in a `mouse_area`
+//! that fires `Message::WindowDragStart`, handing the press off to the
+//! OS so the borderless window can be dragged like the native chrome.
+//! The minimise / maximise / close buttons sit on the far right and
+//! dispatch their respective `Window*` messages.
 
 use iced::widget::{Space, button, column, container, mouse_area, row, svg};
 use iced::{Element, Length, alignment};
 
 use super::icons;
-use super::styles::{menu_bar_style, menu_button_style, opcode_dropdown_style};
+use super::styles::{
+    caption_button_style, close_caption_button_style, menu_bar_style, menu_button_style,
+    opcode_dropdown_style,
+};
 use super::theme::{TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::{DesktopApp, MenuId, Message};
 
@@ -35,21 +45,94 @@ const MP_DROPDOWN_WIDTH: f32 = 270.0;
 /// label, large enough to remain legible at 100 % DPI.
 const MENU_ICON_SIZE: f32 = 16.0;
 
+/// Edge length of the SVG glyph rendered inside each caption button
+/// (minimise / maximise / close). 14 px gives the same optical weight
+/// as the native Windows caption at 100 % DPI without crowding the
+/// 28 px button surface.
+const CAPTION_ICON_SIZE: f32 = 14.0;
+
+/// Outer width of every caption button. Native Windows captions sit at
+/// 46 px on the title bar, but the menu bar here is only 34 px tall
+/// and we want a square hit target — 28 px is the largest square that
+/// still leaves a couple of pixels of breathing room above and below
+/// the glyph inside the bar.
+const CAPTION_BUTTON_WIDTH: f32 = 32.0;
+const CAPTION_BUTTON_HEIGHT: f32 = 24.0;
+
 impl DesktopApp {
     pub(super) fn menu_bar(&self) -> Element<'_, Message> {
+        // The drag handle is a `mouse_area` filling all the empty
+        // space between the menu triggers and the caption buttons.
+        // `on_press` fires `WindowDragStart`, which dispatches the
+        // OS-native drag loop. The handle itself draws nothing (it
+        // wraps a `Space::with_width(Length::Fill)`), so the bar
+        // visually reads as one contiguous surface even though the
+        // middle band is interactive.
+        let drag_handle: Element<'_, Message> = mouse_area(
+            container(Space::new())
+                .width(Length::Fill)
+                .height(Length::Fill),
+        )
+        .on_press(Message::WindowDragStart)
+        .into();
+
+        let caption_buttons = row![
+            caption_button(
+                icons::window_minimize(),
+                Message::WindowMinimize,
+                CaptionKind::Neutral,
+            ),
+            caption_button(
+                if self.window_maximized {
+                    icons::window_restore()
+                } else {
+                    icons::window_maximize()
+                },
+                Message::WindowToggleMaximize,
+                CaptionKind::Neutral,
+            ),
+            caption_button(
+                icons::window_close(),
+                Message::WindowClose,
+                CaptionKind::Close
+            ),
+        ]
+        .spacing(2)
+        .align_y(alignment::Vertical::Center);
+
+        let cpu_icon = svg(icons::cpu())
+            .width(Length::Fixed(MENU_ICON_SIZE))
+            .height(Length::Fixed(MENU_ICON_SIZE))
+            .style(|_theme, _status| svg::Style {
+                color: Some(TOKYO_TEXT),
+            });
+
         container(
             row![
-                ui_text("Эмулятор KR580VM80A", 14, TOKYO_MAGENTA),
+                cpu_icon,
                 menu_trigger("Файл", MenuId::File, self.open_menu == Some(MenuId::File)),
                 menu_trigger("МП-Система", MenuId::Mp, self.open_menu == Some(MenuId::Mp),),
                 menu_label("View"),
                 menu_label("Settings"),
                 menu_label("Help"),
+                drag_handle,
+                caption_buttons,
             ]
             .spacing(18)
             .align_y(alignment::Vertical::Center),
         )
-        .padding(8)
+        // Asymmetric horizontal padding so the cpu brand mark on the
+        // left sits the same distance from the window edge as the
+        // close cross does on the right. The right-hand caption
+        // buttons add an internal ~9 px between the button edge and
+        // the 14 px glyph stroke on top of the 8 px container padding,
+        // putting the rightmost stroke at ~17 px from the window edge.
+        // The cpu glyph on the left has no surrounding button, so we
+        // bake that ~9 px back into the container padding to keep the
+        // two ends optically symmetric. Row spacing of 18 px then
+        // takes care of the gap between cpu and "Файл" — it matches
+        // the gap between every other top-level label.
+        .padding(iced::Padding::ZERO.left(17).right(8))
         .width(Length::Fill)
         .height(Length::Fixed(34.0))
         .style(menu_bar_style)
@@ -254,4 +337,51 @@ fn menu_separator() -> Element<'static, Message> {
     .padding([4, 8])
     .width(Length::Fill)
     .into()
+}
+
+/// Picks which of the two caption-button styles to use. `Neutral` is
+/// the calm chrome used by the minimise / maximise glyphs; `Close`
+/// flares red on hover to mirror the destructive affordance every
+/// native window manager paints on the close box.
+#[derive(Clone, Copy)]
+enum CaptionKind {
+    Neutral,
+    Close,
+}
+
+/// Builds one caption button (minimise / maximise / close) for the
+/// custom title bar. The body is a centered SVG glyph painted in the
+/// regular text colour — the surrounding button style provides the
+/// hover/press surface tint, and `CaptionKind` decides whether that
+/// tint flares red (close) or stays neutral (the other two). The
+/// button has no border and a fixed size so the three glyphs line up
+/// regardless of which one is currently rendered for the toggle.
+fn caption_button(
+    icon: svg::Handle,
+    action: Message,
+    kind: CaptionKind,
+) -> Element<'static, Message> {
+    let glyph = svg(icon)
+        .width(Length::Fixed(CAPTION_ICON_SIZE))
+        .height(Length::Fixed(CAPTION_ICON_SIZE))
+        .style(|_theme, _status| svg::Style {
+            color: Some(TOKYO_TEXT),
+        });
+
+    let body = container(glyph)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(alignment::Horizontal::Center)
+        .align_y(alignment::Vertical::Center);
+
+    button(body)
+        .on_press(action)
+        .padding(0)
+        .width(Length::Fixed(CAPTION_BUTTON_WIDTH))
+        .height(Length::Fixed(CAPTION_BUTTON_HEIGHT))
+        .style(move |_theme, status| match kind {
+            CaptionKind::Neutral => caption_button_style(status),
+            CaptionKind::Close => close_caption_button_style(status),
+        })
+        .into()
 }

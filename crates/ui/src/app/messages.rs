@@ -267,4 +267,30 @@ pub(crate) enum Message {
     /// slider widget itself, so the value is always in the documented
     /// range.
     SpeedChanged(u32),
+    /// User pressed the left mouse button on the empty area of the
+    /// custom title bar. The handler dispatches `iced::window::drag`
+    /// for the cached `window_id`, which hands the press over to the
+    /// OS so the user can drag the borderless window the same way
+    /// they would the native caption. Emitted by the `mouse_area`
+    /// wrapping the drag region in `view::titlebar`.
+    WindowDragStart,
+    /// User clicked the "—" caption button. Dispatches
+    /// `iced::window::minimize(true)` for the cached window id.
+    WindowMinimize,
+    /// User clicked the "□"/"❐" caption button. Dispatches
+    /// `iced::window::toggle_maximize` and chains an `is_maximized`
+    /// poll so `DesktopApp::window_maximized` (and therefore the
+    /// glyph on the button) catches up with the new OS-side state.
+    WindowToggleMaximize,
+    /// User clicked the "×" caption button. Dispatches
+    /// `iced::window::close` for the cached window id, ending the
+    /// app the same way clicking the native close button would.
+    WindowClose,
+    /// Result of an `is_maximized` poll fired after
+    /// `WindowToggleMaximize` and after every `WindowOpened`. Cached
+    /// on `DesktopApp::window_maximized` so the maximise/restore
+    /// glyph matches the actual OS state — without the poll the
+    /// button would always show the "maximise" square even after the
+    /// window was already filling the screen.
+    WindowMaximizedChanged(bool),
 }
