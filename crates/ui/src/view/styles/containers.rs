@@ -15,11 +15,39 @@ pub(crate) fn app_style(_theme: &Theme) -> container::Style {
 }
 
 pub(crate) fn menu_bar_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
+    surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
 }
 
 pub(crate) fn board_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.0, TOKYO_BORDER)
+}
+
+/// Variant of `board_style` for the left "schematic" panel that drops
+/// the bubble chrome: no border, no rounded corners. The schematic
+/// already provides its own internal visual language (mux frame, ALU
+/// frame, schematic block readouts), so wrapping it in another framed
+/// surface read as redundant. The fill stays so the schematic still
+/// sits on the same `TOKYO_BOARD` plate as everything else and the
+/// background does not shift between panes.
+pub(crate) fn schematic_board_style(_theme: &Theme) -> container::Style {
+    surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
+}
+
+/// Hairline divider used under the menu bar in place of a full bubble
+/// border. Renders as a 1-px container filled with the regular
+/// `TOKYO_BORDER` tone, so the seam between the title bar and the
+/// schematic plate underneath stays visible without bringing back the
+/// rounded-corner chrome.
+pub(crate) fn menu_bar_divider_style(_theme: &Theme) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(TOKYO_BORDER)),
+        border: Border {
+            radius: 0.0.into(),
+            width: 0.0,
+            color: Color::TRANSPARENT,
+        },
+        ..container::Style::default()
+    }
 }
 
 pub(crate) fn panel_style(theme: &Theme) -> container::Style {
@@ -78,7 +106,30 @@ pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
     // Match the surrounding board panels (memory list, register editor, etc.)
     // so the floating picker reads as part of the same surface instead of a
     // darker pop-up sitting on top of it.
-    surface_style(Some(TOKYO_BOARD), 7.0, 1.0, TOKYO_BORDER)
+    //
+    // Top corners are square, bottom corners keep the 7 px radius. The
+    // dropdown's top edge always anchors against another surface — the
+    // menu bar's bottom hairline for the file/MP menus, the memory row
+    // for the opcode picker — so a rounded top edge would round *into*
+    // that anchor and break the "panel hangs off the line" illusion.
+    // Squaring just the top edge lets the divider/row meet the frame
+    // edge-to-edge while the bottom of the panel still reads as a
+    // discrete bubble floating over the schematic.
+    container::Style {
+        text_color: Some(TOKYO_TEXT),
+        background: Some(Background::Color(TOKYO_BOARD)),
+        border: Border {
+            radius: iced::border::Radius {
+                top_left: 0.0,
+                top_right: 0.0,
+                bottom_right: 7.0,
+                bottom_left: 7.0,
+            },
+            width: 1.0,
+            color: TOKYO_BORDER,
+        },
+        ..container::Style::default()
+    }
 }
 
 pub(crate) fn memory_row_container_style(selected: bool, halted: bool) -> container::Style {

@@ -170,6 +170,17 @@ pub(crate) struct DesktopApp {
     /// stay frozen on "maximise" even after the window already fills
     /// the screen.
     pub(crate) window_maximized: bool,
+    /// Whether the top-level menu category labels (Файл, МП-Система,
+    /// View, Settings, Help) are currently visible in the menu bar.
+    /// Toggled by clicking the cpu brand mark on the far left of the
+    /// bar — same gesture native macOS / Windows apps assign to a
+    /// hamburger or "show menu" affordance, and it lets the user
+    /// reclaim the bar's vertical band as pure drag/title chrome
+    /// when they don't need the dropdowns. Default `true` so a fresh
+    /// session reads as the familiar menu bar; the cpu glyph itself
+    /// stays visible regardless so the user always has something to
+    /// click to bring the categories back.
+    pub(crate) menu_categories_visible: bool,
 }
 
 impl DesktopApp {
@@ -228,6 +239,7 @@ impl DesktopApp {
                 halt_notice: None,
                 window_id: None,
                 window_maximized: false,
+                menu_categories_visible: true,
             },
             startup_task,
         )
@@ -752,6 +764,19 @@ impl DesktopApp {
             }
             Message::MenuClosed => {
                 self.open_menu = None;
+            }
+            Message::MenuCategoriesToggled => {
+                // Flip the bar's "category strip" visibility. When
+                // hiding, also collapse any open dropdown so the
+                // floating panel can't outlive its trigger label —
+                // without this the panel would keep painting over the
+                // schematic with nothing visible to dismiss it except
+                // the global scrim, which is a worse affordance than
+                // a missing trigger.
+                self.menu_categories_visible = !self.menu_categories_visible;
+                if !self.menu_categories_visible {
+                    self.open_menu = None;
+                }
             }
             Message::MenuBatch(messages) => {
                 // Fan a list of messages out into a `Task::batch` of

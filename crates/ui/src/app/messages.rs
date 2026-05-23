@@ -240,6 +240,14 @@ pub(crate) enum Message {
     /// Iced has rendered a frame. After the second frame we know the wgpu
     /// surface is presenting our content, so we can safely uncloak.
     FrameRendered,
+    /// User clicked the cpu brand mark on the far left of the menu
+    /// bar. Toggles `DesktopApp::menu_categories_visible`: visible
+    /// labels (Файл / МП-Система / View / Settings / Help) collapse,
+    /// hidden labels reappear. Also clears `open_menu` on the
+    /// "hide" half of the toggle so a dropdown can't outlive its
+    /// trigger label and end up floating over an empty bar with no
+    /// visible anchor.
+    MenuCategoriesToggled,
     /// User clicked a top-level menu label in the menu bar. Toggles
     /// the corresponding dropdown: opens it if no menu was open, closes
     /// it if the same menu was already open, switches to the new menu

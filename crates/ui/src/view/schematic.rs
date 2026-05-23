@@ -9,8 +9,8 @@ use iced::{Color, Element, Length, alignment};
 use k580_core::{Cpu8080State, RegisterName};
 
 use super::styles::{
-    alu_style, board_style, capsule_button_style, inset_style, mux_button_style, mux_header_style,
-    mux_panel_style, schematic_block_style, solid_style,
+    alu_style, capsule_button_style, inset_style, mux_button_style, mux_header_style,
+    mux_panel_style, schematic_block_style, schematic_board_style, solid_style,
 };
 use super::theme::{
     MONO_FONT, TOKYO_BLUE, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_RED,
@@ -171,7 +171,7 @@ impl DesktopApp {
             .padding(18)
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(board_style)
+            .style(schematic_board_style)
             .into()
     }
 }

@@ -43,26 +43,37 @@ use theme::{TOKYO_TEXT, ui_text};
 use crate::app::{DesktopApp, MenuId, Message};
 
 /// Vertical offset of the floating menu dropdown from the top of the
-/// app root. The menu bar is 34 px tall and the root container has 8 px
-/// of padding around its edge, so 42 px puts the dropdown flush with
-/// the bar's bottom border.
-const MENU_DROPDOWN_TOP: f32 = 42.0;
+/// app root. The menu bar is 34 px tall and sits flush with the top of
+/// the window (root padding is now `top: 0`), with a 1-px hairline
+/// directly below it. 34 px puts the dropdown's top border *on top of*
+/// the divider hairline rather than 1 px below it — without this
+/// overlap a thin horizontal sliver of plate showed through between
+/// the divider line and the dropdown's top edge, breaking the
+/// "frame hangs off the line" illusion the user flagged.
+const MENU_DROPDOWN_TOP: f32 = 34.0;
 
 /// Vertical offset of the halt-blocked notice overlay from the top of
-/// the app root. Sits comfortably below the menu bar (34 px tall +
-/// 8 px root padding) with a small gap so the framed message reads
-/// as a separate floating element rather than glued to the bar.
-const HALT_NOTICE_TOP: f32 = 56.0;
+/// the app root. Sits comfortably below the menu bar (34 px tall + 1 px
+/// hairline) with a small gap so the framed message reads as a separate
+/// floating element rather than glued to the bar.
+const HALT_NOTICE_TOP: f32 = 48.0;
 
 /// Horizontal offset of the floating menu dropdown from the app's left
-/// edge, **per top-level menu**. Each value puts the dropdown roughly
-/// under its trigger label — `8 px root padding` + the cumulative width
-/// of every label and 18 px gap that precedes the trigger in
-/// `menu_bar`. The numbers are approximate (text metrics vary with the
-/// OS font fallback) and only need to land "near" the trigger, not
-/// dead-centre under it.
-const FILE_MENU_DROPDOWN_LEFT: f32 = 175.0;
-const MP_MENU_DROPDOWN_LEFT: f32 = 215.0;
+/// edge, **per top-level menu**. Each value puts the dropdown's left
+/// edge a few pixels to the *left* of the trigger label so the row
+/// labels inside (which carry their own `4 + 10 = 14 px` of inner
+/// padding before the glyph) line up under the first letter of the
+/// trigger. Composition: `8 px root padding` + `17 px bar padding` +
+/// `16 px cpu glyph` + `18 px gap` − `14 px dropdown inner inset` =
+/// `45 px` for "Файл". "МП-Система" then sits another `~36 px`
+/// (label width) + `18 px` gap further along the bar. Numbers are
+/// approximate — text metrics shift with the OS font fallback — and
+/// only need to land "near" the trigger, not dead-centre under it.
+///
+/// Exposed to the `menu` submodule so the bar's bottom hairline can
+/// punch a hole under the open dropdown — see `menu_bar()`.
+pub(super) const FILE_MENU_DROPDOWN_LEFT: f32 = 45.0;
+pub(super) const MP_MENU_DROPDOWN_LEFT: f32 = 99.0;
 
 impl DesktopApp {
     pub(crate) fn view(&self) -> Element<'_, Message> {
@@ -70,8 +81,22 @@ impl DesktopApp {
             .spacing(8)
             .height(Length::Fill);
 
+        // Root padding is per-side rather than a single `padding(8)`:
+        // the menu bar must lie flush with the top of the window so
+        // the visible vertical breathing room above the labels equals
+        // the room below them (i.e. labels stay optically centred in
+        // the 34-px bar). Side and bottom paddings remain at 8 px so
+        // the schematic + side panel keep the same gutters they had
+        // before. The bar itself does not need a top hairline because
+        // the title bar's own bottom hairline (drawn inside
+        // `menu_bar()`) already separates it from the schematic.
         let content = column![self.menu_bar(), main]
-            .padding(8)
+            .padding(iced::Padding {
+                top: 0.0,
+                right: 8.0,
+                bottom: 8.0,
+                left: 8.0,
+            })
             .spacing(8)
             .width(Length::Fill)
             .height(Length::Fill);
