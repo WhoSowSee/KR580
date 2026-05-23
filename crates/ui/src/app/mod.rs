@@ -12,6 +12,7 @@
 
 mod constants;
 mod messages;
+mod undo;
 
 pub(crate) use constants::{
     MEMORY_ADDRESS_COUNT, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
@@ -20,6 +21,7 @@ pub(crate) use constants::{
     REGISTER_VALUE_INPUT_ID, parse_register_name, register_name,
 };
 pub(crate) use messages::{MenuId, Message, SpeedTier};
+pub(crate) use undo::{UndoEntry, UndoStack};
 
 use iced::{Point, event, keyboard, mouse, time};
 use iced::{Subscription, Task, Theme};
@@ -222,6 +224,14 @@ pub(crate) struct DesktopApp {
     /// stays visible regardless so the user always has something to
     /// click to bring the categories back.
     pub(crate) menu_categories_visible: bool,
+    /// Single chronological timeline of edits the user can rewind via
+    /// Ctrl+Z and replay via Ctrl+Shift+Z. Holds both text-input
+    /// edits (coalesced per-field so consecutive keystrokes collapse
+    /// into one entry) and full `Cpu8080State` snapshot pairs for
+    /// every gesture that mutates the worker (`SetMemory`,
+    /// `SetRegister`, `ResetCpu`, `ResetRam`, snapshot/import loads).
+    /// See `app::undo` for the storage shape and coalescing rules.
+    pub(crate) undo_stack: UndoStack,
 }
 
 impl DesktopApp {
@@ -281,6 +291,7 @@ impl DesktopApp {
                 window_id: None,
                 window_maximized: false,
                 menu_categories_visible: true,
+                undo_stack: UndoStack::default(),
             },
             startup_task,
         )
@@ -372,6 +383,15 @@ impl DesktopApp {
                     REGISTER_VALUE_INPUT_ID,
                     MEMORY_INLINE_INPUT_ID,
                 ];
+
+                // A click anywhere — focusable or dead space — ends
+                // whatever in-flight text-edit was being coalesced
+                // onto the top undo entry. The new gesture is by
+                // definition a logically separate edit (the user
+                // moved their attention), so the next `push_text`
+                // must start a fresh entry instead of glueing onto
+                // the previous one.
+                self.undo_stack.break_coalescing();
 
                 // Map the bare `Id` back to one of our static string
                 // identifiers so the cosmetic shell border can index
@@ -469,8 +489,8 @@ impl DesktopApp {
             Message::RestartProgram => self.restart_program(),
             Message::StepTact => return self.step_tact_and_maybe_advance(),
             Message::ToggleRun => self.toggle_run(),
-            Message::ResetCpu => self.dispatch(k580_app::AppCommand::ResetCpu),
-            Message::ResetRam => self.dispatch(k580_app::AppCommand::ResetRam),
+            Message::ResetCpu => self.dispatch_with_undo(k580_app::AppCommand::ResetCpu),
+            Message::ResetRam => self.dispatch_with_undo(k580_app::AppCommand::ResetRam),
             Message::OpenSnapshot => self.open_snapshot(),
             Message::LoadSnapshotFromPath(path) => self.load_snapshot_from_path(path),
             Message::SaveSnapshot => self.save_snapshot(),
@@ -489,6 +509,14 @@ impl DesktopApp {
                 // must prompt for one — same behaviour as every text
                 // editor.
                 self.current_snapshot_path = None;
+                // The user explicitly asked for a blank slate; the
+                // pre-NewFile timeline has nothing to anchor onto in
+                // the new document, so the cleanest mental model is
+                // "history starts here". Wiping both stacks also
+                // prevents Ctrl+Z from rewinding past the new-file
+                // boundary into RAM/registers that no longer exist
+                // on screen.
+                self.undo_stack.clear();
                 self.status = "Новый файл".to_owned();
             }
             Message::Export => self.export_file(),
@@ -630,6 +658,11 @@ impl DesktopApp {
             }
             Message::HideOpcodeDropdown => self.hide_opcode_dropdown(),
             Message::EscPressed => {
+                // Esc closes the current logical edit: any in-flight
+                // text coalescing must end here so the next keystroke
+                // starts a fresh undo entry rather than continuing
+                // whatever the user was just typing into.
+                self.undo_stack.break_coalescing();
                 // Pick the gesture by current focus: with the inline
                 // memory editor active, Esc reverts the pending edit;
                 // any other context falls back to closing the opcode
@@ -907,6 +940,8 @@ impl DesktopApp {
             Message::WindowMaximizedChanged(maximized) => {
                 self.window_maximized = maximized;
             }
+            Message::Undo => return self.apply_undo(),
+            Message::Redo => return self.apply_redo(),
         }
         Task::none()
     }
@@ -1009,6 +1044,21 @@ impl DesktopApp {
                         ('y', false) => Some(Message::StepTact),
                         ('r', true) => Some(Message::ResetRam),
                         ('g', true) => Some(Message::ResetCpu),
+                        // Undo / redo. Bound unconditionally (no
+                        // `Status::Ignored` filter) for the same reason
+                        // every editor binds them this way: iced's
+                        // `text_input` does not implement undo, so a
+                        // user typing into the value column expects
+                        // Ctrl+Z to roll the buffer back even though
+                        // the input "owns" the keystroke. We swallow
+                        // it here before iced has a chance to ignore
+                        // it. The shared stack means the same shortcut
+                        // also rewinds CPU mutations (ResetCpu /
+                        // ResetRam / SetMemory / snapshot loads) when
+                        // no input is focused — one timeline, one
+                        // mental model.
+                        ('z', false) => Some(Message::Undo),
+                        ('z', true) => Some(Message::Redo),
                         _ => None,
                     }
                 }

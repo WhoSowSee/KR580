@@ -46,6 +46,26 @@ pub enum AppCommand {
     SetRegister(RegisterName, u8),
     SetPc(u16),
     SetMemory(u16, u8),
+    /// Replace the entire CPU state (registers, PC, SP, flags,
+    /// memory, halt bit, cycle counter — everything inside
+    /// `Cpu8080State`) with the supplied snapshot. Used by the UI's
+    /// undo/redo stack: the stack stores a `Cpu8080State` snapshot
+    /// taken *before* every mutating gesture (`SetMemory`,
+    /// `SetRegister`, `ResetCpu`, `ResetRam`, snapshot/import loads),
+    /// and Ctrl+Z replays the most recent one through this command.
+    /// We model it as a single command rather than fanning the diff
+    /// out into individual `SetMemory` writes because (a) destructive
+    /// gestures touch all 64 KiB and 8 registers at once, and (b)
+    /// the worker can swap in the snapshot in one go without holding
+    /// a 64K-entry undo journal in memory per step.
+    ///
+    /// Stops the run loop the same way the reset commands do:
+    /// applying a fresh state under a live worker would race the
+    /// next `step_instruction` against the user's restored bytes.
+    /// The handler emits `Stopped` when `running` was true, mirroring
+    /// the `ResetCpu` / `ResetRam` contract so the UI's play/pause
+    /// toggle returns to its idle state.
+    ApplyCpuState(Box<Cpu8080State>),
     ExportTxt(PathBuf),
     ExportXlsx(PathBuf),
     ImportTxt(PathBuf),

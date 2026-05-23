@@ -114,7 +114,17 @@ impl DesktopApp {
         // The user is editing the address inline; the previous Ctrl+Enter
         // search context is no longer relevant.
         self.memory_search_pattern = None;
+        // Snapshot the buffer *before* the keystroke lands so Ctrl+Z
+        // can rewind the field one logical edit at a time. The stack
+        // coalesces consecutive same-field pushes, so a four-keystroke
+        // address still collapses to a single entry.
+        let before = self.memory_address_input.clone();
         self.memory_address_input = value;
+        self.undo_stack.push_text(
+            MEMORY_ADDRESS_INPUT_ID,
+            before,
+            self.memory_address_input.clone(),
+        );
         if let Ok(address) = parse_hex_u16(&self.memory_address_input) {
             self.refresh_memory_value(address);
             self.sync_pc_to_cursor(address);
@@ -123,7 +133,13 @@ impl DesktopApp {
 
     pub(crate) fn change_memory_value(&mut self, value: String) {
         if let Some(value) = bounded_hex_input(&value, 2) {
+            let before = self.memory_value_input.clone();
             self.memory_value_input = value;
+            self.undo_stack.push_text(
+                MEMORY_VALUE_INPUT_ID,
+                before,
+                self.memory_value_input.clone(),
+            );
         }
     }
 
@@ -144,6 +160,22 @@ impl DesktopApp {
 
         self.memory_address_input = format!("{address:04X}");
         self.memory_inline_value_input = value;
+        // No text-undo entry here on purpose. The inline buffer is a
+        // *floating* field: it follows the highlighted address, and
+        // `apply_snapshot` / `select_memory` overwrite it whenever
+        // the cursor moves. A text entry tied to this id would have
+        // its `before`/`after` interpreted against whichever address
+        // the buffer happened to be pointing at when Ctrl+Z fires —
+        // i.e. typing "12" into address 0x0010, walking to 0x0020,
+        // and pressing Ctrl+Z would either be a visual no-op (if the
+        // buffer already shows 0x0020's stored byte) or worse, write
+        // "12" into the new address on Ctrl+Shift+Z. The actual byte
+        // mutation reaches the undo stack as a `Cpu` pair when the
+        // user presses Enter (`apply_inline_memory_value`) or when
+        // save/export auto-commits the pending byte
+        // (`commit_pending_inline_edit`), so nothing is lost — the
+        // undo timeline only ever sees the committed state, which is
+        // the only state Ctrl+Z can meaningfully target here.
     }
 
     pub(crate) fn apply_inline_memory_value(&mut self, address: u16) {
@@ -152,7 +184,15 @@ impl DesktopApp {
                 self.memory_address_input = format!("{address:04X}");
                 self.memory_value_input = format!("{value:02X}");
                 self.memory_inline_value_input = self.memory_value_input.clone();
-                self.dispatch(AppCommand::SetMemory(address, value));
+                // Pressing Enter is the gesture that commits the
+                // pending byte to RAM — that's the moment Ctrl+Z
+                // should snap the worker back, so capture before/after
+                // around the dispatch. The text-side coalescing is
+                // also broken here: the next keystroke into an inline
+                // editor starts a fresh entry rather than glueing onto
+                // the keystrokes that produced this byte.
+                self.undo_stack.break_coalescing();
+                self.dispatch_with_undo(AppCommand::SetMemory(address, value));
             }
             Err(error) => self.status = error,
         }
@@ -222,7 +262,10 @@ impl DesktopApp {
         self.memory_inline_value_input = self.memory_value_input.clone();
         self.opcode_dropdown_address = None;
         self.opcode_search_input.clear();
-        self.dispatch(AppCommand::SetMemory(address, value));
+        // Picking an opcode commits a byte to RAM — same undo
+        // contract as pressing Enter in the inline editor.
+        self.undo_stack.break_coalescing();
+        self.dispatch_with_undo(AppCommand::SetMemory(address, value));
     }
 
     pub(crate) fn hide_opcode_dropdown(&mut self) {
@@ -240,7 +283,12 @@ impl DesktopApp {
         ) {
             (Ok(address), Ok(value)) => {
                 self.memory_inline_value_input = format!("{value:02X}");
-                self.dispatch(AppCommand::SetMemory(address, value));
+                // Same contract as `apply_inline_memory_value`: Enter
+                // is the commit gesture, so the worker dispatch is
+                // wrapped in an undo entry and any in-flight text
+                // coalescing is closed.
+                self.undo_stack.break_coalescing();
+                self.dispatch_with_undo(AppCommand::SetMemory(address, value));
                 Task::none()
             }
             (Err(error), _) | (_, Err(error)) => {
@@ -511,7 +559,10 @@ impl DesktopApp {
     /// Refresh the memory spinner / inline editor / scroll position to
     /// point at the current `cpu.pc`. Shared by the step-instruction and
     /// step-tact handlers so both feel the same after the CPU moves.
-    fn follow_pc_into_memory_list(&mut self) -> Task<Message> {
+    /// Visibility is `pub(super)` so the undo runtime can also reach
+    /// for it: replaying a `Cpu` undo entry rewinds PC, and the user
+    /// expects the highlighted row to come along for the ride.
+    pub(super) fn follow_pc_into_memory_list(&mut self) -> Task<Message> {
         let pc = self.snapshot.cpu.pc;
         self.select_memory(pc);
 

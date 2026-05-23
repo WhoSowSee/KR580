@@ -25,7 +25,13 @@ impl DesktopApp {
             return;
         };
 
+        let before = self.register_name_input.clone();
         self.register_name_input = value;
+        self.undo_stack.push_text(
+            REGISTER_NAME_INPUT_ID,
+            before,
+            self.register_name_input.clone(),
+        );
         if let Some(register) = parse_register_name(&self.register_name_input) {
             self.selected_register = register;
             self.register_value_input =
@@ -35,7 +41,13 @@ impl DesktopApp {
 
     pub(crate) fn change_register_value(&mut self, value: String) {
         if let Some(value) = bounded_hex_input(&value, 2) {
+            let before = self.register_value_input.clone();
             self.register_value_input = value;
+            self.undo_stack.push_text(
+                REGISTER_VALUE_INPUT_ID,
+                before,
+                self.register_value_input.clone(),
+            );
         }
     }
 
@@ -58,7 +70,46 @@ impl DesktopApp {
         self.select_register(REGISTER_ORDER[next]);
     }
 
-    pub(crate) fn apply_register(&mut self) {
+    /// Same as the textbook "apply" gesture (parse name + value,
+    /// dispatch `SetRegister`, push the resulting `Cpu` undo
+    /// entry), but tags the entry with a `(register_before,
+    /// register_after)` selection so Ctrl+Z later restores the
+    /// editor to whichever register the user was *editing* (the
+    /// one they pressed Enter from), not whichever register the
+    /// follow-on step walked to. Used by `apply_register_and_step`;
+    /// the redo direction restores the post-step register.
+    fn apply_register_with_step_selection(&mut self, register_after: RegisterName) {
+        let register_before = self.selected_register;
+        // `parse_register_name` inside `apply_register_inner` may
+        // re-point `selected_register` if the name field was edited
+        // before Enter — e.g. user typed "C" into the name input,
+        // hit Enter without explicitly clicking the value field.
+        // We capture the "before" selection *after* that
+        // reconciliation so the rewound state matches what the user
+        // actually saw at the moment of Enter, not whatever
+        // selection was current before they retyped the name.
+        self.apply_register_inner(Some((register_before, register_after)));
+    }
+
+    /// Internal worker shared by every "Enter in the register
+    /// editor" path. The dispatch is inlined here (rather than
+    /// going through `dispatch_with_undo`) because we need to push
+    /// a *register-aware* `Cpu` entry: `dispatch_with_undo` always
+    /// pushes the plain variant, which loses the selection. The
+    /// before/after capture and `push_cpu_with_register_selection`
+    /// match what `dispatch_with_undo` does, just with the extra
+    /// selection field threaded through.
+    ///
+    /// `register_selection` is `Some((before, after))` when the
+    /// caller wants Ctrl+Z to teleport the register panel back to
+    /// `before` (and Ctrl+Shift+Z to push it forward to `after`).
+    /// Currently only `apply_register_with_step_selection` uses
+    /// that path; pass `None` from any future site where the
+    /// register cursor does not move as part of the gesture.
+    fn apply_register_inner(
+        &mut self,
+        register_selection: Option<(RegisterName, RegisterName)>,
+    ) {
         if let Some(register) = parse_register_name(&self.register_name_input) {
             self.selected_register = register;
         } else {
@@ -66,7 +117,29 @@ impl DesktopApp {
         }
 
         match parse_hex_u8(&self.register_value_input) {
-            Ok(value) => self.dispatch(AppCommand::SetRegister(self.selected_register, value)),
+            Ok(value) => {
+                // Pressing Enter is the moment the byte hits the CPU,
+                // so this is where the worker mutation enters the undo
+                // timeline. Break text coalescing first — the next
+                // keystroke is logically a fresh edit, not a
+                // continuation of whatever produced this commit.
+                self.undo_stack.break_coalescing();
+                let before = self.snapshot.cpu.clone();
+                self.dispatch_sync(AppCommand::SetRegister(self.selected_register, value));
+                let after = self.snapshot.cpu.clone();
+                // With no follow-on step, fall through to the
+                // plain `push_cpu` path. Otherwise tag the entry
+                // with the (before, after) register pair so
+                // undo/redo also rewind the selection.
+                match register_selection {
+                    Some(selection) => self.undo_stack.push_cpu_with_register_selection(
+                        before,
+                        after,
+                        Some(selection),
+                    ),
+                    None => self.undo_stack.push_cpu(before, after),
+                }
+            }
             Err(error) => self.status = error,
         }
     }
@@ -78,9 +151,27 @@ impl DesktopApp {
     /// touched.
     pub(crate) fn apply_register_and_step(&mut self, backward: bool) -> Task<Message> {
         let stay_on_value = self.focused_input == Some(REGISTER_VALUE_INPUT_ID);
-        self.apply_register();
+        // Compute the post-step register *before* dispatching the
+        // SetRegister write so the undo entry's `after` selection
+        // matches the register the user is about to land on. Doing
+        // it after `apply_register_inner` would be just as correct
+        // numerically (selected_register has not moved yet) but
+        // muddies the data flow — the entry needs to be pushed
+        // with the post-step register baked in.
         let delta = if backward { -1 } else { 1 };
-        self.step_register(delta);
+        let register_before = self.selected_register;
+        let index = register_index(register_before);
+        let len = REGISTER_ORDER.len() as i32;
+        let next = (index as i32 + delta).rem_euclid(len) as usize;
+        let register_after = REGISTER_ORDER[next];
+
+        self.apply_register_with_step_selection(register_after);
+        // `step_register` walks `selected_register` and refreshes
+        // the name/value buffers from the freshly written CPU. We
+        // pass the same `register_after` we baked into the undo
+        // entry so the visible state matches what redo would
+        // restore.
+        self.select_register(register_after);
         let target = if stay_on_value {
             REGISTER_VALUE_INPUT_ID
         } else {

@@ -15,6 +15,7 @@ mod focus_ops;
 mod memory;
 mod parse;
 mod register;
+mod undo;
 
 pub(crate) use focus_ops::{find_focusable_at, find_focused_optional, unfocus_except};
 
@@ -143,12 +144,44 @@ impl DesktopApp {
     /// the loaded program survives the restart and starts executing again
     /// at PC = 0.
     pub(crate) fn restart_program(&mut self) {
-        self.dispatch(AppCommand::ResetCpu);
+        // ResetCpu is what the user expects Ctrl+Z to roll back here:
+        // restart wipes registers and PC, and reverting registers is
+        // why the undo stack exists in the first place. The follow-up
+        // `Run` is intentionally *not* in the undo entry — running is
+        // not a state the timeline cares about, only the CPU snapshot
+        // it was running against, and that snapshot is captured by
+        // ResetCpu's pair already.
+        self.dispatch_with_undo(AppCommand::ResetCpu);
         // Keep the run state armed and dispatch the run command directly,
         // so the visible play/pause toggle stays consistent with what the
         // CPU is actually doing.
         self.running = true;
         self.dispatch(AppCommand::Run);
+    }
+
+    /// Same as `dispatch_sync`, but also pushes a `Cpu` undo entry
+    /// capturing the CPU state before and after the command. Used by
+    /// every mutating dispatch site that the user might want to roll
+    /// back with Ctrl+Z (`SetMemory`, `SetRegister`, `ResetCpu`,
+    /// `ResetRam`, opcode picker writes). Read the `before` snapshot
+    /// *before* sending the command so the rewind target is the state
+    /// the user saw, then `dispatch_sync` blocks for the worker to
+    /// publish the post-command snapshot, and the resulting
+    /// `self.snapshot.cpu` is the `after` half. `push_cpu` itself
+    /// drops no-op pairs, so a `SetMemory` that writes the same byte
+    /// never clutters the stack.
+    ///
+    /// The blocking dispatch is non-negotiable here: an earlier
+    /// async variant captured `after` before the worker had even
+    /// received the command, so every undo entry was pushed with
+    /// `before == after` and `push_cpu` silently dropped it as a
+    /// no-op. The user reported it as "ввёл 12, нажал Enter,
+    /// Ctrl+Z пишет «нечего отменять»" — exactly this race.
+    pub(crate) fn dispatch_with_undo(&mut self, command: AppCommand) {
+        let before = self.snapshot.cpu.clone();
+        self.dispatch_sync(command);
+        let after = self.snapshot.cpu.clone();
+        self.undo_stack.push_cpu(before, after);
     }
 
     pub(crate) fn pull_events(&mut self) {
@@ -284,6 +317,16 @@ impl DesktopApp {
     /// the load before we re-derive the spinner address, and finally
     /// pulls the new PC into the memory list / inline editor so the
     /// visible state matches what is actually in memory.
+    ///
+    /// Opening a file is *not* a Ctrl+Z-able gesture. The user's
+    /// mental model is "this is a fresh starting point" — a freshly
+    /// opened document has no history above it the same way a
+    /// freshly launched editor does. Wrapping the load in
+    /// `dispatch_with_undo` would technically work but produced the
+    /// surprise the user reported: open file → Run → Ctrl+Z → blank
+    /// buffer, with the now-loaded program lost. So we do the same
+    /// thing the "Новый файл" handler does — wipe the timeline so
+    /// the new document starts clean.
     pub(crate) fn load_snapshot_from_path(&mut self, path: PathBuf) {
         self.current_snapshot_path = Some(path.clone());
         let display = path.display().to_string();
@@ -299,6 +342,12 @@ impl DesktopApp {
         // launch would.
         self.running = false;
         self.dispatch_sync(AppCommand::LoadSnapshot(path));
+        // Wipe undo/redo *after* the load — the worker has already
+        // accepted the new document, and any history pointing at the
+        // pre-load buffer would be misleading (Ctrl+Z would tear the
+        // freshly opened program back out from under the user). See
+        // the rationale in the doc-comment above.
+        self.undo_stack.clear();
         let pc = self.snapshot.cpu.pc;
         self.set_memory_address(pc);
         self.status = format!("Открыто {display}");
@@ -372,6 +421,16 @@ impl DesktopApp {
     /// updates the input buffer (`memory_inline_value_input`), the byte
     /// reaches the CPU only on `apply_inline_memory_value`. Saving
     /// without this commit would serialise stale RAM.
+    ///
+    /// The commit goes through `dispatch_with_undo` so the rolled-up
+    /// edit lands on the undo stack just like an explicit Enter press
+    /// would: the user typed a byte, walked away to save, and the
+    /// flush is logically the same gesture as committing it. Without
+    /// this Ctrl+Z would silently skip past the auto-flushed write
+    /// even though the visible state changed underneath. Coalescing
+    /// is broken first so the inline-text undo entries that piled up
+    /// while typing don't fold into whatever the next text edit will
+    /// emit after the save returns.
     fn commit_pending_inline_edit(&mut self) {
         let Ok(address) = parse_hex_u16(&self.memory_address_input) else {
             return;
@@ -382,7 +441,8 @@ impl DesktopApp {
         if self.snapshot.cpu.memory.read(address) == value {
             return;
         }
-        self.dispatch_sync(AppCommand::SetMemory(address, value));
+        self.undo_stack.break_coalescing();
+        self.dispatch_with_undo(AppCommand::SetMemory(address, value));
     }
 
     pub(crate) fn export_file(&mut self) {
@@ -458,10 +518,19 @@ impl DesktopApp {
             .extension()
             .and_then(|ext| ext.to_str())
             .map(|ext| ext.to_ascii_lowercase());
+        // Import is a "fresh starting point" gesture, same as
+        // `load_snapshot_from_path` — the user wouldn't expect
+        // Ctrl+Z to tear the freshly imported program back out and
+        // restore whatever scratchpad they had loaded before. So
+        // instead of pushing a `Cpu` undo pair, wipe the timeline
+        // after the worker has applied the import. Sync dispatch
+        // makes the wipe land on the post-import state rather than
+        // a half-applied one.
         match extension.as_deref() {
-            Some("xlsx") => self.dispatch(AppCommand::ImportXlsx(path)),
-            _ => self.dispatch(AppCommand::ImportTxt(path)),
+            Some("xlsx") => self.dispatch_sync(AppCommand::ImportXlsx(path)),
+            _ => self.dispatch_sync(AppCommand::ImportTxt(path)),
         }
+        self.undo_stack.clear();
     }
 }
 

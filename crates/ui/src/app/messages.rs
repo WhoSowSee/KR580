@@ -328,4 +328,18 @@ pub(crate) enum Message {
     /// button would always show the "maximise" square even after the
     /// window was already filling the screen.
     WindowMaximizedChanged(bool),
+    /// Ctrl+Z — undo the most recent edit. Pops the top entry from
+    /// the shared undo stack: a `Text` entry restores the matching
+    /// input field's previous string; a `Cpu` entry replays the
+    /// pre-mutation `Cpu8080State` through `AppCommand::ApplyCpuState`,
+    /// which the worker treats as a `Stopped` + state-replace pair so
+    /// the run/halt indicators come back into agreement with the
+    /// rewound state. The popped entry is moved onto the redo stack
+    /// so Ctrl+Shift+Z can replay it.
+    Undo,
+    /// Ctrl+Shift+Z — redo the most recently undone edit. Mirror of
+    /// `Undo`: pops the top entry from the redo stack, applies its
+    /// `after` half (text or CPU), and pushes the entry back onto
+    /// the undo stack.
+    Redo,
 }

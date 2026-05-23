@@ -293,6 +293,36 @@ impl Emulator {
             AppCommand::SetRegister(register, value) => self.cpu.set_register(register, value),
             AppCommand::SetPc(address) => self.cpu.pc = address,
             AppCommand::SetMemory(address, value) => self.cpu.set_memory(address, value),
+            AppCommand::ApplyCpuState(state) => {
+                // Replace the whole CPU snapshot in one shot. Same
+                // run-loop hygiene the reset commands implement: an
+                // armed `Run` would race the next `step_instruction`
+                // against the freshly restored bytes, so we disarm
+                // and publish `Stopped` for the UI's play/pause
+                // toggle. We also reset the per-arming budget so a
+                // subsequent `Run` gets the full 100k window — the
+                // user just rewound to a clean state, anything else
+                // would carry stale bookkeeping forward.
+                let was_running = self.running;
+                self.cpu = *state;
+                self.running = false;
+                self.instructions_since_run = 0;
+                if was_running {
+                    events.push(AppEvent::Stopped);
+                }
+                // Halt bit could go either way: the snapshot we just
+                // restored may have been taken on a halted CPU
+                // (rewinding past a HLT) or on a running one
+                // (rewinding past a reset that itself cleared halt).
+                // The trailing `if self.cpu.halted` block at the end
+                // of `apply` covers the "now halted" case; we only
+                // need to publish the unhalted transition explicitly,
+                // so the UI clears the halt notice when the user
+                // rewinds back to a pre-HLT state.
+                if !self.cpu.halted {
+                    events.push(AppEvent::HaltStateChanged(false));
+                }
+            }
             AppCommand::StepInstruction => {
                 let outcome = self.cpu.step_instruction(&mut self.bus)?;
                 events.push(AppEvent::InstructionBoundaryReached(outcome));
