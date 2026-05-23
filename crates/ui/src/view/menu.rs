@@ -103,7 +103,7 @@ impl DesktopApp {
             ),
             caption_button(
                 icons::window_close(),
-                Message::WindowClose,
+                Message::WindowCloseRequested,
                 CaptionKind::Close
             ),
         ]

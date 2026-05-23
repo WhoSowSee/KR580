@@ -127,6 +127,15 @@ impl DesktopApp {
                 let before = self.snapshot.cpu.clone();
                 self.dispatch_sync(AppCommand::SetRegister(self.selected_register, value));
                 let after = self.snapshot.cpu.clone();
+                // Mirror the `dirty` flip from `dispatch_with_undo`:
+                // the inlined dispatch path bypasses that helper so
+                // it has to keep the dirty bookkeeping in sync on
+                // its own. Same gate (a no-op write must not flip
+                // the bit) and same observable effect — Ctrl+S is
+                // offered the moment the byte actually changes.
+                if before != after {
+                    self.dirty = true;
+                }
                 // With no follow-on step, fall through to the
                 // plain `push_cpu` path. Otherwise tag the entry
                 // with the (before, after) register pair so

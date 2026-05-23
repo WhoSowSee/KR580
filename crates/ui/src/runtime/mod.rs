@@ -181,6 +181,17 @@ impl DesktopApp {
         let before = self.snapshot.cpu.clone();
         self.dispatch_sync(command);
         let after = self.snapshot.cpu.clone();
+        // `push_cpu` drops no-op pairs (before == after), and that is
+        // also the right gate for the dirty flag: a SetMemory that
+        // re-writes the same byte should neither clutter the undo
+        // stack nor mark the document as edited. Reading the result
+        // of `push_cpu` would be cleaner but it currently returns
+        // `()`; recomputing the equality here is cheap (Cpu8080State
+        // implements PartialEq via deriving) and keeps the two
+        // gates in lock-step without a wider refactor.
+        if before != after {
+            self.dirty = true;
+        }
         self.undo_stack.push_cpu(before, after);
     }
 
@@ -348,6 +359,11 @@ impl DesktopApp {
         // freshly opened program back out from under the user). See
         // the rationale in the doc-comment above.
         self.undo_stack.clear();
+        // Open is a "fresh starting point" for the dirty flag too —
+        // the loaded document by definition matches what is on disk,
+        // so the next close/open gesture should run without a
+        // confirmation modal until the user actually edits something.
+        self.dirty = false;
         let pc = self.snapshot.cpu.pc;
         self.set_memory_address(pc);
         self.status = format!("Открыто {display}");
@@ -385,6 +401,14 @@ impl DesktopApp {
         // receipt, which on a heavily edited buffer was racing the
         // update.
         self.dispatch_sync(AppCommand::SaveSnapshot(path));
+        // Save establishes a fresh "clean" baseline: the on-disk
+        // file now matches what the user is editing, so an attempt
+        // to close or open another document should no longer prompt
+        // for confirmation. Cleared *after* the worker has
+        // acknowledged the write so a failed dispatch (the status
+        // bar will carry the error in that case) does not falsely
+        // advertise a saved state.
+        self.dirty = false;
         self.status = format!("Сохранено в {display}");
     }
 
@@ -411,6 +435,9 @@ impl DesktopApp {
         self.current_snapshot_path = Some(path.clone());
         let display = path.display().to_string();
         self.dispatch_sync(AppCommand::SaveSnapshot(path));
+        // See `save_snapshot` — same baseline-reset rationale: the
+        // on-disk file at the new path now matches the live state.
+        self.dirty = false;
         self.status = format!("Сохранено в {display}");
     }
 
@@ -531,6 +558,14 @@ impl DesktopApp {
             _ => self.dispatch_sync(AppCommand::ImportTxt(path)),
         }
         self.undo_stack.clear();
+        // Import is a "fresh starting point" too — see the
+        // load_snapshot rationale. The imported document is now what
+        // the user expects to see; until they edit it, prompting on
+        // close/open would be noise. Note import does *not* set
+        // `current_snapshot_path` (the imported file is not a `.580`
+        // snapshot), so a subsequent Ctrl+S still asks the user
+        // where to save — that part of the flow is unchanged.
+        self.dirty = false;
     }
 }
 

@@ -342,4 +342,25 @@ pub(crate) enum Message {
     /// `after` half (text or CPU), and pushes the entry back onto
     /// the undo stack.
     Redo,
+    /// User clicked "Закрыть" in the unsaved-changes confirmation
+    /// modal. The handler reads `pending_action`, clears it, and
+    /// runs the queued action (open file / new file / import /
+    /// close window) without re-checking `dirty` — the user has
+    /// just told us they accept losing the in-flight edits.
+    ConfirmDiscard,
+    /// User clicked "Отменить" in the unsaved-changes confirmation
+    /// modal, or pressed Esc while it was open. The handler clears
+    /// `pending_action` and leaves the document untouched; the
+    /// modal disappears on the next frame.
+    CancelDiscard,
+    /// Iced reports that the user has asked the OS to close the
+    /// window (× caption button, Alt+F4, taskbar close item). With
+    /// `exit_on_close_request(false)` set on the application, iced
+    /// no longer auto-closes — it forwards the request as a
+    /// `window::Event::CloseRequested` which the keyboard/mouse
+    /// listener turns into this message. The handler routes it
+    /// through the dirty gate: with no unsaved edits we dispatch
+    /// `iced::window::close` immediately, otherwise we stash
+    /// `PendingAction::CloseWindow` and let the modal take over.
+    WindowCloseRequested,
 }

@@ -232,6 +232,52 @@ pub(crate) struct DesktopApp {
     /// `SetRegister`, `ResetCpu`, `ResetRam`, snapshot/import loads).
     /// See `app::undo` for the storage shape and coalescing rules.
     pub(crate) undo_stack: UndoStack,
+    /// Set the moment the user makes a CPU-mutating gesture
+    /// (`SetMemory`, `SetRegister`, `ResetCpu`, `ResetRam`, inline
+    /// commit, opcode picker write) and cleared on every gesture that
+    /// establishes a fresh \"saved\" baseline: `SaveSnapshot`,
+    /// `SaveSnapshotAs`, `LoadSnapshot`, `Import`, `NewFile`. Read by
+    /// the gestures that throw away the current document
+    /// (`OpenSnapshot`, `NewFile`, `Import`, `WindowClose`) to decide
+    /// whether to put up a confirmation modal first. Without this
+    /// flag the only way to know if there is unsaved work is to
+    /// compare the live snapshot against the on-disk file, which is
+    /// both expensive and racy.
+    pub(crate) dirty: bool,
+    /// Action that has been queued behind a confirmation modal. The
+    /// gestures that may throw away unsaved work (open file / new
+    /// file / import / close window) check `dirty` first; with the
+    /// flag set they stash the action here and put up a modal that
+    /// asks the user to confirm or cancel. `Message::ConfirmDiscard`
+    /// then runs whatever was stashed; `Message::CancelDiscard`
+    /// clears the field. `None` means there is no modal; the rest of
+    /// the UI keeps interacting normally.
+    pub(crate) pending_action: Option<PendingAction>,
+}
+
+/// Action queued behind the \"unsaved changes\" confirmation modal.
+/// Each variant corresponds to one of the gestures that throw away
+/// the current document. Carries enough state to replay the action
+/// verbatim once the user confirms — `OpenSnapshotAt` carries the
+/// path the file dialog already returned, so confirming does not
+/// reopen the picker.
+#[derive(Clone, Debug)]
+pub(crate) enum PendingAction {
+    /// User picked \"Файл → Открыть\" / Ctrl+O. The file dialog has
+    /// not run yet; confirmation re-enters `open_snapshot` so the
+    /// dialog opens *after* the user decides to discard.
+    OpenSnapshot,
+    /// User picked \"Файл → Новый файл\" / Ctrl+N. Confirmation runs
+    /// the same wipe-RAM-and-CPU sequence the dirty-free path does.
+    NewFile,
+    /// User picked \"Файл → Импорт\" / Ctrl+I. Same shape as
+    /// `OpenSnapshot`: confirmation opens the picker.
+    Import,
+    /// User clicked the × caption button (or hit Alt+F4). The
+    /// `WindowClose` handler intercepted the request before the OS
+    /// could close the window; confirmation dispatches the actual
+    /// `iced::window::close`.
+    CloseWindow,
 }
 
 impl DesktopApp {
@@ -292,6 +338,14 @@ impl DesktopApp {
                 window_maximized: false,
                 menu_categories_visible: true,
                 undo_stack: UndoStack::default(),
+                // Fresh launch is by definition a clean baseline: no
+                // edits have happened, the document on disk (if any
+                // — the OS may have handed us a `.580` via argv[1]
+                // and the startup task will load it on the first
+                // tick) matches what the user sees. Both fields stay
+                // `false`/`None` until a gesture flips them.
+                dirty: false,
+                pending_action: None,
             },
             startup_task,
         )
@@ -491,36 +545,37 @@ impl DesktopApp {
             Message::ToggleRun => self.toggle_run(),
             Message::ResetCpu => self.dispatch_with_undo(k580_app::AppCommand::ResetCpu),
             Message::ResetRam => self.dispatch_with_undo(k580_app::AppCommand::ResetRam),
-            Message::OpenSnapshot => self.open_snapshot(),
+            Message::OpenSnapshot => {
+                // Dirty-gate: with unsaved edits, queue the action and
+                // raise the modal instead of opening the picker. The
+                // user gets a chance to cancel; if they confirm the
+                // discard, `ConfirmDiscard` re-emits `OpenSnapshot`
+                // through `Task::done`, but by then `dirty` has been
+                // cleared so this branch falls through to the picker.
+                if self.dirty {
+                    self.pending_action = Some(PendingAction::OpenSnapshot);
+                } else {
+                    self.open_snapshot();
+                }
+            }
             Message::LoadSnapshotFromPath(path) => self.load_snapshot_from_path(path),
             Message::SaveSnapshot => self.save_snapshot(),
             Message::SaveSnapshotAs => self.save_snapshot_as(),
             Message::NewFile => {
-                // Wipe RAM and registers in one shot. Order matters
-                // less than it looks because both reset commands fan
-                // out to the worker thread serially, but we send RAM
-                // first so the snapshot the user sees on the next
-                // tick is consistent with "blank slate, PC at 0".
-                self.dispatch(k580_app::AppCommand::ResetRam);
-                self.dispatch(k580_app::AppCommand::ResetCpu);
-                self.running = false;
-                // Drop the remembered snapshot path: a "new file" has
-                // no associated path on disk, so the next "Сохранить"
-                // must prompt for one — same behaviour as every text
-                // editor.
-                self.current_snapshot_path = None;
-                // The user explicitly asked for a blank slate; the
-                // pre-NewFile timeline has nothing to anchor onto in
-                // the new document, so the cleanest mental model is
-                // "history starts here". Wiping both stacks also
-                // prevents Ctrl+Z from rewinding past the new-file
-                // boundary into RAM/registers that no longer exist
-                // on screen.
-                self.undo_stack.clear();
-                self.status = "Новый файл".to_owned();
+                if self.dirty {
+                    self.pending_action = Some(PendingAction::NewFile);
+                } else {
+                    self.run_new_file();
+                }
             }
             Message::Export => self.export_file(),
-            Message::Import => self.import_file(),
+            Message::Import => {
+                if self.dirty {
+                    self.pending_action = Some(PendingAction::Import);
+                } else {
+                    self.import_file();
+                }
+            }
             Message::RegisterSelected(register) => self.select_register(register),
             Message::RegisterNameChanged(value) => {
                 // Mirror focus into our cosmetic tracker so the shell
@@ -663,6 +718,17 @@ impl DesktopApp {
                 // starts a fresh undo entry rather than continuing
                 // whatever the user was just typing into.
                 self.undo_stack.break_coalescing();
+                // Modal takes priority over every other Esc gesture:
+                // when the unsaved-changes confirmation is up, Esc is
+                // the standard "back out of this dialog" key (mirrors
+                // the cancel button and the click-outside scrim). We
+                // skip the focus-resolve dance — the modal does not
+                // own any text input — and just clear the pending
+                // action.
+                if self.pending_action.is_some() {
+                    self.pending_action = None;
+                    return Task::none();
+                }
                 // Pick the gesture by current focus: with the inline
                 // memory editor active, Esc reverts the pending edit;
                 // any other context falls back to closing the opcode
@@ -942,8 +1008,86 @@ impl DesktopApp {
             }
             Message::Undo => return self.apply_undo(),
             Message::Redo => return self.apply_redo(),
+            Message::ConfirmDiscard => {
+                // User accepted the loss of in-flight edits. Read the
+                // queued action, clear it, and re-emit the original
+                // gesture as a fresh message. Each gated entry point
+                // re-checks `dirty`; we wipe the flag *before*
+                // dispatching so the second pass falls through to the
+                // real handler instead of bouncing back into the
+                // modal. `CloseWindow` is not gated, so we dispatch
+                // `WindowClose` directly.
+                let Some(action) = self.pending_action.take() else {
+                    return Task::none();
+                };
+                self.dirty = false;
+                return match action {
+                    PendingAction::OpenSnapshot => Task::done(Message::OpenSnapshot),
+                    PendingAction::NewFile => Task::done(Message::NewFile),
+                    PendingAction::Import => Task::done(Message::Import),
+                    PendingAction::CloseWindow => Task::done(Message::WindowClose),
+                };
+            }
+            Message::CancelDiscard => {
+                // User backed out of the destructive gesture. Drop
+                // the queued action and leave the document untouched
+                // — the modal disappears on the next frame because
+                // `view` only paints it when `pending_action.is_some()`.
+                self.pending_action = None;
+            }
+            Message::WindowCloseRequested => {
+                // The OS has asked the window to close (× caption
+                // button, Alt+F4, taskbar). With
+                // `exit_on_close_request(false)` set on the
+                // application iced no longer auto-closes; we route
+                // the request through the dirty gate exactly like
+                // the other discard-paths. The clean path falls
+                // through to `WindowClose`, which dispatches
+                // `iced::window::close` for the cached window id.
+                if self.dirty {
+                    self.pending_action = Some(PendingAction::CloseWindow);
+                } else {
+                    return Task::done(Message::WindowClose);
+                }
+            }
         }
         Task::none()
+    }
+
+    /// Inline logic of "Файл → Новый файл". Lifted out of the
+    /// `Message::NewFile` handler so the dirty-gate path and the
+    /// `ConfirmDiscard` re-entry can share the implementation —
+    /// confirming the modal re-emits `Message::NewFile` through
+    /// `Task::done`, which then runs the same wipe sequence as a
+    /// direct gesture from a clean document.
+    fn run_new_file(&mut self) {
+        // Wipe RAM and registers in one shot. Order matters
+        // less than it looks because both reset commands fan
+        // out to the worker thread serially, but we send RAM
+        // first so the snapshot the user sees on the next
+        // tick is consistent with "blank slate, PC at 0".
+        self.dispatch(k580_app::AppCommand::ResetRam);
+        self.dispatch(k580_app::AppCommand::ResetCpu);
+        self.running = false;
+        // Drop the remembered snapshot path: a "new file" has
+        // no associated path on disk, so the next "Сохранить"
+        // must prompt for one — same behaviour as every text
+        // editor.
+        self.current_snapshot_path = None;
+        // The user explicitly asked for a blank slate; the
+        // pre-NewFile timeline has nothing to anchor onto in
+        // the new document, so the cleanest mental model is
+        // "history starts here". Wiping both stacks also
+        // prevents Ctrl+Z from rewinding past the new-file
+        // boundary into RAM/registers that no longer exist
+        // on screen.
+        self.undo_stack.clear();
+        // Blank slate is also a "clean baseline" for the
+        // dirty flag: the user explicitly asked for a fresh
+        // document, so no further close/open gesture should
+        // prompt until they make their first edit.
+        self.dirty = false;
+        self.status = "Новый файл".to_owned();
     }
 
     pub(crate) fn theme(&self) -> Theme {
@@ -1146,6 +1290,16 @@ impl DesktopApp {
                 (iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)), _) => {
                     Some(Message::MousePressed)
                 }
+                // OS-side close request (× caption, Alt+F4, taskbar
+                // close). With `exit_on_close_request(false)` set on
+                // the application, iced forwards the request as a
+                // `window::Event::CloseRequested` instead of closing
+                // the window itself. We turn it into a message the
+                // update handler can route through the dirty gate.
+                (
+                    iced::Event::Window(iced::window::Event::CloseRequested),
+                    _,
+                ) => Some(Message::WindowCloseRequested),
                 _ => None,
             }),
         ];

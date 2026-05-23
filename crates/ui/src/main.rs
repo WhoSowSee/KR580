@@ -73,6 +73,17 @@ fn main() -> iced::Result {
     })
     .centered()
     .antialiasing(true)
+    // Intercept OS-side close requests (× caption button, Alt+F4,
+    // taskbar close item) instead of letting iced auto-close the
+    // window. The subscription folds the resulting
+    // `window::Event::CloseRequested` into a
+    // `Message::WindowCloseRequested`; the update handler then
+    // routes it through the dirty gate, which on unsaved edits
+    // raises the confirmation modal instead of dropping the
+    // user's work on the floor. Confirming the discard dispatches
+    // `iced::window::close` from the `WindowClose` handler — the
+    // same call iced would have made automatically.
+    .exit_on_close_request(false)
     .run()
 }
 
