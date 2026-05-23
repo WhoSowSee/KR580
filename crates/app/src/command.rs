@@ -7,8 +7,34 @@ use std::time::Duration;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AppCommand {
     ResetCpu,
+    /// Clear the halt flip-flop without touching anything else: PC,
+    /// registers, flags, SP, RAM, and `cycle_count` all stay where
+    /// they were when HLT was executed. The UI exposes this through
+    /// "Сбросить флаг HLT" in the МП-Система menu and through the
+    /// register-editor toggle on the halt bit; the contract is "the
+    /// least destructive way to leave halt-state". Useful when the
+    /// program reached HLT as a way of waiting for an interrupt
+    /// (the classic 8080 idiom) and the user wants execution to
+    /// continue with the very next instruction without rewinding
+    /// the machine. A no-op on a CPU that is not halted; emits
+    /// `HaltStateChanged(false)` only when the bit actually
+    /// flipped, mirroring what `ResetCpu` does on the same path.
+    ClearHalt,
     LoadSnapshot(PathBuf),
     SaveSnapshot(PathBuf),
+    /// Load a legacy 65 549-byte `.580` produced by the original
+    /// emulator the project was based on (raw RAM + 13-byte trailer
+    /// carrying PC and an `FF FF` end marker; no registers, flags, or
+    /// SP). Replaces the live state with RAM from the file and the
+    /// recovered PC; everything else comes back as default. See
+    /// `Snapshot580Serializer::from_legacy_bytes`.
+    LoadLegacySnapshot(PathBuf),
+    /// Write the current CPU state out in the legacy 65 549-byte
+    /// layout. RAM and PC round-trip; flags, registers, SP, halt,
+    /// and timing are dropped because the reference format simply
+    /// does not have slots for them. See
+    /// `Snapshot580Serializer::to_legacy_bytes`.
+    SaveLegacySnapshot(PathBuf),
     LoadSubprogram {
         path: PathBuf,
         base_address: u16,

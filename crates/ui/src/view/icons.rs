@@ -55,6 +55,8 @@ static WINDOW_CLOSE: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("window-close").as_slice()));
 static CPU: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("cpu").as_slice()));
+static CLEAR_HALT: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("clear-halt").as_slice()));
 
 /// Lucide `play` — solid right-pointing triangle. Used for "run program".
 pub(super) fn play() -> svg::Handle {
@@ -185,4 +187,17 @@ pub(super) fn window_close() -> svg::Handle {
 /// reads as that signifier in a single 16 px square.
 pub(super) fn cpu() -> svg::Handle {
     CPU.clone()
+}
+
+/// Custom KR-580 glyph: an octagonal stop sign on a post (the
+/// universal "halt" affordance) paired with a counter-clockwise
+/// reset arc on the right (the same arc shape `reset_registers`
+/// uses for its reset semantics). Used as the menu glyph next to
+/// "Сбросить флаг HLT" — the row that snaps `cpu.halted` back to
+/// `false` without rewinding PC or wiping registers, which is a
+/// strictly weaker reset than `Очистить регистры` and deserves a
+/// distinct icon. The stop sign carries the "HLT was raised" half
+/// of the meaning, the arc carries the "we're undoing it" half.
+pub(super) fn clear_halt() -> svg::Handle {
+    CLEAR_HALT.clone()
 }

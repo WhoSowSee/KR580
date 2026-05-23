@@ -35,9 +35,9 @@ mod utils;
 mod widgets;
 
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
-use iced::{Background, Border, Color, Element, Length};
+use iced::{Background, Border, Color, Element, Length, alignment};
 
-use styles::{app_style, inset_style};
+use styles::{app_style, error_inset_style};
 use theme::{TOKYO_BG, TOKYO_BORDER, TOKYO_TEXT, ui_text};
 
 use crate::app::{DesktopApp, MenuId, Message, PendingAction};
@@ -58,22 +58,38 @@ const MENU_DROPDOWN_TOP: f32 = 34.0;
 /// floating element rather than glued to the bar.
 const HALT_NOTICE_TOP: f32 = 48.0;
 
+/// Vertical offset of the file-error notice overlay. Sits a touch
+/// further below the menu bar than the halt notice so that, in the
+/// (rare) case both are visible together — a halted CPU plus a
+/// failed save dialog — the two messages stack rather than overlap.
+/// The halt notice is the longer-lived of the two (it persists until
+/// the CPU is reset), so the error notice rides on top of it; that
+/// way the new, actionable error reads first.
+const ERROR_NOTICE_TOP: f32 = 88.0;
+
 /// Horizontal offset of the floating menu dropdown from the app's left
 /// edge, **per top-level menu**. Each value puts the dropdown's left
 /// edge a few pixels to the *left* of the trigger label so the row
 /// labels inside (which carry their own `4 + 10 = 14 px` of inner
 /// padding before the glyph) line up under the first letter of the
-/// trigger. Composition: `8 px root padding` + `17 px bar padding` +
+/// trigger. Composition: `8 px root padding` + `11 px bar padding` +
 /// `16 px cpu glyph` + `18 px gap` − `14 px dropdown inner inset` =
-/// `45 px` for "Файл". "МП-Система" then sits another `~36 px`
+/// `39 px` for "Файл". "МП-Система" then sits another `~36 px`
 /// (label width) + `18 px` gap further along the bar. Numbers are
 /// approximate — text metrics shift with the OS font fallback — and
 /// only need to land "near" the trigger, not dead-centre under it.
 ///
+/// Tied to the `.left(11)` padding the menu bar sets in
+/// `menu/menu_bar()`: tightening or loosening the bar's left padding
+/// must shift these constants by the same delta or the floating
+/// dropdowns drift off-axis from the label that opened them. The
+/// previous `45 / 99` values matched a `.left(17)` padding; the
+/// current `39 / 93` mirror the user-requested 6 px tightening.
+///
 /// Exposed to the `menu` submodule so the bar's bottom hairline can
 /// punch a hole under the open dropdown — see `menu_bar()`.
-pub(super) const FILE_MENU_DROPDOWN_LEFT: f32 = 45.0;
-pub(super) const MP_MENU_DROPDOWN_LEFT: f32 = 99.0;
+pub(super) const FILE_MENU_DROPDOWN_LEFT: f32 = 39.0;
+pub(super) const MP_MENU_DROPDOWN_LEFT: f32 = 93.0;
 
 impl DesktopApp {
     pub(crate) fn view(&self) -> Element<'_, Message> {
@@ -152,6 +168,22 @@ impl DesktopApp {
                 app_with_menu
             };
 
+        // File-error notice rides on top of the halt overlay (when
+        // both are present): a failed open/save/import is *the* thing
+        // the user is reacting to right now, so it should land above
+        // the longer-lived halt message. The overlay is interactive
+        // only insofar as a click on it dismisses it — wired through
+        // `mouse_area` inside the helper.
+        let app_with_overlays: Element<'_, Message> =
+            if let Some(notice) = self.error_notice.as_deref() {
+                stack![app_with_overlays, error_notice_overlay(notice)]
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into()
+            } else {
+                app_with_overlays
+            };
+
         // One scrim covers both interactive overlays we have today
         // (opcode picker and menu dropdown). When either is open we
         // wrap the whole thing in a `mouse_area` whose press emits
@@ -214,20 +246,88 @@ fn menu_dropdown_overlay(dropdown: Element<'_, Message>, left: f32) -> Element<'
 /// Floating notice anchored to the top centre of the window. Used for
 /// the halt-blocked Variant A message — see `docs/ui_app.md` and the
 /// `halt_notice` field on `DesktopApp`. The framed body uses
-/// `inset_style` so the message reads as a discrete UI element with a
-/// border on the dark schematic background. `opaque` wraps the body so
-/// pointer events do not leak through the visible frame, but the
-/// notice has no on-press of its own — clicks just do nothing
-/// (consistent with passive notifications).
+/// `error_inset_style` (the same red-on-`TOKYO_BOARD` frame as the
+/// file-error overlay) so the user reads "this is a blocking notice"
+/// from the chrome alone. The user explicitly asked for the two
+/// notices to look the same; surfacing different chromes for the two
+/// passive blockers ("file error" vs. "halted CPU") was reading as
+/// arbitrary noise rather than as different severities.
+///
+/// The body is two lines: a diagnosis (\"Процессор остановлен
+/// командой HLT\") and a recommendation (\"Сбросьте регистры или
+/// флаг HLT\"). The text is centred horizontally so the second
+/// (shorter) line sits visually under the first instead of leaning
+/// against the left padding — without `align_x(Center)` iced lays
+/// each line out flush-left and the second one would look detached
+/// from the bubble.
+///
+/// Click-to-dismiss: wrapping the body in a `mouse_area` whose
+/// `on_press` emits `Message::DismissHaltNotice` lets the user clear
+/// the overlay by clicking on it. Esc also dismisses (handled in
+/// `app::update::Message::EscPressed`). The overlay also auto-fades
+/// on an 8-second timer wired through `Message::Tick` — see
+/// `halt_notice_dismiss_at` on `DesktopApp` and `raise_halt_notice`
+/// for the lockstep arming. The notice also clears the moment the
+/// halt state lifts (the `apply_snapshot` branch nulls both the
+/// notice and the deadline so a reset wipes the block and the hint
+/// in the same frame).
 fn halt_notice_overlay(notice: &str) -> Element<'_, Message> {
-    let body = container(ui_text(notice.to_owned(), 13, TOKYO_TEXT))
-        .padding([8, 16])
-        .style(inset_style);
+    let body = container(
+        ui_text(notice.to_owned(), 15, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+    )
+    .padding([12, 22])
+    .style(error_inset_style);
+    let dismissible = mouse_area(opaque(body)).on_press(Message::DismissHaltNotice);
     column![
         Space::new().height(Length::Fixed(HALT_NOTICE_TOP)),
         row![
             Space::new().width(Length::Fill),
-            opaque(body),
+            dismissible,
+            Space::new().width(Length::Fill),
+        ]
+        .width(Length::Fill),
+    ]
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
+}
+
+/// Floating notice for file-system errors (failed open / save /
+/// import / export). Routed through `error_notice` rather than the
+/// status bar because the status bar at 13 px on the dark schematic
+/// plate is too quiet a channel — the user reported missing the
+/// message entirely. Frame uses `error_inset_style` (red border on
+/// the dark `TOKYO_BOARD` plate, same fill as every other panel in
+/// the app) so the notice reads as "another bubble on the same
+/// plate" rather than a light foreign box.
+///
+/// The body is rendered at 15 px with comfortable padding — large
+/// enough that the user cannot miss it, small enough that the
+/// framed line still looks like a sibling of the surrounding
+/// chrome rather than a banner stretched across the schematic. An
+/// earlier 18 px / `[18, 28]` variant felt oversized to the user;
+/// 15 px / `[12, 22]` is the compromise.
+///
+/// Click-to-dismiss: wrapping the body in a `mouse_area` whose
+/// `on_press` emits `Message::DismissErrorNotice` lets the user
+/// clear the overlay by clicking on it. Esc also dismisses (handled
+/// in `app::keyboard_subscription`). The overlay also auto-fades on
+/// an 8-second timer wired through `Message::Tick` — see
+/// `error_notice_dismiss_at` on `DesktopApp`. Without those exits the
+/// only way out would be to trigger another file gesture (which sets
+/// `error_notice = None` at the start of), which felt trapped.
+fn error_notice_overlay(notice: &str) -> Element<'_, Message> {
+    let body = container(
+        ui_text(notice.to_owned(), 15, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+    )
+    .padding([12, 22])
+    .style(error_inset_style);
+    let dismissible = mouse_area(opaque(body)).on_press(Message::DismissErrorNotice);
+    column![
+        Space::new().height(Length::Fixed(ERROR_NOTICE_TOP)),
+        row![
+            Space::new().width(Length::Fill),
+            dismissible,
             Space::new().width(Length::Fill),
         ]
         .width(Length::Fill),
@@ -269,6 +369,7 @@ fn discard_modal_overlay(action: &PendingAction) -> Element<'_, Message> {
         PendingAction::OpenSnapshot => "Открыть файл",
         PendingAction::NewFile => "Новый файл",
         PendingAction::Import => "Импорт",
+        PendingAction::OpenLegacySnapshot => "Открыть файл (старый формат)",
         PendingAction::CloseWindow => "Закрыть приложение",
     };
 

@@ -7,6 +7,33 @@ impl Snapshot580Serializer {
     pub const MAGIC: &'static [u8; 4] = b"K580";
     pub const VERSION: u16 = 1;
 
+    /// Length of the reference ("legacy") `.580` file produced by
+    /// the original emulator the project was based on: 65 536 bytes
+    /// of raw RAM followed by a 13-byte trailer. No magic, no
+    /// version, no TLV — just a flat dump.
+    pub const LEGACY_LENGTH: usize = Memory64K::SIZE + Self::LEGACY_TRAILER_LENGTH;
+    /// Length of the legacy trailer that sits *after* the 64 KiB of
+    /// RAM. Layout (offsets relative to the trailer's first byte):
+    ///
+    /// - `[0..9]`  — nine bytes of zeros in every reference file we
+    ///   inspected. These almost certainly correspond to register /
+    ///   flag / SP fields the reference emulator zeroes when the
+    ///   snapshot is saved at idle, but without the original
+    ///   emulator's source we cannot map them precisely. We write
+    ///   zeros here on save and ignore the value on load — that is
+    ///   what every reference file we have on disk does, so it
+    ///   round-trips cleanly.
+    /// - `[9..11]` — `PC_LO PC_HI` (little-endian u16). The slot
+    ///   carries different values across the seven reference files
+    ///   (`0x0011`, `0x0012`, `0x0000`, …); the only consistent
+    ///   reading that fits all of them is "the program counter at
+    ///   save time". We write our live `state.pc` here and read it
+    ///   back into `state.pc` on load.
+    /// - `[11..13]` — `FF FF` end-of-record marker. Constant across
+    ///   every reference file; the loader rejects files where these
+    ///   two bytes are anything else.
+    pub const LEGACY_TRAILER_LENGTH: usize = 13;
+
     pub fn to_bytes(state: &Cpu8080State) -> Vec<u8> {
         let mut payload = Vec::new();
         write_tlv(&mut payload, 0x01, state.memory.as_slice());
@@ -96,6 +123,63 @@ impl Snapshot580Serializer {
                 return Err(SnapshotError::MissingTag(tag));
             }
         }
+        Ok(state)
+    }
+
+    /// Serialize the CPU state into the reference ("legacy") 65 549-byte
+    /// `.580` layout used by the emulator the project was originally
+    /// based on. The output is `RAM (65 536 B) + 13-byte trailer`,
+    /// where the trailer is `0x00 × 9 + PC_LO + PC_HI + 0xFF + 0xFF`.
+    /// See `LEGACY_TRAILER_LENGTH` for why we map only PC across the
+    /// 13 bytes — the reference format does not preserve registers,
+    /// flags, SP, halt, or cycle counters, so this dumps RAM and PC
+    /// only and leaves everything else for the K580 v1 path. Round-trips
+    /// the seven reference files we have on disk byte-for-byte when
+    /// loaded with `from_legacy_bytes` (the trailer's first 9 bytes are
+    /// already zero in every reference file, and `FF FF` is constant).
+    pub fn to_legacy_bytes(state: &Cpu8080State) -> Vec<u8> {
+        let mut out = Vec::with_capacity(Self::LEGACY_LENGTH);
+        out.extend_from_slice(state.memory.as_slice());
+        // Nine zero bytes covering whatever the reference format
+        // stores here (likely registers / flags / SP at idle). Every
+        // reference file we have on disk leaves this zone clear, so
+        // emitting zeros keeps the round-trip clean.
+        out.resize(out.len() + 9, 0);
+        out.extend_from_slice(&state.pc.to_le_bytes());
+        // End-of-record marker. Constant across every reference file
+        // we have; the loader rejects files where it's anything else.
+        out.push(0xFF);
+        out.push(0xFF);
+        debug_assert_eq!(out.len(), Self::LEGACY_LENGTH);
+        out
+    }
+
+    /// Parse a legacy 65 549-byte `.580` file produced by the original
+    /// emulator. The format carries only RAM + PC (see
+    /// `to_legacy_bytes` for the layout rationale), so registers,
+    /// flags, SP, halt, interrupts, cycle count, and tact phase all
+    /// come back as `Cpu8080State::default()`. That is what the
+    /// reference files actually carry — every trailer we've inspected
+    /// has nine zero bytes ahead of the PC slot — and it makes the
+    /// "open legacy file" gesture predictable: the user gets RAM +
+    /// resume-from-PC, with everything else in a clean power-on state.
+    pub fn from_legacy_bytes(bytes: &[u8]) -> Result<Cpu8080State, SnapshotError> {
+        if bytes.len() != Self::LEGACY_LENGTH {
+            return Err(SnapshotError::InvalidLegacyLength(bytes.len()));
+        }
+        let trailer_start = Memory64K::SIZE;
+        let trailer = &bytes[trailer_start..];
+        if trailer[Self::LEGACY_TRAILER_LENGTH - 2] != 0xFF
+            || trailer[Self::LEGACY_TRAILER_LENGTH - 1] != 0xFF
+        {
+            return Err(SnapshotError::InvalidLegacyTrailer);
+        }
+        let mut state = Cpu8080State::default();
+        state
+            .memory
+            .as_mut_slice()
+            .copy_from_slice(&bytes[..trailer_start]);
+        state.pc = u16::from_le_bytes([trailer[9], trailer[10]]);
         Ok(state)
     }
 }

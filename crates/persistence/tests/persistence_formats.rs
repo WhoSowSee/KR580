@@ -41,6 +41,66 @@ fn snapshot_roundtrips_core_state_without_ui_data() {
 }
 
 #[test]
+fn legacy_snapshot_roundtrips_ram_and_pc() {
+    // The reference emulator's `.580` file is a flat 64 KiB RAM
+    // dump followed by a 13-byte trailer carrying the PC. Saving
+    // and reloading must preserve every byte of RAM plus the PC,
+    // and must zero everything else (registers, flags, SP, halt
+    // bit, …) — the legacy format simply does not encode them.
+    let mut cpu = Cpu8080State::default();
+    cpu.memory.write(0x0000, 0x3E);
+    cpu.memory.write(0x0001, 0x42);
+    cpu.memory.write(0xFFFF, 0xAA);
+    cpu.memory.write(0x4000, 0x5A);
+    cpu.pc = 0xBEEF;
+    // Set every other field to a non-default value so we can prove
+    // the legacy reader does not pick them up by accident.
+    cpu.registers.a = 0x99;
+    cpu.sp = 0xC0DE;
+    cpu.halted = true;
+
+    let bytes = Snapshot580Serializer::to_legacy_bytes(&cpu);
+    assert_eq!(bytes.len(), Snapshot580Serializer::LEGACY_LENGTH);
+    // Trailer must end with the FF FF marker every reference file
+    // we inspected carries; without it the loader rejects the file.
+    assert_eq!(bytes[bytes.len() - 2], 0xFF);
+    assert_eq!(bytes[bytes.len() - 1], 0xFF);
+
+    let restored = Snapshot580Serializer::from_legacy_bytes(&bytes).unwrap();
+    assert_eq!(restored.memory.read(0x0000), 0x3E);
+    assert_eq!(restored.memory.read(0x0001), 0x42);
+    assert_eq!(restored.memory.read(0xFFFF), 0xAA);
+    assert_eq!(restored.memory.read(0x4000), 0x5A);
+    assert_eq!(restored.pc, 0xBEEF);
+    // Fields not encoded by the legacy format come back as defaults.
+    assert_eq!(restored.registers.a, 0);
+    assert_eq!(restored.sp, 0);
+    assert!(!restored.halted);
+}
+
+#[test]
+fn legacy_snapshot_rejects_bad_length_and_trailer() {
+    let cpu = Cpu8080State::default();
+    let mut bytes = Snapshot580Serializer::to_legacy_bytes(&cpu);
+
+    let truncated = &bytes[..bytes.len() - 1];
+    assert!(matches!(
+        Snapshot580Serializer::from_legacy_bytes(truncated),
+        Err(SnapshotError::InvalidLegacyLength(_))
+    ));
+
+    // Wipe the FF FF marker — every reference file ends with it,
+    // so a file that doesn't is not a legacy `.580`.
+    let len = bytes.len();
+    bytes[len - 2] = 0x00;
+    bytes[len - 1] = 0x00;
+    assert!(matches!(
+        Snapshot580Serializer::from_legacy_bytes(&bytes),
+        Err(SnapshotError::InvalidLegacyTrailer)
+    ));
+}
+
+#[test]
 fn snapshot_bytes_are_deterministic_and_reject_bad_headers() {
     let mut cpu = Cpu8080State::default();
     cpu.registers.a = 0x5A;

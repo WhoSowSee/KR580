@@ -273,6 +273,40 @@ impl Emulator {
                     events.push(AppEvent::HaltStateChanged(false));
                 }
             }
+            AppCommand::ClearHalt => {
+                // Strictly weaker reset than `ResetCpu`: snap the
+                // halt flip-flop back to `false` and leave PC,
+                // registers, flags, SP, RAM, and `cycle_count`
+                // alone. The user just wants the run-block lifted —
+                // typically because they reached HLT as the 8080
+                // "wait for interrupt" idiom and want the next
+                // instruction (the byte at `pc`, which already
+                // sits one past HLT) to keep executing as if an
+                // interrupt had arrived. We also disarm the run
+                // loop and publish `Stopped` for symmetry with
+                // every other halt-clearing command: a UI that has
+                // its play/pause toggle out of sync with the
+                // worker is the same UX bug the `ResetCpu` block
+                // documents above, only landing through a different
+                // gesture. The `HaltStateChanged(false)` event is
+                // gated on the bit actually flipping so the
+                // command is a true no-op on a non-halted CPU
+                // instead of bouncing the UI's halt notice through
+                // a clear/re-arm cycle.
+                let was_running = self.running;
+                let was_halted_before = self.cpu.halted;
+                if was_halted_before {
+                    self.cpu.halted = false;
+                }
+                self.running = false;
+                self.instructions_since_run = 0;
+                if was_running {
+                    events.push(AppEvent::Stopped);
+                }
+                if was_halted_before {
+                    events.push(AppEvent::HaltStateChanged(false));
+                }
+            }
             AppCommand::ResetRam => {
                 // Wiping RAM under a running program would let the
                 // worker keep stepping into a sea of zero bytes
@@ -283,11 +317,30 @@ impl Emulator {
                 // gesture that erases code also yields control
                 // back to the UI; the `Stopped` event lets the
                 // play/pause toggle revert to its idle state.
+                //
+                // We also lift the halt flip-flop here, mirroring
+                // `ResetCpu` and `ClearHalt`. The user's mental
+                // model is "сброс — это сброс": after wiping the
+                // program, there is no HLT instruction left to be
+                // halted on, so the bit becoming `true` would be a
+                // pure UI artifact (the post-HLT run-block keeps the
+                // execution chips greyed even though the program
+                // that triggered it is gone). `HaltStateChanged` is
+                // gated on the bit actually flipping so a non-halted
+                // CPU does not bounce the halt notice through a
+                // clear/re-arm cycle.
                 let was_running = self.running;
+                let was_halted_before = self.cpu.halted;
                 self.cpu.reset_ram();
+                if was_halted_before {
+                    self.cpu.halted = false;
+                }
                 if was_running {
                     self.running = false;
                     events.push(AppEvent::Stopped);
+                }
+                if was_halted_before {
+                    events.push(AppEvent::HaltStateChanged(false));
                 }
             }
             AppCommand::SetRegister(register, value) => self.cpu.set_register(register, value),
@@ -387,6 +440,12 @@ impl Emulator {
             }
             AppCommand::LoadSnapshot(path) => {
                 self.cpu = Snapshot580Serializer::from_bytes(&std::fs::read(path)?)?;
+            }
+            AppCommand::SaveLegacySnapshot(path) => {
+                std::fs::write(path, Snapshot580Serializer::to_legacy_bytes(&self.cpu))?
+            }
+            AppCommand::LoadLegacySnapshot(path) => {
+                self.cpu = Snapshot580Serializer::from_legacy_bytes(&std::fs::read(path)?)?;
             }
             AppCommand::LoadSubprogram { path, base_address } => {
                 let subprogram = SubprogramSerializer::load_file(path, base_address)?;

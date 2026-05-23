@@ -6,7 +6,8 @@ use iced::widget::button;
 use iced::{Background, Border, Color};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BORDER, TOKYO_RED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT,
+    TOKYO_BG, TOKYO_BORDER, TOKYO_MUTED, TOKYO_RED, TOKYO_SURFACE, TOKYO_SURFACE_2,
+    TOKYO_SURFACE_3, TOKYO_TEXT,
 };
 
 pub(crate) fn capsule_button_style(
@@ -52,20 +53,40 @@ pub(crate) fn is_button_active(status: button::Status) -> bool {
 /// without losing the per-button identity. Keeps the row of action
 /// chips visually coherent with the surrounding inputs instead of
 /// flaring up a coloured frame whenever the cursor lands on a chip.
+///
+/// `Disabled` is its own visual branch: the surface stays at the
+/// resting `TOKYO_BG` tone, but the border drops to the same low-alpha
+/// tint the menu separator uses and the text colour fades to
+/// `TOKYO_MUTED`. The glyph itself is greyed out by
+/// `icon_action_button_glyph_color` (called from the chip widget when
+/// the caller passed `None` for `message`); the border + text fade
+/// here is what tells the *frame* "this chip is locked", so the user
+/// reads disabled-ness from the chrome even before parsing the muted
+/// glyph.
 pub(crate) fn action_button_style(status: button::Status) -> button::Style {
+    let disabled = matches!(status, button::Status::Disabled);
     let background = match status {
         button::Status::Pressed => TOKYO_SURFACE_2,
         button::Status::Hovered => TOKYO_SURFACE,
         _ => TOKYO_BG,
     };
+    let border_color = if disabled {
+        Color {
+            a: 0.35,
+            ..TOKYO_BORDER
+        }
+    } else {
+        TOKYO_BORDER
+    };
+    let text_color = if disabled { TOKYO_MUTED } else { TOKYO_TEXT };
 
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color,
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: TOKYO_BORDER,
+            color: border_color,
         },
         ..button::Style::default()
     }

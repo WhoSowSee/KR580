@@ -95,6 +95,23 @@ pub(crate) enum Message {
     /// message so the menu maps cleanly to user-visible labels and
     /// future work can split the two without churning the menu code.
     SaveSnapshotAs,
+    /// "Сохранить (старый формат)" entry from the File dropdown.
+    /// Always opens a save picker (we deliberately do not remember
+    /// a "current legacy path" — saving as legacy is a deliberate
+    /// export-style gesture rather than an in-place save) and writes
+    /// the snapshot using `Snapshot580Serializer::to_legacy_bytes`.
+    /// The legacy format only carries RAM and PC; flags, registers,
+    /// SP, halt, and timing fall on the floor — that is what the
+    /// reference emulator did and what makes the file readable by it.
+    SaveLegacySnapshot,
+    /// "Открыть (старый формат)" entry from the File dropdown.
+    /// Opens a file picker filtered to `.580`, reads the file via
+    /// `Snapshot580Serializer::from_legacy_bytes`, and replaces the
+    /// live CPU state with RAM + PC from the file (everything else
+    /// is reset to defaults). Routed through the dirty-gate just like
+    /// `OpenSnapshot` so unsaved edits raise the confirmation modal
+    /// instead of being silently discarded.
+    OpenLegacySnapshot,
     /// Wipe RAM and registers in one shot. Bound to "Новый файл" in
     /// the File dropdown — the gesture mirrors "discard current work
     /// and start with a blank slate", so we send both `ResetRam` and
@@ -166,6 +183,39 @@ pub(crate) enum Message {
     OpcodeSelected(u16, u8),
     OpcodeScrolled,
     HideOpcodeDropdown,
+    /// User dismissed the floating file-error overlay (red-bordered
+    /// frame at the top-centre of the window). Emitted by a click on
+    /// the overlay itself (`mouse_area` wrapper inside
+    /// `view::error_notice_overlay`) and by the global Esc handler
+    /// when no other Esc gesture takes priority. Clears
+    /// `DesktopApp::error_notice` so the overlay disappears on the
+    /// next render. Has no other side effects — the underlying
+    /// document state was already preserved by the failed handler's
+    /// fail-safe early return.
+    DismissErrorNotice,
+    /// User dismissed the floating halt-notice overlay (the same
+    /// red-bordered frame as the file-error notice, but raised by a
+    /// run/step gesture refused because the CPU is halted). Emitted
+    /// by a click on the overlay itself (`mouse_area` wrapper inside
+    /// `view::halt_notice_overlay`) and by the global Esc handler
+    /// when no error overlay or modal claims Esc first. Clears
+    /// `DesktopApp::halt_notice` so the overlay disappears on the
+    /// next render — the actual halt state is unchanged, the user
+    /// still has to reset registers to arm a run.
+    DismissHaltNotice,
+    /// Clear the halt flip-flop without touching anything else
+    /// (registers, flags, PC, SP, RAM, and `cycle_count` all stay
+    /// where they were when HLT was executed). Wired to the new
+    /// "Сбросить флаг HLT" entry at the bottom of the МП-Система
+    /// dropdown and to the Ctrl+Shift+H shortcut. Dispatches
+    /// `AppCommand::ClearHalt` through the undo stack — the entry
+    /// stores a `Cpu8080State` snapshot, so Ctrl+Z brings the halt
+    /// bit back the same way it brings back any other CPU mutation.
+    /// Also clears `run_blocked_after_halt` so the execution
+    /// buttons unfreeze, and clears the halt notice early instead
+    /// of waiting for the 8-second timer — the user has just told
+    /// us they acknowledged it.
+    ClearHalt,
     /// Raw Esc keypress from the global keyboard subscription. The
     /// listener cannot read app state (it's a `Fn` closure), so the
     /// router lives in `update`: with the inline memory editor

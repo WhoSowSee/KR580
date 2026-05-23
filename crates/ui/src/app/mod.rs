@@ -28,7 +28,7 @@ use iced::{Subscription, Task, Theme};
 use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use k580_core::RegisterName;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::platform;
 
@@ -179,6 +179,19 @@ pub(crate) struct DesktopApp {
     /// сохранить, хотя я его уже открыл". `Сохранить как` ignores it
     /// (and replaces it on success).
     pub(crate) current_snapshot_path: Option<PathBuf>,
+    /// Filesystem path of the **legacy** `.580` file the user is
+    /// currently editing, set whenever `OpenLegacySnapshot` succeeds
+    /// and after every successful `SaveLegacySnapshot`. Lives in a
+    /// separate field from `current_snapshot_path` so that Ctrl+S
+    /// (plain Save, K580 v1 TLV) and Ctrl+Alt+S (Save legacy) can
+    /// each remember *their own* path without one silently
+    /// overwriting the other in a format the reference emulator
+    /// could not load back. Cleared whenever the document switches
+    /// to a non-legacy origin (Open / New / Import / Save-as on the
+    /// v1 path) — the next "Сохранить (старый формат)" then prompts
+    /// for a fresh location instead of reusing a stale path that no
+    /// longer matches the document.
+    pub(crate) current_legacy_snapshot_path: Option<PathBuf>,
     /// Currently active tier on the speed switch. Three discrete
     /// positions (Slow / Medium / High) replace the older free-form
     /// slider so the user picks an intent ("walk every line" / "watch
@@ -198,6 +211,75 @@ pub(crate) struct DesktopApp {
     /// the run state) and by every successful step / run path so the
     /// message disappears the moment the user is no longer halt-blocked.
     pub(crate) halt_notice: Option<String>,
+    /// Wall-clock deadline at which the floating halt notice should
+    /// auto-dismiss itself. Mirrors `error_notice_dismiss_at`: the
+    /// user explicitly asked for halt_notice to fade after 8 s the
+    /// same way the file-error overlay does, so the two passive
+    /// notices behave identically on every axis except phrasing.
+    /// Polled inside `Message::Tick` next to the error-notice
+    /// branch; kept in lockstep with `halt_notice` via
+    /// `clear_halt_notice()` so a stale deadline can never fire on a
+    /// fresh notice or pretend it dismissed something the user
+    /// already cleared by hand.
+    pub(crate) halt_notice_dismiss_at: Option<Instant>,
+    /// Latch raised the moment a run / step / restart gesture is
+    /// refused by the halt-block check (see `raise_halt_notice`).
+    /// While `true`, every execution-side button on the action panel
+    /// renders disabled (their `Message` is wrapped in `None` so iced
+    /// drops the `on_press` callback) and the corresponding keyboard
+    /// shortcuts (Ctrl+R, Ctrl+T, Ctrl+Y) early-return inside the
+    /// runtime helpers. The block deliberately outlives the
+    /// 8-second halt-notice fade — that is the user's whole point:
+    /// "до тех пор пока не сброшу флаг или регистры", the overlay
+    /// disappearing without unblocking would leave them with the
+    /// same dead buttons but no on-screen explanation.
+    ///
+    /// Cleared by exactly the gestures that make the halt bit
+    /// unblockable in the worker: `Message::ResetCpu` (full
+    /// power-on reset), `Message::ClearHalt` (the strictly weaker
+    /// "flip the halt bit only" twin), and the `apply_snapshot`
+    /// branch that sees the new snapshot reports `halted = false`
+    /// (snapshot loads, undo of a halting instruction, etc.). All
+    /// three sites also clear `halt_notice` in lockstep, keeping
+    /// the visual and logical halves of "user is unstuck now"
+    /// aligned.
+    ///
+    /// Setting the latch lives inside `raise_halt_notice` rather
+    /// than at every call site so a future halt-block path cannot
+    /// forget to arm the block — there is exactly one chokepoint
+    /// for "user just discovered the CPU is halted", and that's
+    /// where both the overlay and the latch turn on together.
+    pub(crate) run_blocked_after_halt: bool,
+    /// Floating notification shown at the top centre of the window
+    /// when a file-system operation fails (open / save / import /
+    /// export couldn't read or write the file). Lives in its own
+    /// field, separate from `halt_notice`, because the two have
+    /// distinct lifecycles: `halt_notice` is gated on the CPU's
+    /// halted bit and clears the moment the user resets registers,
+    /// while `error_notice` is gated on the user's *next gesture* —
+    /// any successful file operation, an Esc press, or a click on
+    /// the notice itself dismisses it. Routed through this field
+    /// rather than `self.status` because the status bar at 13 px on
+    /// the dark schematic plate is too quiet a channel for "open
+    /// failed" — the user reported missing the message entirely. A
+    /// red-tinted framed overlay catches the eye the way a status
+    /// line cannot.
+    pub(crate) error_notice: Option<String>,
+    /// Wall-clock deadline at which the floating error notice should
+    /// auto-dismiss itself. Set to `Instant::now() + 8s` whenever
+    /// `error_notice` is populated; cleared when the notice is
+    /// cleared. Polled inside `Message::Tick` so the dismissal is
+    /// driven by the same timer that paces the rest of the UI — at
+    /// 16-100 ms tick intervals the actual dismiss happens within
+    /// one frame of the deadline, which is plenty for a passive
+    /// notification.
+    ///
+    /// Driven off `Instant` rather than a tick counter because the
+    /// tick interval is variable (it tracks the CPU speed tier); a
+    /// counter would need to be retuned every time the user changed
+    /// speed. A wall-clock deadline is just always 8 seconds in the
+    /// future regardless of how fast Tick is firing.
+    pub(crate) error_notice_dismiss_at: Option<Instant>,
     /// Cached identifier of the main window. Captured on the very
     /// first `WindowOpened` so the custom caption buttons (drag /
     /// minimise / toggle-maximise / close) can dispatch
@@ -273,6 +355,13 @@ pub(crate) enum PendingAction {
     /// User picked \"Файл → Импорт\" / Ctrl+I. Same shape as
     /// `OpenSnapshot`: confirmation opens the picker.
     Import,
+    /// User picked \"Файл → Открыть (старый формат)\". Same shape as
+    /// `OpenSnapshot`: the file dialog has not run yet; confirmation
+    /// re-enters `open_legacy_snapshot` so the dialog opens after
+    /// the user accepts the discard. Saving as legacy does not need
+    /// a `PendingAction` variant — it is non-destructive (writes a
+    /// new file, never touches live state).
+    OpenLegacySnapshot,
     /// User clicked the × caption button (or hit Alt+F4). The
     /// `WindowClose` handler intercepted the request before the OS
     /// could close the window; confirmation dispatches the actual
@@ -327,6 +416,14 @@ impl DesktopApp {
                 // the user cannot interact with the app before the
                 // startup task drains.
                 current_snapshot_path: None,
+                // Same rationale as `current_snapshot_path`: nothing
+                // is loaded yet, the legacy "Сохранить (старый формат)"
+                // gesture must therefore prompt for a path on first
+                // use. The startup task may flip this if the OS hands
+                // us a `.580` via argv[1] *and* the loader picks the
+                // legacy branch — but that decision lives in
+                // `load_snapshot_from_path`, not here.
+                current_legacy_snapshot_path: None,
                 // The speed switch boots into Medium — that's the
                 // rest position the user reaches for ~80% of the time
                 // (program visibly walks, eye keeps up with each PC
@@ -334,6 +431,20 @@ impl DesktopApp {
                 // defaults.
                 speed_tier: DEFAULT_SPEED_TIER,
                 halt_notice: None,
+                halt_notice_dismiss_at: None,
+                // Fresh launch is by definition not halted (the
+                // initial snapshot's `halted = false`), so the
+                // latch starts disarmed. The first run/step that
+                // hits HLT will arm it through `raise_halt_notice`,
+                // and ResetCpu / ClearHalt / a non-halted snapshot
+                // load will disarm it back.
+                run_blocked_after_halt: false,
+                // Fresh launch has no errors to report yet — the
+                // overlay only materialises when a file operation
+                // explicitly fails (`AppEvent::ErrorRaised`) or the
+                // dispatch channel itself errors out.
+                error_notice: None,
+                error_notice_dismiss_at: None,
                 window_id: None,
                 window_maximized: false,
                 menu_categories_visible: true,
@@ -351,6 +462,63 @@ impl DesktopApp {
         )
     }
 
+    /// Clears both halves of the error-notice state in lockstep. The
+    /// floating overlay needs `error_notice` to disappear from the
+    /// view, but the auto-dismiss deadline must go with it — a stale
+    /// `Some(deadline)` left behind would silently fire on the next
+    /// Tick and pretend it dismissed something the user had already
+    /// cleared. Used everywhere the notice is reset: explicit
+    /// dismissal (click / Esc / `DismissErrorNotice`), each fresh
+    /// file gesture (open / save / save-as / save-legacy /
+    /// open-legacy / import / export), and the auto-dismiss branch
+    /// in `Message::Tick` itself.
+    pub(crate) fn clear_error_notice(&mut self) {
+        self.error_notice = None;
+        self.error_notice_dismiss_at = None;
+    }
+
+    /// Clears both halves of the halt-notice state in lockstep, the
+    /// same pattern `clear_error_notice` follows. The auto-dismiss
+    /// deadline must travel with the visible field; without it a
+    /// stale `Some(deadline)` would silently fire on the next Tick
+    /// and look like it dismissed a fresh notice the user had only
+    /// just seen. Used by every site that nulls `halt_notice`:
+    /// explicit dismissal (click / Esc / `DismissHaltNotice`), the
+    /// `apply_snapshot` branch that detects a non-halted CPU, and
+    /// the auto-dismiss arm in `Message::Tick`.
+    pub(crate) fn clear_halt_notice(&mut self) {
+        self.halt_notice = None;
+        self.halt_notice_dismiss_at = None;
+    }
+
+    /// Arms the halt-notice overlay with the canonical two-line body
+    /// — first line is the diagnosis ("процессор остановлен командой
+    /// HLT"), second line is the recommendation ("Сбросьте регистры
+    /// или флаг HLT"). Centralised here so every halt-block site
+    /// (run-arming, step-instruction, step-tact) gets the same text
+    /// and the same 8-second auto-dismiss deadline without each
+    /// site having to remember to bump both halves.
+    ///
+    /// The 8 s window matches `error_notice` exactly. The user
+    /// explicitly asked for the two passive overlays to behave
+    /// identically — same chrome, same fade — so the timer constant
+    /// has to track the one in `consume_event::ErrorRaised`.
+    pub(crate) fn raise_halt_notice(&mut self) {
+        self.halt_notice = Some(
+            "Процессор остановлен командой HLT\nСбросьте регистры или флаг HLT".to_owned(),
+        );
+        self.halt_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
+        // Single chokepoint for "user just discovered the CPU is
+        // halted": every halt-block path (run-arming, step-instruction,
+        // step-tact, restart-program) routes through this helper, so
+        // arming the latch here means no individual call site can
+        // forget to do it. The latch outlives the 8-second overlay
+        // fade — disabling the buttons is the user-visible contract
+        // ("до тех пор пока не сброшу флаг или регистры"), and the
+        // overlay is just the explanation for why they went dead.
+        self.run_blocked_after_halt = true;
+    }
+
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Tick => {
@@ -359,6 +527,31 @@ impl DesktopApp {
                     self.memory_scroll_visible_ticks.saturating_sub(1);
                 self.opcode_scroll_visible_ticks =
                     self.opcode_scroll_visible_ticks.saturating_sub(1);
+                // Auto-dismiss the floating error notice once the
+                // 8-second window armed by `consume_event` is up.
+                // Polled here rather than via a dedicated timer
+                // subscription because Tick already fires often
+                // enough (16-100 ms) that the visible delay between
+                // deadline and dismissal is at most one frame —
+                // imperceptible for a passive notification — and
+                // adding a second `time::every` for a feature this
+                // small would only complicate the subscription list.
+                if let Some(deadline) = self.error_notice_dismiss_at
+                    && Instant::now() >= deadline
+                {
+                    self.clear_error_notice();
+                }
+                // Same auto-dismiss treatment for the halt notice —
+                // the user asked for the two passive overlays to
+                // fade identically, and the deadline is armed by
+                // `raise_halt_notice` in lockstep with the visible
+                // field, so this branch is structurally identical
+                // to the error-notice one above.
+                if let Some(deadline) = self.halt_notice_dismiss_at
+                    && Instant::now() >= deadline
+                {
+                    self.clear_halt_notice();
+                }
                 // Drag the memory highlight along with PC while the
                 // paced Run loop is firing. `pull_events` has just
                 // folded the latest snapshot in, so `cpu.pc` already
@@ -543,8 +736,48 @@ impl DesktopApp {
             Message::RestartProgram => self.restart_program(),
             Message::StepTact => return self.step_tact_and_maybe_advance(),
             Message::ToggleRun => self.toggle_run(),
-            Message::ResetCpu => self.dispatch_with_undo(k580_app::AppCommand::ResetCpu),
-            Message::ResetRam => self.dispatch_with_undo(k580_app::AppCommand::ResetRam),
+            Message::ResetCpu => {
+                // ResetCpu is the canonical "clean power-on": it
+                // wipes registers, PC, SP, interrupt state, halt,
+                // and cycle_count in one shot, so the halt-block
+                // latch must come down with it. The `apply_snapshot`
+                // branch will also see `halted = false` on the
+                // returning snapshot and clear `halt_notice` there,
+                // but the latch governs UI controls and lives only
+                // on the UI side, so we drop it here.
+                self.run_blocked_after_halt = false;
+                self.dispatch_with_undo(k580_app::AppCommand::ResetCpu);
+            }
+            Message::ResetRam => {
+                // `ResetRam` wipes the program out of memory and, on
+                // the worker side, also lifts the halt flip-flop —
+                // the program that put the CPU into HLT is gone, so
+                // staying halted-on-nothing is a pure UI artifact.
+                // Lift the run-block latch here for the same reason
+                // we do it for `ResetCpu` / `ClearHalt`: the latch is
+                // UI-only state, the snapshot returning from the
+                // worker will then confirm the un-halt through
+                // `apply_snapshot`, and the user gets the execution
+                // chips back the moment they hit «Сброс ОЗУ». Without
+                // this branch the chips would stay greyed even after
+                // a successful RAM wipe, which is exactly the bug the
+                // user filed.
+                self.run_blocked_after_halt = false;
+                self.dispatch_with_undo(k580_app::AppCommand::ResetRam);
+            }
+            Message::ClearHalt => {
+                // Strictly weaker reset than `ResetCpu`: only the
+                // halt flip-flop flips. Routed through the undo
+                // stack the same way every other CPU mutation is,
+                // so Ctrl+Z brings the halt bit back if the user
+                // changes their mind. Lift the UI latch in lockstep
+                // with the worker dispatch — the snapshot returning
+                // from the worker will also clear the notice via
+                // `apply_snapshot`, but the latch is UI-only state
+                // and we control it here.
+                self.run_blocked_after_halt = false;
+                self.dispatch_with_undo(k580_app::AppCommand::ClearHalt);
+            }
             Message::OpenSnapshot => {
                 // Dirty-gate: with unsaved edits, queue the action and
                 // raise the modal instead of opening the picker. The
@@ -561,6 +794,21 @@ impl DesktopApp {
             Message::LoadSnapshotFromPath(path) => self.load_snapshot_from_path(path),
             Message::SaveSnapshot => self.save_snapshot(),
             Message::SaveSnapshotAs => self.save_snapshot_as(),
+            Message::SaveLegacySnapshot => self.save_legacy_snapshot(),
+            Message::OpenLegacySnapshot => {
+                // Same dirty-gate as `OpenSnapshot`: with unsaved edits,
+                // queue the action and raise the modal. The legacy
+                // open path replaces RAM + PC under the user's feet,
+                // so the same "are you sure you want to lose this?"
+                // protection applies. `ConfirmDiscard` re-emits this
+                // message after wiping `dirty`, and the second pass
+                // falls through to the picker.
+                if self.dirty {
+                    self.pending_action = Some(PendingAction::OpenLegacySnapshot);
+                } else {
+                    self.open_legacy_snapshot();
+                }
+            }
             Message::NewFile => {
                 if self.dirty {
                     self.pending_action = Some(PendingAction::NewFile);
@@ -712,12 +960,56 @@ impl DesktopApp {
                 self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }
             Message::HideOpcodeDropdown => self.hide_opcode_dropdown(),
+            Message::DismissErrorNotice => {
+                // Drop the floating error overlay. The document state
+                // was already preserved by whichever fail-safe early
+                // return surfaced the notice, so there is nothing
+                // else to undo here — just clearing the field is
+                // enough for the next render to hide the frame.
+                self.clear_error_notice();
+            }
+            Message::DismissHaltNotice => {
+                // Drop the floating halt-block overlay. The actual
+                // halted bit on the CPU is unchanged — the user still
+                // has to reset registers before a run/step gesture
+                // does anything — but the notice itself is just a UI
+                // hint and clearing it on click matches the behaviour
+                // of the file-error overlay it now visually mirrors.
+                self.clear_halt_notice();
+            }
             Message::EscPressed => {
                 // Esc closes the current logical edit: any in-flight
                 // text coalescing must end here so the next keystroke
                 // starts a fresh undo entry rather than continuing
                 // whatever the user was just typing into.
                 self.undo_stack.break_coalescing();
+                // Error notice takes the very first slot in the Esc
+                // priority order: a failed open/save is the most
+                // recent thing the user is reacting to, and a stray
+                // Esc to clear it should not also collapse a modal
+                // they're about to confirm or revert an inline edit
+                // they're mid-keying. Cheap and additive — clears
+                // the field and falls through to the rest of the
+                // chain (modal / inline edit / opcode dropdown), so
+                // a single Esc keeps doing what it always did when
+                // the overlay isn't up.
+                if self.error_notice.is_some() {
+                    self.clear_error_notice();
+                    return Task::none();
+                }
+                // Halt notice takes the next slot: a fresh halt-block
+                // hint is the second-most-recent thing the user is
+                // reacting to, and it now wears the same red-bordered
+                // frame as the file-error overlay. Esc dismisses it
+                // for the same reason — passive notices should clear
+                // on the universal "back out" key. Falls through to
+                // the modal / inline-edit / dropdown chain so a
+                // single Esc keeps doing what it always did when no
+                // overlay is up.
+                if self.halt_notice.is_some() {
+                    self.clear_halt_notice();
+                    return Task::none();
+                }
                 // Modal takes priority over every other Esc gesture:
                 // when the unsaved-changes confirmation is up, Esc is
                 // the standard "back out of this dialog" key (mirrors
@@ -1025,6 +1317,7 @@ impl DesktopApp {
                     PendingAction::OpenSnapshot => Task::done(Message::OpenSnapshot),
                     PendingAction::NewFile => Task::done(Message::NewFile),
                     PendingAction::Import => Task::done(Message::Import),
+                    PendingAction::OpenLegacySnapshot => Task::done(Message::OpenLegacySnapshot),
                     PendingAction::CloseWindow => Task::done(Message::WindowClose),
                 };
             }
@@ -1074,6 +1367,12 @@ impl DesktopApp {
         // must prompt for one — same behaviour as every text
         // editor.
         self.current_snapshot_path = None;
+        // The legacy path is part of the previous document's
+        // identity too — wiping it here keeps "Новый файл" a true
+        // blank slate: the next Ctrl+Alt+S must prompt for a fresh
+        // location rather than overwrite a legacy file from before
+        // the new-file gesture.
+        self.current_legacy_snapshot_path = None;
         // The user explicitly asked for a blank slate; the
         // pre-NewFile timeline has nothing to anchor onto in
         // the new document, so the cleanest mental model is
@@ -1157,13 +1456,31 @@ impl DesktopApp {
                     _,
                 ) if modifiers.command() => {
                     let latin = key.to_latin(physical_key)?;
-                    match (latin, modifiers.shift()) {
-                        ('n', false) => Some(Message::NewFile),
-                        ('o', false) => Some(Message::OpenSnapshot),
-                        ('s', false) => Some(Message::SaveSnapshot),
-                        ('s', true) => Some(Message::SaveSnapshotAs),
-                        ('i', false) => Some(Message::Import),
-                        ('e', false) => Some(Message::Export),
+                    // The match arms read `(letter, shift, alt)`. Alt is
+                    // tracked explicitly so the legacy save/open
+                    // shortcuts (Ctrl+Alt+S / Ctrl+Alt+O) can sit
+                    // alongside their plain Ctrl twins without
+                    // colliding: pressing Ctrl+S with Alt held must
+                    // NOT also fire `SaveSnapshot`, otherwise the user
+                    // would silently get *both* a v1 save and the
+                    // legacy save dialog on the same keystroke.
+                    let alt = modifiers.alt();
+                    match (latin, modifiers.shift(), alt) {
+                        ('n', false, false) => Some(Message::NewFile),
+                        ('o', false, false) => Some(Message::OpenSnapshot),
+                        ('s', false, false) => Some(Message::SaveSnapshot),
+                        ('s', true, false) => Some(Message::SaveSnapshotAs),
+                        ('i', false, false) => Some(Message::Import),
+                        ('e', false, false) => Some(Message::Export),
+                        // Legacy `.580` shortcuts. Ctrl+Alt picks the
+                        // legacy twins of S/O — same key the user
+                        // already associates with save/open, the Alt
+                        // bit signals "the niche format" the way Shift
+                        // signals "save as" elsewhere. No legacy
+                        // counterparts for N/I/E because legacy is a
+                        // file format, not a workflow.
+                        ('s', false, true) => Some(Message::SaveLegacySnapshot),
+                        ('o', false, true) => Some(Message::OpenLegacySnapshot),
                         // МП-Система. Ctrl+letter for the three execution
                         // gestures (R = Run, T = sTep instruction — "S"
                         // is taken by Save, T is the natural next pick;
@@ -1183,11 +1500,24 @@ impl DesktopApp {
                         // PC, SP, interrupt state, halt, **and**
                         // cycle_count. There is no separate "registers
                         // only" semantic in the spec.
-                        ('r', false) => Some(Message::ToggleRun),
-                        ('t', false) => Some(Message::StepInstruction),
-                        ('y', false) => Some(Message::StepTact),
-                        ('r', true) => Some(Message::ResetRam),
-                        ('g', true) => Some(Message::ResetCpu),
+                        ('r', false, false) => Some(Message::ToggleRun),
+                        ('t', false, false) => Some(Message::StepInstruction),
+                        ('y', false, false) => Some(Message::StepTact),
+                        ('r', true, false) => Some(Message::ResetRam),
+                        ('g', true, false) => Some(Message::ResetCpu),
+                        // Ctrl+Shift+H — clear the halt flip-flop
+                        // without touching anything else (the
+                        // weakest reset gesture in the menu, and
+                        // the only thing that lifts the post-HLT
+                        // run-block latch on its own without
+                        // wiping registers/PC/RAM). Same Shift-bit
+                        // story as ResetRam / ResetCpu: capitalised
+                        // intuition for "this changes execution
+                        // state", and a guaranteed-not-while-typing
+                        // modifier so a stray Ctrl+H in a text
+                        // input cannot silently flip the halt bit
+                        // out from under the user.
+                        ('h', true, false) => Some(Message::ClearHalt),
                         // Undo / redo. Bound unconditionally (no
                         // `Status::Ignored` filter) for the same reason
                         // every editor binds them this way: iced's
@@ -1201,8 +1531,8 @@ impl DesktopApp {
                         // ResetRam / SetMemory / snapshot loads) when
                         // no input is focused — one timeline, one
                         // mental model.
-                        ('z', false) => Some(Message::Undo),
-                        ('z', true) => Some(Message::Redo),
+                        ('z', false, false) => Some(Message::Undo),
+                        ('z', true, false) => Some(Message::Redo),
                         _ => None,
                     }
                 }

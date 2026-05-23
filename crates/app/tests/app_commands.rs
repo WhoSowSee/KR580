@@ -164,7 +164,7 @@ fn apply_cpu_state_during_run_emits_stopped() {
 /// Rewinding past a HLT must clear the halt notice on the UI side.
 /// The contract is: when the restored snapshot has `halted == false`,
 /// the worker emits `HaltStateChanged(false)` so the floating
-/// "Программа завершена" frame disappears as soon as the user undoes
+/// "Процессор остановлен" frame disappears as soon as the user undoes
 /// the instruction that halted the CPU.
 #[test]
 fn apply_cpu_state_unhalts_emits_halt_event() {

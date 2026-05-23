@@ -29,10 +29,12 @@ use super::theme::{TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_TEXT, ui_text
 use crate::app::{DesktopApp, MenuId, Message};
 
 /// Width of the floating "Файл" dropdown. Picked wide enough that
-/// "Сохранить как" + the longest hint ("Ctrl+Shift+S") sit on one
+/// "Сохранить (старый формат)" — the longest label after the legacy
+/// rows were added below the standard save/open group — sits on one
 /// line at 13 px without wrapping, with room for the leading 16 px
-/// glyph and its gap.
-const FILE_DROPDOWN_WIDTH: f32 = 260.0;
+/// glyph and its gap. The legacy rows carry no shortcut hint, so the
+/// width is bounded by the label alone rather than label + hint.
+const FILE_DROPDOWN_WIDTH: f32 = 290.0;
 
 /// Width of the "МП-Система" dropdown. Tuned for the longest label
 /// here ("Очистить регистры") plus the longest shortcut hint
@@ -169,14 +171,25 @@ impl DesktopApp {
         // left sits the same distance from the window edge as the
         // close cross does on the right. The right-hand caption
         // buttons add an internal ~9 px between the button edge and
-        // the 14 px glyph stroke on top of the 8 px container padding,
-        // putting the rightmost stroke at ~17 px from the window edge.
+        // the 14 px glyph stroke on top of the 2 px container padding,
+        // putting the rightmost stroke at ~11 px from the window edge.
         // The cpu glyph on the left has no surrounding button, so we
         // bake that ~9 px back into the container padding to keep the
         // two ends optically symmetric. Row spacing of 18 px then
         // takes care of the gap between cpu and "Файл" — it matches
         // the gap between every other top-level label.
-        .padding(iced::Padding::ZERO.left(17).right(8))
+        //
+        // The 11/2 split is the result of the user asking for slightly
+        // tighter title-bar margins than the original 17/8: shifted
+        // both sides inward by 6 px, so the symmetric "≈11 px from
+        // the window edge" rule still holds. `FILE_MENU_DROPDOWN_LEFT`
+        // / `MP_MENU_DROPDOWN_LEFT` were lowered by the same 6 px in
+        // `view/mod.rs` so the floating dropdowns continue to land
+        // under their triggers — they are absolute X coordinates from
+        // the window edge, so any change to this padding has to be
+        // mirrored there or the dropdown drifts off-axis from the
+        // label that opened it.
+        .padding(iced::Padding::ZERO.left(11).right(2))
         .width(Length::Fill)
         .height(Length::Fixed(34.0))
         .style(menu_bar_style);
@@ -320,6 +333,40 @@ fn file_dropdown() -> Element<'static, Message> {
         ),
         menu_item("Импорт", "Ctrl+I", icons::file_down(), Message::Import),
         menu_item("Экспорт", "Ctrl+E", icons::file_up(), Message::Export),
+        // Legacy `.580` interop sits below a separator so the two
+        // groups read as distinct: the rows above operate on the
+        // project's native v1 TLV snapshots (round-trippable, lossless,
+        // tracked by `current_snapshot_path` for plain Ctrl+S), while
+        // the rows below trade in the reference emulator's flat 65549-
+        // byte format (RAM + PC only, lossy, never claims the path).
+        // No shortcut hints — these are deliberately discoverable via
+        // the menu rather than the keyboard, which keeps the legacy
+        // path out of muscle memory and discourages accidental data
+        // loss when the user means to hit Ctrl+S on a v1 snapshot.
+        //
+        // Order is "Открыть → Сохранить" to mirror the native group
+        // above (Открыть is row 2 there, Сохранить is row 3): a user
+        // scanning the menu from top to bottom encounters the same
+        // verb sequence in both groups, so the legacy block reads as
+        // a parallel duplicate of the modern block rather than an
+        // arbitrarily reshuffled afterthought. Opening also tends to
+        // be the more common entry point into a session — typically
+        // you load a `.580` from the reference emulator first, then
+        // optionally save it back — which makes "Открыть" the natural
+        // first row in the pair.
+        menu_separator(),
+        menu_item(
+            "Открыть (старый формат)",
+            "Ctrl+Alt+O",
+            icons::folder_open(),
+            Message::OpenLegacySnapshot,
+        ),
+        menu_item(
+            "Сохранить (старый формат)",
+            "Ctrl+Alt+S",
+            icons::save(),
+            Message::SaveLegacySnapshot,
+        ),
     ];
 
     container(column(items).spacing(0))
@@ -373,6 +420,30 @@ fn mp_dropdown() -> Element<'static, Message> {
             "Ctrl+Shift+G",
             icons::reset_registers(),
             Message::ResetCpu,
+        ),
+        // The HLT-only reset sits *below* the destructive group on
+        // purpose: it is the lightest of the three resets (it touches
+        // exactly one bit — the halt flip-flop — and leaves
+        // registers, flags, PC, SP, RAM, and `cycle_count` untouched),
+        // so a user who wandered down from "Очистить регистры" will
+        // read the trio as a top-down weakening of blast radius.
+        // It is also the way out of the post-HLT run-block: the
+        // `run_blocked_after_halt` latch is cleared on this gesture
+        // *and* on `Message::ResetCpu`, mirroring the user's contract
+        // "пока не сброшу флаг или регистры — кнопки запуска
+        // блокируются". Shortcut is `Ctrl+Shift+H` (H = Halt) so it
+        // fits the `Ctrl+Shift+...` family of destructive resets and
+        // is hard to hit by accident while typing in the editor.
+        // No separator before it: the three reset rows form a single
+        // "сбросить X" block, ordered from most-destructive (RAM) to
+        // least-destructive (the single halt bit), and a divider in
+        // the middle would visually split a group that conceptually
+        // belongs together.
+        menu_item(
+            "Сбросить флаг HLT",
+            "Ctrl+Shift+H",
+            icons::clear_halt(),
+            Message::ClearHalt,
         ),
     ];
 

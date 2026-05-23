@@ -12,7 +12,7 @@ use super::styles::{
     action_button_style, enter_button_style, input_borderless_style, input_shell_style,
     inset_style, legend_label_style, panel_style, step_button_style,
 };
-use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text, ui_text};
+use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
 use crate::app::Message;
 
 /// Frames `content` with a border that has a centred title cut into it.
@@ -174,9 +174,21 @@ pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
 /// button so the chips read as part of the same family. The tooltip
 /// body uses the editor `inset_style` so it visually belongs to the
 /// same chrome family as the rest of the side panel.
+///
+/// `message` is `Option<Message>` rather than `Message` so the caller
+/// can render a *disabled* chip without juggling a parallel "is it
+/// enabled" branch in the layout: passing `None` skips the
+/// `.on_press(...)` call, and iced 0.14's `button` widget treats a
+/// button with no `on_press` as non-interactive (no hover highlight,
+/// no click). The tooltip still appears on hover so the user can see
+/// the hint even while the button is locked. This is the chokepoint
+/// that the post-HLT run-block (`run_blocked_after_halt`) uses to
+/// grey out the four execution chips while leaving the reset chips
+/// alive — the resets are the way out of the latch, so they must
+/// stay clickable.
 pub(super) fn icon_action_button(
     handle: svg::Handle,
-    message: Message,
+    message: Option<Message>,
     accent: Color,
     hint: &'static str,
 ) -> Element<'static, Message> {
@@ -185,26 +197,49 @@ pub(super) fn icon_action_button(
 
     // Tint the SVG geometry by overriding `currentColor` with the
     // accent — the source files are authored with `stroke="currentColor"`
-    // so the same handle can be reused at any tone.
+    // so the same handle can be reused at any tone. When the chip is
+    // locked (`message` is `None`), we collapse the glyph to a low-alpha
+    // `TOKYO_MUTED` grey instead. iced 0.14's `svg::Style` callback
+    // also receives the host widget's status, but for this widget the
+    // host is a `container`, not the `button` itself, so the status is
+    // always `Idle` and we cannot key off it. The enabled/disabled
+    // decision is therefore baked into the closure at construction
+    // time — same lifetime as the `Option<Message>` we already branch
+    // on for `.on_press(...)`. This is what makes the chip read as
+    // "out of service" at a glance: the frame fades via
+    // `action_button_style`'s `Disabled` arm, the glyph fades here,
+    // and together they outvoter the per-chip accent colour the chip
+    // wears when alive.
+    let enabled = message.is_some();
+    let glyph_color = if enabled {
+        accent
+    } else {
+        Color {
+            a: 0.45,
+            ..TOKYO_MUTED
+        }
+    };
     let glyph = svg(handle)
         .width(Length::Fixed(GLYPH_SIZE))
         .height(Length::Fixed(GLYPH_SIZE))
         .style(move |_theme, _status| svg::Style {
-            color: Some(accent),
+            color: Some(glyph_color),
         });
 
-    let face = button(
+    let mut face = button(
         container(glyph)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(alignment::Horizontal::Center)
             .align_y(alignment::Vertical::Center),
     )
-    .on_press(message)
     .padding(0)
     .width(Length::Fixed(BUTTON_SIZE))
     .height(Length::Fixed(BUTTON_SIZE))
     .style(move |_theme, status| action_button_style(status));
+    if let Some(action) = message {
+        face = face.on_press(action);
+    }
 
     let body = container(ui_text(hint, 12, TOKYO_TEXT))
         .padding(Padding {

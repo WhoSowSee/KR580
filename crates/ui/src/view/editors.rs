@@ -182,12 +182,31 @@ impl DesktopApp {
             )
         };
 
+        // While `run_blocked_after_halt` is armed (the user just hit
+        // HLT, the worker reported the error, the 8-second halt notice
+        // is up *or has already faded*), every chip that would pump
+        // the CPU forward is rendered without an `on_press` so iced
+        // greys it out and ignores clicks. Only the two reset chips
+        // and the dedicated `Сбросить флаг HLT` menu entry remain
+        // live, mirroring the user's contract: "пока не сброшу флаг
+        // или регистры — кнопки запуска блокируются". `Пауза` while
+        // running is technically not a "запуск", but `ToggleRun`
+        // *cannot* fire when running is true *and* the latch is true:
+        // the latch is cleared the moment `apply_snapshot` sees a
+        // non-halted state, and the run loop never starts in the
+        // first place if `cpu.halted` is true (the worker would have
+        // bounced it). Wrapping `ToggleRun` in `None` therefore
+        // costs nothing — the only path it would have served is
+        // already unreachable.
+        let blocked = self.run_blocked_after_halt;
+        let gate = |msg: Message| if blocked { None } else { Some(msg) };
+
         let execution_strip = row![
-            icon_action_button(run_icon, Message::ToggleRun, run_accent, run_tooltip),
-            icon_action_button(step_icon, step_message, TOKYO_BLUE, step_tooltip),
+            icon_action_button(run_icon, gate(Message::ToggleRun), run_accent, run_tooltip),
+            icon_action_button(step_icon, gate(step_message), TOKYO_BLUE, step_tooltip),
             icon_action_button(
                 icons::redo_dot(),
-                Message::StepTact,
+                gate(Message::StepTact),
                 TOKYO_YELLOW,
                 "Выполнить такт",
             ),
@@ -198,13 +217,13 @@ impl DesktopApp {
         let reset_strip = row![
             icon_action_button(
                 icons::reset_ram(),
-                Message::ResetRam,
+                Some(Message::ResetRam),
                 TOKYO_RED,
                 "Сброс ОЗУ",
             ),
             icon_action_button(
                 icons::reset_registers(),
-                Message::ResetCpu,
+                Some(Message::ResetCpu),
                 TOKYO_MAGENTA,
                 "Сброс регистров",
             ),

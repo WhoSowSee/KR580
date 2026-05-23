@@ -12,6 +12,7 @@
 
 mod focus;
 mod focus_ops;
+mod humanize_error;
 mod memory;
 mod parse;
 mod register;
@@ -92,6 +93,21 @@ impl DesktopApp {
             return;
         }
 
+        // Halt-block latch: after the first run/step gesture refused
+        // by HLT, every further execution attempt is a no-op until
+        // the user explicitly resets registers or clears the halt
+        // bit. The action panel buttons are already disabled by the
+        // latch, so this branch only fires for the keyboard shortcut
+        // (Ctrl+R) and the menu items, which iced does not gate on
+        // their own. Re-raising the notice keeps the user from
+        // staring at a dead button with no on-screen explanation
+        // when the 8-second fade has already eaten the original
+        // overlay.
+        if self.run_blocked_after_halt {
+            self.raise_halt_notice();
+            return;
+        }
+
         // Run-arming path. Two gates protect against actions that
         // would either burn cycles for no observable effect or
         // stall on the very first instruction: a halted CPU has to
@@ -107,8 +123,7 @@ impl DesktopApp {
         // about the only gesture that actually unblocks anything —
         // resetting the registers brings PC back to 0x0000.
         if self.snapshot.cpu.halted {
-            self.halt_notice =
-                Some("Программа завершена. Сброс регистров для повторного запуска.".to_owned());
+            self.raise_halt_notice();
             return;
         }
         let pc = self.snapshot.cpu.pc;
@@ -144,6 +159,18 @@ impl DesktopApp {
     /// the loaded program survives the restart and starts executing again
     /// at PC = 0.
     pub(crate) fn restart_program(&mut self) {
+        // Halt-block latch: same gating story as `toggle_run`. The
+        // action-panel button is already rendered disabled by the
+        // latch, but the second-button glyph swap (`refresh-ccw` ↔
+        // `step-forward`) means a stray keyboard shortcut or menu
+        // path could still land here, so we re-raise the notice and
+        // bail out instead of sending ResetCpu + Run, which would
+        // immediately re-trip the halt and surface the same notice
+        // anyway after one wasted round trip through the worker.
+        if self.run_blocked_after_halt {
+            self.raise_halt_notice();
+            return;
+        }
         // ResetCpu is what the user expects Ctrl+Z to roll back here:
         // restart wipes registers and PC, and reverting registers is
         // why the undo stack exists in the first place. The follow-up
@@ -244,7 +271,34 @@ impl DesktopApp {
                 // the halt branch above.
                 self.running = false;
                 self.pending_follow_pc = true;
-                self.status = error.to_string();
+                let raw = error.to_string();
+                // Status bar carries the raw, untranslated text — it
+                // is the developer-visible channel, the place we
+                // attach to bug reports, and rewriting it to
+                // Russian would erase information that English
+                // logs / search engines / issue trackers expect. The
+                // human-readable variant is the *user-facing*
+                // overlay copy below.
+                self.status = raw.clone();
+                // Surface the same condition through the floating
+                // overlay using a short Russian sentence. The
+                // `humanize_error` module pattern-matches on the
+                // English Display text and falls back to a generic
+                // line plus the raw text in parens for anything it
+                // doesn't recognise — see the module's doc comment
+                // for why localization happens at this layer rather
+                // than inside `AppError`.
+                self.error_notice =
+                    Some(format!("Ошибка: {}", humanize_error::humanize(&raw)));
+                // Arm the auto-dismiss timer: 8 seconds is the user-
+                // requested window before the notice fades on its
+                // own. Earlier the only exits were a click on the
+                // overlay or Esc; without a timer the notice would
+                // sit there forever if the user neither dismissed it
+                // nor triggered another file gesture, which felt
+                // sticky. `Message::Tick` polls this deadline.
+                self.error_notice_dismiss_at =
+                    Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
             }
             AppEvent::Stopped => {
                 // Sent both for an explicit `AppCommand::Stop` and when
@@ -288,7 +342,18 @@ impl DesktopApp {
         // should disappear with no further bookkeeping at the
         // dispatch sites.
         if !self.snapshot.cpu.halted {
-            self.halt_notice = None;
+            self.clear_halt_notice();
+            // Lift the UI latch in lockstep with the overlay: the
+            // worker has confirmed the halt bit is down, so the
+            // execution buttons must come back to life on the same
+            // frame the notice fades. ResetCpu / ClearHalt already
+            // flip this UI-side, but a snapshot path the user did
+            // not initiate (Ctrl+Z that rewinds past the halting
+            // instruction, a snapshot load whose cpu was never
+            // halted) also reaches this branch and the latch must
+            // come down with it — otherwise the buttons would stay
+            // disabled even though the halt bit is no longer set.
+            self.run_blocked_after_halt = false;
         }
 
         if register_value_follows_snapshot {
@@ -339,7 +404,14 @@ impl DesktopApp {
     /// thing the "Новый файл" handler does — wipe the timeline so
     /// the new document starts clean.
     pub(crate) fn load_snapshot_from_path(&mut self, path: PathBuf) {
-        self.current_snapshot_path = Some(path.clone());
+        // A new file gesture earns a clean overlay: any error notice
+        // from the previous failed gesture must clear so the user
+        // can tell *this* attempt apart from the last one. If the
+        // dispatch below itself errors, `consume_event` will refill
+        // `error_notice` synchronously before we read it back. Goes
+        // through `clear_error_notice` so the auto-dismiss deadline
+        // is dropped in lockstep — see the helper for rationale.
+        self.clear_error_notice();
         let display = path.display().to_string();
         // Disarm the cosmetic run flag *before* the load goes out:
         // `toggle_run` on a blank page is purely visual (no
@@ -352,7 +424,22 @@ impl DesktopApp {
         // start the new file in the same neutral state a fresh
         // launch would.
         self.running = false;
-        self.dispatch_sync(AppCommand::LoadSnapshot(path));
+        self.dispatch_sync(AppCommand::LoadSnapshot(path.clone()));
+        // If the worker rejected the load (corrupt header, missing
+        // file, IO error), `consume_event` already wrote the user-
+        // visible notice. Bail out *before* we mutate the document's
+        // identity — we don't want to claim "current path = X" for
+        // a load that never happened, otherwise the next Ctrl+S
+        // would silently overwrite the unrelated file at X with the
+        // CPU state from before the failed open.
+        if self.error_notice.is_some() {
+            return;
+        }
+        self.current_snapshot_path = Some(path);
+        // The newly loaded file's origin is K580 v1 — drop any
+        // remembered legacy path so a stray Ctrl+Alt+S does not
+        // overwrite an unrelated `.580` from before this gesture.
+        self.current_legacy_snapshot_path = None;
         // Wipe undo/redo *after* the load — the worker has already
         // accepted the new document, and any history pointing at the
         // pre-load buffer would be misleading (Ctrl+Z would tear the
@@ -378,6 +465,11 @@ impl DesktopApp {
     /// they were saving.
     pub(crate) fn save_snapshot(&mut self) {
         self.commit_pending_inline_edit();
+        // Same reset rationale as `load_snapshot_from_path`: a fresh
+        // gesture earns a clean overlay. If the dispatch below itself
+        // errors, `consume_event` will refill `error_notice`
+        // synchronously before we read it back.
+        self.clear_error_notice();
         let path = match &self.current_snapshot_path {
             Some(path) => path.clone(),
             None => {
@@ -401,6 +493,20 @@ impl DesktopApp {
         // receipt, which on a heavily edited buffer was racing the
         // update.
         self.dispatch_sync(AppCommand::SaveSnapshot(path));
+        // If the worker rejected the write (permission denied, IO
+        // error, disk full), `consume_event` already wrote the user-
+        // visible notice. Bail out *before* we mutate the document's
+        // state forward — the on-disk file does not reflect the live
+        // state, so we must not clear `dirty` or claim the save
+        // landed in the status bar.
+        if self.error_notice.is_some() {
+            return;
+        }
+        // Saving as v1 retargets the document's "primary" location to
+        // a v1 path. Drop the legacy path so Ctrl+Alt+S after a v1
+        // save prompts for a fresh location instead of writing to a
+        // legacy file the user may not remember opening earlier.
+        self.current_legacy_snapshot_path = None;
         // Save establishes a fresh "clean" baseline: the on-disk
         // file now matches what the user is editing, so an attempt
         // to close or open another document should no longer prompt
@@ -432,13 +538,168 @@ impl DesktopApp {
         let Some(path) = dialog.save_file() else {
             return;
         };
-        self.current_snapshot_path = Some(path.clone());
+        // Same reset rationale as `save_snapshot`: clear any leftover
+        // overlay before issuing the dispatch, so a fresh gesture is
+        // visually distinguishable from a previous failed one.
+        self.clear_error_notice();
         let display = path.display().to_string();
-        self.dispatch_sync(AppCommand::SaveSnapshot(path));
+        self.dispatch_sync(AppCommand::SaveSnapshot(path.clone()));
+        // Same fail-safe pattern: if the write failed, do not retarget
+        // the document's primary path or clear the dirty flag. The
+        // user can retry, fix the underlying problem (read-only file,
+        // missing folder, permissions), or pick a different location.
+        if self.error_notice.is_some() {
+            return;
+        }
+        self.current_snapshot_path = Some(path);
+        // Same rationale as `save_snapshot`: the document's primary
+        // origin is now this v1 path; drop the legacy path so a
+        // later Ctrl+Alt+S prompts for a fresh location.
+        self.current_legacy_snapshot_path = None;
         // See `save_snapshot` — same baseline-reset rationale: the
         // on-disk file at the new path now matches the live state.
         self.dirty = false;
         self.status = format!("Сохранено в {display}");
+    }
+
+    /// "Сохранить (старый формат)": writes the live CPU state out in
+    /// the reference 65 549-byte layout — RAM + 13-byte trailer with
+    /// PC, no registers / flags / SP / halt / cycles. Behaves like
+    /// the regular "Сохранить": if a legacy path is remembered (from
+    /// a prior `OpenLegacySnapshot` or a previous successful save),
+    /// the file is overwritten in place; otherwise a save picker
+    /// runs and the chosen path is stashed in
+    /// `current_legacy_snapshot_path` so the next call writes to
+    /// that location without prompting.
+    ///
+    /// The legacy path lives in its own field — separate from the
+    /// K580 v1 `current_snapshot_path` — because the two formats
+    /// must never share a remembered location: a Ctrl+S after an
+    /// Open-legacy would otherwise silently rewrite the legacy file
+    /// with K580 v1 bytes the reference emulator could not load
+    /// back. By splitting the fields, Ctrl+S always means "save as
+    /// v1 to the v1 path" and Ctrl+Alt+S always means "save as
+    /// legacy to the legacy path", with no cross-talk.
+    ///
+    /// Clears `dirty` after the write succeeds so close / open /
+    /// save-as guards stop pretending there is still pending work
+    /// — earlier this helper deliberately left `dirty` set, which
+    /// the user reported as a bug ("после Сохранить всё ещё спрашивает
+    /// про несохранённые изменения"). Mirrors `save_snapshot` /
+    /// `save_snapshot_as` in that respect.
+    pub(crate) fn save_legacy_snapshot(&mut self) {
+        self.commit_pending_inline_edit();
+        // Already-known path: write straight through without bothering
+        // the user with a picker. This is what every text editor does
+        // for plain Save and what the user explicitly asked for —
+        // "при попытке сохранить файл снова мне предлагает создать
+        // новый файл, а не сохраняет в тот же файл".
+        let (path, picked_now) = match &self.current_legacy_snapshot_path {
+            Some(path) => (path.clone(), false),
+            None => {
+                let mut dialog =
+                    rfd::FileDialog::new().add_filter("KR580 legacy file", &["580"]);
+                // Pre-seed the picker with the v1 snapshot's folder
+                // when there is one, so the user lands in the
+                // directory they were last working in. We do not
+                // pre-seed the *file name* — legacy files are an
+                // export-style sibling of the active document and
+                // reusing the active document's name would make
+                // accidental overwrite of the K580 v1 file too easy.
+                if let Some(current) = &self.current_snapshot_path
+                    && let Some(parent) = current.parent()
+                {
+                    dialog = dialog.set_directory(parent);
+                }
+                let Some(path) = dialog.save_file() else {
+                    return;
+                };
+                (path, true)
+            }
+        };
+        // Same reset rationale as `save_snapshot`: clear any leftover
+        // overlay before issuing the dispatch.
+        self.clear_error_notice();
+        let display = path.display().to_string();
+        self.dispatch_sync(AppCommand::SaveLegacySnapshot(path.clone()));
+        // Fail-safe: if the worker rejected the write, don't claim
+        // the path (when freshly picked) and don't clear the dirty
+        // flag. The legacy file on disk is unchanged; pretending the
+        // path now points at it would mislead the next Ctrl+Alt+S
+        // into silently overwriting whatever was actually there.
+        if self.error_notice.is_some() {
+            return;
+        }
+        if picked_now {
+            // Remember the chosen path so the next "Сохранить
+            // (старый формат)" goes straight to disk.
+            self.current_legacy_snapshot_path = Some(path);
+        }
+        // The user explicitly chose "Сохранить (старый формат)", the
+        // file is now on disk, the gesture has succeeded — clear the
+        // dirty flag so the close/open/save-as guards stop pretending
+        // there is still pending work. See the doc comment above.
+        self.dirty = false;
+        self.status = format!("Сохранено в {display} (старый формат)");
+    }
+
+    /// "Открыть (старый формат)": reads a 65 549-byte reference
+    /// `.580` file produced by the original emulator, replaces RAM
+    /// and PC with whatever the file carries, and resets every other
+    /// CPU field to its default. Mirrors `load_snapshot_from_path`'s
+    /// post-load housekeeping — wipe the run flag, the undo stack,
+    /// and the dirty flag, then chase the spinner / inline editor to
+    /// the recovered PC — so the user lands on the same idle, clean
+    /// baseline a fresh launch would.
+    ///
+    /// Stashes the loaded file's path in
+    /// `current_legacy_snapshot_path` so the next "Сохранить (старый
+    /// формат)" overwrites it in place — this is what the user asked
+    /// for ("сохраняет в тот же файл"). The K580 v1
+    /// `current_snapshot_path` is wiped because the document's
+    /// origin is now the legacy file: a subsequent plain Ctrl+S
+    /// would otherwise overwrite a v1 file the user did not just
+    /// touch and might not even remember.
+    pub(crate) fn open_legacy_snapshot(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("KR580 legacy file", &["580"])
+            .pick_file()
+        else {
+            return;
+        };
+        // Same reset rationale as `load_snapshot_from_path`: a fresh
+        // gesture earns a clean overlay. If the dispatch below itself
+        // errors, `consume_event` will refill `error_notice`
+        // synchronously before we read it back.
+        self.clear_error_notice();
+        let display = path.display().to_string();
+        self.running = false;
+        self.dispatch_sync(AppCommand::LoadLegacySnapshot(path.clone()));
+        // If the worker rejected the load (wrong length, missing FF
+        // FF marker, missing file, IO error), `consume_event` already
+        // wrote the user-visible notice. Bail out *before* we mutate
+        // the document's identity — we don't want to claim "current
+        // legacy path = X" for a load that never happened, otherwise
+        // the next Ctrl+Alt+S would silently overwrite the unrelated
+        // file at X with the live CPU state from before the failed
+        // open.
+        if self.error_notice.is_some() {
+            return;
+        }
+        // Wipe undo/redo *after* the load — see
+        // `load_snapshot_from_path` for the rationale; the legacy
+        // load is the same kind of "fresh starting point" gesture.
+        self.undo_stack.clear();
+        // Document origin is now the legacy file: remember its path
+        // so Ctrl+Alt+S overwrites it, and clear the v1 path so a
+        // stray Ctrl+S does not clobber an unrelated v1 file the
+        // user was working on earlier.
+        self.current_snapshot_path = None;
+        self.current_legacy_snapshot_path = Some(path);
+        self.dirty = false;
+        let pc = self.snapshot.cpu.pc;
+        self.set_memory_address(pc);
+        self.status = format!("Открыто {display} (старый формат)");
     }
 
     /// If the user has typed a hex byte into the inline memory editor
@@ -500,14 +761,28 @@ impl DesktopApp {
         // alternative — silently writing TXT bytes into a `.foo` file
         // — was the bug the user reported.
         let path = normalise_export_path(path);
+        // Same reset rationale as the file-open helpers: clear any
+        // leftover overlay before issuing the dispatch so the user
+        // can tell *this* gesture's outcome apart from the previous
+        // one.
+        self.clear_error_notice();
         let display = path.display().to_string();
         let extension = path
             .extension()
             .and_then(|ext| ext.to_str())
             .map(|ext| ext.to_ascii_lowercase());
+        // Switched to `dispatch_sync` so a write failure surfaces
+        // before we lie to the user via the status bar — the previous
+        // fire-and-forget `dispatch` would let the success message
+        // race the worker's error event and the user would see
+        // "Экспорт в …" *and* the red overlay one tick later, in
+        // that order, which read as "saved but also broken".
         match extension.as_deref() {
-            Some("xlsx") => self.dispatch(AppCommand::ExportXlsx(path)),
-            _ => self.dispatch(AppCommand::ExportTxt(path)),
+            Some("xlsx") => self.dispatch_sync(AppCommand::ExportXlsx(path)),
+            _ => self.dispatch_sync(AppCommand::ExportTxt(path)),
+        }
+        if self.error_notice.is_some() {
+            return;
         }
         self.status = format!("Экспорт в {display}");
     }
@@ -532,6 +807,10 @@ impl DesktopApp {
         else {
             return;
         };
+        // Same reset rationale as `load_snapshot_from_path`: clear any
+        // leftover overlay so a fresh import gesture is visually
+        // distinguishable from a previous failed one.
+        self.clear_error_notice();
         // Disarm the cosmetic run flag for the same reason
         // `load_snapshot_from_path` does: a prior `toggle_run` on a
         // blank page leaves `self.running == true` without any actual
@@ -557,6 +836,15 @@ impl DesktopApp {
             Some("xlsx") => self.dispatch_sync(AppCommand::ImportXlsx(path)),
             _ => self.dispatch_sync(AppCommand::ImportTxt(path)),
         }
+        // If the worker rejected the import (parse error, missing
+        // file, malformed cells), `consume_event` already wrote the
+        // user-visible notice. Bail out *before* we wipe the undo
+        // stack and clear `dirty` — the document is unchanged, so
+        // pretending the timeline started fresh would silently
+        // discard the user's prior edit history.
+        if self.error_notice.is_some() {
+            return;
+        }
         self.undo_stack.clear();
         // Import is a "fresh starting point" too — see the
         // load_snapshot rationale. The imported document is now what
@@ -564,7 +852,13 @@ impl DesktopApp {
         // close/open would be noise. Note import does *not* set
         // `current_snapshot_path` (the imported file is not a `.580`
         // snapshot), so a subsequent Ctrl+S still asks the user
-        // where to save — that part of the flow is unchanged.
+        // where to save — that part of the flow is unchanged. We
+        // also drop `current_legacy_snapshot_path` for the same
+        // reason: the document's origin is now a TXT/XLSX import,
+        // not the legacy `.580` we may have had open before, so
+        // Ctrl+Alt+S must prompt for a fresh location rather than
+        // silently overwrite an unrelated legacy file.
+        self.current_legacy_snapshot_path = None;
         self.dirty = false;
     }
 }

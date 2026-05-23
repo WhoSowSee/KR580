@@ -240,27 +240,79 @@ visual follows the actual opcode, not the counter alone.
 After HLT the action panel's run/pause toggle, `Выполнить команду`
 (`step_instruction_and_advance`), and `Выполнить такт`
 (`step_tact_and_maybe_advance`) all early-return without doing any CPU
-work. Each refusal sets `DesktopApp::halt_notice` to
-`Программа завершена. Сброс регистров для повторного запуска.`, and
-the view paints that string as a framed top-center floating notice
-(`view::halt_notice_overlay`, `inset_style` body, `opaque`-wrapped to
-keep pointer events from leaking through the visible frame). The
-notice sits above the menu bar's dropdown band — same `stack!` pattern
-as the file menu — so it reads as a discrete UI element instead of a
-status-bar line that blends into the dark schematic. The buttons stay
-clickable on purpose so a press immediately shows the explanation
-instead of failing silently. The only way to unblock execution is
-`Сброс регистров` (`AppCommand::ResetCpu`), which clears the halt
-flag, brings PC back to `0x0000`, and lets the toggle / step buttons
-drive the CPU again. RAM is preserved by reset, so the loaded program
-survives the unblock and runs again from the top.
+work. Each refusal calls `DesktopApp::raise_halt_notice`, which fills
+`halt_notice` with the canonical two-line body
+(`Процессор остановлен командой HLT\nСбросьте регистры или флаг HLT`),
+arms `halt_notice_dismiss_at = Instant::now() + 8s`, **and** sets
+`run_blocked_after_halt = true` — all three in lockstep, from the
+single chokepoint, so future halt-block sites cannot forget to arm
+the latch. The view paints the string as a framed top-center floating
+notice (`view::halt_notice_overlay`, `error_inset_style` body — the
+same red-bordered chrome as the file-error overlay, so the user reads
+"this is a blocking notice" from the frame alone). The text is
+centred horizontally so the second (shorter) recommendation line
+sits under the first instead of leaning against the left padding.
+The body is wrapped in a `mouse_area` whose `on_press` emits
+`Message::DismissHaltNotice`, the global Esc handler clears the
+notice between `error_notice` and `pending_action`, and
+`Message::Tick` polls `halt_notice_dismiss_at` to auto-dismiss
+after 8 seconds — the same fade behaviour the user asked for the
+file-error overlay to have, applied to its visual twin.
 
-The notice is cleared automatically: `apply_snapshot` resets
-`halt_notice` to `None` whenever the new snapshot has
+The notice sits above the menu bar's dropdown band — same `stack!`
+pattern as the file menu — so it reads as a discrete UI element
+instead of a status-bar line that blends into the dark schematic.
+The first line is "what's wrong" (the CPU stopped on a HLT) and the
+second line is "what unblocks it" (`Сброс регистров или флаг HLT`)
+— diagnosis and recommendation on separate lines so the user can
+read either half on its own. The recommendation lists both unblock
+paths because the halt bit can be cleared either by `Сброс регистров`
+(`AppCommand::ResetCpu`, which also rewinds PC to `0x0000`), by the
+dedicated `Сбросить флаг HLT` entry at the bottom of the МП-Система
+menu / `Ctrl+Shift+H` (`AppCommand::ClearHalt`, which flips *only*
+the halt flip-flop and leaves PC, SP, registers, flags, RAM, and
+`cycle_count` exactly where HLT left them), or by toggling the HLT
+flag from the register editor. RAM is preserved by all three, so
+the loaded program survives the unblock and runs again from
+whatever PC it ends up at.
+
+`run_blocked_after_halt` is the second half of the contract. The
+first time the user attempts a run/step gesture against a halted
+CPU they get the explanatory overlay; from that moment on, every
+execution chip in the action panel (`Выполнить программу /
+Пауза`, `Выполнить команду / Перезапустить программу`, `Выполнить
+такт`) renders disabled — `editors::actions_panel` calls
+`icon_action_button` with `None` for those four messages, and
+iced 0.14 paints the button without hover and ignores clicks when
+no `on_press` is attached. The two reset chips (`Сброс ОЗУ`,
+`Сброс регистров`) keep their `Some(...)` because the resets are
+the way *out* of the latch. The latch outlives the 8-second halt
+notice on purpose: the user's contract was "до тех пор пока не
+сброшу флаг или регистры" — a fade is not an unblock. Repeat
+attempts (e.g. through the menu) re-raise the notice via the same
+chokepoint so the explanation comes back even if the original
+overlay already faded.
+
+The latch is cleared along three independent edges, mirroring the
+notice itself: `apply_snapshot` clears both `halt_notice` and
+`run_blocked_after_halt` whenever the new snapshot has
 `cpu.halted == false`, so any gesture that flips the halt bit off
-(typically `ResetCpu`, but also any snapshot load / new file that
-lands a non-halted CPU) makes the notice disappear without bookkeeping
-at the dispatch sites.
+(snapshot load, register-editor HLT toggle, etc.) re-enables the
+chips automatically; the explicit `Message::ResetCpu` arm clears
+the latch before dispatching `AppCommand::ResetCpu`; and the new
+`Message::ClearHalt` arm clears the latch before dispatching
+`AppCommand::ClearHalt`. The first two paths land through the
+worker as a non-halted snapshot anyway — clearing the latch
+synchronously in the message arm just makes the next view tick
+paint live chips before the round-trip completes, instead of one
+frame of stale-disabled chrome.
+
+The notice itself is cleared along the same edges plus the user's
+Esc / click and the 8-second deadline; see `clear_halt_notice` in
+`app/mod.rs`. The two pieces of state are *armed* together in
+`raise_halt_notice` and *cleared* together everywhere except the
+fade timer (which clears the notice but leaves the latch armed —
+that is the whole point of the latch).
 
 `runtime::memory::sync_pc_to_cursor` also early-returns on halt. The
 function normally mirrors a freshly-clicked memory cell into `cpu.pc`

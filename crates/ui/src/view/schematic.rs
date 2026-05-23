@@ -27,7 +27,23 @@ impl DesktopApp {
             mono_text(format!("SP {:04X}", cpu.sp), 13, TOKYO_CYAN),
             mono_text(format!("T {}", cpu.cycle_count), 13, TOKYO_YELLOW),
             mono_text(
-                if cpu.halted { "HALT ON" } else { "HALT OFF" },
+                // The label is `HLT` (the mnemonic of the Intel 8080
+                // instruction that flips the halt flip-flop), not
+                // `HALT` and not `HLDA`. `HALT` was a generic English
+                // word for the internal state — fine in prose, but in
+                // a strip of three-letter chip-style readouts next to
+                // PC/SP/T it read as "name of a pin on the chip" and
+                // the user pointed out the mismatch with both their
+                // mental model and with `halt_notice`, which already
+                // talks about "флаг HLT". `HLDA` is something else
+                // entirely — that's the Hold Acknowledge pin (output
+                // 21 on the 8080 corner), wired to the DMA arbiter
+                // and unrelated to the halt flip-flop; it lives on
+                // the control-lamp row at the bottom of the panel
+                // where it actually belongs. Using `HLT` here keeps
+                // the indicator, the halt-notice, and the register
+                // editor all calling the same thing the same name.
+                if cpu.halted { "HLT ON" } else { "HLT OFF" },
                 13,
                 if cpu.halted { TOKYO_RED } else { TOKYO_GREEN },
             ),

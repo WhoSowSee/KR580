@@ -16,7 +16,7 @@ pub(super) use buttons::{
     step_button_style,
 };
 pub(super) use containers::{
-    alu_style, app_style, input_shell_style, inset_style, legend_label_style,
+    alu_style, app_style, error_inset_style, input_shell_style, inset_style, legend_label_style,
     memory_row_container_style, menu_bar_divider_style, menu_bar_style, mux_header_style,
     mux_panel_style, opcode_dropdown_style, panel_style, schematic_block_style,
     schematic_board_style, solid_style, transparent_style,

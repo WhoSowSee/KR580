@@ -508,6 +508,22 @@ impl DesktopApp {
     ///    races the worker channel and the user has to click twice
     ///    before the highlight catches up.
     pub(crate) fn step_instruction_and_advance(&mut self) -> Task<Message> {
+        // Halt-block latch (Variant A in docs/ui_app.md). Once a
+        // run/step gesture has tripped HLT, every further execution
+        // attempt is a no-op until the user explicitly resets
+        // registers or clears the halt bit. The action-panel button
+        // is already disabled by the latch (its `Message` lands as
+        // `None`, so `on_press` is dropped), but the keyboard
+        // shortcut Ctrl+T and the menu entry still route here, so
+        // we re-raise the notice and bail. Re-raising rather than
+        // staying silent matters when the 8-second fade has already
+        // dismissed the original overlay — without this the user
+        // would press the shortcut and see nothing happen, with no
+        // on-screen explanation for why.
+        if self.run_blocked_after_halt {
+            self.raise_halt_notice();
+            return Task::none();
+        }
         // After HLT the CPU sits one byte past the HLT opcode and a
         // fresh `StepInstruction` would just walk into the byte after
         // forever — exactly the bug Variant A is meant to block. Per
@@ -517,8 +533,7 @@ impl DesktopApp {
         // stay clickable on purpose so the user can read the
         // explanation by pressing them.
         if self.snapshot.cpu.halted {
-            self.halt_notice =
-                Some("Программа завершена. Сброс регистров для повторного запуска.".to_owned());
+            self.raise_halt_notice();
             return Task::none();
         }
         self.dispatch_sync(AppCommand::StepInstruction);
@@ -539,12 +554,22 @@ impl DesktopApp {
     /// true }`. The flag is cleared *before* dispatch so a stale value
     /// from a previous press cannot leak through.
     pub(crate) fn step_tact_and_maybe_advance(&mut self) -> Task<Message> {
+        // Halt-block latch (Variant A): same gating story as
+        // `step_instruction_and_advance` — the keyboard shortcut
+        // Ctrl+Y and the menu entry still route here even with
+        // the action-panel button already disabled, so we re-raise
+        // the notice and bail. See the matching comment in
+        // `step_instruction_and_advance` for why re-raising is the
+        // right move once the 8-second fade has eaten the overlay.
+        if self.run_blocked_after_halt {
+            self.raise_halt_notice();
+            return Task::none();
+        }
         // Same halt-block as `step_instruction_and_advance`: a tact
         // step on a halted CPU would just spin the cycle counter on
         // the byte past HLT. See Variant A in docs/ui_app.md.
         if self.snapshot.cpu.halted {
-            self.halt_notice =
-                Some("Программа завершена. Сброс регистров для повторного запуска.".to_owned());
+            self.raise_halt_notice();
             return Task::none();
         }
         self.last_tact_was_boundary = false;
