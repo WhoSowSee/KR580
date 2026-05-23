@@ -1,4 +1,4 @@
-use crate::{AppCommand, AppError, AppEvent, AppSnapshot, Emulator};
+use crate::{AppCommand, AppError, AppEvent, AppSnapshot, Emulator, RunMode};
 use crossbeam_channel::{Receiver, Sender, after, never, select};
 use std::thread;
 use std::time::Duration;
@@ -103,8 +103,22 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
         // `never()` parks the timer arm when we are paused, so the
         // select degenerates to a plain `recv()` and we don't burn
         // CPU spinning on a deadline that nobody will read.
+        //
+        // While running we pick the deadline based on the active
+        // `run_mode`: paced uses the inter-instruction delay (so
+        // each `tick()` produces one step + one snapshot), burst
+        // uses the wall-time slice (so each `tick()` runs a tight
+        // inner loop and emits a single coalesced snapshot per
+        // slice). The slice doubles as the responsiveness floor for
+        // `Stop` — a press lands within at most one slice, which is
+        // why the UI defaults it to ~16 ms even though the inner
+        // loop could keep going for much longer.
         let tick: Receiver<std::time::Instant> = if emulator.is_running() {
-            after(emulator.step_interval())
+            let deadline = match emulator.run_mode() {
+                RunMode::Paced => emulator.step_interval(),
+                RunMode::Burst { slice } => slice,
+            };
+            after(deadline)
         } else {
             never()
         };

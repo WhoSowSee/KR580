@@ -24,6 +24,34 @@ pub(crate) enum MenuId {
     Mp,
 }
 
+/// Four-position speed switch in the schematic panel. Replaces the
+/// freeform slider after the user observed that "above ~60 Hz nothing
+/// visually changes anyway" — named tiers communicate intent honestly
+/// instead of inviting the user to chase a sweet spot that doesn't
+/// exist.
+///
+/// - `Slow` — 5 Hz, one instruction every 200 ms. Matches the pace of
+///   "step through and read every line", the режим обучения.
+/// - `Medium` — 20 Hz, the default. Visibly "the program is running"
+///   while the eye still keeps up with each PC update.
+/// - `High` — locked to the primary monitor's refresh rate (with a
+///   60 Hz fallback when the OS query fails). Each frame becomes one
+///   instruction; the program finishes as fast as the screen can
+///   paint without skipping rows.
+/// - `Max` — uncoupled from the monitor: ships `MIN_STEP_INTERVAL`
+///   (1 ms) to the worker so it churns at ~1000 instructions/sec.
+///   The UI subscription still ticks at ~60 Hz, so the highlighted
+///   row visibly *jumps* across memory rather than walking — the
+///   trade-off is explicit in the label "Максимум": "выполни как
+///   можно быстрее, не показывай мне каждый шаг".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SpeedTier {
+    Slow,
+    Medium,
+    High,
+    Max,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) enum Message {
     Tick,
@@ -268,13 +296,12 @@ pub(crate) enum Message {
     /// drains the vector via `Task::batch(Task::done(...))`, which
     /// preserves the original order.
     MenuBatch(Vec<Message>),
-    /// Speed slider on the left-hand schematic panel: number of
-    /// instructions per second the paced `Run` loop should aim for.
-    /// The handler converts to a `Duration` (`1s / hz`) and ships
-    /// `AppCommand::SetStepInterval` to the worker. Clamped on the
-    /// slider widget itself, so the value is always in the documented
-    /// range.
-    SpeedChanged(u32),
+    /// Speed switch on the left-hand schematic panel: the user picked
+    /// a new tier (Slow / Medium / High). The handler resolves it to
+    /// a concrete Hz via `tier_hz()`, stashes both the tier and the
+    /// resolved Hz on `DesktopApp`, and ships
+    /// `AppCommand::SetStepInterval(1s/hz)` to the worker.
+    SpeedTierChanged(SpeedTier),
     /// User pressed the left mouse button on the empty area of the
     /// custom title bar. The handler dispatches `iced::window::drag`
     /// for the cached `window_id`, which hands the press over to the

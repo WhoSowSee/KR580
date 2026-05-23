@@ -19,7 +19,7 @@ pub(crate) use constants::{
     MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_ORDER,
     REGISTER_VALUE_INPUT_ID, parse_register_name, register_name,
 };
-pub(crate) use messages::{MenuId, Message};
+pub(crate) use messages::{MenuId, Message, SpeedTier};
 
 use iced::{Point, event, keyboard, mouse, time};
 use iced::{Subscription, Task, Theme};
@@ -30,26 +30,66 @@ use std::time::Duration;
 
 use crate::platform;
 
-/// Default speed of the paced `Run` loop, in instructions per second.
-/// 10 Hz mirrors `k580_app::DEFAULT_STEP_INTERVAL` (100 ms between
-/// instructions) — slow enough that a human eye can follow each PC
-/// update, fast enough that a 50-instruction program still finishes
-/// in roughly five seconds.
-pub(crate) const DEFAULT_STEP_HZ: u32 = 10;
+/// Default tier the speed switch boots into. `Medium` is the rest
+/// position the user reaches for ~80% of the time — the program
+/// visibly walks but doesn't crawl. The "Файл → Новый файл" gesture
+/// re-arms the same tier (we never silently snap to a different one
+/// behind the user's back).
+pub(crate) const DEFAULT_SPEED_TIER: SpeedTier = SpeedTier::Medium;
 
-/// Lower bound exposed by the speed slider. One instruction per
-/// second is the slowest "still feels alive" pace; anything below
-/// that and the user starts wondering whether the emulator has
-/// hung. The worker enforces a `1 ms` floor independently, so this
-/// only constrains what the slider can produce.
-pub(crate) const MIN_STEP_HZ: u32 = 1;
+/// Hz the "Slow" tier targets. 5 Hz = one instruction every 200 ms,
+/// the режим обучения / отладки where the user reads each line out
+/// loud before the highlight moves on.
+pub(crate) const SLOW_TIER_HZ: u32 = 5;
 
-/// Upper bound exposed by the speed slider. 1000 Hz keeps a 50-step
-/// program flickering past in well under a second; pushing it any
-/// higher just floods the UI with redraws faster than the eye can
-/// see anything change. Users who want raw throughput can still call
-/// `RunForTStates` from the menu, which bypasses the pacing entirely.
-pub(crate) const MAX_STEP_HZ: u32 = 1000;
+/// Hz the "Medium" tier targets. 20 Hz reads as "the program is
+/// running" while the eye still keeps up with each PC update — the
+/// rest position of the switch.
+pub(crate) const MEDIUM_TIER_HZ: u32 = 20;
+
+/// Fallback Hz the "High" tier uses when we can't query the OS for
+/// the primary monitor's refresh rate. 60 Hz is the floor every
+/// modern desktop guarantees, so under-promising here is safer than
+/// guessing higher and burning CPU on UI ticks the panel can't
+/// physically display.
+pub(crate) const HIGH_TIER_FALLBACK_HZ: u32 = 60;
+
+/// Hard ceiling on the resolved "High" Hz. 240 Hz monitors exist;
+/// 480 Hz panels are starting to ship. Above that we'd be paying
+/// the cost of a UI tick per frame for changes the eye can't see,
+/// and the hard floor on the worker (`MIN_STEP_INTERVAL = 1ms`)
+/// would kick in anyway, so we cap at a sensible practical limit.
+pub(crate) const HIGH_TIER_CEILING_HZ: u32 = 240;
+
+/// Hz the "Max" tier targets. 1000 Hz is the practical ceiling of
+/// the worker — `MIN_STEP_INTERVAL = 1 ms` floors the
+/// `SetStepInterval` value, so anything higher would just be clamped
+/// at the actor boundary anyway. Unlike `High`, `Max` is **not**
+/// coupled to the monitor refresh rate: the UI subscription still
+/// fires at ~60 Hz (the 16 ms floor in `subscription`), so a 1000 Hz
+/// worker delivers ~16 instructions per Tick and the highlighted row
+/// visibly *jumps* across memory instead of walking. That's the
+/// explicit trade the label "Максимум" promises — "выполни как можно
+/// быстрее, не показывай мне каждый шаг" — for users who just want
+/// the program to finish (e.g. while iterating on a long routine).
+pub(crate) const MAX_TIER_HZ: u32 = 1000;
+
+/// Resolves a `SpeedTier` to its target instructions/sec. `Slow`,
+/// `Medium`, and `Max` are constants; `High` queries the platform
+/// for the primary display's refresh rate and clamps it into a
+/// usable range. Called from both the message handler (which ships
+/// the value to the worker as a `Duration`) and the `subscription`
+/// (which uses it to pace UI ticks against worker output).
+pub(crate) fn tier_hz(tier: SpeedTier) -> u32 {
+    match tier {
+        SpeedTier::Slow => SLOW_TIER_HZ,
+        SpeedTier::Medium => MEDIUM_TIER_HZ,
+        SpeedTier::High => platform::primary_monitor_refresh_hz()
+            .unwrap_or(HIGH_TIER_FALLBACK_HZ)
+            .clamp(HIGH_TIER_FALLBACK_HZ, HIGH_TIER_CEILING_HZ),
+        SpeedTier::Max => MAX_TIER_HZ,
+    }
+}
 
 pub(crate) struct DesktopApp {
     pub(crate) handle: EmulatorHandle,
@@ -137,12 +177,13 @@ pub(crate) struct DesktopApp {
     /// сохранить, хотя я его уже открыл". `Сохранить как` ignores it
     /// (and replaces it on success).
     pub(crate) current_snapshot_path: Option<PathBuf>,
-    /// Speed of the paced `Run` loop in instructions per second.
-    /// Bound to the slider on the left-hand schematic panel; the
-    /// `SpeedChanged` handler turns it into a `Duration` and ships
-    /// `AppCommand::SetStepInterval` to the worker. Default matches
-    /// `k580_app::DEFAULT_STEP_INTERVAL`.
-    pub(crate) step_hz: u32,
+    /// Currently active tier on the speed switch. Three discrete
+    /// positions (Slow / Medium / High) replace the older free-form
+    /// slider so the user picks an intent ("walk every line" / "watch
+    /// it run" / "as fast as the screen can paint") instead of
+    /// chasing a Hz number whose effect plateaued above 60 anyway.
+    /// Resolved to a concrete Hz on demand via `tier_hz()`.
+    pub(crate) speed_tier: SpeedTier,
     /// Floating notification shown at the top centre of the window
     /// when a run/step gesture is refused because the CPU has halted
     /// (Variant A: halt-blocked controls — see `docs/ui_app.md`).
@@ -230,12 +271,12 @@ impl DesktopApp {
                 // the user cannot interact with the app before the
                 // startup task drains.
                 current_snapshot_path: None,
-                // 10 instructions per second matches
-                // `DEFAULT_STEP_INTERVAL = 100 ms` over in `k580_app`.
-                // Slow enough that the eye can follow each PC update,
-                // fast enough that a 50-instruction program still
-                // finishes in five seconds.
-                step_hz: DEFAULT_STEP_HZ,
+                // The speed switch boots into Medium — that's the
+                // rest position the user reaches for ~80% of the time
+                // (program visibly walks, eye keeps up with each PC
+                // update). Slow / High are deliberate gestures, not
+                // defaults.
+                speed_tier: DEFAULT_SPEED_TIER,
                 halt_notice: None,
                 window_id: None,
                 window_maximized: false,
@@ -788,17 +829,41 @@ impl DesktopApp {
                 let tasks = messages.into_iter().map(Task::done).collect::<Vec<_>>();
                 return Task::batch(tasks);
             }
-            Message::SpeedChanged(hz) => {
-                // Clamp defensively even though the slider already
-                // constrains the range — keeps the field honest for
-                // future call sites (e.g. a hex-typed speed input).
-                let hz = hz.clamp(MIN_STEP_HZ, MAX_STEP_HZ);
-                self.step_hz = hz;
+            Message::SpeedTierChanged(tier) => {
+                // Stash the tier so the schematic switch reflects the
+                // new active segment, then ship two commands to the
+                // worker: the inter-instruction delay and the run
+                // mode. `tier_hz` resolves Slow / Medium / High to a
+                // concrete Hz (the High tier asks the platform for
+                // the monitor refresh rate and clamps it); Max
+                // bypasses the Hz path entirely and switches the
+                // worker to burst mode, so it stops paying the
+                // per-instruction timer + crossbeam + redraw cost
+                // that made Max indistinguishable from High before.
+                self.speed_tier = tier;
+                let hz = tier_hz(tier);
                 // Convert "instructions per second" to "duration per
-                // instruction". The worker floors at 1 ms, so even
-                // the maximum slider value lands in legal territory.
-                let interval = Duration::from_micros(1_000_000 / u64::from(hz));
+                // instruction". The worker floors at 1 ms anyway, so
+                // even the highest tier on a 480 Hz panel lands in
+                // legal territory.
+                let interval = Duration::from_micros(1_000_000 / u64::from(hz.max(1)));
                 self.dispatch(k580_app::AppCommand::SetStepInterval(interval));
+                // The run mode is what actually unlocks "Максимум":
+                // burst mode tells the worker to run instructions in
+                // a tight inner loop bounded by `slice` wall-time
+                // (16 ms ≈ one display frame, which keeps Stop
+                // responsive within the same window iced uses for
+                // its own redraw). Paced mode for the other tiers
+                // keeps the original behaviour — one snapshot per
+                // step, the highlighted memory row walks one cell at
+                // a time.
+                let mode = match tier {
+                    SpeedTier::Max => k580_app::RunMode::Burst {
+                        slice: Duration::from_millis(16),
+                    },
+                    _ => k580_app::RunMode::Paced,
+                };
+                self.dispatch(k580_app::AppCommand::SetRunMode(mode));
             }
             Message::WindowDragStart => {
                 // Hand the press over to the OS so it can run its
@@ -851,8 +916,38 @@ impl DesktopApp {
     }
 
     pub(crate) fn subscription(&self) -> Subscription<Message> {
+        // The Tick subscription is what drives `pull_events` — every
+        // fire pulls *all* worker events queued since the last fire and
+        // folds them into the snapshot in one go. That has a subtle
+        // consequence for the paced run loop: at 100 ms-per-tick a
+        // 50 Hz run produces five `StateChanged` per Tick, and only
+        // the last one survives in the highlighted row because the
+        // earlier four get overwritten before iced has a chance to
+        // redraw. The user reads this as "PC skips lines instead of
+        // walking them."
+        //
+        // Couple the Tick cadence to the active speed tier while
+        // running so each worker step gets its own redraw. The
+        // `tier_hz` resolver already returns a "displayable" Hz —
+        // Slow / Medium are constants below 60, High is the monitor
+        // refresh rate clamped to a usable ceiling — so we just turn
+        // the tier's Hz into a millisecond period, with a 16 ms floor
+        // (≈60 Hz) so a future bump to e.g. a 240 Hz panel still
+        // lands in territory iced can actually redraw without losing
+        // a frame to event-drain overhead.
+        //
+        // While paused we go back to 100 ms so the UI stays
+        // responsive to manual gestures (step, edits, etc.) without
+        // waking the runtime at refresh rate for nothing.
+        let tick_interval = if self.running {
+            let hz = u64::from(tier_hz(self.speed_tier).max(1));
+            let raw_ms = (1000_u64 / hz).max(16);
+            Duration::from_millis(raw_ms.min(100))
+        } else {
+            Duration::from_millis(100)
+        };
         let mut subscriptions = vec![
-            time::every(Duration::from_millis(100)).map(|_| Message::Tick),
+            time::every(tick_interval).map(|_| Message::Tick),
             iced::window::open_events().map(Message::WindowOpened),
             event::listen_with(|event, status, _window| match (event, status) {
                 (iced::Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)), _) => {

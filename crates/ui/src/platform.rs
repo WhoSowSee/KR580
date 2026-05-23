@@ -92,3 +92,57 @@ pub(crate) fn cloak_window(_window: &dyn iced::window::Window, _cloaked: bool) {
 
 #[cfg(not(windows))]
 pub(crate) fn set_rounded_corners(_window: &dyn iced::window::Window) {}
+
+/// Best-effort guess at the primary display's refresh rate, used as the
+/// "Высоко" tier on the speed switch. The "High" tier promises "as fast
+/// as the screen can paint", and a 60 Hz fallback is the floor every
+/// modern desktop guarantees — Windows 7 onward, every macOS, and the
+/// vast majority of Linux compositors. Numbers above 60 (120 / 144 /
+/// 240 …) only matter when we can confirm them; without confirmation
+/// we'd rather under-promise than waste CPU on UI ticks the panel
+/// can't actually display.
+///
+/// Returns `Some(refresh_hz)` when the platform query reports a
+/// believable value (1…480 Hz; iced/winit don't expose this directly
+/// in 0.14, so we go straight to the OS), or `None` if the query was
+/// unavailable. Callers should fall back to 60 Hz on `None`.
+#[cfg(windows)]
+pub(crate) fn primary_monitor_refresh_hz() -> Option<u32> {
+    use windows_sys::Win32::Graphics::Gdi::{
+        DEVMODEW, ENUM_CURRENT_SETTINGS, EnumDisplaySettingsW,
+    };
+
+    // SAFETY: `DEVMODEW` is a POD struct that the Win32 API fills in
+    // for us; zero-initialising it is the documented way to ask for
+    // current settings (the API only requires `dmSize` to be set
+    // correctly, which we do below). Passing a null pointer for the
+    // device name asks for the primary display, which is the one we
+    // care about for "what refresh rate is the user looking at".
+    let mut mode: DEVMODEW = unsafe { std::mem::zeroed() };
+    mode.dmSize = std::mem::size_of::<DEVMODEW>() as u16;
+    let ok = unsafe { EnumDisplaySettingsW(std::ptr::null(), ENUM_CURRENT_SETTINGS, &mut mode) };
+    if ok == 0 {
+        return None;
+    }
+    let hz = mode.dmDisplayFrequency;
+    // Windows reports 0 or 1 for "default / unknown" on virtual /
+    // headless displays — neither is a refresh rate, both should fall
+    // through to the 60 Hz default. Cap at 480 to swat any obviously
+    // garbage value (the field is a `u32`, so a stuck driver could in
+    // principle return something nonsensical).
+    if (2..=480).contains(&hz) {
+        Some(hz)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn primary_monitor_refresh_hz() -> Option<u32> {
+    // No platform-specific path implemented yet — callers fall back to
+    // 60 Hz, which is correct on every desktop monitor manufactured in
+    // the last twenty years and any virtual display that defaults to
+    // the VESA baseline. A future macOS / X11 / Wayland implementation
+    // can plug into this signature without churning callers.
+    None
+}

@@ -4,7 +4,7 @@
 //! `AppSnapshot`: status strip, registers, ALU block, multiplexer, control
 //! lamps, buses, and the I/O device row.
 
-use iced::widget::{Row, Space, button, column, container, row, slider};
+use iced::widget::{Row, Space, button, column, container, row};
 use iced::{Color, Element, Length, alignment};
 use k580_core::{Cpu8080State, RegisterName};
 
@@ -16,7 +16,7 @@ use super::theme::{
     MONO_FONT, TOKYO_BLUE, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_RED,
     TOKYO_TEXT, TOKYO_YELLOW, mono_text, ui_text,
 };
-use crate::app::{DesktopApp, MAX_STEP_HZ, MIN_STEP_HZ, Message, register_name};
+use crate::app::{DesktopApp, Message, SpeedTier, register_name, tier_hz};
 
 impl DesktopApp {
     pub(super) fn schematic_panel(&self) -> Element<'_, Message> {
@@ -117,7 +117,7 @@ impl DesktopApp {
         let low_control = row![
             cycle_tick_panel(cpu),
             Space::new().width(Length::Fill),
-            speed_panel(self.step_hz),
+            speed_panel(self.speed_tier),
             Space::new().width(Length::Fill),
             schematic_readout("Sync & Control Block", "CTRL", TOKYO_TEXT),
         ]
@@ -331,28 +331,73 @@ fn cycle_tick_panel(cpu: &Cpu8080State) -> Element<'static, Message> {
     .into()
 }
 
-/// Speed slider for the paced `Run` loop. Lives in the lower-left
-/// strip next to the Cycle/Tick panel: same vertical band, same
-/// "control surface" semantics. Drag the slider, the worker thread
-/// picks up the new instructions-per-second budget on the next
-/// command tick.
+/// Four-tier speed switch for the paced `Run` loop. Lives in the
+/// lower-left strip next to the Cycle/Tick panel: same vertical band,
+/// same "control surface" semantics. Replaces the freeform slider —
+/// past the monitor refresh rate the slider only made the program
+/// finish faster, never visibly faster, so a continuous control was
+/// inviting the user to chase a sweet spot that didn't exist. Named
+/// tiers communicate intent honestly:
 ///
-/// Built as a fresh element on every redraw because slider state is
-/// derived from `step_hz`, which lives on `DesktopApp`. iced's
-/// `slider` is a thin wrapper around `f64` internally; the
-/// conversion at both ends keeps the message type honest as `u32`.
-fn speed_panel(step_hz: u32) -> Element<'static, Message> {
-    let label = format!("Скорость: {step_hz} шаг/сек");
+/// - "Медленно" — `SLOW_TIER_HZ` (5 Hz), one instruction every
+///   200 ms. The pace at which a human can read every memory row as
+///   PC walks across it.
+/// - "Средне" — `MEDIUM_TIER_HZ` (20 Hz), the default. Visibly "the
+///   program is running" while the eye still keeps up.
+/// - "Высоко" — primary monitor's refresh rate (with a 60 Hz
+///   fallback). One instruction per frame; finishes as fast as the
+///   screen can paint without skipping rows.
+/// - "Максимум" — `MAX_TIER_HZ` (1000 Hz), uncoupled from the
+///   monitor. The worker churns at its hard ceiling
+///   (`MIN_STEP_INTERVAL = 1ms`) and the highlighted row jumps
+///   instead of walking. The opt-in for "просто доведи программу до
+///   конца, мне не нужно смотреть на каждый шаг".
+///
+/// The active tier is highlighted with the same `mux_button_style`
+/// the multiplexer panel uses for its own selected/unselected
+/// distinction, so the switch reads as part of the schematic's
+/// control surface rather than a foreign widget.
+fn speed_panel(active: SpeedTier) -> Element<'static, Message> {
+    let caption = format!("Скорость: {} шаг/сек", tier_hz(active));
+
+    let switch = row![
+        tier_button("Медленно", SpeedTier::Slow, active),
+        tier_button("Средне", SpeedTier::Medium, active),
+        tier_button("Высоко", SpeedTier::High, active),
+        tier_button("Максимум", SpeedTier::Max, active),
+    ]
+    .spacing(4);
+
     container(
-        column![
-            ui_text(label, 12, TOKYO_MUTED),
-            slider(MIN_STEP_HZ..=MAX_STEP_HZ, step_hz, Message::SpeedChanged).width(Length::Fill),
-        ]
-        .spacing(6),
+        column![ui_text(caption, 12, TOKYO_MUTED), switch].spacing(6),
     )
     .padding(10)
-    .width(Length::Fixed(220.0))
+    .width(Length::Fixed(340.0))
     .style(schematic_block_style)
+    .into()
+}
+
+fn tier_button(
+    label: &'static str,
+    tier: SpeedTier,
+    active: SpeedTier,
+) -> Element<'static, Message> {
+    let is_selected = tier == active;
+    let accent = if is_selected {
+        TOKYO_MAGENTA
+    } else {
+        TOKYO_BLUE
+    };
+
+    button(
+        ui_text(label, 11, TOKYO_TEXT)
+            .align_x(alignment::Horizontal::Center)
+            .width(Length::Fill),
+    )
+    .on_press(Message::SpeedTierChanged(tier))
+    .padding(6)
+    .width(Length::Fill)
+    .style(move |_theme, status| mux_button_style(status, accent, is_selected))
     .into()
 }
 

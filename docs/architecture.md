@@ -46,27 +46,49 @@ simultaneously on the command channel and a timer:
   command-channel `recv()`. The worker is fully idle until the UI sends
   the next command.
 - **Running (`emulator.is_running()`)** — the timer arm is wired to
-  `crossbeam_channel::after(emulator.step_interval())`. Whichever arm
-  fires first wins: a command interrupts the wait immediately and is
-  applied without skipping a beat, and a timer tick calls
-  `emulator.tick()`, which advances exactly one instruction and emits
-  `InstructionBoundaryReached`, `HaltStateChanged` (if the CPU halted on
-  this step), `Stopped` (if the budget exhausted or an error fired), and
-  a fresh `StateChanged`.
+  `crossbeam_channel::after(deadline)`, where `deadline` depends on
+  the active `RunMode`:
+  - `RunMode::Paced` (Slow / Medium / High speed tiers in the UI) —
+    the deadline is `emulator.step_interval()`. Each timer fire calls
+    `emulator.tick()`, which advances exactly one instruction and
+    emits `InstructionBoundaryReached`, `HaltStateChanged` (on halt),
+    `Stopped` (on budget exhaustion or error), and a fresh
+    `StateChanged`. The UI sees every step.
+  - `RunMode::Burst { slice }` (Max speed tier in the UI) — the
+    deadline is `slice` (16 ms by default). Each timer fire calls
+    `emulator.tick()`, which now runs an inner loop that keeps
+    stepping the CPU until `slice` wall-time elapses, the per-session
+    budget is exhausted, the CPU halts, or an instruction errors.
+    Only the **final** snapshot is published; per-instruction
+    boundary events are deliberately suppressed so the UI side
+    stops paying the per-step redraw cost. The slice doubles as
+    the responsiveness floor for `Stop`: a press lands within at
+    most one slice because the actor still re-checks the command
+    channel between bursts.
+  Whichever `select!` arm fires first wins: a command interrupts the
+  wait immediately and is applied without skipping a beat.
 
 `AppCommand::Run` only flips `Emulator::running = true` and resets the
 per-arming `instructions_since_run` counter. `AppCommand::Stop` clears
 the flag. `AppCommand::SetStepInterval(duration)` overwrites
-`Emulator::step_interval` (clamped to `MIN_STEP_INTERVAL = 1ms`); the
-next `select!` iteration re-arms the timer at the new pace. Defaults:
-`DEFAULT_STEP_INTERVAL = 100ms` (10 instructions/sec) and
-`MAX_INSTRUCTIONS_PER_RUN = 100_000` instructions per arming before the
-worker auto-pauses with `Stopped`.
+`Emulator::step_interval` (clamped to `MIN_STEP_INTERVAL = 1ms`);
+`AppCommand::SetRunMode(mode)` overwrites `Emulator::run_mode`
+(`slice` is clamped to a 1 ms floor too). The next `select!` iteration
+re-arms the timer at the new pace and with the new dispatch shape.
+Defaults: `DEFAULT_STEP_INTERVAL = 100ms` (10 instructions/sec),
+`RunMode::Paced`, and `MAX_INSTRUCTIONS_PER_RUN = 100_000` instructions
+per arming before the worker auto-pauses with `Stopped`.
 
-This decoupling is what makes the UI animation visible: the previous
-`Run` implementation called `cpu.run_until_halt(&mut bus, 100_000)`
-synchronously inside the worker, which produced exactly one
-`StateChanged` after the whole burst — the user only ever saw the
-final state. With the selector loop the UI receives one snapshot per
+This decoupling is what makes the UI animation visible at the paced
+tiers: the previous `Run` implementation called
+`cpu.run_until_halt(&mut bus, 100_000)` synchronously inside the
+worker, which produced exactly one `StateChanged` after the whole
+burst — the user only ever saw the final state. With the selector
+loop and `RunMode::Paced` the UI receives one snapshot per
 instruction, so the highlighted cell, registers, and PC step through
-the program live.
+the program live. `RunMode::Burst` is the explicit opt-out: the user
+asks for "доведи программу до конца", and the worker collapses
+thousands of instructions into a single snapshot per slice — *fewer*
+snapshots than Paced, but each one is *farther apart* in program
+state, which is what makes Burst measurably faster than the highest
+paced tier even though both use a 1 ms-class deadline.

@@ -2,9 +2,9 @@
 
 `k580-app` owns the emulator and exposes PascalCase commands such as
 `ResetCpu`, `StepTact`, `RunForTStates`, `StepInstruction`, `Run`, `Stop`,
-`SetStepInterval`, `SetRegister`, `SetMemory`, `ReadPort`, `WritePort`,
-`LoadSnapshot`, `SaveSnapshot`, `LoadSubprogram`, and direct export
-commands.
+`SetStepInterval`, `SetRunMode`, `SetRegister`, `SetMemory`, `ReadPort`,
+`WritePort`, `LoadSnapshot`, `SaveSnapshot`, `LoadSubprogram`, and direct
+export commands.
 
 `k580-ui` is an iced application shell. It renders an `AppSnapshot`, sends
 `AppCommand` values to the actor, and drains `AppEvent` notifications.
@@ -292,31 +292,124 @@ keeps the listener stateless. With the inline buffer already matching
 storage the handler is a no-op so a stray Esc does not snap the caret
 to the end of the field.
 
-## Speed slider (left schematic panel)
+## Speed switch (left schematic panel)
 
 The schematic board on the left edge of the window carries a paced-run
-control next to the Cycle/Tick readout. It is a single horizontal
-`slider` widget framed by a `schematic_block_style` capsule, labelled
-`Скорость: N шаг/сек` (where `N` is the live value). It sits in the
-`low_control` row inside `crates/ui/src/view/schematic.rs`, between the
-cycle/tick block and the placeholder Sync &amp; Control readout.
+control next to the Cycle/Tick readout. It is a four-position
+segmented switch framed by a `schematic_block_style` capsule, with a
+live caption `Скорость: N шаг/сек` that mirrors the resolved Hz of the
+active tier. It sits in the `low_control` row inside
+`crates/ui/src/view/schematic.rs`, between the cycle/tick block and the
+placeholder Sync &amp; Control readout.
+
+The switch replaces an earlier freeform slider (`MIN_STEP_HZ=1` …
+`MAX_STEP_HZ=1000`). The slider was honest about the underlying
+`SetStepInterval` knob but dishonest about the user-visible result:
+above the monitor's refresh rate the same row would still appear
+highlighted for one frame regardless of how fast the worker stepped,
+so dragging the slider past ~60 Hz only made the program *finish*
+faster, not *animate* faster. Named tiers communicate the real
+trade-off — pacing for reading, pacing for "just run it", and the
+explicit "don't bother animating" opt-in — without inviting the user
+to chase a sweet spot that doesn't exist.
+
+| Tier | Label | Resolved Hz | Use |
+|---|---|---|---|
+| `SpeedTier::Slow`   | Медленно | `SLOW_TIER_HZ = 5`        | One step every 200 ms — read every memory row as PC walks across it. |
+| `SpeedTier::Medium` | Средне   | `MEDIUM_TIER_HZ = 20`     | Default. Visibly "the program is running" while the eye still keeps up with each PC update. |
+| `SpeedTier::High`   | Высоко   | primary monitor's refresh rate, fallback `HIGH_TIER_FALLBACK_HZ = 60`, capped at `HIGH_TIER_CEILING_HZ = 240` | One instruction per painted frame — finishes as fast as the screen can paint without skipping rows. |
+| `SpeedTier::Max`    | Максимум | `MAX_TIER_HZ = 1000`      | Switches the worker to **burst mode** (`RunMode::Burst`). The CPU runs instructions in a tight inner loop bounded by a 16 ms wall-time slice and the per-session budget; the UI sees one coalesced snapshot per slice instead of one per instruction. The opt-in for "доведи программу до конца, мне не нужно смотреть на каждый шаг" — and unlike the earlier "fast slider" attempt, this one is *actually* faster than High, because it stops paying the per-instruction timer + crossbeam + redraw round-trip. |
 
 | Property | Value |
 |---|---|
-| Range | `MIN_STEP_HZ = 1` … `MAX_STEP_HZ = 1000` instructions/sec |
-| Default | `DEFAULT_STEP_HZ = 10` |
-| Storage | `DesktopApp::step_hz: u32` |
-| Emit | `Message::SpeedChanged(u32)` |
-| Dispatch | `AppCommand::SetStepInterval(Duration::from_micros(1_000_000 / hz))` |
+| Storage | `DesktopApp::speed_tier: SpeedTier` |
+| Default | `DEFAULT_SPEED_TIER = SpeedTier::Medium` |
+| Emit | `Message::SpeedTierChanged(SpeedTier)` |
+| Resolve | `tier_hz(tier) -> u32` (in `app/mod.rs`) |
+| Dispatch | `AppCommand::SetStepInterval(Duration::from_micros(1_000_000 / hz))` followed by `AppCommand::SetRunMode(...)` |
 
-The slider's `on_change` handler in `app/mod.rs` clamps the value into
-the documented range, stores it on `DesktopApp`, and ships
-`SetStepInterval` to the worker. The worker clamps again at
-`MIN_STEP_INTERVAL = 1ms` (re-exported from `k580_app::actor`) before it
-overwrites `Emulator::step_interval`. The next `select!` iteration
-re-arms the timer with the new interval, so dragging the slider while a
-program is running adjusts the visible animation rate immediately —
-without restarting the program or losing the run-armed state.
+Switching to a tier emits **two** worker commands: the
+`SetStepInterval` keeps the per-instruction delay honest for the
+paced tiers, and the `SetRunMode` toggles between
+`RunMode::Paced` (Slow / Medium / High — one instruction per tick,
+one snapshot per instruction) and `RunMode::Burst { slice: 16 ms }`
+(Max — tight inner loop bounded by wall-time, one coalesced
+snapshot per slice). The two-command shape lets the actor pick its
+deadline based on `run_mode()` without inferring it from the
+interval value, which keeps the worker honest if the UI ever wants
+to mix burst with a non-default slice.
+
+`tier_hz` encapsulates the platform query for the High tier:
+`platform::primary_monitor_refresh_hz()` reads `dmDisplayFrequency`
+from `EnumDisplaySettingsW` on Windows; on non-Windows it is a stub
+returning `None`. Either way callers fall through to
+`HIGH_TIER_FALLBACK_HZ = 60`, then clamp into
+`[HIGH_TIER_FALLBACK_HZ, HIGH_TIER_CEILING_HZ]` so a virtual / headless
+display reporting `0` or `1` Hz cannot make the worker run at one
+instruction per second, and a stuck driver claiming, say, 999 Hz
+cannot make it burn cycles on UI ticks the panel can't actually
+display. The Max tier sidesteps this resolver entirely and returns
+`MAX_TIER_HZ` directly — its semantics are "saturate the worker, ignore
+the monitor".
+
+Each tier button is a `button` styled with `mux_button_style`, the
+same selected/unselected paint the multiplexer panel uses for its
+register cells. The active tier reads as the magenta-tinted square in
+the row of four; the others stay on the neutral blue accent. Pressing
+a button emits `Message::SpeedTierChanged(tier)`; the handler in
+`app/mod.rs` stashes the tier on `DesktopApp::speed_tier`, resolves
+it through `tier_hz`, and ships `SetStepInterval` + `SetRunMode` to
+the worker. The worker clamps once more at `MIN_STEP_INTERVAL = 1ms`
+(re-exported from `k580_app::actor`) before it overwrites
+`Emulator::step_interval`. The next `select!` iteration re-arms the
+timer with the new interval (paced) or slice (burst), so clicking a
+tier while a program is running adjusts the visible animation rate
+immediately — without restarting the program or losing the run-armed
+state.
+
+The UI subscription tick interval is also coupled to the resolved Hz
+(see `subscription` in `app/mod.rs`) with a 16 ms floor. Slow / Medium
+/ High deliver one snapshot per tick because the worker is paced and
+matches the subscription cadence one-to-one. Max keeps the same 16 ms
+subscription, but the worker is no longer paced — each Tick drains a
+single coalesced snapshot that already represents *thousands* of
+executed instructions. That visible jumpiness across memory rows is
+the honest signal that "Максимум" gave up frame fidelity to gain wall
+time. A `Stop` press still lands within one slice (≤ 16 ms) because
+the actor's `select!` re-arms its deadline to `slice` rather than
+parking inside the inner loop.
+
+### Run modes (`RunMode`)
+
+`k580_app::RunMode` controls how the worker dispatches CPU work
+during a paced `Run`. Two variants:
+
+- `RunMode::Paced` — the default, used by the Slow / Medium / High
+  speed tiers. `Emulator::tick()` executes exactly one instruction,
+  publishes one `InstructionBoundaryReached` and one `StateChanged`,
+  and the actor re-arms its `after(step_interval)` deadline. The UI
+  sees every step. This is the path that lets the highlighted memory
+  row walk one cell at a time.
+- `RunMode::Burst { slice }` — used by the Max speed tier. `tick()`
+  enters a tight inner loop that keeps stepping until any of:
+  - `slice` wall-time has elapsed (re-checked every 64 instructions
+    so `Instant::now()` doesn't dominate the hot loop),
+  - the per-session `MAX_INSTRUCTIONS_PER_RUN` budget is exhausted,
+  - the CPU halts,
+  - or an instruction errors.
+  Only the **final** snapshot is published; the per-instruction
+  `InstructionBoundaryReached` events are deliberately suppressed so
+  the iced side stops paying the per-step redraw cost. The actor
+  re-arms its `after(slice)` deadline, which doubles as the
+  responsiveness floor for `Stop`: a press lands within one slice.
+
+`AppCommand::SetRunMode(mode)` switches between them. The emulator
+stores the mode in `Emulator::run_mode` and exposes it through
+`run_mode()` so the actor can pick the deadline (`step_interval` for
+paced, `slice` for burst) on the next `select!` iteration. The
+worker also floors `slice` at 1 ms to mirror the `SetStepInterval`
+floor — out-of-range zero would degenerate the timer arm into a busy
+loop.
 
 ## Keyboard shortcuts
 
@@ -451,6 +544,9 @@ the asset pipeline.
   feature (`find_focused` and the `operate` task wrapper) enabled.
 - `rfd` for native file dialogs.
 - `tracing` and `tracing-subscriber` for diagnostic logging.
-- `windows-sys` (Windows only) with `Win32_Foundation` and
-  `Win32_Graphics_Dwm` features for DWM cloaking.
+- `windows-sys` (Windows only) with `Win32_Foundation`,
+  `Win32_Graphics_Dwm`, and `Win32_Graphics_Gdi` features — the first
+  two for DWM cloaking and the rounded-corner attribute, the third for
+  `EnumDisplaySettingsW` (used by the High speed tier to read the
+  primary monitor's refresh rate).
 - `winresource` (Windows-only build dependency) for the PE icon resource.

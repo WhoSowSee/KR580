@@ -1,10 +1,10 @@
-use crate::{AppCommand, AppError, AppEvent, AppSnapshot};
+use crate::{AppCommand, AppError, AppEvent, AppSnapshot, RunMode};
 use k580_core::{Cpu8080State, PortBus};
 use k580_devices::IoBus;
 use k580_persistence::{
     ExportModel, Exporters, Importers, Snapshot580Serializer, SubprogramSerializer,
 };
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Default delay between instructions while `Run` is armed. The user
 /// can change it through the speed slider; this value is what the
@@ -29,6 +29,14 @@ pub struct Emulator {
     /// applies per session, not per process lifetime.
     instructions_since_run: u64,
     step_interval: Duration,
+    /// Current run mode. `Paced` is the default — one instruction
+    /// per worker `tick()`, one `StateChanged` per instruction.
+    /// `Burst { slice }` makes `tick()` churn instructions in a
+    /// tight loop for up to `slice` wall-time and publish a single
+    /// coalesced snapshot, so the worker stops paying the
+    /// per-instruction timer + crossbeam + redraw overhead the user
+    /// observed as "Максимум по итогу не быстрее Высоко".
+    run_mode: RunMode,
 }
 
 impl Default for Emulator {
@@ -39,6 +47,7 @@ impl Default for Emulator {
             running: false,
             instructions_since_run: 0,
             step_interval: DEFAULT_STEP_INTERVAL,
+            run_mode: RunMode::Paced,
         }
     }
 }
@@ -51,6 +60,7 @@ impl Emulator {
             running: false,
             instructions_since_run: 0,
             step_interval: DEFAULT_STEP_INTERVAL,
+            run_mode: RunMode::Paced,
         }
     }
 
@@ -79,6 +89,14 @@ impl Emulator {
         self.step_interval
     }
 
+    /// Current run mode. The actor reads this to decide between the
+    /// `step_interval` deadline (Paced) and the `slice` deadline
+    /// (Burst), and `tick()` reads it to decide between one
+    /// instruction and a tight inner loop.
+    pub fn run_mode(&self) -> RunMode {
+        self.run_mode
+    }
+
     pub fn snapshot(&self) -> AppSnapshot {
         AppSnapshot {
             cpu: self.cpu.clone(),
@@ -101,6 +119,16 @@ impl Emulator {
     /// No-op when `running` is false or the per-session budget is
     /// exhausted — the actor still gets a snapshot so the UI sees
     /// the auto-pause status update.
+    ///
+    /// The body is split between `Paced` (one instruction, one
+    /// snapshot, one boundary event — the original behaviour) and
+    /// `Burst { slice }` (tight inner loop bounded by wall-time and
+    /// the per-session budget, only the final snapshot is
+    /// published). Burst skips `InstructionBoundaryReached` for the
+    /// in-flight instructions on purpose: the user opted into
+    /// "Максимум" precisely to stop paying the per-step UI cost,
+    /// and flooding the channel with thousands of boundary events
+    /// would re-introduce that cost on the iced side.
     pub fn tick(&mut self) -> Vec<AppEvent> {
         let mut events = Vec::new();
         if !self.running {
@@ -125,6 +153,21 @@ impl Emulator {
             events.push(AppEvent::StateChanged(Box::new(self.snapshot())));
             return events;
         }
+
+        match self.run_mode {
+            RunMode::Paced => self.tick_paced(&mut events),
+            RunMode::Burst { slice } => self.tick_burst(slice, &mut events),
+        }
+
+        events.push(AppEvent::StateChanged(Box::new(self.snapshot())));
+        events
+    }
+
+    /// One-instruction-per-tick body. Mirrors the original `tick()`
+    /// implementation: emits an `InstructionBoundaryReached` per
+    /// step so the UI can update its per-instruction counters and
+    /// the highlighted memory row walks one cell at a time.
+    fn tick_paced(&mut self, events: &mut Vec<AppEvent>) {
         match self.cpu.step_instruction(&mut self.bus) {
             Ok(outcome) => {
                 self.instructions_since_run += 1;
@@ -141,8 +184,61 @@ impl Emulator {
                 events.push(AppEvent::Stopped);
             }
         }
-        events.push(AppEvent::StateChanged(Box::new(self.snapshot())));
-        events
+    }
+
+    /// Burst body — inner loop runs instructions back-to-back until
+    /// `slice` wall-time elapses, the per-session budget is
+    /// exhausted, the CPU halts, or an instruction errors. The
+    /// instruction count is bumped per step (so the budget still
+    /// applies and `cycle_count` on the published snapshot is
+    /// correct), but no per-step events are emitted: the UI sees
+    /// only the final snapshot for this slice. Wall-time is
+    /// re-checked every 64 instructions so the loop doesn't spend
+    /// the slice burning syscalls on `Instant::now()` for short
+    /// instructions.
+    fn tick_burst(&mut self, slice: Duration, events: &mut Vec<AppEvent>) {
+        // 0-length slice would degenerate to "do nothing forever";
+        // floor at the same 1 ms the actor's `SetStepInterval` does.
+        let slice = slice.max(Duration::from_millis(1));
+        let started = Instant::now();
+        let mut since_check: u32 = 0;
+        loop {
+            if self.instructions_since_run >= MAX_INSTRUCTIONS_PER_RUN {
+                self.running = false;
+                events.push(AppEvent::Stopped);
+                return;
+            }
+            match self.cpu.step_instruction(&mut self.bus) {
+                Ok(_outcome) => {
+                    self.instructions_since_run += 1;
+                    if self.cpu.halted {
+                        self.running = false;
+                        events.push(AppEvent::HaltStateChanged(true));
+                        events.push(AppEvent::Stopped);
+                        return;
+                    }
+                }
+                Err(error) => {
+                    self.running = false;
+                    events.push(AppEvent::ErrorRaised(error.into()));
+                    events.push(AppEvent::Stopped);
+                    return;
+                }
+            }
+            since_check = since_check.wrapping_add(1);
+            // 64 is a balance: small enough that a single slow
+            // instruction can't blow the slice by much, large
+            // enough that `Instant::now()` doesn't dominate the
+            // hot loop. Empirically 8080 instructions land in the
+            // 4..18 cycle range, so 64 instructions ≈ a few hundred
+            // T-states, well under any reasonable slice.
+            if since_check >= 64 {
+                since_check = 0;
+                if started.elapsed() >= slice {
+                    return;
+                }
+            }
+        }
     }
 
     fn apply(&mut self, command: AppCommand) -> Result<Vec<AppEvent>, AppError> {
@@ -192,6 +288,21 @@ impl Emulator {
                 // erroring out and leaves room for future
                 // free-form input.
                 self.step_interval = interval.max(Duration::from_millis(1));
+            }
+            AppCommand::SetRunMode(mode) => {
+                // Switch between paced (one instruction per
+                // `step_interval`, one snapshot per step) and burst
+                // (tight inner loop bounded by `slice`, one
+                // coalesced snapshot per slice). The actor reads
+                // `run_mode()` between selects, so a switch lands
+                // on the next iteration without restarting the
+                // armed `Run`.
+                self.run_mode = match mode {
+                    RunMode::Burst { slice } => RunMode::Burst {
+                        slice: slice.max(Duration::from_millis(1)),
+                    },
+                    paced => paced,
+                };
             }
             AppCommand::ReadPort(port) => {
                 let value = self.bus.input(port)?;
