@@ -245,11 +245,51 @@ impl Emulator {
         let mut events = Vec::new();
         match command {
             AppCommand::ResetCpu => {
+                // If the user clicked "Сброс регистров" while a
+                // paced or burst Run was armed, the previous
+                // implementation flipped `running = false` silently
+                // and never published `Stopped`. The UI's
+                // `consume_event` only clears `DesktopApp::running`
+                // on `Stopped` / `HaltStateChanged(true)` /
+                // `ErrorRaised`, so the play/pause toggle stayed
+                // red and the next Tick kept calling
+                // `follow_pc_during_run` against a CPU that the
+                // worker had already deactivated. The user reported
+                // this as «программа не перестаёт выполняться при
+                // сбросе регистров». Publishing `Stopped` (and
+                // `HaltStateChanged(false)`, since reset clears the
+                // halt bit even if the CPU was halted before)
+                // brings every UI surface back into agreement with
+                // the worker's view of the world.
+                let was_running = self.running;
+                let was_halted_before = self.cpu.halted;
                 self.cpu.reset_cpu();
                 self.running = false;
                 self.instructions_since_run = 0;
+                if was_running {
+                    events.push(AppEvent::Stopped);
+                }
+                if was_halted_before {
+                    events.push(AppEvent::HaltStateChanged(false));
+                }
             }
-            AppCommand::ResetRam => self.cpu.reset_ram(),
+            AppCommand::ResetRam => {
+                // Wiping RAM under a running program would let the
+                // worker keep stepping into a sea of zero bytes
+                // (NOPs) until either the per-session budget hit
+                // or the user clicked Pause manually — neither
+                // matches «очистил память — программа должна
+                // прекратиться». Stop the worker first so the same
+                // gesture that erases code also yields control
+                // back to the UI; the `Stopped` event lets the
+                // play/pause toggle revert to its idle state.
+                let was_running = self.running;
+                self.cpu.reset_ram();
+                if was_running {
+                    self.running = false;
+                    events.push(AppEvent::Stopped);
+                }
+            }
             AppCommand::SetRegister(register, value) => self.cpu.set_register(register, value),
             AppCommand::SetPc(address) => self.cpu.pc = address,
             AppCommand::SetMemory(address, value) => self.cpu.set_memory(address, value),
