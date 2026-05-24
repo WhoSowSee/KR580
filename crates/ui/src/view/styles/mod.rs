@@ -17,9 +17,9 @@ pub(super) use buttons::{
 };
 pub(super) use containers::{
     alu_style, app_style, error_inset_style, input_shell_style, inset_style, legend_label_style,
-    memory_row_container_style, menu_bar_divider_style, menu_bar_style, mux_header_style,
-    mux_panel_style, opcode_dropdown_style, panel_style, schematic_block_style,
-    schematic_board_style, solid_style, transparent_style,
+    memory_row_container_style, menu_bar_divider_style, menu_bar_style, mux_chip_style,
+    mux_header_style, mux_panel_style, mux_register_chip_style, opcode_dropdown_style,
+    panel_style, schematic_block_style, schematic_board_style, solid_style, transparent_style,
 };
 pub(super) use inputs::{inline_value_input_style, input_borderless_style};
 pub(super) use scrollable::scrollable_style;

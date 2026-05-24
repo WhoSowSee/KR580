@@ -7,7 +7,7 @@ use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
     TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_RED, TOKYO_SURFACE,
-    TOKYO_SURFACE_2, TOKYO_TEXT,
+    TOKYO_TEXT,
 };
 
 pub(crate) fn app_style(_theme: &Theme) -> container::Style {
@@ -90,11 +90,117 @@ pub(crate) fn alu_style(_theme: &Theme) -> container::Style {
 }
 
 pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_SURFACE_2), 0.0, 0.0, TOKYO_BORDER)
+    // Header strip of the multiplexer panel: same `TOKYO_BOARD`
+    // fill as the surrounding plate — the strip reads as part of
+    // the plate, not as a lifted band — and a 1-px hairline border
+    // on every side so the seam between the header and the chip
+    // column underneath stays visible.
+    //
+    // The full-rectangle border (rather than just a bottom edge)
+    // is deliberate: the panel's outer `mux_panel_style` already
+    // draws the perimeter, but at the top it lands on the
+    // schematic plate which uses the same `TOKYO_BOARD` tone, so
+    // the user reported the upper edge "disappearing" while the
+    // sides and bottom still read fine. Painting the header strip
+    // with its own hairline gives the eye a second cue along that
+    // upper edge — the panel border now sits on top of a strip
+    // that is *also* outlined, doubling the contrast where it was
+    // weakest. The bottom edge of this rectangle additionally
+    // serves as the divider between the header text and the
+    // first section caption underneath.
+    //
+    // Top corners get the same 6 px radius as the outer panel
+    // (`mux_panel_style`) so the rounded plate-cutout shape
+    // continues seamlessly through the header strip; the previous
+    // square top corners were overwriting the panel's rounded
+    // upper edge with a 90° rectangle, which the user flagged as
+    // "у верхней части рамки нет скругления". Bottom corners stay
+    // square because the strip butts directly into the next
+    // section caption — a rounded bottom would round into a
+    // sibling row and leave a visible gap on either side.
+    container::Style {
+        background: Some(Background::Color(TOKYO_BOARD)),
+        text_color: Some(TOKYO_TEXT),
+        border: Border {
+            radius: iced::border::Radius {
+                top_left: 6.0,
+                top_right: 6.0,
+                bottom_right: 0.0,
+                bottom_left: 0.0,
+            },
+            width: 1.0,
+            color: TOKYO_BORDER,
+        },
+        ..container::Style::default()
+    }
 }
 
 pub(crate) fn mux_panel_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_SURFACE), 6.0, 1.0, TOKYO_BORDER)
+    // Same `TOKYO_BOARD` fill as the surrounding schematic plate —
+    // the panel ends up as a bordered window cut into the plate
+    // rather than a lifted card on top of it. The user explicitly
+    // asked for "цвет как у фона, просто с рамками": the framing
+    // is what tells the eye "this is a sub-region of the
+    // schematic" without painting a competing surface tone.
+    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
+}
+
+/// Chrome for individual chips inside the multiplexer panel — the
+/// W/Z scratch pair, the SP/PC inline readouts, and (via
+/// `mux_button_style`'s neutral status) the regular РОН buttons all
+/// land on the same `TOKYO_BOARD` fill as `mux_panel_style`. The
+/// outer panel and every chip inside it sharing one surface tone is
+/// what makes the panel read as "a frame full of bordered slots cut
+/// into the plate" instead of "a card holding a stack of darker
+/// cards". 6 px corner radius matches `mux_panel_style` so the
+/// chips visually echo the parent frame at a smaller scale.
+pub(crate) fn mux_chip_style(_theme: &Theme) -> container::Style {
+    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
+}
+
+/// Variant of `mux_chip_style` used by the interactive РОН register
+/// chips that the user can click to switch the register editor.
+/// Behaves like `mux_chip_style` for the unselected state, and
+/// flips the fill to the same `TOKYO_BLUE @ 0.18` wash that
+/// `memory_row_container_style` paints on the selected memory row
+/// when `selected` is `true`. The frame stays neutral
+/// (`TOKYO_BORDER`) in both states — selection reads from the fill
+/// alone, per the user's explicit "только заливка должна быть
+/// синей" feedback.
+///
+/// Why a `container::Style` and not a `button::Style`: the РОН
+/// chips were historically `button`s, which only fire `on_press`
+/// on `Status::Released`. The user reported a sluggish feel
+/// switching between registers — between the press and the
+/// release the eye reads the latency as input lag. Routing the
+/// click through a `mouse_area` instead makes it fire on the
+/// `Pressed` edge (matching the memory-row cells), and the
+/// surrounding chrome becomes a plain `container`. Keeping the
+/// style here lets the chip wear exactly the same dress as the
+/// W/Z static chips next to it, but driven by a snappier gesture
+/// pipeline.
+pub(crate) fn mux_register_chip_style(selected: bool) -> container::Style {
+    if selected {
+        // Byte-for-byte identical to `memory_row_container_style`'s
+        // selected fill (`Color::from_rgba8(0x7A, 0xA2, 0xF7, 0.18)`).
+        // Same hue, same alpha, same role: "this row / chip is the
+        // active selection". Sharing the wash keeps the visual
+        // idiom transferable between panels.
+        container::Style {
+            text_color: Some(TOKYO_TEXT),
+            background: Some(Background::Color(Color::from_rgba8(
+                0x7A, 0xA2, 0xF7, 0.18,
+            ))),
+            border: Border {
+                radius: 6.0.into(),
+                width: 1.0,
+                color: TOKYO_BORDER,
+            },
+            ..container::Style::default()
+        }
+    } else {
+        mux_chip_style(&Theme::Dark)
+    }
 }
 
 pub(crate) fn legend_label_style(_theme: &Theme) -> container::Style {

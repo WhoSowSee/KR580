@@ -44,7 +44,15 @@ impl Cpu8080State {
         }
 
         if opcode & 0xCF == 0x01 {
-            self.write_pair(RegPair::from_code((opcode >> 4) & 3), self.fetch_word(1));
+            // `LXI rp, d16`: the operand passes through W/Z on its way
+            // into the destination pair. Real microcode reads the low
+            // byte into Z, then the high byte into W, then transfers
+            // WZ → rp; we record the residue so the schematic shows
+            // what the user just loaded (matches the reference
+            // emulator's "Регистры временного хранения" readout).
+            let value = self.fetch_word(1);
+            self.registers.set_wz(value);
+            self.write_pair(RegPair::from_code((opcode >> 4) & 3), value);
             self.pc = self.pc.wrapping_add(3);
             return self.outcome(Some(opcode), mnemonic, pc_before, t_states, false);
         }
@@ -74,17 +82,51 @@ impl Cpu8080State {
         }
 
         match opcode {
+            // `STAX (BC)` / `LDAX (BC)`: addressing through a register
+            // pair does NOT route the address through W/Z on the real
+            // chip — the pair is already on the address latch, so the
+            // microcode goes straight to memory. Same for `(DE)`. We
+            // intentionally leave WZ alone here so the schematic keeps
+            // showing whatever the previous WZ-touching instruction
+            // left, exactly like the reference emulator.
             0x02 => self.memory.write(self.registers.bc(), self.registers.a),
             0x0A => self.registers.a = self.memory.read(self.registers.bc()),
             0x12 => self.memory.write(self.registers.de(), self.registers.a),
             0x1A => self.registers.a = self.memory.read(self.registers.de()),
+            // `SHLD a16` / `LHLD a16`: 16-bit immediate address goes
+            // through W/Z. We record it before performing the memory
+            // accesses so the residue reflects the address operand
+            // even on the LHLD case where the helper itself only
+            // holds locals.
             0x22 => self.shld(),
             0x2A => self.lhld(),
-            0x32 => self.memory.write(self.fetch_word(1), self.registers.a),
-            0x3A => self.registers.a = self.memory.read(self.fetch_word(1)),
+            // `STA a16` / `LDA a16`: same story — a16 is parked in WZ,
+            // then a single byte transfer happens against (WZ).
+            0x32 => {
+                let address = self.fetch_word(1);
+                self.registers.set_wz(address);
+                self.memory.write(address, self.registers.a);
+            }
+            0x3A => {
+                let address = self.fetch_word(1);
+                self.registers.set_wz(address);
+                self.registers.a = self.memory.read(address);
+            }
+            // `XTHL`: top of stack is read into WZ (lo, hi), then
+            // swapped with HL. The reference emulator shows that
+            // residue, so we record it.
             0xE3 => self.xthl(),
+            // `XCHG`: HL ↔ DE. The 8080 microcode does this through
+            // the W/Z scratch pair (HL → WZ, DE → HL, WZ → DE). We
+            // record the previous HL there to match the residue
+            // displayed by the reference emulator.
             0xEB => self.xchg(),
-            0xF9 => self.sp = self.registers.hl(),
+            // `SPHL`: HL → SP. Goes through WZ on the real chip.
+            0xF9 => {
+                let value = self.registers.hl();
+                self.registers.set_wz(value);
+                self.sp = value;
+            }
             _ => unreachable!("data dispatch reached non-data opcode {opcode:#04X}"),
         }
         self.advance_data_pc(opcode);
@@ -101,24 +143,40 @@ impl Cpu8080State {
 
     fn shld(&mut self) {
         let address = self.fetch_word(1);
+        self.registers.set_wz(address);
         self.memory.write(address, self.registers.l);
         self.memory.write(address.wrapping_add(1), self.registers.h);
     }
 
     fn lhld(&mut self) {
         let address = self.fetch_word(1);
+        self.registers.set_wz(address);
         self.registers.l = self.memory.read(address);
         self.registers.h = self.memory.read(address.wrapping_add(1));
     }
 
     fn xchg(&mut self) {
-        core::mem::swap(&mut self.registers.d, &mut self.registers.h);
-        core::mem::swap(&mut self.registers.e, &mut self.registers.l);
+        // Real microcode: HL → WZ; DE → HL; WZ → DE. Net effect on
+        // the programmer-visible state is the same as a straight swap
+        // (which is what the previous implementation did via
+        // `core::mem::swap`), but we record the residue so the
+        // schematic shows the previous HL value sitting in WZ — that
+        // is what the reference emulator displays after `XCHG`.
+        let prev_hl = self.registers.hl();
+        let prev_de = self.registers.de();
+        self.registers.set_wz(prev_hl);
+        self.registers.set_hl(prev_de);
+        self.registers.set_de(prev_hl);
     }
 
     fn xthl(&mut self) {
+        // `(SP)` is read into Z (low byte) and W (high byte), then
+        // swapped with HL. Recording the WZ residue mirrors the
+        // reference emulator and the 8080 microcode listing.
         let lo = self.memory.read(self.sp);
         let hi = self.memory.read(self.sp.wrapping_add(1));
+        self.registers.w = hi;
+        self.registers.z = lo;
         self.memory.write(self.sp, self.registers.l);
         self.memory.write(self.sp.wrapping_add(1), self.registers.h);
         self.registers.h = hi;
