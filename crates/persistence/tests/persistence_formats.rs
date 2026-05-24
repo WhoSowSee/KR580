@@ -1,7 +1,7 @@
 use k580_core::{Cpu8080State, Flags};
 use k580_persistence::{
     ExportModel, Exporters, Importers, Settings, SettingsError, SettingsStore,
-    Snapshot580Serializer, SnapshotError, Subprogram, SubprogramSerializer,
+    Snapshot580Flavour, Snapshot580Serializer, SnapshotError, Subprogram, SubprogramSerializer,
 };
 use std::path::PathBuf;
 
@@ -277,4 +277,93 @@ fn unique_temp_dir() -> PathBuf {
         .unwrap()
         .as_nanos();
     std::env::temp_dir().join(format!("k580-persistence-{nanos}"))
+}
+
+/// Auto-detect path: a K580 v1 blob (with the `K580` magic) must
+/// resolve to `Snapshot580Flavour::Modern` and round-trip every CPU
+/// field. This is the path a double-clicked modern `.580` file goes
+/// through, so the recovered state has to match `from_bytes` exactly.
+#[test]
+fn from_any_bytes_recognises_modern_snapshot() {
+    let mut cpu = Cpu8080State::default();
+    cpu.registers.a = 0x77;
+    cpu.pc = 0x4321;
+    cpu.sp = 0x8000;
+    cpu.flags.carry = true;
+    cpu.memory.write(0x1000, 0xAB);
+
+    let bytes = Snapshot580Serializer::to_bytes(&cpu);
+    let (restored, flavour) = Snapshot580Serializer::from_any_bytes(&bytes).unwrap();
+    assert_eq!(flavour, Snapshot580Flavour::Modern);
+    assert_eq!(restored.registers.a, 0x77);
+    assert_eq!(restored.pc, 0x4321);
+    assert_eq!(restored.sp, 0x8000);
+    assert!(restored.flags.carry);
+    assert_eq!(restored.memory.read(0x1000), 0xAB);
+}
+
+/// Auto-detect path: a 65 549-byte legacy dump (no magic, ends with
+/// `FF FF`) must resolve to `Snapshot580Flavour::Legacy`, recover RAM
+/// and PC, and leave everything else at default — exactly what
+/// `from_legacy_bytes` does. This is the bug the user filed: opening
+/// such a file via double-click failed with `InvalidMagic` because
+/// the UI dispatched the modern decoder unconditionally.
+#[test]
+fn from_any_bytes_recognises_legacy_snapshot() {
+    let mut cpu = Cpu8080State::default();
+    cpu.pc = 0x1234;
+    cpu.memory.write(0x0100, 0x42);
+    cpu.memory.write(0xFFFE, 0x99);
+
+    let bytes = Snapshot580Serializer::to_legacy_bytes(&cpu);
+    assert_eq!(bytes.len(), Snapshot580Serializer::LEGACY_LENGTH);
+
+    let (restored, flavour) = Snapshot580Serializer::from_any_bytes(&bytes).unwrap();
+    assert_eq!(flavour, Snapshot580Flavour::Legacy);
+    assert_eq!(restored.pc, 0x1234);
+    assert_eq!(restored.memory.read(0x0100), 0x42);
+    assert_eq!(restored.memory.read(0xFFFE), 0x99);
+    // Legacy carries no register state — verify defaults survive.
+    assert_eq!(restored.registers.a, 0);
+    assert_eq!(restored.sp, 0);
+    assert!(!restored.halted);
+}
+
+/// Garbage that matches neither flavour (no magic, wrong length)
+/// must be rejected — otherwise the auto-detect path would happily
+/// hand the modern decoder a stray binary and surface a misleading
+/// `Truncated` error instead of the cleaner `InvalidMagic` the
+/// existing UI diagnostics already key off.
+#[test]
+fn from_any_bytes_rejects_unrecognised_blob() {
+    let garbage = vec![0u8; 100];
+    let err = Snapshot580Serializer::from_any_bytes(&garbage).unwrap_err();
+    assert!(matches!(err, SnapshotError::InvalidMagic));
+}
+
+/// A modern blob whose magic matches but whose body is corrupt must
+/// not be silently misclassified as legacy — the magic check pins
+/// the flavour, and the modern decoder's own error (here:
+/// `PayloadLengthMismatch`) bubbles up.
+#[test]
+fn from_any_bytes_propagates_modern_decode_error() {
+    let mut bytes = Snapshot580Serializer::to_bytes(&Cpu8080State::default());
+    // Corrupt the payload length so `from_bytes` errors out, while
+    // keeping the K580 magic intact.
+    bytes[6] = 0xFF;
+    bytes[7] = 0xFF;
+    let err = Snapshot580Serializer::from_any_bytes(&bytes).unwrap_err();
+    assert!(matches!(err, SnapshotError::PayloadLengthMismatch));
+}
+
+/// A 65 549-byte blob with the wrong end-of-record marker must be
+/// rejected by the legacy decoder rather than silently round-trip
+/// — `from_any_bytes` keeps the existing trailer-check semantics.
+#[test]
+fn from_any_bytes_propagates_legacy_decode_error() {
+    let mut bytes = Snapshot580Serializer::to_legacy_bytes(&Cpu8080State::default());
+    let last = bytes.len() - 1;
+    bytes[last] = 0x00; // break the FF FF tail
+    let err = Snapshot580Serializer::from_any_bytes(&bytes).unwrap_err();
+    assert!(matches!(err, SnapshotError::InvalidLegacyTrailer));
 }

@@ -1,6 +1,7 @@
 use crate::AppError;
 use k580_core::{Cpu8080State, InstructionOutcome, RegisterName, TactOutcome};
 use k580_devices::DeviceSnapshot;
+use k580_persistence::Snapshot580Flavour;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -21,6 +22,16 @@ pub enum AppCommand {
     /// flipped, mirroring what `ResetCpu` does on the same path.
     ClearHalt,
     LoadSnapshot(PathBuf),
+    /// Load a `.580` file of unknown flavour: probes the bytes and
+    /// dispatches to the modern (K580 v1) or legacy (65 549-byte flat)
+    /// deserializer based on the magic / length. Used by the
+    /// double-click / `argv[1]` path, where the UI cannot tell ahead
+    /// of time which format the user dropped on us — both flavours
+    /// share the `.580` extension. Emits `SnapshotFlavourLoaded` so
+    /// the UI can route a subsequent "Сохранить" gesture to the
+    /// matching serializer instead of silently round-tripping a
+    /// legacy file into the modern format.
+    LoadAnySnapshot(PathBuf),
     SaveSnapshot(PathBuf),
     /// Load a legacy 65 549-byte `.580` produced by the original
     /// emulator the project was based on (raw RAM + 13-byte trailer
@@ -132,6 +143,15 @@ pub enum AppEvent {
     PortRead { port: u8, value: u8 },
     PortWritten { port: u8, value: u8 },
     HaltStateChanged(bool),
+    /// A `.580` file was just loaded through the auto-detect path
+    /// (`AppCommand::LoadAnySnapshot`) and the worker resolved it to
+    /// this flavour. The UI consumes this to decide which "current
+    /// path" slot to populate (`current_snapshot_path` for Modern,
+    /// `current_legacy_snapshot_path` for Legacy) so Ctrl+S /
+    /// Ctrl+Alt+S routes a subsequent save through the matching
+    /// serializer instead of silently re-encoding a legacy file in
+    /// the modern format.
+    SnapshotFlavourLoaded(Snapshot580Flavour),
     ErrorRaised(AppError),
     Stopped,
 }

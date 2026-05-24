@@ -21,7 +21,7 @@ mod undo;
 pub(crate) use focus_ops::{find_focusable_at, find_focused_optional, unfocus_except};
 
 use crate::app::DesktopApp;
-use k580_app::{AppCommand, AppEvent, AppSnapshot};
+use k580_app::{AppCommand, AppEvent, AppSnapshot, Snapshot580Flavour};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -246,6 +246,19 @@ impl DesktopApp {
             AppEvent::PortWritten { port, value } => {
                 self.status = format!("OUT {port:02X} <- {value:02X}")
             }
+            AppEvent::SnapshotFlavourLoaded(flavour) => {
+                // Park the worker's verdict on which `.580` flavour
+                // matched into the scratch slot on `DesktopApp`. The
+                // helper that initiated the auto-detect load
+                // (`load_snapshot_from_path`) reads it on the way out
+                // to route `path` into the matching "current path"
+                // field, then resets the slot. We deliberately do not
+                // touch the status bar here — the load helper writes
+                // a single human-readable line at the end of its run
+                // and a flavour update mid-flight would just clobber
+                // it.
+                self.pending_snapshot_flavour = Some(flavour);
+            }
             AppEvent::HaltStateChanged(_) => {
                 // The worker has flipped its own `is_running` flag off
                 // (the emulator pauses itself on halt). Mirror that on
@@ -388,11 +401,25 @@ impl DesktopApp {
     /// returns a path) and the `Message::LoadSnapshotFromPath` wired
     /// at startup when the OS hands us a `.580` file via `argv[1]`
     /// (double-click in Explorer with `k580.exe` as the default
-    /// opener). Stores the path so subsequent "Сохранить" overwrites
-    /// it in place, runs `dispatch_sync` so the worker has applied
-    /// the load before we re-derive the spinner address, and finally
-    /// pulls the new PC into the memory list / inline editor so the
-    /// visible state matches what is actually in memory.
+    /// opener).
+    ///
+    /// Both `.580` flavours — modern K580 v1 (TLV) and legacy
+    /// 65 549-byte flat dump — share the same extension, so this
+    /// path cannot trust the file name and instead dispatches
+    /// `LoadAnySnapshot`, which probes the bytes on the worker side
+    /// and emits `SnapshotFlavourLoaded(flavour)` with its verdict.
+    /// We read that verdict back from the scratch slot
+    /// (`pending_snapshot_flavour`) and route `path` into the
+    /// matching "current path" field so the next Ctrl+S /
+    /// Ctrl+Alt+S writes back through the right serializer instead
+    /// of silently re-encoding a legacy file as modern (or vice
+    /// versa).
+    ///
+    /// The earlier implementation hard-wired `LoadSnapshot`, which
+    /// bound double-click of legacy files to the modern decoder and
+    /// rejected them with `InvalidMagic` — exactly the bug the user
+    /// reported as "открытие 580 файлов через двойной клик по файлу
+    /// старой версии выдает ошибку".
     ///
     /// Opening a file is *not* a Ctrl+Z-able gesture. The user's
     /// mental model is "this is a fresh starting point" — a freshly
@@ -412,6 +439,13 @@ impl DesktopApp {
         // through `clear_error_notice` so the auto-dismiss deadline
         // is dropped in lockstep — see the helper for rationale.
         self.clear_error_notice();
+        // Same reasoning for the info notice: any "Открыт старый
+        // формат файла" hint from a previous legacy-open must clear
+        // up front so the new attempt starts on a clean slate. The
+        // legacy branch below will re-arm it through
+        // `raise_info_notice` if (and only if) auto-detect picks
+        // the legacy decoder for *this* file.
+        self.clear_info_notice();
         let display = path.display().to_string();
         // Disarm the cosmetic run flag *before* the load goes out:
         // `toggle_run` on a blank page is purely visual (no
@@ -424,22 +458,64 @@ impl DesktopApp {
         // start the new file in the same neutral state a fresh
         // launch would.
         self.running = false;
-        self.dispatch_sync(AppCommand::LoadSnapshot(path.clone()));
+        // Wipe any leftover flavour from a previous load so a
+        // failed dispatch (where the worker never emits a fresh
+        // `SnapshotFlavourLoaded`) cannot mistakenly claim the new
+        // path against a stale flavour value.
+        self.pending_snapshot_flavour = None;
+        self.dispatch_sync(AppCommand::LoadAnySnapshot(path.clone()));
         // If the worker rejected the load (corrupt header, missing
-        // file, IO error), `consume_event` already wrote the user-
-        // visible notice. Bail out *before* we mutate the document's
-        // identity — we don't want to claim "current path = X" for
-        // a load that never happened, otherwise the next Ctrl+S
-        // would silently overwrite the unrelated file at X with the
-        // CPU state from before the failed open.
+        // file, IO error, neither flavour matched), `consume_event`
+        // already wrote the user-visible notice. Bail out *before*
+        // we mutate the document's identity — we don't want to
+        // claim "current path = X" for a load that never happened,
+        // otherwise the next Ctrl+S would silently overwrite the
+        // unrelated file at X with the CPU state from before the
+        // failed open.
         if self.error_notice.is_some() {
             return;
         }
-        self.current_snapshot_path = Some(path);
-        // The newly loaded file's origin is K580 v1 — drop any
-        // remembered legacy path so a stray Ctrl+Alt+S does not
-        // overwrite an unrelated `.580` from before this gesture.
-        self.current_legacy_snapshot_path = None;
+        // Route `path` into the field that matches the flavour the
+        // worker resolved. Modern → `current_snapshot_path` so plain
+        // Ctrl+S overwrites in place; Legacy → `current_legacy_snapshot_path`
+        // so Ctrl+Alt+S overwrites in place. The opposite slot is
+        // wiped in each branch so a stray shortcut for the *other*
+        // format prompts for a fresh location instead of silently
+        // clobbering an unrelated file from before this gesture.
+        match self.pending_snapshot_flavour.take() {
+            Some(Snapshot580Flavour::Modern) => {
+                self.current_snapshot_path = Some(path);
+                self.current_legacy_snapshot_path = None;
+                self.status = format!("Открыто {display}");
+            }
+            Some(Snapshot580Flavour::Legacy) => {
+                self.current_snapshot_path = None;
+                self.current_legacy_snapshot_path = Some(path);
+                self.status = format!("Открыто {display} (старый формат)");
+                // Yellow heads-up overlay: the status bar at 13 px
+                // is too quiet a channel for "you opened a legacy
+                // file" (the user reported missing the "(старый
+                // формат)" status entirely on a small monitor),
+                // and the next save routes through a different
+                // serializer based on which "current path" slot we
+                // populated above — the user deserves to know that
+                // before they hit Ctrl+S. 5-second fade per the
+                // explicit "5 секунд" ask.
+                self.raise_info_notice("Открыт старый формат файла".to_owned());
+            }
+            None => {
+                // The worker accepted the load but failed to publish
+                // a flavour — should never happen given the dispatch
+                // above, but if it ever does we conservatively treat
+                // the file as a v1 origin so plain Ctrl+S still has
+                // a meaningful destination. Flagging it through the
+                // status bar makes the unexpected-state path visible
+                // without forcing the user to abort.
+                self.current_snapshot_path = Some(path);
+                self.current_legacy_snapshot_path = None;
+                self.status = format!("Открыто {display}");
+            }
+        }
         // Wipe undo/redo *after* the load — the worker has already
         // accepted the new document, and any history pointing at the
         // pre-load buffer would be misleading (Ctrl+Z would tear the
@@ -453,7 +529,6 @@ impl DesktopApp {
         self.dirty = false;
         let pc = self.snapshot.cpu.pc;
         self.set_memory_address(pc);
-        self.status = format!("Открыто {display}");
     }
 
     /// Plain "Сохранить": overwrite the currently associated path if

@@ -441,6 +441,21 @@ impl Emulator {
             AppCommand::LoadSnapshot(path) => {
                 self.cpu = Snapshot580Serializer::from_bytes(&std::fs::read(path)?)?;
             }
+            AppCommand::LoadAnySnapshot(path) => {
+                // Auto-detect path: probe the bytes and dispatch to
+                // the matching deserializer. Used by double-click /
+                // `argv[1]` / "Открыть…" gestures where the UI
+                // cannot tell ahead of time which `.580` flavour
+                // landed on disk. The worker emits the resolved
+                // flavour back to the UI so a subsequent "Сохранить"
+                // round-trips into the same format the user opened
+                // with — without that hint a legacy file would
+                // silently re-encode as modern on the next save.
+                let bytes = std::fs::read(path)?;
+                let (cpu, flavour) = Snapshot580Serializer::from_any_bytes(&bytes)?;
+                self.cpu = cpu;
+                events.push(AppEvent::SnapshotFlavourLoaded(flavour));
+            }
             AppCommand::SaveLegacySnapshot(path) => {
                 std::fs::write(path, Snapshot580Serializer::to_legacy_bytes(&self.cpu))?
             }

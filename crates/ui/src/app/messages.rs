@@ -203,6 +203,20 @@ pub(crate) enum Message {
     /// next render — the actual halt state is unchanged, the user
     /// still has to reset registers to arm a run.
     DismissHaltNotice,
+    /// User dismissed the floating info-notice overlay (the same
+    /// shape as the file-error and halt notices, but framed in
+    /// `TOKYO_YELLOW` to signal "heads up, not an error"). The only
+    /// gesture that currently raises this notice is opening a
+    /// legacy-format `.580` file — the user explicitly asked to be
+    /// told when auto-detect dispatched the legacy decoder so a
+    /// subsequent save round-trips through the matching serializer.
+    /// Emitted by a click on the overlay itself (`mouse_area`
+    /// wrapper inside `view::info_notice_overlay`) and by the global
+    /// Esc handler when no error / halt overlay or modal claims Esc
+    /// first. Clears `DesktopApp::info_notice` so the overlay
+    /// disappears on the next render — the document state is
+    /// untouched, the notice is purely informational.
+    DismissInfoNotice,
     /// Clear the halt flip-flop without touching anything else
     /// (registers, flags, PC, SP, RAM, and `cycle_count` all stay
     /// where they were when HLT was executed). Wired to the new

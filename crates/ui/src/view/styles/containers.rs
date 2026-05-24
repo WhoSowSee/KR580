@@ -7,7 +7,7 @@ use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
     TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_RED, TOKYO_SURFACE,
-    TOKYO_TEXT,
+    TOKYO_TEXT, TOKYO_YELLOW,
 };
 
 pub(crate) fn app_style(_theme: &Theme) -> container::Style {
@@ -69,6 +69,18 @@ pub(crate) fn inset_style(_theme: &Theme) -> container::Style {
 /// carries the "this is an error" signal.
 pub(crate) fn error_inset_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_RED)
+}
+
+/// Variant of `error_inset_style` for the passive "info" notice that
+/// appears when the user opens a legacy-format `.580` file. Same
+/// plate-on-plate chrome as the error notice — `TOKYO_BOARD` fill,
+/// 8 px radius, 1.5 px border — but the frame is `TOKYO_YELLOW`
+/// instead of `TOKYO_RED`. Yellow signals "heads up, not an error"
+/// in the same visual idiom: the user does not need to act, just
+/// notice that the snapshot came in via the legacy decoder so a
+/// subsequent save round-trips through the right serializer.
+pub(crate) fn info_inset_style(_theme: &Theme) -> container::Style {
+    surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_YELLOW)
 }
 
 pub(crate) fn schematic_block_style(_theme: &Theme) -> container::Style {

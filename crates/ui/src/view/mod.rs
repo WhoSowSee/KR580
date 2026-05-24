@@ -37,7 +37,7 @@ mod widgets;
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
 use iced::{Background, Border, Color, Element, Length, alignment};
 
-use styles::{app_style, error_inset_style};
+use styles::{app_style, error_inset_style, info_inset_style};
 use theme::{TOKYO_BG, TOKYO_BORDER, TOKYO_TEXT, ui_text};
 
 use crate::app::{DesktopApp, MenuId, Message, PendingAction};
@@ -66,6 +66,16 @@ const HALT_NOTICE_TOP: f32 = 48.0;
 /// the CPU is reset), so the error notice rides on top of it; that
 /// way the new, actionable error reads first.
 const ERROR_NOTICE_TOP: f32 = 88.0;
+
+/// Vertical offset of the info-notice overlay (legacy-format heads
+/// up). Sits below the error notice so the three stack predictably
+/// when more than one is visible at once: halt (persistent, top),
+/// error (8 s, middle), info (5 s, bottom). In practice the info
+/// overlay is rarely co-visible with the others — it fires only on
+/// the legacy-open path, which clears any prior error notice on the
+/// way in — but the offsets are picked so a freak overlap reads as
+/// stacked frames rather than overlapping rectangles.
+const INFO_NOTICE_TOP: f32 = 128.0;
 
 /// Horizontal offset of the floating menu dropdown from the app's left
 /// edge, **per top-level menu**. Each value puts the dropdown's left
@@ -177,6 +187,25 @@ impl DesktopApp {
         let app_with_overlays: Element<'_, Message> =
             if let Some(notice) = self.error_notice.as_deref() {
                 stack![app_with_overlays, error_notice_overlay(notice)]
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into()
+            } else {
+                app_with_overlays
+            };
+
+        // Info notice (legacy-format heads-up) lands above the
+        // error notice for the same reason the error notice lands
+        // above the halt notice: it is the most-recent and shortest
+        // lived of the three, so a fresh "Открыт старый формат"
+        // hint should not be hidden behind a stale red frame.
+        // Yellow border via `info_inset_style` differentiates the
+        // chrome from the two error variants without changing the
+        // shape — same plate, same padding, same dismissal
+        // mechanics.
+        let app_with_overlays: Element<'_, Message> =
+            if let Some(notice) = self.info_notice.as_deref() {
+                stack![app_with_overlays, info_notice_overlay(notice)]
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .into()
@@ -325,6 +354,43 @@ fn error_notice_overlay(notice: &str) -> Element<'_, Message> {
     let dismissible = mouse_area(opaque(body)).on_press(Message::DismissErrorNotice);
     column![
         Space::new().height(Length::Fixed(ERROR_NOTICE_TOP)),
+        row![
+            Space::new().width(Length::Fill),
+            dismissible,
+            Space::new().width(Length::Fill),
+        ]
+        .width(Length::Fill),
+    ]
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
+}
+
+/// Floating notice for the legacy-format heads-up ("Открыт старый
+/// формат файла"). Mirrors `error_notice_overlay` exactly — same
+/// plate, same 15 px text, same `[12, 22]` padding, same
+/// click-and-Esc dismissal — except the frame is `TOKYO_YELLOW`
+/// instead of `TOKYO_RED` (`info_inset_style` vs.
+/// `error_inset_style`). Yellow signals "heads up, not an error":
+/// the user does not have to act, the notice just confirms that
+/// auto-detect dispatched the legacy decoder so the next save
+/// routes through the matching serializer.
+///
+/// Auto-fades on a 5-second timer (vs. 8 s for the red overlays)
+/// because there is nothing to act on — a longer fade would block
+/// more of the schematic without adding value. See
+/// `info_notice_dismiss_at` on `DesktopApp` and `raise_info_notice`
+/// for the lockstep arming, and `Message::DismissInfoNotice` for
+/// the click-driven dismissal that this overlay routes into.
+fn info_notice_overlay(notice: &str) -> Element<'_, Message> {
+    let body = container(
+        ui_text(notice.to_owned(), 15, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+    )
+    .padding([12, 22])
+    .style(info_inset_style);
+    let dismissible = mouse_area(opaque(body)).on_press(Message::DismissInfoNotice);
+    column![
+        Space::new().height(Length::Fixed(INFO_NOTICE_TOP)),
         row![
             Space::new().width(Length::Fill),
             dismissible,

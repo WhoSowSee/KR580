@@ -1,6 +1,30 @@
 use crate::SnapshotError;
 use k580_core::{Cpu8080State, Flags, Memory64K};
 
+/// Which on-disk `.580` flavour a freshly opened file turned out to be.
+///
+/// The two formats share the `.580` extension (the user's reference
+/// emulator and ours both write to it) but the wire shape is
+/// completely different: K580 v1 starts with a `K580` magic, then a
+/// version word, then a TLV payload, while the legacy reference dump
+/// is a flat 64 KiB of RAM followed by a 13-byte trailer ending in
+/// `FF FF`. The double-click / `argv[1]` path therefore needs to
+/// *probe* the file, not just trust the extension — and the caller
+/// needs to know which branch matched so it can route a subsequent
+/// "Сохранить" / "Сохранить (старый формат)" gesture to the right
+/// serializer.
+///
+/// Returned by `Snapshot580Serializer::from_any_bytes`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Snapshot580Flavour {
+    /// Modern, versioned K580 v1 format with `K580` magic and a TLV
+    /// payload. Round-trips every CPU field.
+    Modern,
+    /// Reference 65 549-byte legacy dump. Carries RAM + PC only;
+    /// every other CPU field comes back as default.
+    Legacy,
+}
+
 pub struct Snapshot580Serializer;
 
 impl Snapshot580Serializer {
@@ -152,6 +176,35 @@ impl Snapshot580Serializer {
         out.push(0xFF);
         debug_assert_eq!(out.len(), Self::LEGACY_LENGTH);
         out
+    }
+
+    /// Probes `bytes` and dispatches to the matching deserializer.
+    ///
+    /// Both the modern K580 v1 format and the legacy reference dump share
+    /// the `.580` extension, so a double-click / `argv[1]` open cannot
+    /// trust the file name — it has to *probe* the contents. The cheap
+    /// discriminator is the four-byte `K580` magic at offset 0: present
+    /// → modern TLV path; absent → legacy 65 549-byte flat-RAM path.
+    ///
+    /// Returns the recovered CPU state plus the flavour that matched, so
+    /// the UI can remember which serializer to use when the user later
+    /// hits "Сохранить" (modern) versus "Сохранить (старый формат)"
+    /// (legacy). Without that hint a legacy file opened by double-click
+    /// would silently round-trip into the modern format on the next save.
+    pub fn from_any_bytes(
+        bytes: &[u8],
+    ) -> Result<(Cpu8080State, Snapshot580Flavour), SnapshotError> {
+        if bytes.len() >= 4 && &bytes[0..4] == Self::MAGIC {
+            Self::from_bytes(bytes).map(|state| (state, Snapshot580Flavour::Modern))
+        } else if bytes.len() == Self::LEGACY_LENGTH {
+            Self::from_legacy_bytes(bytes).map(|state| (state, Snapshot580Flavour::Legacy))
+        } else {
+            // Neither magic nor legacy length matched. Surface the
+            // modern-format error so the caller's existing diagnostics
+            // ("not a valid .580 snapshot") still apply — the file
+            // genuinely isn't either flavour.
+            Err(SnapshotError::InvalidMagic)
+        }
     }
 
     /// Parse a legacy 65 549-byte `.580` file produced by the original

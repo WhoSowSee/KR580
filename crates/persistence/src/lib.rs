@@ -12,5 +12,5 @@ pub use settings::{
     ExportSettings, NetworkMode, NetworkSettings, Settings, SettingsStore, StorageSettings,
     UiSettings,
 };
-pub use snapshot::Snapshot580Serializer;
+pub use snapshot::{Snapshot580Flavour, Snapshot580Serializer};
 pub use subprogram::{Subprogram, SubprogramSerializer};

@@ -25,7 +25,7 @@ pub(crate) use undo::{UndoEntry, UndoStack};
 
 use iced::{Point, event, keyboard, mouse, time};
 use iced::{Subscription, Task, Theme};
-use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
+use k580_app::{AppSnapshot, EmulatorHandle, Snapshot580Flavour, initial_snapshot, spawn_emulator};
 use k580_core::RegisterName;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -192,6 +192,20 @@ pub(crate) struct DesktopApp {
     /// for a fresh location instead of reusing a stale path that no
     /// longer matches the document.
     pub(crate) current_legacy_snapshot_path: Option<PathBuf>,
+    /// Scratch slot the runtime uses to communicate the result of an
+    /// auto-detect `LoadAnySnapshot` dispatch back to its caller. The
+    /// worker emits `AppEvent::SnapshotFlavourLoaded(flavour)` after a
+    /// successful auto-detect load; `consume_event` parks the value
+    /// here, and `load_snapshot_from_path` reads it on the way out to
+    /// route the path into the matching "current path" field
+    /// (`current_snapshot_path` for Modern, `current_legacy_snapshot_path`
+    /// for Legacy). We keep it as a transient field rather than
+    /// threading the flavour through `dispatch_sync`'s return value so
+    /// the dispatch path stays oblivious to the flavour concept and
+    /// only the open-file helper that asked for auto-detection has to
+    /// reason about it. Always reset to `None` immediately after the
+    /// helper consumes it.
+    pub(crate) pending_snapshot_flavour: Option<Snapshot580Flavour>,
     /// Currently active tier on the speed switch. Three discrete
     /// positions (Slow / Medium / High) replace the older free-form
     /// slider so the user picks an intent ("walk every line" / "watch
@@ -280,6 +294,33 @@ pub(crate) struct DesktopApp {
     /// speed. A wall-clock deadline is just always 8 seconds in the
     /// future regardless of how fast Tick is firing.
     pub(crate) error_notice_dismiss_at: Option<Instant>,
+    /// Floating notification shown at the top centre of the window
+    /// when the user opens a legacy-format `.580` file (whether via
+    /// double-click / `argv[1]`, or "Файл → Открыть (старый
+    /// формат)"). Same chrome as `error_notice` and `halt_notice`
+    /// except the frame is `TOKYO_YELLOW` instead of `TOKYO_RED`:
+    /// yellow signals "heads up, not an error" — the user does not
+    /// need to act, just notice that the snapshot came in via the
+    /// legacy decoder so a subsequent save routes through the right
+    /// serializer. Lifecycle is independent of the other two
+    /// notices: it auto-fades after 5 seconds (vs. 8 for the
+    /// red-bordered ones — informational notices ride on a shorter
+    /// timer per the user's explicit "5 секунд" ask), or earlier on
+    /// click / Esc. Cleared at the start of every fresh file
+    /// gesture so the user can tell *this* attempt apart from the
+    /// last one.
+    pub(crate) info_notice: Option<String>,
+    /// Wall-clock deadline at which the floating info notice should
+    /// auto-dismiss itself. Mirrors `error_notice_dismiss_at` and
+    /// `halt_notice_dismiss_at`: armed in lockstep with
+    /// `info_notice` via `raise_info_notice`, polled inside
+    /// `Message::Tick`, and cleared in lockstep via
+    /// `clear_info_notice`. The 5-second window is shorter than the
+    /// 8 seconds the red overlays use because the info notice is
+    /// strictly informational — there is nothing for the user to
+    /// act on, so a longer fade would just block more of the
+    /// schematic for no benefit.
+    pub(crate) info_notice_dismiss_at: Option<Instant>,
     /// Cached identifier of the main window. Captured on the very
     /// first `WindowOpened` so the custom caption buttons (drag /
     /// minimise / toggle-maximise / close) can dispatch
@@ -424,6 +465,7 @@ impl DesktopApp {
                 // legacy branch — but that decision lives in
                 // `load_snapshot_from_path`, not here.
                 current_legacy_snapshot_path: None,
+                pending_snapshot_flavour: None,
                 // The speed switch boots into Medium — that's the
                 // rest position the user reaches for ~80% of the time
                 // (program visibly walks, eye keeps up with each PC
@@ -445,6 +487,12 @@ impl DesktopApp {
                 // dispatch channel itself errors out.
                 error_notice: None,
                 error_notice_dismiss_at: None,
+                // Same as the error notice: nothing to inform the user
+                // about on a fresh launch. The first legacy-format
+                // open (whether via argv[1] or the menu) will arm
+                // both fields through `raise_info_notice`.
+                info_notice: None,
+                info_notice_dismiss_at: None,
                 window_id: None,
                 window_maximized: false,
                 menu_categories_visible: true,
@@ -489,6 +537,32 @@ impl DesktopApp {
     pub(crate) fn clear_halt_notice(&mut self) {
         self.halt_notice = None;
         self.halt_notice_dismiss_at = None;
+    }
+
+    /// Clears both halves of the info-notice state in lockstep, the
+    /// same pattern `clear_error_notice` and `clear_halt_notice`
+    /// follow. Used by every site that nulls `info_notice`:
+    /// explicit dismissal (click / Esc / `DismissInfoNotice`), the
+    /// auto-dismiss arm in `Message::Tick`, and the start of every
+    /// fresh file gesture so the previous notice does not linger
+    /// across an unrelated attempt.
+    pub(crate) fn clear_info_notice(&mut self) {
+        self.info_notice = None;
+        self.info_notice_dismiss_at = None;
+    }
+
+    /// Arms the info-notice overlay with `text` and a 5-second
+    /// auto-dismiss deadline. Centralised here so every caller gets
+    /// the same timer constant (vs. the 8 seconds the red overlays
+    /// use) without duplicating the `Instant::now() + Duration`
+    /// dance at every site. Currently the only caller is
+    /// `load_snapshot_from_path` on the legacy branch, but the
+    /// helper is public to the crate so any future "heads up"
+    /// notice can route through it instead of growing yet another
+    /// pair of fields.
+    pub(crate) fn raise_info_notice(&mut self, text: String) {
+        self.info_notice = Some(text);
+        self.info_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(5));
     }
 
     /// Arms the halt-notice overlay with the canonical two-line body
@@ -551,6 +625,18 @@ impl DesktopApp {
                     && Instant::now() >= deadline
                 {
                     self.clear_halt_notice();
+                }
+                // Same auto-dismiss treatment for the info notice —
+                // the user asked the legacy-format heads-up to
+                // disappear after 5 seconds. The deadline is armed
+                // by `raise_info_notice` in lockstep with the
+                // visible field, so this branch is structurally
+                // identical to the error/halt ones above; only the
+                // timer constant is shorter (5 s vs. 8 s).
+                if let Some(deadline) = self.info_notice_dismiss_at
+                    && Instant::now() >= deadline
+                {
+                    self.clear_info_notice();
                 }
                 // Drag the memory highlight along with PC while the
                 // paced Run loop is firing. `pull_events` has just
@@ -977,6 +1063,16 @@ impl DesktopApp {
                 // of the file-error overlay it now visually mirrors.
                 self.clear_halt_notice();
             }
+            Message::DismissInfoNotice => {
+                // Drop the floating info overlay (currently raised
+                // only on legacy-format opens). Purely cosmetic —
+                // the document is already loaded and the
+                // `current_legacy_snapshot_path` slot already
+                // remembers the format choice for the next save —
+                // so clearing the field is enough for the next
+                // render to hide the frame.
+                self.clear_info_notice();
+            }
             Message::EscPressed => {
                 // Esc closes the current logical edit: any in-flight
                 // text coalescing must end here so the next keystroke
@@ -1008,6 +1104,17 @@ impl DesktopApp {
                 // overlay is up.
                 if self.halt_notice.is_some() {
                     self.clear_halt_notice();
+                    return Task::none();
+                }
+                // Info notice takes the next slot, below halt and
+                // error: it is purely informational so it should be
+                // the easiest of the three overlays to dismiss with
+                // Esc, but it must still rank above the modal /
+                // inline-edit / dropdown chain the way the other
+                // two notices do. Falls through to the rest of the
+                // chain when no notice is up.
+                if self.info_notice.is_some() {
+                    self.clear_info_notice();
                     return Task::none();
                 }
                 // Modal takes priority over every other Esc gesture:
