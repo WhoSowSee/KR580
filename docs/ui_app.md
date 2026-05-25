@@ -195,7 +195,7 @@ without carrying any live readout of its own.
 `view::styles::containers::SCHEMATIC_BLOCK_FILL` (`#1C1E2E @ 0.92 alpha`)
 is the единый swatch every framed slot on the schematic plate now
 shares: `schematic_block_style` (Цикл/Такт, speed switch, device
-chips, `schematic_readout` capsules — Буфер данных / Регистр флагов /
+chips, `schematic_readout` capsules — Буфер данных / Регистр признаков /
 Регистр команд / PSW), `mux_panel_style` (внешняя рамка
 мультиплексора), `mux_chip_style` (W/Z scratch и SP/PC внутри),
 `mux_header_style` (заголовок и section captions мультиплексора), и
@@ -305,7 +305,7 @@ truncation. The 24 px / 20 px monospace value rows are unchanged.
 | Аккумулятор (functional block) | `Accumulator` | `Аккумулятор` |
 | Буферный регистр 1 (functional block) | `Buf. Reg 1` | `Буферный регистр 1` |
 | Буферный регистр 2 (functional block) | `Buf. Reg 2` | `Буферный регистр 2` |
-| Регистр флагов (readout) | `Reg. Flags` | `Регистр флагов` (5 бит Z S P C AC) |
+| Регистр признаков (readout) | `Flag Reg.` | `Регистр признаков` (8 бит `S Z 0 AC 0 P 1 C` — стандартный формат PSW low byte) |
 | Регистр команд (readout) | `Instr. Reg` | `Регистр команд` (`last_fetched_opcode`) |
 | Д/Ш команд (readout, рядом с РК) | — | `Д/Ш команд` (мнемоника `last_fetched_opcode`) |
 | Буфер данных (readout, верхняя строка платы) | `Data Buffer` | `Буфер данных` (`last_data_bus_byte`) |

@@ -18,7 +18,8 @@ pub use decode::{InstructionInfo, decode_opcode, is_undocumented_opcode};
 pub use error::{CoreError, DecodeError, PortError, ValidationError};
 pub use flags::Flags;
 pub use machine_cycle::{
-    MachineCycleLayout, MachineCycleLengths, MachineCyclePosition, layout_for, position_for,
+    MachineCycleKind, MachineCycleKinds, MachineCycleLayout, MachineCycleLengths,
+    MachineCyclePosition, kind_at, layout_for, position_for,
 };
 pub use memory::Memory64K;
 pub use registers::{RegisterName, Registers};

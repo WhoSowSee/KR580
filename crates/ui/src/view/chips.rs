@@ -11,7 +11,7 @@
 //! Public surface:
 //! - `schematic_readout` — fixed-footprint label + 20 px hex value
 //!   capsule (the "Регистр команд" / "Буфер данных" / "PSW" /
-//!   "Регистр флагов" rows).
+//!   "Регистр признаков" rows).
 //! - `schematic_mnemonic_readout` — same chassis, 16 px value, used
 //!   by the «Д/Ш команд» block where the value is a full mnemonic
 //!   (`MVI M,d8`, `LXI SP,d16`, `JNZ a16`) instead of two hex
@@ -40,12 +40,12 @@ pub(super) fn schematic_readout(
     // Width and height are fixed on purpose: with `Length::Fill` the row
     // stretches each readout to fill the schematic, so a 2-hex value floats
     // inside a half-panel-wide capsule. 134×60 fits the longest label we
-    // render here («Регистр команд», «Буфер данных», «Регистр флагов»)
+    // render here («Регистр команд», «Буфер данных», «Регистр признаков»)
     // plus a 20 px monospace value, mirroring `functional_block`'s
     // footprint so the two helpers line up pixel-for-pixel when used in
     // the same row. Заголовок сжали с 12 до 11 px ровно по той же
     // причине, по которой расширили коробку — длиннее русские слова
-    // («Регистр флагов» и сосед «Буферный регистр 1») едва влезали в
+    // («Регистр признаков» и сосед «Буферный регистр 1») едва влезали в
     // прежние 110 px при 12 px кеглем.
     container(
         column![
@@ -195,7 +195,7 @@ pub(super) fn functional_block(
 ) -> Element<'static, Message> {
     // Same fixed footprint as `schematic_readout` so the two helpers visually
     // line up when used in the same row (Аккумулятор / Буферный регистр 1 /
-    // Регистр флагов; Буферный регистр 2 / Регистр команд). 134×60 fits
+    // Регистр признаков; Буферный регистр 2 / Регистр команд). 134×60 fits
     // the longest label rendered through this helper («Буферный регистр 1»
     // / «Буферный регистр 2» at 11 px) plus a 24 px monospace value with
     // breathing room. The inner column claims `Length::Fill` so the

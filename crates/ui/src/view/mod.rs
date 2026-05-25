@@ -34,6 +34,7 @@ mod mux;
 mod opcode_dropdown;
 mod schematic;
 mod speed;
+mod status_register;
 mod styles;
 mod theme;
 mod utils;

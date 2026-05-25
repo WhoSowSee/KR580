@@ -102,7 +102,7 @@ pub(crate) const SCHEMATIC_BLOCK_FILL: Color = Color {
 pub(crate) fn schematic_block_style(_theme: &Theme) -> container::Style {
     // Every framed slot on the schematic plate (Цикл/Такт, the speed
     // switch, the device chips, the schematic readouts — Буфер
-    // данных / Регистр флагов / Регистр команд / PSW, the Мультиплексор
+    // данных / Регистр признаков / Регистр команд / PSW, the Мультиплексор
     // panel and its inner chips) routes through this style so the
     // panels share one continuous tone. Fill is the shared
     // `SCHEMATIC_BLOCK_FILL` constant — see its doc comment for why.
