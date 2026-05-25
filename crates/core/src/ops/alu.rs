@@ -53,14 +53,43 @@ impl Cpu8080State {
         }
 
         match opcode {
-            0xC6 => self.add(self.fetch_byte(1), false),
-            0xCE => self.add(self.fetch_byte(1), true),
-            0xD6 => self.sub(self.fetch_byte(1), false, true),
-            0xDE => self.sub(self.fetch_byte(1), true, true),
-            0xE6 => self.ana(self.fetch_byte(1)),
-            0xEE => self.xra(self.fetch_byte(1)),
-            0xF6 => self.ora(self.fetch_byte(1)),
-            0xFE => self.sub(self.fetch_byte(1), false, false),
+            // `fetch_byte` теперь обновляет шинные латчи, поэтому
+            // требует `&mut self`. Вызывать его прямо в аргументах
+            // `self.add(self.fetch_byte(1), …)` нельзя — два
+            // одновременных `&mut` заимствования. Берём байт в
+            // локальную переменную, потом передаём в ALU-метод.
+            0xC6 => {
+                let value = self.fetch_byte(1);
+                self.add(value, false);
+            }
+            0xCE => {
+                let value = self.fetch_byte(1);
+                self.add(value, true);
+            }
+            0xD6 => {
+                let value = self.fetch_byte(1);
+                self.sub(value, false, true);
+            }
+            0xDE => {
+                let value = self.fetch_byte(1);
+                self.sub(value, true, true);
+            }
+            0xE6 => {
+                let value = self.fetch_byte(1);
+                self.ana(value);
+            }
+            0xEE => {
+                let value = self.fetch_byte(1);
+                self.xra(value);
+            }
+            0xF6 => {
+                let value = self.fetch_byte(1);
+                self.ora(value);
+            }
+            0xFE => {
+                let value = self.fetch_byte(1);
+                self.sub(value, false, false);
+            }
             _ => unreachable!("ALU dispatch reached non-ALU opcode {opcode:#04X}"),
         }
         self.pc = self.pc.wrapping_add(2);

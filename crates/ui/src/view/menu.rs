@@ -23,7 +23,7 @@ use iced::{Element, Length, alignment};
 use super::icons;
 use super::styles::{
     caption_button_style, close_caption_button_style, menu_bar_divider_style, menu_bar_style,
-    menu_button_style, opcode_dropdown_style,
+    menu_button_disabled_style, menu_button_style, opcode_dropdown_style,
 };
 use super::theme::{TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::{DesktopApp, MenuId, Message};
@@ -279,7 +279,12 @@ impl DesktopApp {
     pub(super) fn menu_dropdown(&self) -> Option<Element<'_, Message>> {
         match self.open_menu? {
             MenuId::File => Some(file_dropdown()),
-            MenuId::Mp => Some(mp_dropdown()),
+            // `mp_dropdown` принимает `halted`, чтобы знать, рисовать
+            // ли пункт «Сбросить флаг HLT» активным или серым:
+            // когда halt-флипфлоп уже выключен, сбрасывать нечего,
+            // и пункт читается как недоступный (см. `menu_item` с
+            // `enabled=false` ниже).
+            MenuId::Mp => Some(mp_dropdown(self.snapshot.cpu.halted)),
         }
     }
 }
@@ -317,22 +322,48 @@ fn menu_trigger(label: &'static str, menu: MenuId, active: bool) -> Element<'sta
 /// subscription — see `DesktopApp::subscription` in `app/mod.rs`.
 fn file_dropdown() -> Element<'static, Message> {
     let items: Vec<Element<'static, Message>> = vec![
-        menu_item("Новый файл", "Ctrl+N", icons::file(), Message::NewFile),
+        menu_item(
+            "Новый файл",
+            "Ctrl+N",
+            icons::file(),
+            Message::NewFile,
+            true,
+        ),
         menu_item(
             "Открыть",
             "Ctrl+O",
             icons::folder_open(),
             Message::OpenSnapshot,
+            true,
         ),
-        menu_item("Сохранить", "Ctrl+S", icons::save(), Message::SaveSnapshot),
+        menu_item(
+            "Сохранить",
+            "Ctrl+S",
+            icons::save(),
+            Message::SaveSnapshot,
+            true,
+        ),
         menu_item(
             "Сохранить как",
             "Ctrl+Shift+S",
             icons::save_as(),
             Message::SaveSnapshotAs,
+            true,
         ),
-        menu_item("Импорт", "Ctrl+I", icons::file_down(), Message::Import),
-        menu_item("Экспорт", "Ctrl+E", icons::file_up(), Message::Export),
+        menu_item(
+            "Импорт",
+            "Ctrl+I",
+            icons::file_down(),
+            Message::Import,
+            true,
+        ),
+        menu_item(
+            "Экспорт",
+            "Ctrl+E",
+            icons::file_up(),
+            Message::Export,
+            true,
+        ),
         // Legacy `.580` interop sits below a separator so the two
         // groups read as distinct: the rows above operate on the
         // project's native v1 TLV snapshots (round-trippable, lossless,
@@ -360,12 +391,14 @@ fn file_dropdown() -> Element<'static, Message> {
             "Ctrl+Alt+O",
             icons::folder_open(),
             Message::OpenLegacySnapshot,
+            true,
         ),
         menu_item(
             "Сохранить (старый формат)",
             "Ctrl+Alt+S",
             icons::save(),
             Message::SaveLegacySnapshot,
+            true,
         ),
     ];
 
@@ -388,25 +421,28 @@ fn file_dropdown() -> Element<'static, Message> {
 /// resets sit on `Ctrl+Shift+R` (RAM) and `Ctrl+Shift+G` (reGisters)
 /// so an accidental modifier slip while typing in the address field
 /// can't blow the program away.
-fn mp_dropdown() -> Element<'static, Message> {
+fn mp_dropdown(halted: bool) -> Element<'static, Message> {
     let items: Vec<Element<'static, Message>> = vec![
         menu_item(
             "Выполнить программу",
             "Ctrl+R",
             icons::play(),
             Message::ToggleRun,
+            true,
         ),
         menu_item(
             "Выполнить команду",
             "Ctrl+T",
             icons::step_forward(),
             Message::StepInstruction,
+            true,
         ),
         menu_item(
             "Выполнить такт",
             "Ctrl+Y",
             icons::redo_dot(),
             Message::StepTact,
+            true,
         ),
         menu_separator(),
         menu_item(
@@ -414,12 +450,14 @@ fn mp_dropdown() -> Element<'static, Message> {
             "Ctrl+Shift+R",
             icons::reset_ram(),
             Message::ResetRam,
+            true,
         ),
         menu_item(
             "Очистить регистры",
             "Ctrl+Shift+G",
             icons::reset_registers(),
             Message::ResetCpu,
+            true,
         ),
         // The HLT-only reset sits *below* the destructive group on
         // purpose: it is the lightest of the three resets (it touches
@@ -439,11 +477,20 @@ fn mp_dropdown() -> Element<'static, Message> {
         // least-destructive (the single halt bit), and a divider in
         // the middle would visually split a group that conceptually
         // belongs together.
+        //
+        // `enabled = halted`: пункт активен только когда halt-флипфлоп
+        // включён. Если флаг уже выключен, сбрасывать нечего — строка
+        // рисуется в `TOKYO_MUTED` без hover-эффекта (см. `menu_item`
+        // с `enabled=false`). Пользователь видит, что действие
+        // недоступно, но строка остаётся на своём месте, чтобы не
+        // ломать вертикальный ритм меню и оставлять подсказку
+        // шортката на виду.
         menu_item(
             "Сбросить флаг HLT",
             "Ctrl+Shift+H",
             icons::clear_halt(),
             Message::ClearHalt,
+            halted,
         ),
     ];
 
@@ -454,9 +501,9 @@ fn mp_dropdown() -> Element<'static, Message> {
         .into()
 }
 
-/// One actionable row inside a dropdown. Closing the menu *first* and
-/// then dispatching the actual action via `Task::done(action)` keeps
-/// the dropdown from sticking around behind a file dialog when the
+/// One row inside a dropdown. Closing the menu *first* and then
+/// dispatching the actual action via `Task::done(action)` keeps the
+/// dropdown from sticking around behind a file dialog when the
 /// dispatched action opens one — the user sees the menu close as soon
 /// as they click, not after the dialog returns.
 ///
@@ -466,23 +513,42 @@ fn mp_dropdown() -> Element<'static, Message> {
 /// pushes the shortcut hint to the right edge, and the shortcut itself
 /// rendered in `TOKYO_MUTED` so it reads as supplementary information
 /// rather than a competing label.
+///
+/// `enabled` controls the disabled-state visual branch. When `false`,
+/// the row drops its `on_press` handler (so neither click nor any
+/// future `MenuBatch` keyboard re-dispatch can fire the action) and
+/// switches to `menu_button_disabled_style`: text and glyph fade to
+/// `TOKYO_MUTED`, hover/press surface tinting is suppressed, the row
+/// reads as «недоступно сейчас». Used by «Сбросить флаг HLT» when the
+/// halt flip-flop is already off — there is nothing to clear, but the
+/// row stays in the menu so the user can still discover the gesture
+/// and read its shortcut hint.
 fn menu_item(
     label: &'static str,
     shortcut: &'static str,
     icon: svg::Handle,
     action: Message,
+    enabled: bool,
 ) -> Element<'static, Message> {
+    // Glyph and text colour both follow the enabled flag so the row
+    // reads as a single muted family when disabled — fading only the
+    // text while leaving the icon at full TOKYO_TEXT would split the
+    // visual weight between «дозволено» (icon) и «нельзя» (label) and
+    // confuse what the row's actual state is.
+    let glyph_color = if enabled { TOKYO_TEXT } else { TOKYO_MUTED };
+    let label_color = if enabled { TOKYO_TEXT } else { TOKYO_MUTED };
+
     let glyph = svg(icon)
         .width(Length::Fixed(MENU_ICON_SIZE))
         .height(Length::Fixed(MENU_ICON_SIZE))
-        .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
+        .style(move |_theme, _status| svg::Style {
+            color: Some(glyph_color),
         });
 
     let body = container(
         row![
             glyph,
-            ui_text(label, 13, TOKYO_TEXT),
+            ui_text(label, 13, label_color),
             Space::new().width(Length::Fill),
             ui_text(shortcut, 11, TOKYO_MUTED),
         ]
@@ -493,13 +559,19 @@ fn menu_item(
     .width(Length::Fill)
     .align_y(alignment::Vertical::Center);
 
-    let pair = vec![Message::MenuClosed, action];
-    button(body)
-        .on_press(Message::MenuBatch(pair))
-        .padding(0)
-        .width(Length::Fill)
-        .style(move |_theme, status| menu_button_style(status))
-        .into()
+    let mut btn = button(body).padding(0).width(Length::Fill);
+    if enabled {
+        let pair = vec![Message::MenuClosed, action];
+        btn = btn
+            .on_press(Message::MenuBatch(pair))
+            .style(move |_theme, status| menu_button_style(status));
+    } else {
+        // No `on_press` → button stays in `Status::Disabled` for the
+        // whole render pass, hover/press never tints the surface, and
+        // the click is a no-op even if the user lands on the row.
+        btn = btn.style(move |_theme, status| menu_button_disabled_style(status));
+    }
+    btn.into()
 }
 
 /// Visual divider between two groups of dropdown entries. iced 0.14 has

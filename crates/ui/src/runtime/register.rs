@@ -106,10 +106,7 @@ impl DesktopApp {
     /// Currently only `apply_register_with_step_selection` uses
     /// that path; pass `None` from any future site where the
     /// register cursor does not move as part of the gesture.
-    fn apply_register_inner(
-        &mut self,
-        register_selection: Option<(RegisterName, RegisterName)>,
-    ) {
+    fn apply_register_inner(&mut self, register_selection: Option<(RegisterName, RegisterName)>) {
         if let Some(register) = parse_register_name(&self.register_name_input) {
             self.selected_register = register;
         } else {

@@ -38,7 +38,12 @@ impl Cpu8080State {
 
         if opcode & 0xC7 == 0x06 {
             let reg = (opcode >> 3) & 7;
-            self.write_reg_code(reg, self.fetch_byte(1));
+            // `MVI r, d8`: fetch_byte теперь `&mut self`, и
+            // write_reg_code тоже — нельзя в одном выражении из-за
+            // двойного заимствования. Локальная переменная для
+            // immediate-байта.
+            let value = self.fetch_byte(1);
+            self.write_reg_code(reg, value);
             self.pc = self.pc.wrapping_add(2);
             return self.outcome(Some(opcode), mnemonic, pc_before, t_states, false);
         }
@@ -89,10 +94,10 @@ impl Cpu8080State {
             // intentionally leave WZ alone here so the schematic keeps
             // showing whatever the previous WZ-touching instruction
             // left, exactly like the reference emulator.
-            0x02 => self.memory.write(self.registers.bc(), self.registers.a),
-            0x0A => self.registers.a = self.memory.read(self.registers.bc()),
-            0x12 => self.memory.write(self.registers.de(), self.registers.a),
-            0x1A => self.registers.a = self.memory.read(self.registers.de()),
+            0x02 => self.bus_write(self.registers.bc(), self.registers.a),
+            0x0A => self.registers.a = self.bus_read(self.registers.bc()),
+            0x12 => self.bus_write(self.registers.de(), self.registers.a),
+            0x1A => self.registers.a = self.bus_read(self.registers.de()),
             // `SHLD a16` / `LHLD a16`: 16-bit immediate address goes
             // through W/Z. We record it before performing the memory
             // accesses so the residue reflects the address operand
@@ -105,12 +110,12 @@ impl Cpu8080State {
             0x32 => {
                 let address = self.fetch_word(1);
                 self.registers.set_wz(address);
-                self.memory.write(address, self.registers.a);
+                self.bus_write(address, self.registers.a);
             }
             0x3A => {
                 let address = self.fetch_word(1);
                 self.registers.set_wz(address);
-                self.registers.a = self.memory.read(address);
+                self.registers.a = self.bus_read(address);
             }
             // `XTHL`: top of stack is read into WZ (lo, hi), then
             // swapped with HL. The reference emulator shows that
@@ -144,15 +149,15 @@ impl Cpu8080State {
     fn shld(&mut self) {
         let address = self.fetch_word(1);
         self.registers.set_wz(address);
-        self.memory.write(address, self.registers.l);
-        self.memory.write(address.wrapping_add(1), self.registers.h);
+        self.bus_write(address, self.registers.l);
+        self.bus_write(address.wrapping_add(1), self.registers.h);
     }
 
     fn lhld(&mut self) {
         let address = self.fetch_word(1);
         self.registers.set_wz(address);
-        self.registers.l = self.memory.read(address);
-        self.registers.h = self.memory.read(address.wrapping_add(1));
+        self.registers.l = self.bus_read(address);
+        self.registers.h = self.bus_read(address.wrapping_add(1));
     }
 
     fn xchg(&mut self) {
@@ -173,12 +178,12 @@ impl Cpu8080State {
         // `(SP)` is read into Z (low byte) and W (high byte), then
         // swapped with HL. Recording the WZ residue mirrors the
         // reference emulator and the 8080 microcode listing.
-        let lo = self.memory.read(self.sp);
-        let hi = self.memory.read(self.sp.wrapping_add(1));
+        let lo = self.bus_read(self.sp);
+        let hi = self.bus_read(self.sp.wrapping_add(1));
         self.registers.w = hi;
         self.registers.z = lo;
-        self.memory.write(self.sp, self.registers.l);
-        self.memory.write(self.sp.wrapping_add(1), self.registers.h);
+        self.bus_write(self.sp, self.registers.l);
+        self.bus_write(self.sp.wrapping_add(1), self.registers.h);
         self.registers.h = hi;
         self.registers.l = lo;
     }

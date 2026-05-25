@@ -20,7 +20,7 @@ impl RegPair {
 }
 
 impl Cpu8080State {
-    pub(crate) fn read_reg_code(&self, code: u8) -> u8 {
+    pub(crate) fn read_reg_code(&mut self, code: u8) -> u8 {
         match code & 0x07 {
             0 => self.registers.b,
             1 => self.registers.c,
@@ -28,7 +28,15 @@ impl Cpu8080State {
             3 => self.registers.e,
             4 => self.registers.h,
             5 => self.registers.l,
-            6 => self.memory.read(self.registers.hl()),
+            // M-код 110 = `(HL)` — единственная ветка, где регистр-
+            // код реально дёргает шину. Раньше `read_reg_code` был
+            // `&self`, потому что `Memory64K::read` чист от побочек,
+            // но теперь чтение через шину обновляет латчи адреса/
+            // данных (`last_address_bus`, `last_data_bus_byte`),
+            // и без `&mut self` это не выразить. Все остальные семь
+            // регистров — внутренние, шины не касаются, и латчи не
+            // должны меняться от MOV r1, r2.
+            6 => self.bus_read(self.registers.hl()),
             _ => self.registers.a,
         }
     }
@@ -41,7 +49,9 @@ impl Cpu8080State {
             3 => self.registers.e = value,
             4 => self.registers.h = value,
             5 => self.registers.l = value,
-            6 => self.memory.write(self.registers.hl(), value),
+            // Симметрично `read_reg_code`: M=`(HL)` → запись через
+            // шину с обновлением латчей.
+            6 => self.bus_write(self.registers.hl(), value),
             _ => self.registers.a = value,
         }
     }
@@ -64,26 +74,29 @@ impl Cpu8080State {
         }
     }
 
-    pub(crate) fn fetch_byte(&self, offset: u16) -> u8 {
-        self.memory.read(self.pc.wrapping_add(offset))
+    pub(crate) fn fetch_byte(&mut self, offset: u16) -> u8 {
+        // Operand fetch: PC+offset выставляется на адресную шину,
+        // байт идёт через буфер данных. `&mut self`, потому что
+        // bus_read обновляет латчи (см. `bus_read` doc-comment).
+        self.bus_read(self.pc.wrapping_add(offset))
     }
 
-    pub(crate) fn fetch_word(&self, offset: u16) -> u16 {
-        self.memory.read_word(self.pc.wrapping_add(offset))
+    pub(crate) fn fetch_word(&mut self, offset: u16) -> u16 {
+        self.bus_read_word(self.pc.wrapping_add(offset))
     }
 
     pub(crate) fn push_word(&mut self, value: u16) {
         let [hi, lo] = value.to_be_bytes();
         self.sp = self.sp.wrapping_sub(1);
-        self.memory.write(self.sp, hi);
+        self.bus_write(self.sp, hi);
         self.sp = self.sp.wrapping_sub(1);
-        self.memory.write(self.sp, lo);
+        self.bus_write(self.sp, lo);
     }
 
     pub(crate) fn pop_word(&mut self) -> u16 {
-        let lo = self.memory.read(self.sp);
+        let lo = self.bus_read(self.sp);
         self.sp = self.sp.wrapping_add(1);
-        let hi = self.memory.read(self.sp);
+        let hi = self.bus_read(self.sp);
         self.sp = self.sp.wrapping_add(1);
         u16::from_be_bytes([hi, lo])
     }

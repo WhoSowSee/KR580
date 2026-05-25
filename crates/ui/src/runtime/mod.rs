@@ -143,7 +143,7 @@ impl DesktopApp {
             // state honest. Note this gate runs **after** the early
             // pause-return above, so it only applies to the
             // disarmed-to-armed transition.
-            self.status = format!("No program at {pc:04X}");
+            self.status = format!("Нет программы по адресу {pc:04X}");
             return;
         }
         self.running = true;
@@ -238,7 +238,7 @@ impl DesktopApp {
                 if outcome.instruction_boundary {
                     self.last_tact_was_boundary = true;
                 }
-                self.status = format!("Tact {} cycle {}", outcome.tact_phase, outcome.cycle_count)
+                self.status = format!("Такт {} цикл {}", outcome.tact_phase, outcome.cycle_count)
             }
             AppEvent::PortRead { port, value } => {
                 self.status = format!("IN {port:02X} -> {value:02X}")
@@ -276,7 +276,7 @@ impl DesktopApp {
                 // flag forces one more follow-pass on the next Tick so
                 // the highlight reaches the HLT line before going idle.
                 self.pending_follow_pc = true;
-                self.status = "CPU halted".to_owned();
+                self.status = "ЦП остановлен".to_owned();
             }
             AppEvent::ErrorRaised(error) => {
                 // An error from the core or the bus also auto-pauses the
@@ -301,8 +301,7 @@ impl DesktopApp {
                 // doesn't recognise — see the module's doc comment
                 // for why localization happens at this layer rather
                 // than inside `AppError`.
-                self.error_notice =
-                    Some(format!("Ошибка: {}", humanize_error::humanize(&raw)));
+                self.error_notice = Some(format!("Ошибка: {}", humanize_error::humanize(&raw)));
                 // Arm the auto-dismiss timer: 8 seconds is the user-
                 // requested window before the notice fades on its
                 // own. Earlier the only exits were a click on the
@@ -321,7 +320,7 @@ impl DesktopApp {
                 // the Tick handler agree with the worker.
                 self.running = false;
                 self.pending_follow_pc = true;
-                self.status = "Stopped".to_owned();
+                self.status = "Остановлен".to_owned();
             }
         }
     }
@@ -672,8 +671,7 @@ impl DesktopApp {
         let (path, picked_now) = match &self.current_legacy_snapshot_path {
             Some(path) => (path.clone(), false),
             None => {
-                let mut dialog =
-                    rfd::FileDialog::new().add_filter("KR580 legacy file", &["580"]);
+                let mut dialog = rfd::FileDialog::new().add_filter("KR580 legacy file", &["580"]);
                 // Pre-seed the picker with the v1 snapshot's folder
                 // when there is one, so the user lands in the
                 // directory they were last working in. We do not

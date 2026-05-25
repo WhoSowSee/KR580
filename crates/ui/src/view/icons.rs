@@ -17,6 +17,17 @@ macro_rules! action_icon_bytes {
     };
 }
 
+/// Bytes for a device-panel icon, located under `assets/icons/devices/`.
+/// Used by the schematic's bottom row of peripheral chips (monitor, floppy,
+/// HDD, network adapter, printer) — same `currentColor`-driven authoring
+/// convention as the action icons, so the same `svg::Style` tinting helper
+/// works for both families.
+macro_rules! device_icon_bytes {
+    ($name:literal) => {
+        include_bytes!(concat!("../../../../assets/icons/devices/", $name, ".svg"))
+    };
+}
+
 static PLAY: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("play").as_slice()));
 static PAUSE: LazyLock<svg::Handle> =
@@ -57,6 +68,16 @@ static CPU: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("cpu").as_slice()));
 static CLEAR_HALT: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("clear-halt").as_slice()));
+static DEVICE_MONITOR: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(device_icon_bytes!("monitor").as_slice()));
+static DEVICE_FLOPPY: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(device_icon_bytes!("floppy").as_slice()));
+static DEVICE_HDD: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(device_icon_bytes!("hdd").as_slice()));
+static DEVICE_NETWORK: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(device_icon_bytes!("network").as_slice()));
+static DEVICE_PRINTER: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(device_icon_bytes!("printer").as_slice()));
 
 /// Lucide `play` — solid right-pointing triangle. Used for "run program".
 pub(super) fn play() -> svg::Handle {
@@ -200,4 +221,40 @@ pub(super) fn cpu() -> svg::Handle {
 /// of the meaning, the arc carries the "we're undoing it" half.
 pub(super) fn clear_halt() -> svg::Handle {
     CLEAR_HALT.clone()
+}
+
+/// Lucide `monitor` — display silhouette on a stand. Used as the
+/// peripheral-row glyph for the monitor chip on the schematic plate.
+pub(super) fn device_monitor() -> svg::Handle {
+    DEVICE_MONITOR.clone()
+}
+
+/// Lucide `hard-drive` — flat disk silhouette with two indicator dots.
+/// Repurposed as the floppy-drive (FDD) chip on the peripheral row,
+/// matching the visual idiom the user picked for the device strip.
+pub(super) fn device_floppy() -> svg::Handle {
+    DEVICE_FLOPPY.clone()
+}
+
+/// Material-style cassette/disk-pack silhouette: a cassette enclosure with
+/// a disc cut-out, used as the hard-drive (HDD) chip on the peripheral
+/// row. Authored with `fill="currentColor"` (no stroke), so the same
+/// `svg::Style { color: ... }` tint pipeline still works because iced's
+/// resvg backend honours `currentColor` for both `stroke` and `fill`.
+pub(super) fn device_hdd() -> svg::Handle {
+    DEVICE_HDD.clone()
+}
+
+/// Custom "globe on a stand" glyph: a meridian-cut sphere mounted on a
+/// short pillar with two side feet. Used as the network-adapter chip on
+/// the peripheral row — reads as "world / network" in the same idiom as
+/// the rest of the Lucide-flavoured set.
+pub(super) fn device_network() -> svg::Handle {
+    DEVICE_NETWORK.clone()
+}
+
+/// Lucide `printer` — desktop printer silhouette with a paper tray.
+/// Used as the printer chip on the peripheral row.
+pub(super) fn device_printer() -> svg::Handle {
+    DEVICE_PRINTER.clone()
 }

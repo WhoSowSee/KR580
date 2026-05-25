@@ -90,8 +90,31 @@ impl Snapshot580Serializer {
         );
         write_tlv(&mut payload, 0x07, &[u8::from(state.halted)]);
         let mut timing = state.cycle_count.to_le_bytes().to_vec();
+        // Slot[8] — `tact_phase` (Option<u8>): пишем только если есть.
+        // Slot[9] — `last_completed_tact_phase` (Option<u8>): пишем
+        // только если slot[8] уже занят и есть что писать. Schema
+        // оставлена variable-length, чтобы старые v1 файлы (8 или 9
+        // байт) грузились без миграции, а новые могут уносить обе
+        // фазы одновременно — без этого после сохранения/загрузки
+        // строка «Такт» в блоке «Машинный цикл» сбрасывалась бы в `-`,
+        // и пользователь видел расхождение между «открыл и сразу
+        // посмотрел» и «открыл, прошёл шаг».
         if let Some(phase) = state.tact_phase {
             timing.push(phase);
+            if let Some(last) = state.last_completed_tact_phase {
+                timing.push(last);
+            }
+        } else if let Some(last) = state.last_completed_tact_phase {
+            // Особый случай: `tact_phase == None` (инструкция
+            // завершена), но «последняя выполненная фаза» есть. Чтобы
+            // не ломать формат «slot[8] = tact_phase, slot[9] = last»,
+            // используем sentinel `0xFF` в slot[8] — реальная T-фаза
+            // не может быть 255 (8080 укладывается в 0..38, см.
+            // `decode.rs` timing). Loader при чтении 0xFF из slot[8]
+            // знает, что это «нет tact_phase» и читает только slot[9]
+            // как `last_completed_tact_phase`.
+            timing.push(0xFF);
+            timing.push(last);
         }
         write_tlv(&mut payload, 0x08, &timing);
 
@@ -331,13 +354,29 @@ fn read_interrupts(state: &mut Cpu8080State, value: &[u8]) -> Result<(), Snapsho
 }
 
 fn read_timing(state: &mut Cpu8080State, value: &[u8]) -> Result<(), SnapshotError> {
-    if value.len() != 8 && value.len() != 9 {
+    // Длины:
+    //   8  — старый формат (только cycle_count)
+    //   9  — старый формат + tact_phase (slot[8])
+    //   10 — новый формат: cycle_count + tact_phase + last_completed_tact_phase
+    //
+    // В новом формате slot[8] == 0xFF означает sentinel «tact_phase
+    // отсутствует, но last_completed_tact_phase валиден» (см. писатель
+    // в `to_bytes`: реальная фаза не превышает ~38 на 8080, поэтому
+    // 0xFF свободна). Если файл 10 байт и slot[8] != 0xFF — обе фазы
+    // живые. 9-байтовые файлы (старые) грузятся как раньше,
+    // last_completed_tact_phase у них остаётся `None` (Default).
+    if !matches!(value.len(), 8..=10) {
         return Err(SnapshotError::InvalidLength {
             tag: 0x08,
             length: value.len(),
         });
     }
     state.cycle_count = u64::from_le_bytes(value[0..8].try_into().unwrap());
-    state.tact_phase = value.get(8).copied();
+    state.tact_phase = match value.get(8).copied() {
+        None => None,
+        Some(0xFF) if value.len() == 10 => None,
+        Some(phase) => Some(phase),
+    };
+    state.last_completed_tact_phase = value.get(9).copied();
     Ok(())
 }

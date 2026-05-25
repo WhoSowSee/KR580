@@ -1,7 +1,7 @@
 use k580_core::{Cpu8080State, Flags};
 use k580_persistence::{
-    ExportModel, Exporters, Importers, Settings, SettingsError, SettingsStore,
-    Snapshot580Flavour, Snapshot580Serializer, SnapshotError, Subprogram, SubprogramSerializer,
+    ExportModel, Exporters, Importers, Settings, SettingsError, SettingsStore, Snapshot580Flavour,
+    Snapshot580Serializer, SnapshotError, Subprogram, SubprogramSerializer,
 };
 use std::path::PathBuf;
 
@@ -26,6 +26,7 @@ fn snapshot_roundtrips_core_state_without_ui_data() {
     cpu.halted = true;
     cpu.cycle_count = 123_456;
     cpu.tact_phase = Some(3);
+    cpu.last_completed_tact_phase = Some(7);
 
     let bytes = Snapshot580Serializer::to_bytes(&cpu);
     assert_eq!(&bytes[0..4], b"K580");
@@ -38,6 +39,70 @@ fn snapshot_roundtrips_core_state_without_ui_data() {
     assert_eq!(restored.interrupt_vector_byte, Some(0xCF));
     assert_eq!(restored.cycle_count, 123_456);
     assert_eq!(restored.tact_phase, Some(3));
+    assert_eq!(restored.last_completed_tact_phase, Some(7));
+}
+
+/// Sentinel-путь в timing-TLV: `tact_phase == None`, но
+/// `last_completed_tact_phase == Some(_)`. Запись использует sentinel
+/// 0xFF в slot[8] чтобы отличить «нет активной фазы, есть последняя
+/// выполненная» от «нет ни одной». Loader должен прочитать обратно
+/// ровно ту же пару — иначе после сохранения/загрузки UI будет
+/// рисовать `-` в строке «Такт» вместо застывшей последней T-фазы.
+#[test]
+fn snapshot_roundtrips_last_completed_with_no_active_tact_phase() {
+    let mut cpu = Cpu8080State::default();
+    cpu.tact_phase = None;
+    cpu.last_completed_tact_phase = Some(6);
+    cpu.cycle_count = 7;
+
+    let bytes = Snapshot580Serializer::to_bytes(&cpu);
+    let restored = Snapshot580Serializer::from_bytes(&bytes).unwrap();
+    assert_eq!(restored.tact_phase, None);
+    assert_eq!(restored.last_completed_tact_phase, Some(6));
+    assert_eq!(restored.cycle_count, 7);
+}
+
+/// Холодный путь: оба поля `None`. Writer не должен писать ни slot[8],
+/// ни slot[9]; reader должен видеть 8-байтовый payload и оставить
+/// оба поля `None` (Default), не падая в `InvalidLength`.
+#[test]
+fn snapshot_roundtrips_both_tact_phases_none() {
+    let cpu = Cpu8080State::default();
+    let bytes = Snapshot580Serializer::to_bytes(&cpu);
+    let restored = Snapshot580Serializer::from_bytes(&bytes).unwrap();
+    assert_eq!(restored.tact_phase, None);
+    assert_eq!(restored.last_completed_tact_phase, None);
+}
+
+/// Backward compat: старый 9-байтовый timing-payload (только
+/// `cycle_count` + `tact_phase`, без `last_completed_tact_phase`).
+/// Файлы, сохранённые до добавления поля, должны грузиться без
+/// миграции — `tact_phase` восстанавливается, `last_completed_tact_phase`
+/// остаётся `None`. Иначе пользователь получит `SnapshotError`
+/// при открытии прежних `.580` v1.
+#[test]
+fn snapshot_loads_legacy_v1_payload_without_last_completed() {
+    let mut cpu = Cpu8080State::default();
+    cpu.cycle_count = 0x1122_3344_5566_7788;
+    cpu.tact_phase = Some(2);
+    cpu.last_completed_tact_phase = None;
+
+    // Соберём timing-payload руками в старом формате (9 байт):
+    // 8 байт cycle_count LE + 1 байт tact_phase. Без slot[9].
+    let mut timing = cpu.cycle_count.to_le_bytes().to_vec();
+    timing.push(2);
+    assert_eq!(timing.len(), 9);
+
+    // Соберём весь снимок руками: магик + версия + payload, где
+    // tag 0x08 несёт нашу 9-байтовую timing-нагрузку, а остальные
+    // теги берём из стандартного writer'а Cpu8080State::default().
+    let full = Snapshot580Serializer::to_bytes(&cpu);
+    let legacy_bytes = rewrite_timing_tlv(full, &timing);
+
+    let restored = Snapshot580Serializer::from_bytes(&legacy_bytes).unwrap();
+    assert_eq!(restored.cycle_count, cpu.cycle_count);
+    assert_eq!(restored.tact_phase, Some(2));
+    assert_eq!(restored.last_completed_tact_phase, None);
 }
 
 #[test]
@@ -73,8 +138,12 @@ fn legacy_snapshot_roundtrips_ram_and_pc() {
     assert_eq!(restored.memory.read(0x4000), 0x5A);
     assert_eq!(restored.pc, 0xBEEF);
     // Fields not encoded by the legacy format come back as defaults.
+    // SP по новому дефолту равен `Cpu8080State::RESET_SP` (0xFFFF):
+    // legacy не несёт регистров, поэтому загрузка должна давать
+    // ровно те же дефолты, что `Cpu8080State::default()` — а тот
+    // теперь ставит SP=FFFF (как школьный референс), не 0.
     assert_eq!(restored.registers.a, 0);
-    assert_eq!(restored.sp, 0);
+    assert_eq!(restored.sp, Cpu8080State::RESET_SP);
     assert!(!restored.halted);
 }
 
@@ -271,6 +340,32 @@ fn append_tlv(mut bytes: Vec<u8>, tag: u8, value: &[u8]) -> Vec<u8> {
     bytes
 }
 
+/// Найти TLV с тегом 0x08 (timing) в готовом снимке и заменить его
+/// `value` на переданный `new_value`, пересчитав длину payload в
+/// заголовке. Используется чтобы синтезировать «старый» 9-байтовый
+/// timing-TLV из снимка, который writer выдал в новом формате.
+fn rewrite_timing_tlv(bytes: Vec<u8>, new_value: &[u8]) -> Vec<u8> {
+    let mut out = bytes[..10].to_vec();
+    let mut offset = 10;
+    while offset < bytes.len() {
+        let tag = bytes[offset];
+        let length = u32::from_le_bytes(bytes[offset + 1..offset + 5].try_into().unwrap()) as usize;
+        let start = offset + 5;
+        let end = start + length;
+        if tag == 0x08 {
+            out.push(tag);
+            out.extend_from_slice(&(new_value.len() as u32).to_le_bytes());
+            out.extend_from_slice(new_value);
+        } else {
+            out.extend_from_slice(&bytes[offset..end]);
+        }
+        offset = end;
+    }
+    let payload_len = (out.len() - 10) as u32;
+    out[6..10].copy_from_slice(&payload_len.to_le_bytes());
+    out
+}
+
 fn unique_temp_dir() -> PathBuf {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -324,8 +419,13 @@ fn from_any_bytes_recognises_legacy_snapshot() {
     assert_eq!(restored.memory.read(0x0100), 0x42);
     assert_eq!(restored.memory.read(0xFFFE), 0x99);
     // Legacy carries no register state — verify defaults survive.
+    // SP по-новому дефолту равен `Cpu8080State::RESET_SP` (0xFFFF):
+    // школьный референс ставит вершину 64K, чтобы первый PUSH без
+    // явного `LXI SP` не топтал низкие адреса. Раньше тест ожидал
+    // 0x0000 — это был автодеривированный `Default`, и он расходился
+    // со школьным эталоном уже на холодном старте.
     assert_eq!(restored.registers.a, 0);
-    assert_eq!(restored.sp, 0);
+    assert_eq!(restored.sp, Cpu8080State::RESET_SP);
     assert!(!restored.halted);
 }
 

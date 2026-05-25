@@ -195,8 +195,14 @@ mod tests {
     /// number.
     #[test]
     fn io_kind_phrases_are_translated() {
-        assert_eq!(humanize("The system cannot find the file specified. (os error 2)"), "Файл не найден");
-        assert_eq!(humanize("Access is denied. (os error 5)"), "Нет доступа к файлу");
+        assert_eq!(
+            humanize("The system cannot find the file specified. (os error 2)"),
+            "Файл не найден"
+        );
+        assert_eq!(
+            humanize("Access is denied. (os error 5)"),
+            "Нет доступа к файлу"
+        );
         assert_eq!(humanize("entity not found"), "Файл не найден");
         assert_eq!(humanize("permission denied"), "Нет доступа к файлу");
     }

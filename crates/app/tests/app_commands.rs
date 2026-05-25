@@ -125,7 +125,11 @@ fn apply_cpu_state_replaces_full_snapshot() {
 
     let events = emulator.handle_command(AppCommand::ApplyCpuState(Box::new(snapshot.clone())));
 
-    assert_eq!(emulator.cpu(), &snapshot, "ApplyCpuState must replace CPU verbatim");
+    assert_eq!(
+        emulator.cpu(),
+        &snapshot,
+        "ApplyCpuState must replace CPU verbatim"
+    );
     assert!(
         !events
             .iter()

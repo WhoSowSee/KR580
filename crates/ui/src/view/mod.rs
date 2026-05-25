@@ -23,12 +23,17 @@
 //! same `DesktopApp` defined in `crate::app`, which keeps panel logic
 //! near the markup that produces it.
 
+mod chips;
+mod cycles;
 mod editors;
 mod icons;
+mod lamps;
 mod memory_list;
 mod menu;
+mod mux;
 mod opcode_dropdown;
 mod schematic;
+mod speed;
 mod styles;
 mod theme;
 mod utils;
@@ -453,19 +458,13 @@ fn discard_modal_overlay(action: &PendingAction) -> Element<'_, Message> {
     )
     .on_press(Message::CancelDiscard);
 
-    let cancel_button = button(
-        container(ui_text("Отменить", 13, TOKYO_TEXT))
-            .padding([6, 16]),
-    )
-    .on_press(Message::CancelDiscard)
-    .style(modal_button_style);
+    let cancel_button = button(container(ui_text("Отменить", 13, TOKYO_TEXT)).padding([6, 16]))
+        .on_press(Message::CancelDiscard)
+        .style(modal_button_style);
 
-    let confirm_button = button(
-        container(ui_text("Закрыть", 13, TOKYO_TEXT))
-            .padding([6, 16]),
-    )
-    .on_press(Message::ConfirmDiscard)
-    .style(modal_button_style);
+    let confirm_button = button(container(ui_text("Закрыть", 13, TOKYO_TEXT)).padding([6, 16]))
+        .on_press(Message::ConfirmDiscard)
+        .style(modal_button_style);
 
     let buttons = row![
         Space::new().width(Length::Fill),

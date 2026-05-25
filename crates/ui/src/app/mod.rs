@@ -428,7 +428,7 @@ impl DesktopApp {
             Self {
                 handle,
                 snapshot: initial_snapshot(),
-                status: "Ready".to_owned(),
+                status: "Готов".to_owned(),
                 selected_register: RegisterName::A,
                 register_name_input: "A".to_owned(),
                 register_value_input: "00".to_owned(),
@@ -578,9 +578,8 @@ impl DesktopApp {
     /// identically — same chrome, same fade — so the timer constant
     /// has to track the one in `consume_event::ErrorRaised`.
     pub(crate) fn raise_halt_notice(&mut self) {
-        self.halt_notice = Some(
-            "Процессор остановлен командой HLT\nСбросьте регистры или флаг HLT".to_owned(),
-        );
+        self.halt_notice =
+            Some("Процессор остановлен командой HLT\nСбросьте регистры или флаг HLT".to_owned());
         self.halt_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
         // Single chokepoint for "user just discovered the CPU is
         // halted": every halt-block path (run-arming, step-instruction,
@@ -861,8 +860,50 @@ impl DesktopApp {
                 // from the worker will also clear the notice via
                 // `apply_snapshot`, but the latch is UI-only state
                 // and we control it here.
+                //
+                // Гейт `!cpu.halted → no-op`: визуально пункт меню
+                // «Сбросить флаг HLT» уже серый когда флаг выключен
+                // (см. `menu_item` в `view/menu.rs` с `enabled=false`),
+                // но шорткат `Ctrl+Shift+H` приходит сюда напрямую
+                // через keyboard subscription, минуя UI-гейт. Без
+                // этого ранне возврата нажатие шортката с уже
+                // погашенным флагом пушило бы в undo-стек пустую
+                // операцию (snapshot до == snapshot после) и без
+                // нужды дёргало воркер. Здесь — единая точка, где
+                // оба пути (клик и шорткат) сходятся, поэтому одного
+                // чека достаточно.
+                if !self.snapshot.cpu.halted {
+                    return Task::none();
+                }
                 self.run_blocked_after_halt = false;
                 self.dispatch_with_undo(k580_app::AppCommand::ClearHalt);
+            }
+            Message::ToggleHalt => {
+                // Click on the "HLT ВКЛ" / "HLT ВЫКЛ" indicator at
+                // the top of the schematic plate. The press flips
+                // the halt flip-flop in whichever direction the
+                // current state needs: halted -> running re-uses
+                // the `ClearHalt` lifecycle (latch comes down,
+                // worker emits `Stopped` + `HaltStateChanged(false)`),
+                // running -> halted ships the new
+                // `SetHalted(true)` verb that arms the bit
+                // explicitly. Both legs route through
+                // `dispatch_with_undo` so the press is reversible
+                // — Ctrl+Z brings whichever state the user just
+                // left back. We resolve the toggle direction here
+                // (UI side) instead of inside the worker so the
+                // snapshot we capture for the undo stack matches
+                // what the user sees on screen at press time; the
+                // worker's `SetHalted` then treats the value as
+                // authoritative and only emits `HaltStateChanged`
+                // when the bit actually flipped, keeping repeated
+                // toggles cheap.
+                if self.snapshot.cpu.halted {
+                    self.run_blocked_after_halt = false;
+                    self.dispatch_with_undo(k580_app::AppCommand::ClearHalt);
+                } else {
+                    self.dispatch_with_undo(k580_app::AppCommand::SetHalted(true));
+                }
             }
             Message::OpenSnapshot => {
                 // Dirty-gate: with unsaved edits, queue the action and
@@ -1733,10 +1774,9 @@ impl DesktopApp {
                 // `window::Event::CloseRequested` instead of closing
                 // the window itself. We turn it into a message the
                 // update handler can route through the dirty gate.
-                (
-                    iced::Event::Window(iced::window::Event::CloseRequested),
-                    _,
-                ) => Some(Message::WindowCloseRequested),
+                (iced::Event::Window(iced::window::Event::CloseRequested), _) => {
+                    Some(Message::WindowCloseRequested)
+                }
                 _ => None,
             }),
         ];

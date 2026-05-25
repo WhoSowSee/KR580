@@ -106,9 +106,10 @@ from any execution state.
 Run-arming is the gated half. With the toggle disarmed, the handler
 checks both the halted bit and the byte at `cpu.pc`: a halted CPU
 surfaces the reset-registers notice (Variant A — see below), and a
-blank page (byte is `0x00`) yields a `No program at <PC>` hint with
-no worker activity. Tying the visual flag to the same condition that
-gates the dispatch prevents the desync the user reported earlier as
+blank page (byte is `0x00`) yields a `Нет программы по адресу <PC>`
+hint with no worker activity. Tying the visual flag to the same
+condition that gates the dispatch prevents the desync the user
+reported earlier as
 «программа выглядит будто работает, но ничего не выполняется»:
 previously, an unconditional icon flip on an empty page survived a
 subsequent `Import` / `OpenSnapshot`, leaving the panel painted red
@@ -161,6 +162,475 @@ remain available from the top menu bar — this panel is a discoverable
 in-context surface for the same commands; no new `AppCommand` or
 `Message` variants were added. iced's `svg` Cargo feature is enabled
 in `crates/ui/Cargo.toml` so the renderer pulls in the resvg backend.
+
+### Peripheral row (bottom of the schematic plate)
+
+The bottom strip of the schematic plate carries five peripheral chips
+in this fixed left-to-right order:
+
+| Slot | Glyph | Accent | Tooltip |
+|---|---|---|---|
+| Монитор | `device_monitor` (`assets/icons/devices/monitor.svg`) | green | Отобразить монитор |
+| Дисковод | `device_floppy` (`devices/floppy.svg`) | cyan | Отобразить буфер дисковода |
+| Диск | `device_hdd` (`devices/hdd.svg`) | blue | Отобразить буфер жёсткого диска |
+| Адаптер | `device_network` (`devices/network.svg`) | yellow | Отобразить буфер сетевого адаптера |
+| Принтер | `device_printer` (`devices/printer.svg`) | magenta | Отобразить буфер принтера |
+
+Each chip is rendered by `view::schematic::device_chip`: a tinted SVG
+glyph centred inside a `schematic_block_style` chassis (52×44, the
+same footprint the older `square_device` text block wore) plus a
+hover tooltip that reuses the editor `inset_style` so it visually
+belongs to the same chrome family as the action-panel tooltips. The
+chip is a plain `container`, not a `button` — at this stage the user
+asked for tooltips only; no per-chip click handler is wired and a
+no-op `button` would advertise an interaction the chip does not
+have.
+
+The older "I/O Controller" capsule that used to sit on the right of
+the same row was removed: it duplicated the role of the device strip
+without carrying any live readout of its own.
+
+### Schematic block fill
+
+`view::styles::containers::SCHEMATIC_BLOCK_FILL` (`#1C1E2E @ 0.92 alpha`)
+is the единый swatch every framed slot on the schematic plate now
+shares: `schematic_block_style` (Цикл/Такт, speed switch, device
+chips, `schematic_readout` capsules — Буфер данных / Регистр флагов /
+Регистр команд / PSW), `mux_panel_style` (внешняя рамка
+мультиплексора), `mux_chip_style` (W/Z scratch и SP/PC внутри),
+`mux_header_style` (заголовок и section captions мультиплексора), и
+`schematic_block_button_style` (кнопочные слоты Аккумулятор /
+Буферный регистр 1 / Буферный регистр 2). Раньше все эти места
+держали свой жёстко-вписанный цвет:
+
+- `functional_block` шёл через `capsule_button_style`, который
+  отдыхал на `TOKYO_SURFACE` (`#24283B`) — на три ступени светлее
+  соседних `schematic_readout`. Пользователь диагностировал это как
+  «некоторые блоки всё ещё светлее чем другие».
+- Внешняя рамка мультиплексора красилась `TOKYO_BOARD` (`#121320`,
+  цвет самой платы) — отчего вся панель читалась светлее своих
+  собратьев.
+- Внутренние chips мультиплексора и schematic_block_style тоже
+  рассыпали `0x1C, 0x1E, 0x2E` руками, ничем не связанные между собой.
+
+Теперь это одна именованная константа в `containers.rs`, и любая
+будущая смена тона делается одной правкой. `capsule_button_style`
+удалён — потребителей не осталось; на его место встал
+`schematic_block_button_style`, который красит resting fill
+`SCHEMATIC_BLOCK_FILL`, hover/press поднимает до `TOKYO_SURFACE_3`,
+и держит neutral `TOKYO_BORDER` пока кнопка не выбрана.
+
+### Lamps strip — F1/F2/SYNC/READY/WAIT/HOLD/INT/INTE/DBIN/WR/HLDA
+
+Нижний ряд ламп управления — pure function от `&Cpu8080State`,
+живёт в `view::lamps`. Раньше это был статический массив с красной
+точкой на каждой подписи, всегда «горящей»; пользователь попросил
+сделать индикаторы интерактивными, как флаги Z/S/P/C/AC.
+
+В состоянии покоя (`tact_phase == None`, между инструкциями) панель
+повторяет силуэт референсного эмулятора КР-580: с момента открытия
+окна горят `F2`, `SYNC`, `READY`, `INTE`, `WR` — это и есть
+«опорный» T1 первого M1-фетча, который в учебниках всегда нарисован
+рядом с распиновкой чипа. При пошаговой прокрутке (`step_tact`)
+лампы переключаются на фазно-зависимые значения.
+
+| Лампа | Что значит на 8080            | Из чего берём (idle / в такте)                   |
+|-------|-------------------------------|--------------------------------------------------|
+| F2    | Такт фазы 2                   | idle: горит; в такте: `Some(p)` где `p` нечётно  |
+| F1    | Такт фазы 1                   | idle: тёмная; в такте: `Some(p)` где `p` чётно   |
+| SYNC  | Защёлка статус-байта (T1)     | idle: горит; в такте: `tact_phase == Some(0)`    |
+| READY | Память/IO готовы              | `!cpu.halted` (мы не блокируем шину)             |
+| WAIT  | Процессор ждёт / остановлен   | `cpu.halted`                                     |
+| HOLD  | Запрос DMA-захвата            | всегда `false` — DMA не моделируется             |
+| INT   | Запрос прерывания             | `cpu.interrupt_request_pending`                  |
+| INTE  | Прерывания разрешены          | idle: горит; иначе `cpu.interrupt_enable`        |
+| DBIN  | Строб чтения шины данных      | всегда `false` — состояние машинного цикла не моделируется |
+| WR    | Строб записи                  | idle: горит (M1-fetch); иначе тёмная             |
+| HLDA  | Подтверждение DMA-захвата     | всегда `false` — DMA не моделируется             |
+
+`HOLD`/`HLDA`/`DBIN` остаются тёмными намеренно: эмулятор
+работает на уровне границы инструкций и не выводит наружу состояние
+машинного цикла, которое эти выводы переключают. Показать их «всегда
+выключенными» честнее, чем имитировать тайминг-диаграммы из учебника.
+
+Подписи у ламп идут вертикально и расположены **сверху** над точкой —
+читаются слева направо сверху вниз: каждая буква стоит вертикально
+относительно читателя, а сама колонка крутится по часовой на
++90°. iced 0.14 у `Text` вращения нет, поэтому каждая подпись —
+маленький рантайм-SVG с `<text transform="translate(cx,cy)
+rotate(90)">`. SVG авторятся с `fill="currentColor"`, так что та же
+`svg::Style { color: ... }` пайплайн (которой красятся device chips)
+тонирует подписи в `TOKYO_TEXT`. Одиннадцать SVG-ручек собираются один раз
+в `LazyLock<[svg::Handle; 11]>` и клонируются дёшево на каждом
+перерисовочном цикле. Точка под подписью красится в `TOKYO_RED`
+когда сигнал активен и в `TOKYO_TEXT` когда нет — та же идиома,
+что у `flag_dot` для Z/S/P.
+
+### Левая панель: расщепление модулей
+
+`view/schematic.rs` пробивал лимит 400 строк (был 727). Расщеплено
+на пять файлов, каждый под потолок:
+
+- `view/schematic.rs` (~293 строки) — каркас левой панели,
+  status_strip, top_bus_row, core_left, девайсный ряд. `mux_panel`,
+  `speed_panel` остаются one-liner-делегатами в свои модули — call
+  site читается по-прежнему.
+- `view/chips.rs` (~218 строк) — чистые widget-билдеры под одиночные
+  плашки на плате: `schematic_readout` (134×60, 20 px hex value),
+  `schematic_mnemonic_readout` (та же шасси, 14 px значение для
+  длинных мнемоник «Д/Ш команд»), `flag_strip` / `flag_dot`,
+  `device_chip` (тонированный SVG в чипе с tooltip-подсказкой),
+  `functional_block` (кликабельный регистровый чип). Извлечены
+  чтобы `schematic.rs` снова влез в 400 строк после Task 12 — все
+  принимают только примитивы и не читают `DesktopApp`.
+- `view/mux.rs` (~315 строк) — мультиплексор: header, section
+  captions, W/Z chips, РОН grid B/C/D/E/H/L, SP/PC footer, новый
+  ряд «Схема инкремента-декремента».
+- `view/lamps.rs` (~200 строк) — ряд из 11 control-ламп с живой
+  привязкой к сигналам и SVG-генератором вертикальных подписей.
+- `view/speed.rs` (~83 строки) — четырёх-ступенчатый переключатель
+  скорости и его кнопочный helper `tier_button`.
+
+### Russian labels on the schematic plate
+
+The blocks on the left panel carry full Russian captions instead of
+the older English/abbreviated set. Russian words run longer, so
+`schematic_readout` and `functional_block` were resized from `110×56`
+to `134×60` and the caption font dropped from 12 px to 11 px so
+«Буферный регистр 1», «Регистр команд», и «Буфер данных» fit without
+truncation. The 24 px / 20 px monospace value rows are unchanged.
+
+| Слот | Старая подпись | Новая подпись |
+|---|---|---|
+| Аккумулятор (functional block) | `Accumulator` | `Аккумулятор` |
+| Буферный регистр 1 (functional block) | `Buf. Reg 1` | `Буферный регистр 1` |
+| Буферный регистр 2 (functional block) | `Buf. Reg 2` | `Буферный регистр 2` |
+| Регистр флагов (readout) | `Reg. Flags` | `Регистр флагов` (5 бит Z S P C AC) |
+| Регистр команд (readout) | `Instr. Reg` | `Регистр команд` (`last_fetched_opcode`) |
+| Д/Ш команд (readout, рядом с РК) | — | `Д/Ш команд` (мнемоника `last_fetched_opcode`) |
+| Буфер данных (readout, верхняя строка платы) | `Data Buffer` | `Буфер данных` (`last_data_bus_byte`) |
+| Буфер адреса (readout, под РК/Д-Ш) | — | `Буфер адреса` (`last_address_bus`) |
+| Цикл и такт (нижняя плашка, школьная семантика) | — | `Цикл (M)` / `Такт (T)` (синтез по `machine_cycle::layout_for`) |
+| Внутренний тайминг (нижняя плашка, datasheet) | `Cycle` / `Tick` | `Тактов всего` / `Такт инстр. (datasheet)` / `Линейная фаза` |
+| Индикатор останова в статус-строке | `HLT ON` / `HLT OFF` | `HLT ВКЛ` / `HLT ВЫКЛ` (кликабельный — переключает флаг HLT) |
+
+### Reference-schematic blocks added to the left panel
+
+Three читаемых блока были добавлены к левой плашке, чтобы её
+геометрия совпала с референсной схемой КР-580, по которой
+пользователь сверяется:
+
+- **«Д/Ш команд»** — Дешифратор/Шифратор команд, instruction
+  decoder. Сидит в нижнем ряду `core_left`, прямо справа от
+  «Регистр команд», и показывает **мнемонику** того байта, что
+  лежит в IR: где РК показывает `3C`, Д/Ш показывает `INR A`.
+  Декодируется через `decode_opcode(byte).mnemonic` — тот же
+  путь, что и колонка мнемоник в memory list. На
+  недокументированных байтах падает в `-`, чтобы readout никогда
+  не оставался пустым. Рендерится через
+  `schematic_mnemonic_readout` — ту же шасси что
+  `schematic_readout` (134×60, 11 px подпись), но с 14 px моно
+  значением вместо 20 px: длинные мнемоники типа `MVI B, d8`,
+  `LXI B, d16`, `JNZ adr` (8–10 символов) перестали выходить за
+  пределы капсулы.
+- **«Буфер адреса»** — стоит отдельной строкой под двойным рядом
+  РК/Д-Ш и зеркалит **физический Буфер Адреса**, не PC. Источник —
+  `cpu.last_address_bus` (см. раздел «Last-bus tracking» ниже): на
+  реальном чипе это латч между внутренней 16-битной шиной и
+  внешними пинами A0–A15, и через него по очереди проходят PC (во
+  время M1 fetch), HL/SP (operand fetch / стек), 16-битный
+  immediate (LDA/STA/LHLD/SHLD/JMP/CALL). Раньше readout
+  безусловно показывал `cpu.pc` — это совпадало со школьным
+  эталоном **только** на M1 fetch и расходилось на STA/LDA/HLT;
+  теперь совпадает на всех инструкциях.
+- **«Схема инкремента-декремента»** — добавлена нижней строкой
+  в `mux_panel` под SP/PC. На реальном чипе это вспомогательный
+  сумматор, что шагает PC по длине текущей инструкции в фазу
+  fetch (и через который HL/SP проходят на INX/DCX). Здесь
+  показываем шаг PC: `+1` для одно-байтных опкодов, `+2` для
+  опкодов с одним байтом операнда (`MVI r, d8`, `IN`, `OUT`),
+  `+3` для опкодов с 16-битным операндом (`LXI`, `JMP`, `CALL`,
+  `LDA`, `STA`, `LHLD`, `SHLD`). Считается через
+  `decode_opcode(byte).size`, а на недокументированных байтах
+  падает в `+1` — той же стратегии следует декодер мнемоник в
+  memory list.
+
+Заголовок панели «Мультиплексор» при этом перешёл с `TOKYO_TEXT`
+на `TOKYO_MUTED`. Раньше он рисовался той же яркостью, что и
+живые значения в чипах, и читался как заголовок гораздо
+тяжелее своих соседей-секций («Регистры временного хранения»,
+«Регистры общего назначения (РОН)»). Серый mute-тон ставит
+заголовок в один весовой класс с остальной chrome, и `mux.rs`
+больше не импортирует `TOKYO_TEXT` (он там был только под этот
+заголовок).
+
+Блок `АЛУ` (220×86, лежал над мультиплексором) удалён: на референсной
+схеме, по которой пользователь сверяется, отдельной плашки АЛУ
+нет — арифметика читается через статус-строку (`PSW`, `T`) и через
+зажигание ламп `F1`/`F2` на нижнем ряду. Дублирующая большая плашка
+со значениями `A` и `HL` нагружала левую панель, не добавляя
+информации, которую нельзя прочитать из соседних блоков.
+
+### Last-bus tracking (РК / Д/Ш / Буфер данных / Буфер адреса)
+
+Четыре readout'а на левой плашке — «Регистр команд» (РК),
+«Дешифратор/Шифратор команд» (Д/Ш), «Буфер данных» и «Буфер
+адреса» — раньше читались через look-ahead в RAM по PC
+(`memory.read(pc)` для байта, `pc` для адреса). Это совпадало со
+школьным референсным эмулятором **только** на T1 первого M1, до
+выполнения инструкции, и расходилось во всех остальных случаях:
+
+- после `HLT` PC шагает за HLT, RAM по новому PC лежит 00 (NOP),
+  и наш RP показывал `00` — а школьный показывал `76` (опкод HLT,
+  потому что РК на чипе хранит **последний загруженный** опкод
+  до начала следующего M1, которого после HLT не будет);
+- после `STA 0x4000` адресный латч на чипе хранит `0x4000`, а у
+  нас readout зеркалил новый PC;
+- после `MOV A, (HL)` буфер данных на чипе хранит прочитанный
+  байт, а у нас был байт по PC.
+
+`core` теперь несёт три «латч-зеркала» прямо в `Cpu8080State`:
+
+- `last_fetched_opcode: u8` — зеркало физического Регистра Команд.
+  Обновляется в одном-единственном месте — `state::fetch_opcode`,
+  который вызывает `execute_instruction_boundary` на M1.
+- `last_data_bus_byte: u8` — зеркало Буфера Данных D7-D0. Любой
+  байт через шину (read/write) проходит через `state::bus_read`
+  / `state::bus_write` и оседает здесь.
+- `last_address_bus: u16` — зеркало Буфера Адреса A0-A15. Те же
+  helper'ы пишут сюда адрес.
+
+Дисциплина: исполнитель **обязан** ходить в память только через
+`bus_read` / `bus_write` / `bus_read_word` / `fetch_opcode`. Прямой
+`self.memory.read/write` остался запрещённой формой (есть `peek`
+для UI/диагностики, который не трогает латчи). Регрессионные
+тесты в `crates/core/tests/last_bus_residue.rs` пинят семантику для
+`MVI`/`STA`/`HLT`/`MOV r,r`/`MOV A,(HL)`/Reset; если кто-то снова
+обойдёт латчи, тест на `HLT` упадёт первым (после HLT РК должен
+держать 76, не байт по новому PC).
+
+UI читает четыре readout'а из этих полей напрямую:
+`schematic_readout("Регистр команд", last_fetched_opcode)`,
+`schematic_mnemonic_readout("Д/Ш команд",
+decode_opcode(last_fetched_opcode))`, `schematic_readout("Буфер
+данных", last_data_bus_byte)`, `schematic_readout("Буфер адреса",
+last_address_bus)`. Это закрывает четыре расхождения со школьным
+эталоном одной точкой контроля в core.
+
+### Два счётчика: «Цикл и такт» + «Внутренний тайминг»
+
+Нижняя управляющая строка несёт **два** блока с разной семантикой,
+рядом друг с другом. Раньше тут жил один блок («Цикл / Такт»),
+который читался как общий T-states счётчик + линейная фаза. Школьный
+эталон в той же позиции рисует **M-цикл и T-фазу внутри M-цикла**
+(M1, M2, M3 + T1..T5) — это физическое табло КР-580, и пользователь
+сверяется именно с ним. Сравнение «наш vs школьный» спотыкалось:
+на NOP школьный рисовал M=1, T=1..4, а наш — Цикл=4, Такт=0..3 (то
+же по сути, но расходящееся числами и заголовками).
+
+Решение — два блока с разной семантикой, чтобы было ясно, что
+смотрит на школьный эталон, а что на datasheet:
+
+| Блок | Заголовок | Что показывает | Источник |
+|---|---|---|---|
+| 1 | **«Цикл и такт»** | школьная семантика, как на физическом табло КР-580 | `core::machine_cycle::layout_for` (для HLT = `[4]`) |
+| 2 | **«Внутренний тайминг»** | datasheet-точные значения нашей внутренней модели | `cpu.cycle_count`, `cpu.tact_phase`, `last_completed_tact_phase` + datasheet-layout |
+
+#### Блок 1: «Цикл и такт» (школьная семантика)
+
+Две строки. Совпадает датчик-в-датчик со школьным эмулятором —
+это его главная задача.
+
+- **Цикл (M)** — номер текущего M-цикла внутри инструкции, **с 1**.
+  Берётся через школьный layout `layout_for(opcode)` и
+  `position_for(layout, taken, phase)`. Для NOP/MOV r,r/ADD r/HLT —
+  всегда 1 (одна M1). Для LXI/JMP/MVI A,M — 2 или 3 (M1 fetch
+  + M2/M3 чтение операнда). Для CALL — до 5 (M1 + 2 fetch
+  операнда + 2 push). Когда инструкция стоит на границе
+  (`tact_phase == None`) — fallback на `last_completed_tact_phase`,
+  чтобы блок не сбрасывался в `-` после HLT.
+- **Такт (T)** — номер T-фазы **внутри текущего M-цикла**, с 1
+  (T1, T2, T3, T4, ...). Не сквозной номер по инструкции — каждая
+  новая M фаза сбрасывает T в 1. Для NOP это T1..T4 в M1. Для
+  LXI B,d16 (10T = 4+3+3): T1..T4 в M1, потом T1..T3 в M2, потом
+  T1..T3 в M3. Источник — `cpu.last_completed_tact_phase` через тот
+  же школьный layout с клампингом до `total_t_states - 1`.
+  Школьное табло после остановки КР-580 удерживает на индикаторе
+  ровно эту T-фазу — «горящий такт». Для HLT клампится до T4 (как
+  делает школьный эмулятор — M2 halt-acknowledge не отображает,
+  потому что это «бесконечное ожидание прерывания», не реальный
+  bus cycle).
+
+#### Блок 2: «Внутренний тайминг» (datasheet)
+
+Три строки. Datasheet-точная информация по нашей внутренней модели,
+без школьных сокращений. Чтобы видно было, что у нас на самом деле
+происходит.
+
+- **Тактов всего** — `cpu.cycle_count`. Сквозной T-states счётчик
+  от начала программы (или с последнего сброса). Растёт на 4 за
+  NOP, на 7 за HLT (полный datasheet, включая M2 halt-acknowledge),
+  на 17 за CALL, на 18 за XTHL, и т.д. Это та же величина, что в
+  колонке «STATES» Intel datasheet, только просуммированная по
+  всем выполненным инструкциям.
+- **Такт инстр. (datasheet)** — номер такта **внутри текущей
+  инструкции** по полной datasheet-длительности, **с 1**. Для HLT
+  даёт 7 (а не 4 как школьный «Такт (T)»), потому что наш
+  внутренний слой не обрезает halt-acknowledge цикл. Для остальных
+  опкодов совпадает со школьным «Такт (T)» — datasheet-длительность
+  по сумме layout'а равна `InstructionTiming::t_states_taken`.
+  Берётся через служебный layout `datasheet_layout(opcode)`,
+  который для HLT возвращает `[7]` (склеенный M1+M2 одним блоком),
+  для остальных — `layout_for(opcode)`.
+- **Линейная фаза** — `cpu.tact_phase` (если идёт исполнение) или
+  `cpu.last_completed_tact_phase` (если завершено) — **индекс с 0**:
+  `0..total-1`, где total = datasheet-длительность инструкции. Для
+  NOP это 0..3, для HLT — 0..6, для CALL — 0..16, для XTHL — 0..17.
+  Звёздочка `*` после числа означает «инструкция уже завершена,
+  активного исполнения нет, показано последнее зафиксированное
+  значение». Без звёздочки — активное исполнение. Это поле
+  сохраняется в `.580` snapshot, поэтому формат — индекс с 0 (как
+  у массивов), не с 1.
+
+Зачем «Линейная фаза» нужна отдельно от «Такт инстр. (datasheet)»:
+первая — индекс в нашем внутреннем буфере, который сохраняется в
+snapshot и нумеруется с 0; вторая — человеко-читаемый номер такта
+для отладки и сверки с Intel manual, нумеруется с 1. Они
+отличаются на 1 (с 0 vs с 1), а звёздочка у «Линейной фазы»
+сообщает, идёт ли исполнение прямо сейчас.
+
+#### Чем отличаются блоки
+
+«Цикл и такт» = школьный, для совпадения с физическим табло.
+«Внутренний тайминг» = datasheet-точный, для отладки и сверки с
+Intel manual. Они отличаются:
+
+- **На HLT** — школьный «Такт» = 4 (только видимый M1), datasheet
+  «Такт инстр.» = 7 (M1 fetch + M2 halt-ack), «Тактов всего»
+  растёт на 7.
+- **На сложных инструкциях** — школьный «Такт» сбрасывается на
+  каждом новом M-цикле (T1..T4 в M1, потом T1..T3 в M2, ...), а
+  datasheet «Такт инстр.» растёт сквозно (1..10 для LXI без
+  сбросов).
+- **На простых однотактовых** (NOP, MOV r,r, ADD r) — почти
+  одинаково, отличаются только нумерацией: школьный T=1..4,
+  «Линейная фаза» = 0..3, «Такт инстр.» = 1..4.
+
+#### Поле `cpu.last_completed_tact_phase`
+
+Источник — поле `cpu.last_completed_tact_phase: Option<u8>`, которое
+core фиксирует в трёх точках (`step_instruction` атомарный путь,
+`step_instruction` flush после walking, каждый `step_tact`). Без
+него UI после `HLT` падал в `-`/`1`, а школьный эталон удерживает
+на табло именно T4 первого M1 — последний горящий такт перед
+остановкой.
+
+Используется как fallback в обоих блоках:
+- Школьный «Цикл (M)» при `tact_phase == None` берёт
+  `last_completed_tact_phase`, чтобы не сбрасываться в `-` после
+  HLT или на границе инструкции.
+- Школьный «Такт (T)» — всегда читает `last_completed_tact_phase`
+  (это его основной источник, не fallback), потому что школьное
+  табло показывает именно «последнюю выполненную фазу».
+- «Линейная фаза» при `tact_phase == None` рисует
+  `last_completed_tact_phase` со звёздочкой (`6*`), чтобы
+  отличить «активная фаза идёт» от «последняя выполненная,
+  активной нет». Без fallback'а там стоял бы `-` и пользователь
+  думал, что счётчик отвалился.
+
+#### Persistence
+
+timing-TLV (тег `0x08`) расширен до variable-length
+`8 | 9 | 10` байт. Старые файлы (8 байт = только `cycle_count`,
+9 байт = `+ tact_phase`) грузятся как раньше — `last_completed_tact_phase`
+у них остаётся `None`. Новый 10-байтовый формат несёт обе фазы.
+Особый случай (`tact_phase == None`, `last_completed_tact_phase == Some`)
+закодирован sentinel'ом `0xFF` в slot[8]: реальная T-фаза 8080 не
+превышает ~38, поэтому 0xFF свободна как маркер «активной нет».
+Round-trip покрыт тестами `snapshot_roundtrips_last_completed_*` и
+`snapshot_loads_legacy_v1_payload_without_last_completed`.
+
+#### Источник раскладок M-циклов
+
+Таблица расклада M-циклов лежит в `core/src/machine_cycle.rs`. Для
+каждого документированного опкода известна последовательность
+длин M-циклов (`&[4, 3, 3]` = M1=4T, MR_lo=3T, MR_hi=3T = 10T
+всего). Для условных инструкций (Rcond / Ccond / Jcond)
+предусмотрены **две** последовательности (taken / not-taken).
+Сумма длин совпадает с `InstructionTiming::t_states_taken` —
+это пинится `layout_sums_match_decode_timing_for_all_documented_opcodes`,
+тестом, который проверяет все 244 документированных опкода. Если
+кто-то поменяет тайминг в `decode.rs` без правки таблицы здесь
+(или наоборот), тест упадёт.
+
+Исключение — HLT (0x76): datasheet даёт 7T (M1=4 fetch + M2=3
+halt-ack), но школьный layout = `[4]` (только видимый M1),
+потому что школьный эмулятор M2 halt-ack не отрисовывает.
+Расхождение layout-суммы (4) и `t_states_taken` (7) намеренное.
+Поэтому UI имеет служебный `datasheet_layout(opcode)` в
+`view/cycles.rs`, который для HLT возвращает `[7]` (склеенный
+M1+M2), а для остальных — `layout_for(opcode)`. Это разделение —
+суть всей истории «школьный Такт=4 vs datasheet=7».
+
+#### UI-логика
+
+Лежит в `view/cycles.rs` (~270 строк с расширенной документацией,
+отдельный модуль, чтобы `schematic.rs` не пробил 400-строчный
+потолок). Берёт байт из `cpu.last_fetched_opcode` (а не RAM по
+PC — иначе после HLT расклад M-циклов был бы для NOP),
+декодирует его, выбирает раскладку (школьную для блока 1,
+datasheet для блока 2), переводит линейную фазу в M/T. Для
+нелегальных опкодов оба блока показывают `-`. Решение taken vs
+not-taken — эвристическое: пробуем сначала taken (полный путь,
+в нём больше M-циклов и на ранних фазах M1/M2 ответы для taken
+и not-taken совпадают), если не попали — берём not-taken. Это
+даёт визуально правильный M/T для обоих исходов условных
+инструкций без моделирования флаг-теста в середине инструкции.
+
+Что осталось без перевода:
+
+- `PC`, `SP`, `T` в статус-строке — стандартные мнемоники чипа
+  (Program Counter, Stack Pointer, Tact). Они одни и те же в любом
+  8080-учебнике на любом языке.
+- Имена регистров `A`, `B`, `C`, `D`, `E`, `H`, `L`, `HL`, `W`, `Z` —
+  обозначения регистров по даташиту 8080.
+- Лампы управления (`F1`, `F2`, `SYNC`, `READY`, `WAIT`, `HOLD`,
+  `INT`, `INTE`, `DBIN`, `WR`, `HLDA`) — английские мнемоники
+  выводов корпуса 8080. Перевод их сделал бы строчку нечитаемой
+  для всех, кто работал с чипом по любой документации.
+- `PSW` — Program Status Word, аббревиатура в одном ряду с PC/SP.
+
+### Status-bar messages
+
+Свободный текст в нижнем статус-баре (`self.status`) переведён на
+русский для всех состояний, которые видит пользователь:
+
+| Контекст | Старый текст | Новый текст |
+|---|---|---|
+| Стартовое состояние (`DesktopApp::new`) | `Ready` | `Готов` |
+| Worker отрапортовал `Stopped` | `Stopped` | `Остановлен` |
+| Worker отрапортовал `HaltStateChanged` | `CPU halted` | `ЦП остановлен` |
+| `toggle_run` на пустой странице | `No program at <PC>` | `Нет программы по адресу <PC>` |
+| `TactAdvanced` (пошаговый такт) | `Tact <n> cycle <m>` | `Такт <n> цикл <m>` |
+| Поиск по памяти, пустой ввод | `Enter a hex pattern to search for` | `Введите hex-шаблон для поиска` |
+| Поиск нашёл совпадение | `Found pattern <p> at <addr>` | `Найден шаблон <p> по адресу <addr>` |
+| Поиск ничего не нашёл | `No addresses match <p>` | `Нет адресов, соответствующих <p>` |
+
+Не переведено сознательно:
+
+- `IN <port> -> <value>` / `OUT <port> <- <value>` — формат логов
+  ввода-вывода, имитирующий вывод 8080-эмуляторов. Любой текст в
+  таблицах рядом (мнемоники инструкций) тоже остаётся английским,
+  чтобы статус-бар не показывал смесь языков для одной и той же
+  семантической операции.
+- Мнемоники инструкций в `InstructionBoundaryReached` (`MOV at
+  0123`, `JMP at 0050`) — это имена опкодов 8080 из даташита,
+  такая же категория, как имена регистров и контактов.
+- Текст ошибок от ядра/шины — попадает в статус-бар «как есть» и
+  одновременно дублируется в плавающее уведомление через
+  `humanize_error`, который сам переводит распознанные шаблоны на
+  русский. Двойной перевод исходного текста разорвал бы соответствие
+  между лог-баром и баг-репортами.
 
 ## «Содержимое ячеек ОЗУ» follows PC during Run
 
@@ -271,10 +741,25 @@ paths because the halt bit can be cleared either by `Сброс регистро
 dedicated `Сбросить флаг HLT` entry at the bottom of the МП-Система
 menu / `Ctrl+Shift+H` (`AppCommand::ClearHalt`, which flips *only*
 the halt flip-flop and leaves PC, SP, registers, flags, RAM, and
-`cycle_count` exactly where HLT left them), or by toggling the HLT
-flag from the register editor. RAM is preserved by all three, so
-the loaded program survives the unblock and runs again from
-whatever PC it ends up at.
+`cycle_count` exactly where HLT left them), by toggling the HLT
+flag from the register editor, or by clicking the `HLT ВКЛ` /
+`HLT ВЫКЛ` chip on the status strip directly (the indicator is a
+`mouse_area`-wrapped `mono_text` whose press dispatches
+`Message::ToggleHalt` — the same chip that reads the halt state out
+also flips it). RAM is preserved by all of them, so the loaded
+program survives the unblock and runs again from whatever PC it
+ends up at.
+
+`Message::ToggleHalt` resolves the toggle direction on the UI side
+(reads `cpu.halted`, dispatches `AppCommand::ClearHalt` for the
+halted→running leg and the new `AppCommand::SetHalted(true)` verb
+for the running→halted leg), then routes both legs through
+`dispatch_with_undo` so a press is reversible. The worker's
+`SetHalted` handler is the symmetric counterpart to `ClearHalt`:
+it disarms the run loop the same way, treats the supplied value as
+authoritative, and only emits `HaltStateChanged` when the bit
+actually flips so a redundant press is a true no-op for the halt
+notice.
 
 `run_blocked_after_halt` is the second half of the contract. The
 first time the user attempts a run/step gesture against a halted

@@ -9,8 +9,26 @@ use super::super::theme::{
     TOKYO_BG, TOKYO_BORDER, TOKYO_MUTED, TOKYO_RED, TOKYO_SURFACE, TOKYO_SURFACE_2,
     TOKYO_SURFACE_3, TOKYO_TEXT,
 };
+use super::containers::SCHEMATIC_BLOCK_FILL;
 
-pub(crate) fn capsule_button_style(
+/// Capsule-shaped button used by `functional_block` (Аккумулятор /
+/// Буферный регистр 1 / Буферный регистр 2) on the schematic plate.
+///
+/// Resting fill is `SCHEMATIC_BLOCK_FILL` (`#1C1E2E @ 0.92`) — the
+/// shared tone every framed slot on the left panel wears, so a row
+/// of `functional_block` + `schematic_readout` chips reads as one
+/// continuous family of recessed slots cut into the plate. The
+/// previous incarnation of this helper rested on `TOKYO_SURFACE`
+/// (`#24283B`), three stops lighter, which is why the user reported
+/// «некоторые блоки всё ещё светлее чем другие» on the schematic
+/// pane — the buttons were the brighter siblings in that family.
+///
+/// Hover and press climb to `TOKYO_SURFACE_3` so the chip still
+/// telegraphs interactivity, and the per-chip accent only paints the
+/// border under hover/press/selected. Resting frames stay neutral so
+/// the row does not flare with coloured outlines just because the
+/// cursor passes by.
+pub(crate) fn schematic_block_button_style(
     status: button::Status,
     accent: Color,
     selected: bool,
@@ -21,7 +39,7 @@ pub(crate) fn capsule_button_style(
     } else if active {
         TOKYO_SURFACE_3
     } else {
-        TOKYO_SURFACE
+        SCHEMATIC_BLOCK_FILL
     };
     let border_color = if active || selected {
         accent
@@ -126,6 +144,29 @@ pub(crate) fn menu_button_style(status: button::Status) -> button::Style {
     button::Style {
         background: Some(Background::Color(background)),
         text_color: TOKYO_TEXT,
+        border: Border {
+            radius: 6.0.into(),
+            ..Border::default()
+        },
+        ..button::Style::default()
+    }
+}
+
+/// Disabled variant of `menu_button_style`. Same chrome (transparent
+/// background, 6 px radius, no border) but the row never lights up on
+/// hover/press because we never publish an `on_press` for it — the
+/// button stays in `Status::Disabled` for the whole render pass and
+/// the surface stays flat. Text colour is `TOKYO_MUTED` so the row
+/// reads as «недоступно сейчас» the same way the disabled action-strip
+/// chips do (see `action_chip_style`'s muted-tint branch). Used by
+/// «Сбросить флаг HLT» when the halt flip-flop is already off — the
+/// row stays in the menu so the user can still discover it and read
+/// the shortcut, but the visual weight tells them clicking changes
+/// nothing.
+pub(crate) fn menu_button_disabled_style(_status: button::Status) -> button::Style {
+    button::Style {
+        background: Some(Background::Color(Color::TRANSPARENT)),
+        text_color: TOKYO_MUTED,
         border: Border {
             radius: 6.0.into(),
             ..Border::default()

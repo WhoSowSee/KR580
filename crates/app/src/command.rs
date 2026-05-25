@@ -21,6 +21,21 @@ pub enum AppCommand {
     /// `HaltStateChanged(false)` only when the bit actually
     /// flipped, mirroring what `ResetCpu` does on the same path.
     ClearHalt,
+    /// Force the halt flip-flop to a specific value without touching
+    /// anything else. The UI exposes this through the clickable
+    /// "HLT ВКЛ" / "HLT ВЫКЛ" indicator in the status strip on top of
+    /// the schematic plate: a press toggles the bit, and the press
+    /// edge lands here so the worker is the single source of truth
+    /// for the halt state. This is the symmetric counterpart to
+    /// `ClearHalt` — `ClearHalt` is "always lift, no-op when already
+    /// off"; `SetHalted(false)` is the same lift gesture, while
+    /// `SetHalted(true)` is the new "arm halt manually" verb the
+    /// indicator needed. Disarms the run loop the same way `ClearHalt`
+    /// does (an armed `Run` racing a fresh halt arming would publish
+    /// a confusing two-snapshot dance), and emits `HaltStateChanged`
+    /// only when the bit actually flips so a redundant press is a
+    /// true no-op for the UI's halt notice.
+    SetHalted(bool),
     LoadSnapshot(PathBuf),
     /// Load a `.580` file of unknown flavour: probes the bytes and
     /// dispatches to the modern (K580 v1) or legacy (65 549-byte flat)
@@ -140,8 +155,14 @@ pub enum AppEvent {
     StateChanged(Box<AppSnapshot>),
     InstructionBoundaryReached(InstructionOutcome),
     TactAdvanced(TactOutcome),
-    PortRead { port: u8, value: u8 },
-    PortWritten { port: u8, value: u8 },
+    PortRead {
+        port: u8,
+        value: u8,
+    },
+    PortWritten {
+        port: u8,
+        value: u8,
+    },
     HaltStateChanged(bool),
     /// A `.580` file was just loaded through the auto-detect path
     /// (`AppCommand::LoadAnySnapshot`) and the worker resolved it to

@@ -307,6 +307,42 @@ impl Emulator {
                     events.push(AppEvent::HaltStateChanged(false));
                 }
             }
+            AppCommand::SetHalted(target) => {
+                // Symmetric counterpart to `ClearHalt` — flips the
+                // halt flip-flop to a caller-supplied value, leaves
+                // every other piece of CPU state alone, and re-uses
+                // the same run-loop hygiene the rest of the
+                // halt-touching commands implement. The UI uses this
+                // to wire the clickable "HLT ВКЛ"/"HLT ВЫКЛ"
+                // indicator on the status strip: a press computes
+                // `target = !cpu.halted` on the UI side and ships
+                // the resolved value here so the worker stays the
+                // single source of truth for whether the bit
+                // actually flipped (a redundant press lands as a
+                // no-op event-wise instead of bouncing the halt
+                // notice through a clear/re-arm cycle). The run
+                // loop is always disarmed: arming halt under a live
+                // worker would race the next `step_instruction`
+                // against the fresh halt bit; lifting it under a
+                // live worker is exactly the case `ClearHalt`
+                // already documents above. `Stopped` and
+                // `HaltStateChanged` are gated the same way so the
+                // play/pause toggle and the halt notice both stay
+                // in agreement with the cpu state.
+                let was_running = self.running;
+                let was_halted_before = self.cpu.halted;
+                if was_halted_before != target {
+                    self.cpu.halted = target;
+                }
+                self.running = false;
+                self.instructions_since_run = 0;
+                if was_running {
+                    events.push(AppEvent::Stopped);
+                }
+                if was_halted_before != target {
+                    events.push(AppEvent::HaltStateChanged(target));
+                }
+            }
             AppCommand::ResetRam => {
                 // Wiping RAM under a running program would let the
                 // worker keep stepping into a sea of zero bytes

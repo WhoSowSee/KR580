@@ -6,8 +6,8 @@ use iced::widget::container;
 use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_RED, TOKYO_SURFACE,
-    TOKYO_TEXT, TOKYO_YELLOW,
+    TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_RED, TOKYO_SURFACE, TOKYO_TEXT,
+    TOKYO_YELLOW,
 };
 
 pub(crate) fn app_style(_theme: &Theme) -> container::Style {
@@ -83,35 +83,46 @@ pub(crate) fn info_inset_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_YELLOW)
 }
 
-pub(crate) fn schematic_block_style(_theme: &Theme) -> container::Style {
-    surface_style(
-        Some(Color::from_rgba8(0x24, 0x26, 0x3A, 0.92)),
-        6.0,
-        1.0,
-        TOKYO_BORDER,
-    )
-}
+/// Tone shared by every framed slot on the schematic plate. Lives in
+/// one named constant so `schematic_block_style`, `mux_panel_style`,
+/// `mux_chip_style`, and `schematic_block_button_style` (in
+/// `buttons.rs`) all paint the same exact swatch — a stray
+/// hand-typed `0x1C, 0x1E, 0x2E` somewhere else would drift this tone
+/// over time without anyone noticing. `#1C1E2E @ 0.92` sits one notch
+/// darker than `TOKYO_BG` (`#1A1B26`) and lighter than `TOKYO_BOARD`
+/// (`#121320`) — the chips read as recessed slots cut into the plate
+/// rather than lifted cards on top of it.
+pub(crate) const SCHEMATIC_BLOCK_FILL: Color = Color {
+    r: 0x1C as f32 / 255.0,
+    g: 0x1E as f32 / 255.0,
+    b: 0x2E as f32 / 255.0,
+    a: 0.92,
+};
 
-pub(crate) fn alu_style(_theme: &Theme) -> container::Style {
-    surface_style(
-        Some(Color::from_rgb8(0x25, 0x27, 0x3D)),
-        6.0,
-        1.5,
-        TOKYO_MAGENTA,
-    )
+pub(crate) fn schematic_block_style(_theme: &Theme) -> container::Style {
+    // Every framed slot on the schematic plate (Цикл/Такт, the speed
+    // switch, the device chips, the schematic readouts — Буфер
+    // данных / Регистр флагов / Регистр команд / PSW, the Мультиплексор
+    // panel and its inner chips) routes through this style so the
+    // panels share one continuous tone. Fill is the shared
+    // `SCHEMATIC_BLOCK_FILL` constant — see its doc comment for why.
+    surface_style(Some(SCHEMATIC_BLOCK_FILL), 6.0, 1.0, TOKYO_BORDER)
 }
 
 pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
-    // Header strip of the multiplexer panel: same `TOKYO_BOARD`
-    // fill as the surrounding plate — the strip reads as part of
-    // the plate, not as a lifted band — and a 1-px hairline border
-    // on every side so the seam between the header and the chip
-    // column underneath stays visible.
+    // Header strip of the multiplexer panel: the strip used to wear
+    // `TOKYO_BOARD` so it merged with the surrounding plate, but the
+    // plate-coloured strip is what made the Мультиплексор panel read
+    // brighter than its siblings on the rest of the schematic. The
+    // strip now wears `SCHEMATIC_BLOCK_FILL` — same tone as the panel
+    // body underneath and as `schematic_block_style` everywhere
+    // else — so the whole multiplexer family shares one swatch with
+    // the rest of the left-panel chrome.
     //
     // The full-rectangle border (rather than just a bottom edge)
     // is deliberate: the panel's outer `mux_panel_style` already
     // draws the perimeter, but at the top it lands on the
-    // schematic plate which uses the same `TOKYO_BOARD` tone, so
+    // schematic plate which uses the `TOKYO_BOARD` tone, so
     // the user reported the upper edge "disappearing" while the
     // sides and bottom still read fine. Painting the header strip
     // with its own hairline gives the eye a second cue along that
@@ -131,7 +142,7 @@ pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
     // section caption — a rounded bottom would round into a
     // sibling row and leave a visible gap on either side.
     container::Style {
-        background: Some(Background::Color(TOKYO_BOARD)),
+        background: Some(Background::Color(SCHEMATIC_BLOCK_FILL)),
         text_color: Some(TOKYO_TEXT),
         border: Border {
             radius: iced::border::Radius {
@@ -148,26 +159,27 @@ pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
 }
 
 pub(crate) fn mux_panel_style(_theme: &Theme) -> container::Style {
-    // Same `TOKYO_BOARD` fill as the surrounding schematic plate —
-    // the panel ends up as a bordered window cut into the plate
-    // rather than a lifted card on top of it. The user explicitly
-    // asked for "цвет как у фона, просто с рамками": the framing
-    // is what tells the eye "this is a sub-region of the
-    // schematic" without painting a competing surface tone.
-    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
+    // Multiplexer outer panel — same `SCHEMATIC_BLOCK_FILL` as every
+    // other framed slot on the schematic plate so the panel reads as
+    // a sibling of the surrounding chips, not a card lifted on top of
+    // them. The user explicitly asked for "сделай заливку как у
+    // других блоков"; the previous `TOKYO_BOARD` fill matched the
+    // plate behind the chips, which is why the Мультиплексор
+    // looked uniformly brighter than its neighbours.
+    surface_style(Some(SCHEMATIC_BLOCK_FILL), 6.0, 1.0, TOKYO_BORDER)
 }
 
 /// Chrome for individual chips inside the multiplexer panel — the
 /// W/Z scratch pair, the SP/PC inline readouts, and (via
 /// `mux_button_style`'s neutral status) the regular РОН buttons all
-/// land on the same `TOKYO_BOARD` fill as `mux_panel_style`. The
+/// land on the same `SCHEMATIC_BLOCK_FILL` as `mux_panel_style`. The
 /// outer panel and every chip inside it sharing one surface tone is
 /// what makes the panel read as "a frame full of bordered slots cut
 /// into the plate" instead of "a card holding a stack of darker
 /// cards". 6 px corner radius matches `mux_panel_style` so the
 /// chips visually echo the parent frame at a smaller scale.
 pub(crate) fn mux_chip_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
+    surface_style(Some(SCHEMATIC_BLOCK_FILL), 6.0, 1.0, TOKYO_BORDER)
 }
 
 /// Variant of `mux_chip_style` used by the interactive РОН register
@@ -200,9 +212,7 @@ pub(crate) fn mux_register_chip_style(selected: bool) -> container::Style {
         // idiom transferable between panels.
         container::Style {
             text_color: Some(TOKYO_TEXT),
-            background: Some(Background::Color(Color::from_rgba8(
-                0x7A, 0xA2, 0xF7, 0.18,
-            ))),
+            background: Some(Background::Color(Color::from_rgba8(0x7A, 0xA2, 0xF7, 0.18))),
             border: Border {
                 radius: 6.0.into(),
                 width: 1.0,

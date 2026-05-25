@@ -59,3 +59,19 @@ When you replace the master `icon.png`, run the appropriate script and
 rebuild. `cargo` re-embeds `icon-64.png` automatically because it is an
 `include_bytes!` source. The build script triggers a Windows-resource
 rebuild via `cargo:rerun-if-changed=…/icon.ico`.
+
+## SVG icon sets
+
+Two SVG icon families live alongside the PNG set:
+
+| Directory | Purpose |
+|---|---|
+| `assets/icons/actions/` | Toolbar / menu / titlebar glyphs (`play`, `pause`, `step-forward`, `redo-dot`, `refresh-ccw`, `reset-ram`, `reset-registers`, `chevrons-right`, `cpu`, `clear-halt`, file/window/save/save-as/file-up/file-down, window caption buttons). Consumed by `crates/ui/src/view/icons.rs` through the `action_icon_bytes!` macro. |
+| `assets/icons/devices/` | Peripheral chips on the bottom row of the schematic plate: `monitor.svg`, `floppy.svg`, `hdd.svg`, `network.svg`, `printer.svg`. Consumed through the `device_icon_bytes!` macro and exposed as `icons::device_monitor()` / `device_floppy()` / `device_hdd()` / `device_network()` / `device_printer()` getters. The chips are rendered by `view::schematic::device_chip` inside the `schematic_block_style` chassis with a hover tooltip wired the same way the action-panel buttons wire theirs. |
+
+All SVGs are authored with `stroke="currentColor"` (or `fill="currentColor"`
+for the solid HDD glyph) so iced's `svg::Style { color: Some(...) }`
+callback can tint a single source file at any accent at runtime — no
+per-colour duplicates. Files are embedded with `include_bytes!` at build
+time via the two macros in `icons.rs`; replacing a glyph is a recompile,
+not a runtime asset reload.

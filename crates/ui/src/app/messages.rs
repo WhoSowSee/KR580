@@ -230,6 +230,17 @@ pub(crate) enum Message {
     /// of waiting for the 8-second timer — the user has just told
     /// us they acknowledged it.
     ClearHalt,
+    /// Toggle the halt flip-flop. Wired to the clickable "HLT ВКЛ" /
+    /// "HLT ВЫКЛ" indicator at the top of the schematic plate's
+    /// status strip: each press flips the bit, so the same chip
+    /// users glance at to read the halt state is also the affordance
+    /// they reach for when they want to flip it. The handler reads
+    /// the current `cpu.halted` and dispatches
+    /// `AppCommand::SetHalted(!current)` through the undo stack so
+    /// Ctrl+Z brings the previous state back. Also lifts
+    /// `run_blocked_after_halt` when the press goes from halted to
+    /// running, mirroring the latch lifecycle around `ClearHalt`.
+    ToggleHalt,
     /// Raw Esc keypress from the global keyboard subscription. The
     /// listener cannot read app state (it's a `Fn` closure), so the
     /// router lives in `update`: with the inline memory editor
