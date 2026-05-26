@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use super::styles::{
     action_button_style, enter_button_style, input_borderless_style, input_shell_style,
-    inset_style, legend_label_style, panel_style, step_button_style,
+    inset_style, legend_label_style, panel_style, schematic_block_style, step_button_style,
 };
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
 use crate::app::Message;
@@ -34,6 +34,48 @@ pub(super) fn legend_panel<'a>(
         .width(Length::Fill)
         .height(height)
         .style(panel_style)
+        .into();
+    let framed_panel: Element<'a, Message> = column![
+        Space::new().height(Length::Fixed(LEGEND_LINE_OFFSET)),
+        panel,
+    ]
+    .spacing(0)
+    .width(Length::Fill)
+    .height(height)
+    .into();
+    let legend: Element<'a, Message> = row![
+        Space::new().width(Length::Fill),
+        container(ui_text(title, 14, TOKYO_TEXT))
+            .padding([0, 5])
+            .style(legend_label_style),
+        Space::new().width(Length::Fill),
+    ]
+    .width(Length::Fill)
+    .into();
+
+    stack(vec![framed_panel, legend])
+        .width(Length::Fill)
+        .height(height)
+        .into()
+}
+
+pub(super) fn legend_panel_left<'a>(
+    title: impl Into<String>,
+    content: impl Into<Element<'a, Message>>,
+    height: Length,
+) -> Element<'a, Message> {
+    const LEGEND_LINE_OFFSET: f32 = 9.0;
+
+    let panel: Element<'a, Message> = container(content)
+        .padding(Padding {
+            top: 18.0,
+            right: 10.0,
+            bottom: 10.0,
+            left: 10.0,
+        })
+        .width(Length::Fill)
+        .height(height)
+        .style(schematic_block_style)
         .into();
     let framed_panel: Element<'a, Message> = column![
         Space::new().height(Length::Fixed(LEGEND_LINE_OFFSET)),

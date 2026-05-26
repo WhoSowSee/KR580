@@ -19,6 +19,12 @@ pub(super) const TOKYO_BORDER: Color = Color::from_rgb8(0x41, 0x48, 0x68);
 pub(super) const TOKYO_TEXT: Color = Color::from_rgb8(0xC0, 0xCA, 0xF5);
 pub(super) const TOKYO_MUTED: Color = Color::from_rgb8(0x56, 0x5F, 0x89);
 pub(super) const TOKYO_BLUE: Color = Color::from_rgb8(0x7A, 0xA2, 0xF7);
+pub(super) const TOKYO_SELECTION_BLUE: Color = Color {
+    r: 0x7A as f32 / 255.0,
+    g: 0xA2 as f32 / 255.0,
+    b: 0xF7 as f32 / 255.0,
+    a: 0.18,
+};
 pub(super) const TOKYO_CYAN: Color = Color::from_rgb8(0x7D, 0xCF, 0xFF);
 pub(super) const TOKYO_GREEN: Color = Color::from_rgb8(0x9E, 0xCE, 0x6A);
 pub(super) const TOKYO_YELLOW: Color = Color::from_rgb8(0xE0, 0xAF, 0x68);

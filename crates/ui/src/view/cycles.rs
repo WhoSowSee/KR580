@@ -22,7 +22,7 @@
 //!   (halt-acknowledge цикл M2 в этом блоке не показывается, чтобы
 //!   индикатор не «перепрыгивал» после уже остановленной инструкции).
 //!
-//! # Блок 2: «Внутренний тайминг» — сквозные такты
+//! # Блок 2: «Внутренние тайминги» — сквозные такты
 //!
 //! Точные значения из технического описания по полной длительности
 //! инструкции, без разбиения на M-циклы. Три строки:
@@ -52,7 +52,7 @@
 //!
 //! «Цикл и такт» удобен для пошаговой отладки на уровне M-циклов:
 //! видно какой именно шаг сложной инструкции (fetch, чтение операнда,
-//! push на стек) сейчас выполняется. «Внутренний тайминг» нужен для
+//! push на стек) сейчас выполняется. «Внутренние тайминги» нужны для
 //! сверки с техническим описанием Intel и измерения времени программ
 //! — там важна полная длительность, а не разбиение на M-циклы. Они
 //! расходятся на HLT (4 vs 7 такта) и на сложных инструкциях (где
@@ -75,21 +75,18 @@ use k580_core::{
     Cpu8080State, MachineCycleLayout, MachineCyclePosition, decode_opcode, layout_for, position_for,
 };
 
-use super::styles::{inset_style, schematic_block_style};
+use super::styles::inset_style;
 use super::theme::{TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
+use super::widgets::legend_panel_left;
 use crate::app::Message;
 
-/// Ширина левого блока «Цикл и такт». Узкий — там всего две короткие
-/// строки с однозначным числом справа. Подобрано так чтобы заголовок
-/// «Цикл и такт» помещался в одну строку и не переносился.
-const CYCLE_BLOCK_WIDTH: f32 = 140.0;
-
-/// Ширина правого блока «Внутренний тайминг». Шире левого — у него
-/// три строки и одна из них («Такт инструкции») ощутимо длиннее, плюс
-/// сами числа могут быть многозначные (`cycle_count` после долгой
-/// программы — 5-7 цифр). Пользователь явно попросил «можешь сделать
-/// правый блок чуть шире» — это та самая разница.
+/// Единая ширина блоков «Цикл и такт» и «Внутренние тайминги».
+/// Правый блок задаёт размер: в нём три строки и самая длинная подпись
+/// («Такт инструкции»). Левый блок намеренно растянут до той же ширины,
+/// чтобы нижний ряд схемы читался как ровная пара.
+const CYCLE_BLOCK_WIDTH: f32 = 200.0;
 const TIMING_BLOCK_WIDTH: f32 = 200.0;
+const CYCLE_BLOCK_BALANCE_SPACER_HEIGHT: f32 = 6.0;
 
 /// Layout с **полной длительностью** инструкции по техническому
 /// описанию, без разбиения на M-циклы. Для HLT возвращает `[7]` (M1
@@ -214,6 +211,14 @@ fn labeled_row_with_tooltip(
         .into()
 }
 
+fn total_tacts_text(cpu: &Cpu8080State) -> String {
+    if cpu.cycle_count == 0 {
+        "-".to_owned()
+    } else {
+        cpu.cycle_count.to_string()
+    }
+}
+
 pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
     // «Активная» позиция: где сейчас находится исполнение. Для
     // отображения по M-циклам (M / T в текущем M-цикле) при
@@ -254,20 +259,13 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
         None => "-".to_owned(),
     };
 
-    // Заголовок блока — отдельная строка с центрированной подписью.
-    // Width(Fill) внутри контейнера фиксированной ширины растягивает
-    // Row на всю ширину блока, align_x(Center) для текста ставит
-    // подпись по центру.
-    let cycle_header = container(ui_text("Цикл и такт", 11, TOKYO_MUTED))
-        .width(Length::Fill)
-        .align_x(alignment::Horizontal::Center);
-
     // Блок 1: «Цикл и такт» — позиция по машинным циклам. Две
     // строки: номер M-цикла и T-фаза внутри него (с клампингом для
     // HLT). Каждая строка обёрнута в tooltip с полным объяснением.
-    let cycle_block = container(
+    let cycle_block = container(legend_panel_left(
+        "Цикл и такт",
         column![
-            cycle_header,
+            Space::new().height(Length::Fixed(CYCLE_BLOCK_BALANCE_SPACER_HEIGHT)),
             labeled_row_with_tooltip(
                 "Цикл",
                 cycle_text,
@@ -282,14 +280,14 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
                  После остановки удерживается на последнем \
                  выполненном такте.",
             ),
+            Space::new().height(Length::Fixed(CYCLE_BLOCK_BALANCE_SPACER_HEIGHT)),
         ]
         .spacing(6),
-    )
-    .padding(10)
-    .width(Length::Fixed(CYCLE_BLOCK_WIDTH))
-    .style(schematic_block_style);
+        Length::Shrink,
+    ))
+    .width(Length::Fixed(CYCLE_BLOCK_WIDTH));
 
-    // Блок 2: «Внутренний тайминг» — модель полной длительности.
+    // Блок 2: «Внутренние тайминги» — модель полной длительности.
     // Три строки:
     //   - Тактов: сквозной cycle_count от начала программы.
     //   - Такт инструкции: номер такта внутри текущей инструкции по
@@ -304,16 +302,12 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
         (None, None) => "-".to_owned(),
     };
 
-    let timing_header = container(ui_text("Внутренний тайминг", 11, TOKYO_MUTED))
-        .width(Length::Fill)
-        .align_x(alignment::Horizontal::Center);
-
-    let our_block = container(
+    let our_block = container(legend_panel_left(
+        "Внутренние тайминги",
         column![
-            timing_header,
             labeled_row_with_tooltip(
                 "Тактов",
-                cpu.cycle_count.to_string(),
+                total_tacts_text(cpu),
                 "Сколько тактов всего прошло с начала программы. \
                  Сбрасывается при сбросе процессора.",
             ),
@@ -334,10 +328,9 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
             ),
         ]
         .spacing(6),
-    )
-    .padding(10)
-    .width(Length::Fixed(TIMING_BLOCK_WIDTH))
-    .style(schematic_block_style);
+        Length::Shrink,
+    ))
+    .width(Length::Fixed(TIMING_BLOCK_WIDTH));
 
     row![
         cycle_block,
@@ -345,4 +338,25 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
         our_block
     ]
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn total_tacts_text_is_dash_at_cold_start() {
+        let cpu = Cpu8080State::default();
+        assert_eq!(total_tacts_text(&cpu), "-");
+    }
+
+    #[test]
+    fn cycle_and_timing_blocks_share_width() {
+        assert_eq!(CYCLE_BLOCK_WIDTH, TIMING_BLOCK_WIDTH);
+    }
+
+    #[test]
+    fn cycle_block_has_height_balance_spacer() {
+        assert!(std::hint::black_box(CYCLE_BLOCK_BALANCE_SPACER_HEIGHT) > 0.0);
+    }
 }

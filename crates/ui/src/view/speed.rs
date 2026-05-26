@@ -7,12 +7,16 @@
 //! tiers carry enough rationale (see the doc comment on `speed_panel`)
 //! to deserve their own home.
 
-use iced::widget::{button, column, container, row};
+use iced::widget::{button, container, row};
 use iced::{Element, Length, alignment};
 
-use super::styles::{mux_button_style, schematic_block_style};
-use super::theme::{TOKYO_BLUE, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_TEXT, ui_text};
-use crate::app::{Message, SpeedTier, tier_hz};
+use super::styles::schematic_select_button_style;
+use super::theme::{TOKYO_TEXT, ui_text};
+use super::widgets::legend_panel_left;
+use crate::app::{Message, SpeedTier};
+
+const TIER_LABEL_SIZE: u32 = 12;
+const TIER_BUTTON_HEIGHT: f32 = 38.0;
 
 /// Four-tier speed switch for the paced `Run` loop. Lives in the
 /// lower-left strip next to the Cycle/Tick panel: same vertical band,
@@ -36,26 +40,26 @@ use crate::app::{Message, SpeedTier, tier_hz};
 ///   instead of walking. The opt-in for "просто доведи программу до
 ///   конца, мне не нужно смотреть на каждый шаг".
 ///
-/// The active tier is highlighted with the same `mux_button_style`
-/// the multiplexer panel uses for its own selected/unselected
-/// distinction, so the switch reads as part of the schematic's
-/// control surface rather than a foreign widget.
+/// The active tier uses the same blue fill as the selected memory row;
+/// hover/press use a neutral surface fill with no coloured frame.
 pub(super) fn speed_panel(active: SpeedTier) -> Element<'static, Message> {
-    let caption = format!("Скорость: {} шаг/сек", tier_hz(active));
-
     let switch = row![
         tier_button("Медленно", SpeedTier::Slow, active),
         tier_button("Средне", SpeedTier::Medium, active),
         tier_button("Высоко", SpeedTier::High, active),
         tier_button("Максимум", SpeedTier::Max, active),
     ]
-    .spacing(4);
+    .spacing(8);
 
-    container(column![ui_text(caption, 12, TOKYO_MUTED), switch].spacing(6))
-        .padding(10)
-        .width(Length::Fixed(340.0))
-        .style(schematic_block_style)
-        .into()
+    container(legend_panel_left(
+        "Скорость",
+        container(switch)
+            .width(Length::Fill)
+            .align_x(alignment::Horizontal::Center),
+        Length::Shrink,
+    ))
+    .width(Length::Fixed(328.0))
+    .into()
 }
 
 fn tier_button(
@@ -64,20 +68,32 @@ fn tier_button(
     active: SpeedTier,
 ) -> Element<'static, Message> {
     let is_selected = tier == active;
-    let accent = if is_selected {
-        TOKYO_MAGENTA
-    } else {
-        TOKYO_BLUE
-    };
 
-    button(
-        ui_text(label, 11, TOKYO_TEXT)
+    let label = container(
+        ui_text(label, TIER_LABEL_SIZE, TOKYO_TEXT)
             .align_x(alignment::Horizontal::Center)
             .width(Length::Fill),
     )
-    .on_press(Message::SpeedTierChanged(tier))
-    .padding(6)
     .width(Length::Fill)
-    .style(move |_theme, status| mux_button_style(status, accent, is_selected))
-    .into()
+    .height(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
+
+    button(label)
+        .on_press(Message::SpeedTierChanged(tier))
+        .padding(0)
+        .width(Length::Fill)
+        .height(Length::Fixed(TIER_BUTTON_HEIGHT))
+        .style(move |_theme, status| schematic_select_button_style(status, is_selected))
+        .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tier_label_size_is_larger_than_previous_compact_size() {
+        assert!(std::hint::black_box(TIER_LABEL_SIZE) > 11);
+    }
 }

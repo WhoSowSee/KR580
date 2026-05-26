@@ -268,9 +268,9 @@ pub(crate) fn kinds_for(opcode: u8, branch_taken: bool) -> MachineCycleKinds {
         let src = opcode & 7;
         return match (dst == 6, src == 6) {
             (false, false) => &[M1Fetch],
-            (false, true) => &[M1Fetch, MemoryRead],  // MOV r,M
+            (false, true) => &[M1Fetch, MemoryRead], // MOV r,M
             (true, false) => &[M1Fetch, MemoryWrite], // MOV M,r
-            (true, true) => &[M1Fetch],               // невозможно (это HLT)
+            (true, true) => &[M1Fetch],              // невозможно (это HLT)
         };
     }
 
@@ -352,10 +352,10 @@ pub(crate) fn kinds_for(opcode: u8, branch_taken: bool) -> MachineCycleKinds {
     }
 
     match opcode {
-        0x00 => &[M1Fetch],                               // NOP
-        0x02 | 0x12 => &[M1Fetch, MemoryWrite],           // STAX B/D
+        0x00 => &[M1Fetch],                                                  // NOP
+        0x02 | 0x12 => &[M1Fetch, MemoryWrite],                              // STAX B/D
         0x07 | 0x0F | 0x17 | 0x1F | 0x27 | 0x2F | 0x37 | 0x3F => &[M1Fetch], // RLC..CMC
-        0x0A | 0x1A => &[M1Fetch, MemoryRead],            // LDAX B/D
+        0x0A | 0x1A => &[M1Fetch, MemoryRead],                               // LDAX B/D
         // SHLD: M1 + addr_lo + addr_hi + MW_L + MW_H.
         0x22 => &[M1Fetch, MemoryRead, MemoryRead, MemoryWrite, MemoryWrite],
         // LHLD: M1 + addr_lo + addr_hi + MR_L + MR_H.
@@ -367,10 +367,10 @@ pub(crate) fn kinds_for(opcode: u8, branch_taken: bool) -> MachineCycleKinds {
         // HLT: layout_for показывает только видимый M1 (4T). HLTA-цикл
         // следует у datasheet, но школьный эталон его не отрисовывает.
         0x76 => &[M1Fetch],
-        0xC3 => &[M1Fetch, MemoryRead, MemoryRead],       // JMP
+        0xC3 => &[M1Fetch, MemoryRead, MemoryRead], // JMP
         // ADI/ACI/SUI/SBI/ANI/XRI/ORI/CPI = M1 + MR (immediate).
         0xC6 | 0xCE | 0xD6 | 0xDE | 0xE6 | 0xEE | 0xF6 | 0xFE => &[M1Fetch, MemoryRead],
-        0xC9 => &[M1Fetch, StackRead, StackRead],         // RET
+        0xC9 => &[M1Fetch, StackRead, StackRead], // RET
         // CALL: M1 + MR_lo + MR_hi + SW_hi + SW_lo.
         0xCD => &[M1Fetch, MemoryRead, MemoryRead, StackWrite, StackWrite],
         // OUT: M1 + MR (port) + IOW.
@@ -378,11 +378,13 @@ pub(crate) fn kinds_for(opcode: u8, branch_taken: bool) -> MachineCycleKinds {
         // IN: M1 + MR (port) + IOR.
         0xDB => &[M1Fetch, MemoryRead, IoRead],
         // XTHL: M1 + pop_lo + pop_hi + push_hi + push_lo + idle.
-        0xE3 => &[M1Fetch, StackRead, StackRead, StackWrite, StackWrite, BusIdle],
-        0xE9 => &[M1Fetch],                               // PCHL
-        0xEB => &[M1Fetch],                               // XCHG
-        0xF3 | 0xFB => &[M1Fetch],                        // DI / EI
-        0xF9 => &[M1Fetch],                               // SPHL
+        0xE3 => &[
+            M1Fetch, StackRead, StackRead, StackWrite, StackWrite, BusIdle,
+        ],
+        0xE9 => &[M1Fetch],        // PCHL
+        0xEB => &[M1Fetch],        // XCHG
+        0xF3 | 0xFB => &[M1Fetch], // DI / EI
+        0xF9 => &[M1Fetch],        // SPHL
         _ => &[],
     }
 }

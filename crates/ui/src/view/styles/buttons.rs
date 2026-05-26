@@ -6,28 +6,21 @@ use iced::widget::button;
 use iced::{Background, Border, Color};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BORDER, TOKYO_MUTED, TOKYO_RED, TOKYO_SURFACE, TOKYO_SURFACE_2,
-    TOKYO_SURFACE_3, TOKYO_TEXT,
+    TOKYO_BG, TOKYO_BORDER, TOKYO_MUTED, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE,
+    TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT,
 };
-use super::containers::SCHEMATIC_BLOCK_FILL;
 
 /// Capsule-shaped button used by `functional_block` (Аккумулятор /
 /// Буферный регистр 1 / Буферный регистр 2) on the schematic plate.
 ///
-/// Resting fill is `SCHEMATIC_BLOCK_FILL` (`#1C1E2E @ 0.92`) — the
-/// shared tone every framed slot on the left panel wears, so a row
-/// of `functional_block` + `schematic_readout` chips reads as one
-/// continuous family of recessed slots cut into the plate. The
-/// previous incarnation of this helper rested on `TOKYO_SURFACE`
-/// (`#24283B`), three stops lighter, which is why the user reported
-/// «некоторые блоки всё ещё светлее чем другие» on the schematic
-/// pane — the buttons were the brighter siblings in that family.
+/// Resting state has no fill: the border is what makes every
+/// schematic slot read as part of one outline-only family. Hover and
+/// press temporarily raise the surface tone so the chip still
+/// telegraphs interactivity.
 ///
-/// Hover and press climb to `TOKYO_SURFACE_3` so the chip still
-/// telegraphs interactivity, and the per-chip accent only paints the
-/// border under hover/press/selected. Resting frames stay neutral so
-/// the row does not flare with coloured outlines just because the
-/// cursor passes by.
+/// The per-chip accent only paints the border under hover/press/
+/// selected. Resting frames stay neutral so the row does not flare
+/// with coloured outlines just because the cursor passes by.
 pub(crate) fn schematic_block_button_style(
     status: button::Status,
     accent: Color,
@@ -35,11 +28,11 @@ pub(crate) fn schematic_block_button_style(
 ) -> button::Style {
     let active = is_button_active(status);
     let background = if selected {
-        Color::from_rgba8(0xBB, 0x9A, 0xF7, 0.28)
+        Some(Color::from_rgba8(0xBB, 0x9A, 0xF7, 0.18))
     } else if active {
-        TOKYO_SURFACE_3
+        Some(TOKYO_SURFACE_3)
     } else {
-        SCHEMATIC_BLOCK_FILL
+        None
     };
     let border_color = if active || selected {
         accent
@@ -48,7 +41,7 @@ pub(crate) fn schematic_block_button_style(
     };
 
     button::Style {
-        background: Some(Background::Color(background)),
+        background: background.map(Background::Color),
         text_color: TOKYO_TEXT,
         border: Border {
             radius: 6.0.into(),
@@ -198,31 +191,31 @@ pub(crate) fn step_button_style(status: button::Status) -> button::Style {
     }
 }
 
-pub(crate) fn mux_button_style(
+pub(crate) fn schematic_select_button_style(
     status: button::Status,
-    accent: Color,
     selected: bool,
 ) -> button::Style {
-    let active = is_button_active(status);
     let background = if selected {
-        Color::from_rgba8(0xBB, 0x9A, 0xF7, 0.45)
-    } else if active {
-        TOKYO_SURFACE_3
+        Some(TOKYO_SELECTION_BLUE)
     } else {
-        TOKYO_SURFACE
+        match status {
+            button::Status::Hovered => Some(TOKYO_SURFACE),
+            button::Status::Pressed => Some(TOKYO_SURFACE_2),
+            _ => None,
+        }
     };
-    let border_color = if selected || active {
-        accent
+    let (border_width, border_color) = if selected || is_button_active(status) {
+        (0.0, Color::TRANSPARENT)
     } else {
-        TOKYO_BORDER
+        (1.0, TOKYO_BORDER)
     };
 
     button::Style {
-        background: Some(Background::Color(background)),
+        background: background.map(Background::Color),
         text_color: TOKYO_TEXT,
         border: Border {
             radius: 4.0.into(),
-            width: 1.0,
+            width: border_width,
             color: border_color,
         },
         ..button::Style::default()

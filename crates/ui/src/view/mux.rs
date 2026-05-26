@@ -9,11 +9,13 @@
 //! the helpers (`mux_section_caption`, `mux_static`, `mux_readout`,
 //! `mux_register`) are private to this module.
 
-use iced::widget::{Space, column, container, mouse_area, row};
+use iced::widget::{Space, button, column, container, row};
 use iced::{Element, Length, alignment};
 use k580_core::{Cpu8080State, RegisterName, decode_opcode};
 
-use super::styles::{mux_chip_style, mux_header_style, mux_panel_style, mux_register_chip_style};
+use super::styles::{
+    mux_chip_style, mux_header_style, mux_panel_style, schematic_select_button_style,
+};
 use super::theme::{TOKYO_BLUE, TOKYO_GREEN, TOKYO_MUTED, mono_text, ui_text};
 use crate::app::{Message, register_name};
 
@@ -48,11 +50,10 @@ use crate::app::{Message, register_name};
 ///    the left and its value on the right of the same row, instead
 ///    of stacking them vertically. Same reading rhythm as the
 ///    schematic notation, half the vertical footprint.
-/// 3. **Plate-coloured chrome with borders only**: the panel and
-///    every chip inside it use `SCHEMATIC_BLOCK_FILL` (the shared
-///    schematic-slot tone) — the panel reads as a bordered cut-out
-///    on the plate rather than a lifted card. Borders carry the
-///    structure on their own.
+/// 3. **Outline-only chrome**: the panel and every chip inside it
+///    are transparent in the resting state — the panel reads as a
+///    bordered cut-out on the plate rather than a lifted card.
+///    Borders carry the structure on their own.
 /// 4. **A is gone from the РОН block**: the accumulator already has
 ///    its own dedicated chip in the status strip above the schematic
 ///    plate, so listing A here was duplicating the same readout in
@@ -293,32 +294,20 @@ fn mux_register(
     // the multiplexer panel — same reading rhythm as the reference
     // KR-580 schematic.
     //
-    // The chip is a `mouse_area`-wrapped `container`, not a
-    // `button`. iced's `button::on_press` only fires on
-    // `Status::Released`, so between mouse-down and mouse-up the
-    // user perceives the gap between the click and the highlight
-    // moving as input lag. `mouse_area::on_press` fires on the
-    // press edge (matching `address_cell` / `command_cell` in the
-    // memory list, which are also `mouse_area`-driven), so the
-    // selection visibly snaps in the same frame the click lands.
-    // The `Pointer` interaction hint replaces the cursor change
-    // that `button` did for free, keeping the affordance honest.
-    let body = container(
+    button(
         row![
             ui_text(register_name(register), 13, label_color),
             Space::new().width(Length::Fill),
             mono_text(format!("{value:02X}"), 16, TOKYO_GREEN),
         ]
         .align_y(alignment::Vertical::Center)
-        .spacing(8),
+        .spacing(8)
+        .width(Length::Fill),
     )
+    .on_press(Message::RegisterSelected(register))
     .padding([4, 10])
     .width(Length::Fill)
     .height(Length::Fixed(30.0))
-    .style(move |_theme| mux_register_chip_style(is_selected));
-
-    mouse_area(body)
-        .on_press(Message::RegisterSelected(register))
-        .interaction(iced::mouse::Interaction::Pointer)
-        .into()
+    .style(move |_theme, status| schematic_select_button_style(status, is_selected))
+    .into()
 }

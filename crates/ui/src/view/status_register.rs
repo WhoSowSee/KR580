@@ -47,8 +47,8 @@ use k580_core::{
 };
 use std::time::Duration;
 
-use super::styles::{inset_style, schematic_block_style};
-use super::theme::{TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
+use super::styles::status_tooltip_style;
+use super::theme::{TOKYO_BLUE, TOKYO_TEXT, ui_text};
 use crate::app::Message;
 
 /// Угадываем «занят ли branch» так же, как делает `view::cycles`:
@@ -113,32 +113,8 @@ pub(super) fn derive_status_kind(cpu: &Cpu8080State) -> MachineCycleKind {
     kind_at(cpu.last_fetched_opcode, m_cycle_idx, taken).unwrap_or(MachineCycleKind::M1Fetch)
 }
 
-/// Чипа-блок «Регистр состояния» для верхнего левого угла плиты.
-/// Та же раскладка, что у `schematic_readout` (170×70, 11 px ярлык,
-/// monospace тело), но тело двухстрочное: верх — статусный байт в
-/// формате `XXXX XXXX`, низ — русская расшифровка («Чтение памяти»,
-/// «Запись в порт», и т.д.). Высоту немного увеличили (60 → 70),
-/// потому что строки внутри — две, а не одна, и при 60 px текст
-/// прижимался к рамке. Ширину расширили с 150 до 170 px, чтобы
-/// заголовок «Регистр состояния» влезал в одну строку при 11 px
-/// кегле.
-///
-/// Сейчас на плите используется однострочный inline-вариант
-/// (`status_register_inline`) — он встаёт в `status_strip` рядом с
-/// PC/SP/T и не требует отдельной строки. Полноразмерный chip
-/// оставлен `#[allow(dead_code)]`-ом на будущее: если row
-/// `top_bus_row` или нижний strip получит свободное место, блок
-/// можно поднять без переписывания. Удалить — потерять готовую
-/// раскладку, восстанавливать дольше чем держать рядом.
-#[allow(dead_code)]
-pub(super) fn status_register_block(cpu: &Cpu8080State) -> Element<'static, Message> {
-    let kind = derive_status_kind(cpu);
-    let byte = kind.status_byte();
-    let label = kind.label_ru();
-
-    // `XXXX XXXX` — тот же формат что у «Регистр признаков» рядом, чтобы
-    // глаз ловил оба статусных байта в одном ритме.
-    let bits = format!(
+fn status_bits(byte: u8) -> String {
+    format!(
         "{}{}{}{} {}{}{}{}",
         (byte >> 7) & 1,
         (byte >> 6) & 1,
@@ -148,87 +124,46 @@ pub(super) fn status_register_block(cpu: &Cpu8080State) -> Element<'static, Mess
         (byte >> 2) & 1,
         (byte >> 1) & 1,
         byte & 1,
-    );
-
-    container(
-        iced::widget::column![
-            ui_text("Регистр состояния", 11, TOKYO_MUTED),
-            mono_text(bits, 14, TOKYO_GREEN),
-            ui_text(label, 10, TOKYO_GREEN),
-        ]
-        .spacing(2)
-        .width(Length::Fill)
-        .align_x(alignment::Horizontal::Center),
     )
-    .padding(Padding {
-        top: 6.0,
-        right: 8.0,
-        bottom: 6.0,
-        left: 8.0,
-    })
-    .width(Length::Fixed(170.0))
-    .height(Length::Fixed(70.0))
-    .align_x(alignment::Horizontal::Center)
-    .style(schematic_block_style)
-    .into()
 }
 
-/// Однострочный inline-вариант для встраивания в `status_strip` —
-/// рядом с PC/SP/T. Face — короткий: подпись «Регистр состояния» +
-/// 8 бит в формате `XXXX XXXX`. Полное объяснение что это за байт
-/// и текущая расшифровка («Загрузка опкода», «Запись в порт» и т.д.)
-/// уезжают в tooltip — face не дублирует информацию, которая и так
-/// видна в соседних блоках (РК, Буфер данных, Буфер адреса), а
-/// студент получает обучающий слой по hover'у. `status_register_block`
-/// оставлен как полноценный chip-вариант на будущее (если row
-/// `top_bus_row` или нижний strip получит свободное место).
-pub(super) fn status_register_inline(cpu: &Cpu8080State) -> Element<'static, Message> {
+pub(super) fn status_register_bits(cpu: &Cpu8080State) -> String {
     let kind = derive_status_kind(cpu);
     let byte = kind.status_byte();
-    let label = kind.label_ru();
-    let bits = format!(
-        "{}{}{}{} {}{}{}{}",
-        (byte >> 7) & 1,
-        (byte >> 6) & 1,
-        (byte >> 5) & 1,
-        (byte >> 4) & 1,
-        (byte >> 3) & 1,
-        (byte >> 2) & 1,
-        (byte >> 1) & 1,
-        byte & 1,
-    );
+    status_bits(byte)
+}
 
-    let face = row![
-        ui_text("Регистр состояния", 12, TOKYO_MUTED),
-        mono_text(bits, 13, TOKYO_GREEN),
-    ]
-    .spacing(6)
-    .align_y(alignment::Vertical::Center);
-
-    // Tooltip: краткое описание что это за байт + строка
-    // «Статус: <текущий>» внизу с визуальным отступом. Описание
-    // и статус — два отдельных `ui_text` в `column!` с `Space`
-    // между ними: пользователь явно попросил «небольшой отступ от
-    // текста описания» перед строкой статуса, поэтому `\n` внутри
-    // одного текста не подходит — нужна именно вертикальная
-    // прокладка фиксированной высоты, чтобы строка статуса
-    // визуально отделялась от описания.
-    //
-    // Описание сознательно простое: что показывает, на каких битах,
-    // что меняет значение. Без datasheet-нотации (D7/D6/...) — для
-    // студента который только знакомится с архитектурой 8080.
-    // Строка статуса покрашена в `TOKYO_GREEN` чтобы рифмоваться
-    // с битами в face — оба элемента это «живое» текущее значение,
-    // в отличие от статичного описания серым цветом.
-    let description = "Статусный байт T1: что процессор делает на текущем такте.\n\
+fn status_register_tooltip_body_lines(cpu: &Cpu8080State) -> [String; 2] {
+    let label = derive_status_kind(cpu).label_ru();
+    [
+        "Статусный байт T1: что процессор делает на текущем такте.\n\
          Биты слева направо: чтение памяти, ввод, загрузка опкода, \
-         вывод, останов, стек, запись, подтверждение прерывания.";
+         вывод, останов, стек, запись, подтверждение прерывания."
+            .to_owned(),
+        format!("Статус: {label}"),
+    ]
+}
+
+pub(super) fn status_register_tooltip<'a>(
+    cpu: &Cpu8080State,
+    face: impl Into<Element<'a, Message>>,
+) -> Element<'a, Message> {
+    let [description, status_line] = status_register_tooltip_body_lines(cpu);
+    let status_label = status_line
+        .strip_prefix("Статус: ")
+        .unwrap_or(&status_line)
+        .to_owned();
 
     let body = container(
         column![
             ui_text(description, 12, TOKYO_TEXT),
             Space::new().height(Length::Fixed(6.0)),
-            ui_text(format!("Статус: {label}"), 12, TOKYO_GREEN),
+            row![
+                ui_text("Статус: ", 12, TOKYO_TEXT),
+                ui_text(status_label, 12, TOKYO_BLUE),
+            ]
+            .spacing(0)
+            .align_y(alignment::Vertical::Center),
         ]
         .width(Length::Fill),
     )
@@ -239,11 +174,11 @@ pub(super) fn status_register_inline(cpu: &Cpu8080State) -> Element<'static, Mes
         left: 8.0,
     })
     .max_width(280.0)
-    .style(inset_style);
+    .style(status_tooltip_style);
 
     tooltip(face, body, tooltip::Position::Bottom)
         .gap(4.0)
-        .padding(0.0)
+        .padding(12.0)
         .delay(Duration::from_millis(600))
         .snap_within_viewport(true)
         .into()
@@ -277,6 +212,24 @@ mod tests {
         // T1 первой инструкции по PC=0000.
         let cpu = Cpu8080State::default();
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::M1Fetch);
+    }
+
+    #[test]
+    fn status_register_bits_uses_t1_status_byte() {
+        let cpu = Cpu8080State::default();
+        assert_eq!(status_register_bits(&cpu), "1010 0010");
+    }
+
+    #[test]
+    fn tooltip_body_does_not_repeat_status_register_bits() {
+        let cpu = Cpu8080State::default();
+        let lines = status_register_tooltip_body_lines(&cpu);
+        assert!(
+            !lines
+                .iter()
+                .any(|line| line.contains("Регистр состояния 1010 0010"))
+        );
+        assert!(lines.iter().any(|line| line == "Статус: Загрузка опкода"));
     }
 
     #[test]
@@ -318,7 +271,9 @@ mod tests {
         // T1 любого M1 — это всегда M1Fetch (datasheet 8080A,
         // обязательный invariant). Берём набор покрывающих опкодов:
         // NOP, MOV, MVI, LXI, STA, LDA, PUSH, POP, CALL, RET, IN, OUT.
-        let opcodes = [0x00, 0x40, 0x06, 0x01, 0x32, 0x3A, 0xC5, 0xC1, 0xCD, 0xC9, 0xDB, 0xD3];
+        let opcodes = [
+            0x00, 0x40, 0x06, 0x01, 0x32, 0x3A, 0xC5, 0xC1, 0xCD, 0xC9, 0xDB, 0xD3,
+        ];
         for &op in &opcodes {
             let cpu = cpu_with(op, Some(0));
             assert_eq!(

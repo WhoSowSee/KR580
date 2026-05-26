@@ -357,13 +357,7 @@ fn file_dropdown() -> Element<'static, Message> {
             Message::Import,
             true,
         ),
-        menu_item(
-            "Экспорт",
-            "Ctrl+E",
-            icons::file_up(),
-            Message::Export,
-            true,
-        ),
+        menu_item("Экспорт", "Ctrl+E", icons::file_up(), Message::Export, true),
         // Legacy `.580` interop sits below a separator so the two
         // groups read as distinct: the rows above operate on the
         // project's native v1 TLV snapshots (round-trippable, lossless,

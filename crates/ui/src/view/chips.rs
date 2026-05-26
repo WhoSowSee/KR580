@@ -23,7 +23,7 @@
 //! - `functional_block` — clickable register chip (`Аккумулятор`,
 //!   `Буферный регистр 1`, `Буферный регистр 2`).
 
-use iced::widget::{Row, button, column, container, svg, tooltip};
+use iced::widget::{Space, button, column, container, row, svg, tooltip};
 use iced::{Color, Element, Length, Padding, alignment};
 use k580_core::Cpu8080State;
 use std::time::Duration;
@@ -59,6 +59,28 @@ pub(super) fn schematic_readout(
     .padding(8)
     .width(Length::Fixed(134.0))
     .height(Length::Fixed(60.0))
+    .align_x(alignment::Horizontal::Center)
+    .style(schematic_block_style)
+    .into()
+}
+
+pub(super) fn schematic_wide_readout(
+    label: impl Into<String>,
+    value: impl Into<String>,
+    accent: Color,
+) -> Element<'static, Message> {
+    container(
+        column![
+            ui_text(label, 11, TOKYO_MUTED),
+            mono_text(value, 20, accent),
+        ]
+        .spacing(2)
+        .width(Length::Fill)
+        .align_x(alignment::Horizontal::Center),
+    )
+    .padding(8)
+    .width(Length::Fill)
+    .height(Length::Fixed(54.0))
     .align_x(alignment::Horizontal::Center)
     .style(schematic_block_style)
     .into()
@@ -109,19 +131,22 @@ pub(super) fn schematic_mnemonic_readout(
 }
 
 pub(super) fn flag_strip(cpu: &Cpu8080State) -> Element<'static, Message> {
-    let dots = [
-        ("Z", cpu.flags.zero),
-        ("S", cpu.flags.sign),
-        ("P", cpu.flags.parity),
-        ("C", cpu.flags.carry),
-        ("AC", cpu.flags.auxiliary_carry),
-    ];
+    const FLAG_GAP: f32 = 18.0;
 
-    Row::with_children(
-        dots.into_iter()
-            .map(|(label, active)| flag_dot(label, active)),
-    )
-    .spacing(8)
+    row![
+        Space::new().width(Length::Fill),
+        flag_dot("Z", cpu.flags.zero),
+        Space::new().width(Length::Fixed(FLAG_GAP)),
+        flag_dot("S", cpu.flags.sign),
+        Space::new().width(Length::Fixed(FLAG_GAP)),
+        flag_dot("P", cpu.flags.parity),
+        Space::new().width(Length::Fixed(FLAG_GAP)),
+        flag_dot("C", cpu.flags.carry),
+        Space::new().width(Length::Fixed(FLAG_GAP)),
+        flag_dot("AC", cpu.flags.auxiliary_carry),
+        Space::new().width(Length::Fill),
+    ]
+    .width(Length::Fill)
     .align_y(alignment::Vertical::Center)
     .into()
 }
@@ -133,7 +158,7 @@ fn flag_dot(label: &'static str, active: bool) -> Element<'static, Message> {
         ui_text(label, 10, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
     ]
     .spacing(2)
-    .width(Length::Fixed(28.0))
+    .width(Length::Fixed(32.0))
     .into()
 }
 
@@ -151,9 +176,9 @@ pub(super) fn device_chip(
     accent: Color,
     hint: &'static str,
 ) -> Element<'static, Message> {
-    const CHIP_WIDTH: f32 = 52.0;
-    const CHIP_HEIGHT: f32 = 44.0;
-    const GLYPH_SIZE: f32 = 22.0;
+    const CHIP_WIDTH: f32 = 38.0;
+    const CHIP_HEIGHT: f32 = 38.0;
+    const GLYPH_SIZE: f32 = 20.0;
 
     let glyph = svg(handle)
         .width(Length::Fixed(GLYPH_SIZE))
@@ -202,15 +227,10 @@ pub(super) fn functional_block(
     // centring directive actually has room to act on — without it the
     // column hugs the longest child and shorter labels slide left.
     //
-    // Style routes through `schematic_block_button_style` instead of the
-    // older `capsule_button_style`: the latter painted the resting fill
-    // with `TOKYO_SURFACE` (`#24283B`) which sat ~3 stops lighter than
-    // the neighbouring `schematic_readout` and `schematic_block_style`
-    // chips. The user reported that mismatch as «некоторые блоки всё ещё
-    // светлее чем другие» — every framed slot on the left panel now
-    // shares the `SCHEMATIC_BLOCK_FILL` swatch (`#1C1E2E @ 0.92`), and
-    // hover/press still climb to `TOKYO_SURFACE_3` so the chip
-    // telegraphs interactivity without losing the resting parity.
+    // Style routes through `schematic_block_button_style` so the resting
+    // chip matches the outline-only readouts. Hover/press still climb to
+    // `TOKYO_SURFACE_3` so the chip telegraphs interactivity without
+    // reintroducing a permanent block fill.
     button(
         column![
             ui_text(title, 11, TOKYO_MUTED),

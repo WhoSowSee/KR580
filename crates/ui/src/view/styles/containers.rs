@@ -6,7 +6,7 @@ use iced::widget::container;
 use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_RED, TOKYO_SURFACE, TOKYO_TEXT,
+    TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_TEXT,
     TOKYO_YELLOW,
 };
 
@@ -24,11 +24,9 @@ pub(crate) fn board_style(_theme: &Theme) -> container::Style {
 
 /// Variant of `board_style` for the left "schematic" panel that drops
 /// the bubble chrome: no border, no rounded corners. The schematic
-/// already provides its own internal visual language (mux frame, ALU
-/// frame, schematic block readouts), so wrapping it in another framed
-/// surface read as redundant. The fill stays so the schematic still
-/// sits on the same `TOKYO_BOARD` plate as everything else and the
-/// background does not shift between panes.
+/// already provides its own outline language (mux frame, ALU frame,
+/// schematic block readouts), so wrapping it in another framed surface
+/// read as redundant.
 pub(crate) fn schematic_board_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
 }
@@ -54,8 +52,14 @@ pub(crate) fn panel_style(theme: &Theme) -> container::Style {
     board_style(theme)
 }
 
+/// Shared surface for hover tooltips. Matches `status_tooltip_style`
+/// so every tooltip in the app uses the same darker plate fill.
 pub(crate) fn inset_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_SURFACE), 6.0, 1.0, TOKYO_BORDER)
+    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
+}
+
+pub(crate) fn status_tooltip_style(_theme: &Theme) -> container::Style {
+    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
 }
 
 /// Variant of `inset_style` for the floating error notice. The user
@@ -83,41 +87,14 @@ pub(crate) fn info_inset_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_YELLOW)
 }
 
-/// Tone shared by every framed slot on the schematic plate. Lives in
-/// one named constant so `schematic_block_style`, `mux_panel_style`,
-/// `mux_chip_style`, and `schematic_block_button_style` (in
-/// `buttons.rs`) all paint the same exact swatch — a stray
-/// hand-typed `0x1C, 0x1E, 0x2E` somewhere else would drift this tone
-/// over time without anyone noticing. `#1C1E2E @ 0.92` sits one notch
-/// darker than `TOKYO_BG` (`#1A1B26`) and lighter than `TOKYO_BOARD`
-/// (`#121320`) — the chips read as recessed slots cut into the plate
-/// rather than lifted cards on top of it.
-pub(crate) const SCHEMATIC_BLOCK_FILL: Color = Color {
-    r: 0x1C as f32 / 255.0,
-    g: 0x1E as f32 / 255.0,
-    b: 0x2E as f32 / 255.0,
-    a: 0.92,
-};
-
 pub(crate) fn schematic_block_style(_theme: &Theme) -> container::Style {
-    // Every framed slot on the schematic plate (Цикл/Такт, the speed
-    // switch, the device chips, the schematic readouts — Буфер
-    // данных / Регистр признаков / Регистр команд / PSW, the Мультиплексор
-    // panel and its inner chips) routes through this style so the
-    // panels share one continuous tone. Fill is the shared
-    // `SCHEMATIC_BLOCK_FILL` constant — see its doc comment for why.
-    surface_style(Some(SCHEMATIC_BLOCK_FILL), 6.0, 1.0, TOKYO_BORDER)
+    surface_style(None, 6.0, 1.0, TOKYO_BORDER)
 }
 
 pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
-    // Header strip of the multiplexer panel: the strip used to wear
-    // `TOKYO_BOARD` so it merged with the surrounding plate, but the
-    // plate-coloured strip is what made the Мультиплексор panel read
-    // brighter than its siblings on the rest of the schematic. The
-    // strip now wears `SCHEMATIC_BLOCK_FILL` — same tone as the panel
-    // body underneath and as `schematic_block_style` everywhere
-    // else — so the whole multiplexer family shares one swatch with
-    // the rest of the left-panel chrome.
+    // Header strip of the multiplexer panel. It stays transparent in
+    // the resting state so the whole left schematic uses one
+    // outline-only chrome language.
     //
     // The full-rectangle border (rather than just a bottom edge)
     // is deliberate: the panel's outer `mux_panel_style` already
@@ -142,7 +119,7 @@ pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
     // section caption — a rounded bottom would round into a
     // sibling row and leave a visible gap on either side.
     container::Style {
-        background: Some(Background::Color(SCHEMATIC_BLOCK_FILL)),
+        background: None,
         text_color: Some(TOKYO_TEXT),
         border: Border {
             radius: iced::border::Radius {
@@ -159,70 +136,20 @@ pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
 }
 
 pub(crate) fn mux_panel_style(_theme: &Theme) -> container::Style {
-    // Multiplexer outer panel — same `SCHEMATIC_BLOCK_FILL` as every
-    // other framed slot on the schematic plate so the panel reads as
-    // a sibling of the surrounding chips, not a card lifted on top of
-    // them. The user explicitly asked for "сделай заливку как у
-    // других блоков"; the previous `TOKYO_BOARD` fill matched the
-    // plate behind the chips, which is why the Мультиплексор
-    // looked uniformly brighter than its neighbours.
-    surface_style(Some(SCHEMATIC_BLOCK_FILL), 6.0, 1.0, TOKYO_BORDER)
+    // Multiplexer outer panel: border only, no resting fill.
+    surface_style(None, 6.0, 1.0, TOKYO_BORDER)
 }
 
 /// Chrome for individual chips inside the multiplexer panel — the
-/// W/Z scratch pair, the SP/PC inline readouts, and (via
-/// `mux_button_style`'s neutral status) the regular РОН buttons all
-/// land on the same `SCHEMATIC_BLOCK_FILL` as `mux_panel_style`. The
-/// outer panel and every chip inside it sharing one surface tone is
-/// what makes the panel read as "a frame full of bordered slots cut
-/// into the plate" instead of "a card holding a stack of darker
-/// cards". 6 px corner radius matches `mux_panel_style` so the
-/// chips visually echo the parent frame at a smaller scale.
+/// W/Z scratch pair and the SP/PC inline readouts use the same
+/// outline-only resting chrome as `mux_panel_style`.
+/// The outer panel and every chip inside it read as "a frame full of
+/// bordered slots cut into the plate" instead of "a card holding a
+/// stack of darker cards". 6 px corner radius matches
+/// `mux_panel_style` so the chips visually echo the parent frame at a
+/// smaller scale.
 pub(crate) fn mux_chip_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(SCHEMATIC_BLOCK_FILL), 6.0, 1.0, TOKYO_BORDER)
-}
-
-/// Variant of `mux_chip_style` used by the interactive РОН register
-/// chips that the user can click to switch the register editor.
-/// Behaves like `mux_chip_style` for the unselected state, and
-/// flips the fill to the same `TOKYO_BLUE @ 0.18` wash that
-/// `memory_row_container_style` paints on the selected memory row
-/// when `selected` is `true`. The frame stays neutral
-/// (`TOKYO_BORDER`) in both states — selection reads from the fill
-/// alone, per the user's explicit "только заливка должна быть
-/// синей" feedback.
-///
-/// Why a `container::Style` and not a `button::Style`: the РОН
-/// chips were historically `button`s, which only fire `on_press`
-/// on `Status::Released`. The user reported a sluggish feel
-/// switching between registers — between the press and the
-/// release the eye reads the latency as input lag. Routing the
-/// click through a `mouse_area` instead makes it fire on the
-/// `Pressed` edge (matching the memory-row cells), and the
-/// surrounding chrome becomes a plain `container`. Keeping the
-/// style here lets the chip wear exactly the same dress as the
-/// W/Z static chips next to it, but driven by a snappier gesture
-/// pipeline.
-pub(crate) fn mux_register_chip_style(selected: bool) -> container::Style {
-    if selected {
-        // Byte-for-byte identical to `memory_row_container_style`'s
-        // selected fill (`Color::from_rgba8(0x7A, 0xA2, 0xF7, 0.18)`).
-        // Same hue, same alpha, same role: "this row / chip is the
-        // active selection". Sharing the wash keeps the visual
-        // idiom transferable between panels.
-        container::Style {
-            text_color: Some(TOKYO_TEXT),
-            background: Some(Background::Color(Color::from_rgba8(0x7A, 0xA2, 0xF7, 0.18))),
-            border: Border {
-                radius: 6.0.into(),
-                width: 1.0,
-                color: TOKYO_BORDER,
-            },
-            ..container::Style::default()
-        }
-    } else {
-        mux_chip_style(&Theme::Dark)
-    }
+    surface_style(None, 6.0, 1.0, TOKYO_BORDER)
 }
 
 pub(crate) fn legend_label_style(_theme: &Theme) -> container::Style {
@@ -248,21 +175,16 @@ pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
     // so the floating picker reads as part of the same surface instead of a
     // darker pop-up sitting on top of it.
     //
-    // Top corners are square, bottom corners keep the 7 px radius. The
-    // dropdown's top edge always anchors against another surface — the
-    // menu bar's bottom hairline for the file/MP menus, the memory row
-    // for the opcode picker — so a rounded top edge would round *into*
-    // that anchor and break the "panel hangs off the line" illusion.
-    // Squaring just the top edge lets the divider/row meet the frame
-    // edge-to-edge while the bottom of the panel still reads as a
-    // discrete bubble floating over the schematic.
+    // The opcode picker floats over the memory list, so all four
+    // corners need the same radius. A square top edge made the search
+    // popup read as if its top border had been clipped off.
     container::Style {
         text_color: Some(TOKYO_TEXT),
         background: Some(Background::Color(TOKYO_BOARD)),
         border: Border {
             radius: iced::border::Radius {
-                top_left: 0.0,
-                top_right: 0.0,
+                top_left: 7.0,
+                top_right: 7.0,
                 bottom_right: 7.0,
                 bottom_left: 7.0,
             },
@@ -295,7 +217,7 @@ pub(crate) fn memory_row_container_style(selected: bool, halted: bool) -> contai
     }
 
     let background = if selected {
-        Some(Background::Color(Color::from_rgba8(0x7A, 0xA2, 0xF7, 0.18)))
+        Some(Background::Color(TOKYO_SELECTION_BLUE))
     } else {
         None
     };
@@ -340,5 +262,26 @@ pub(crate) fn surface_style(
             color: border_color,
         },
         ..container::Style::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn opcode_dropdown_has_rounded_top_corners() {
+        let style = opcode_dropdown_style(&Theme::TokyoNight);
+
+        assert!(style.border.radius.top_left > 0.0);
+        assert!(style.border.radius.top_right > 0.0);
+    }
+
+    #[test]
+    fn regular_tooltips_share_status_tooltip_surface() {
+        let inset = inset_style(&Theme::TokyoNight);
+        let status = status_tooltip_style(&Theme::TokyoNight);
+
+        assert_eq!(inset.background, status.background);
     }
 }

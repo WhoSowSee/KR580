@@ -1,31 +1,8 @@
 //! Control-lamp strip on the schematic plate (F1, F2, SYNC, READY, …).
 //!
-//! Eleven indicator lamps that reflect live CPU pin state, rendered as a
-//! row of dot + vertical caption. Lives in its own module because:
-//!
-//! 1. The label-rotation pipeline owns a small SVG-generation helper
-//!    that has no business sitting in the main schematic file.
-//! 2. `crates/ui/src/view/schematic.rs` was bumping the workspace's
-//!    400-line ceiling — pulling the lamp strip out keeps the parent
-//!    file at a comfortable size without making the lamp logic harder
-//!    to find (it stays one `use super::lamps::control_lamps;` away).
-//!
-//! ## Why SVG for the captions
-//!
-//! iced 0.14's `Text` widget cannot rotate. The reference panel the
-//! user is matching against has its lamp captions running sideways
-//! (text reads bottom-to-top, but each glyph stays upright relative
-//! to the reader — the column rotates 90° counter-clockwise). The
-//! cleanest way to get that under iced is to render each label as a
-//! tiny SVG with a `<text transform="rotate(-90)">` block, then feed
-//! the SVG through `iced::widget::svg`. Authoring with
-//! `fill="currentColor"` lets the same `svg::Style { color: … }`
-//! tinting we already use for the device chips paint the caption
-//! `TOKYO_MUTED`/`TOKYO_TEXT` without re-encoding the SVG.
-//!
-//! Each label is fixed at compile time, so the eleven SVG handles are
-//! built once into a `LazyLock` array and cloned cheaply into the view
-//! tree on every paint.
+//! Eleven indicator lamps that reflect live CPU pin state, rendered as
+//! horizontal label + dot columns. The logic lives in its own module so
+//! the main schematic file stays focused on panel composition.
 //!
 //! ## Signal mapping
 //!
@@ -60,72 +37,21 @@
 //! honest than driving them with an approximation that does not match
 //! the schoolbook timing diagrams.
 
-use std::sync::LazyLock;
-
-use iced::widget::{Row, column, svg};
+use iced::widget::{Row, column};
 use iced::{Element, Length, alignment};
 use k580_core::Cpu8080State;
 
 use super::theme::{TOKYO_RED, TOKYO_TEXT, mono_text};
 use crate::app::Message;
 
-/// Geometry of a single lamp column. Width is generous enough to fit
-/// the longest caption (`READY`, `HLDA`) at 9 px after rotation, plus
-/// breathing room. Height of the SVG label is enough for a 5-letter
-/// word at the same point size.
-const LAMP_WIDTH: f32 = 18.0;
-const LABEL_HEIGHT: f32 = 36.0;
-const LABEL_FONT_SIZE: f32 = 9.0;
+/// Geometry of a single lamp column. Wide enough for READY / HLDA as
+/// horizontal 8 px labels inside the framed "Сигналы управления" row.
+const LAMP_WIDTH: f32 = 44.0;
 
-/// Eleven labels in the order the reference panel paints them, paired
-/// with the live signal each lamp reflects. Read by `control_lamps`
-/// to walk the `LAMP_LABEL_SVGS` array in lockstep.
+/// Eleven labels in the order the reference panel paints them.
 const LAMP_ORDER: [&str; 11] = [
     "F2", "F1", "SYNC", "READY", "WAIT", "HOLD", "INT", "INTE", "DBIN", "WR", "HLDA",
 ];
-
-/// SVG bytes for each lamp caption, rotated +90°. Built once on first
-/// access — the SVG string is small (a few hundred bytes per label),
-/// and `svg::Handle::from_memory` is the same primitive `icons.rs`
-/// uses for the static SVGs embedded with `include_bytes!`.
-///
-/// Authoring details:
-/// - `viewBox` is `0 0 LAMP_WIDTH LABEL_HEIGHT` so iced's resvg
-///   backend lays the rotated text into the same box the widget
-///   reserves with `width`/`height`.
-/// - `<text fill="currentColor">` keeps the tinting pipeline working
-///   (set once via `svg::Style { color: … }` at the call site).
-/// - The transform pipeline is `translate(centre, baseline) rotate(90)`,
-///   so the rotation pivots around the visual centre of each
-///   glyph row instead of the origin (which would push the text off
-///   the canvas). +90° (clockwise) is what produces the "left-to-right
-///   reading top-to-bottom" orientation the user asked for —
-///   `rotate(-90)` (counter-clockwise) reads bottom-to-top, which
-///   the reference panel does NOT use.
-/// - `text-anchor="middle"` plus `dominant-baseline="middle"` keeps
-///   the text centred within the SVG box once rotated.
-static LAMP_LABEL_SVGS: LazyLock<[svg::Handle; 11]> = LazyLock::new(|| {
-    LAMP_ORDER.map(|label| {
-        let cx = LAMP_WIDTH / 2.0;
-        let cy = LABEL_HEIGHT / 2.0;
-        let body = format!(
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" \
-                 width=\"{w}\" height=\"{h}\" viewBox=\"0 0 {w} {h}\">\
-               <text x=\"0\" y=\"0\" \
-                     transform=\"translate({cx} {cy}) rotate(90)\" \
-                     text-anchor=\"middle\" dominant-baseline=\"middle\" \
-                     font-family=\"sans-serif\" font-size=\"{fs}\" \
-                     font-weight=\"600\" fill=\"currentColor\">{label}</text>\
-             </svg>",
-            w = LAMP_WIDTH,
-            h = LABEL_HEIGHT,
-            cx = cx,
-            cy = cy,
-            fs = LABEL_FONT_SIZE,
-        );
-        svg::Handle::from_memory(body.into_bytes())
-    })
-});
 
 /// State of a single lamp — `true` lights the dot red, `false` keeps
 /// it the resting `TOKYO_TEXT` tone (same idiom as `flag_dot` in the
@@ -184,56 +110,30 @@ pub(super) fn control_lamps(cpu: &Cpu8080State) -> Element<'_, Message> {
     let children = LAMP_ORDER
         .iter()
         .copied()
-        .zip(LAMP_LABEL_SVGS.iter().cloned())
         .zip(states.iter().copied())
-        .map(|((label, handle), active)| control_lamp(label, handle, active));
+        .map(|(label, active)| control_lamp(label, active));
 
     Row::with_children(children)
-        .spacing(7)
+        .spacing(0)
         .align_y(alignment::Vertical::Center)
         .into()
 }
 
-/// Single lamp column: vertical caption on top, dot below. The user
+/// Single lamp column: horizontal caption on top, dot below. The user
 /// asked for the caption above the lamp — it puts the label-then-dot
 /// reading order in the same direction the eye naturally walks the
-/// row (top-to-bottom inside the column, left-to-right across the
-/// strip), and matches the reference KR-580 panel's silhouette where
-/// each pin name floats over its indicator.
+/// row.
 ///
 /// The dot uses the same `flag_dot` idiom — `TOKYO_RED` when the
 /// signal is asserted, `TOKYO_TEXT` when idle — so the eye reads the
 /// lamp row with the same vocabulary it just learned for the flag
 /// strip (Z/S/P/C/AC).
-///
-/// The caption is rendered as an SVG fed by the `LAMP_LABEL_SVGS`
-/// cache. `svg::Style { color }` paints the label `TOKYO_TEXT` so it
-/// stays legible against the schematic plate without competing with
-/// the lit dot for attention.
-fn control_lamp(
-    label: &'static str,
-    handle: svg::Handle,
-    active: bool,
-) -> Element<'static, Message> {
+fn control_lamp(label: &'static str, active: bool) -> Element<'static, Message> {
     let dot_color = if active { TOKYO_RED } else { TOKYO_TEXT };
-    let label_widget = svg(handle)
-        .width(Length::Fixed(LAMP_WIDTH))
-        .height(Length::Fixed(LABEL_HEIGHT))
-        .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
-        });
-
-    // `mono_text` for the dot keeps the row visually identical to
-    // `flag_dot` (the bullet glyph is rendered with the same monospace
-    // face). `_label` is unused at runtime — the SVG carries the text
-    // — but we keep it on the function signature so call-site readers
-    // see which lamp each entry corresponds to without chasing the
-    // SVG cache.
-    let _ = label;
 
     column![
-        label_widget,
-        mono_text("●", 14, dot_color).align_x(alignment::Horizontal::Center),
+        mono_text(label, 9, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+        mono_text("●", 16, dot_color).align_x(alignment::Horizontal::Center),
     ]
     .width(Length::Fixed(LAMP_WIDTH))
     .spacing(2)
