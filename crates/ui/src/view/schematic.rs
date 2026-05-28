@@ -158,10 +158,22 @@ impl DesktopApp {
                 .align_x(alignment::Horizontal::Center),
             Length::Shrink,
         );
+        let current_command_panel = legend_panel_left(
+            "Текущая команда",
+            super::current_command::current_command_panel(cpu),
+            Length::Shrink,
+        );
 
-        let left_board = column![status_row, psw_row, registers_panel, cycles, signals_panel]
-            .spacing(12)
-            .width(Length::Fixed(520.0));
+        let left_board = column![
+            status_row,
+            psw_row,
+            registers_panel,
+            cycles,
+            signals_panel,
+            current_command_panel
+        ]
+        .spacing(12)
+        .width(Length::Fixed(520.0));
 
         let status_register_block = super::status_register::status_register_tooltip(
             cpu,

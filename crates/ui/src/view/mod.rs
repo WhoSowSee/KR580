@@ -24,6 +24,7 @@
 //! near the markup that produces it.
 
 mod chips;
+mod current_command;
 mod cycles;
 mod editors;
 mod icons;
