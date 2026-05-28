@@ -1,0 +1,63 @@
+use iced::Task;
+
+use super::constants::{
+    MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, REGISTER_INLINE_INPUT_ID,
+    REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
+};
+use super::messages::Message;
+use super::register_inline::RegisterMove;
+use super::state::DesktopApp;
+
+impl DesktopApp {
+    /// `direction`: `+1` for ArrowUp, `-1` for ArrowDown.
+    pub(crate) fn handle_arrow_key(&mut self, direction: i32) -> Task<Message> {
+        match self.focused_input {
+            Some(REGISTER_NAME_INPUT_ID) => {
+                self.step_register(-direction);
+                Task::none()
+            }
+            Some(REGISTER_VALUE_INPUT_ID) => {
+                self.step_register_value_input(direction);
+                Task::none()
+            }
+            Some(REGISTER_INLINE_INPUT_ID) => {
+                self.step_register_value_input(direction);
+                iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID)
+            }
+            Some(MEMORY_VALUE_INPUT_ID) => {
+                self.step_memory_value_input(direction);
+                Task::none()
+            }
+            Some(MEMORY_INLINE_INPUT_ID) => {
+                // Stepping the address rebuilds the inline input
+                // under the new row, so we defer focus via
+                // `RefocusInline`. `step_memory_address_browse` skips
+                // the `SetPc` round-trip that ate focus.
+                let scroll = self.step_memory_address_browse(-direction);
+                scroll.chain(Task::done(Message::RefocusInline))
+            }
+            None if self.active_register_target.is_some() => {
+                let movement = if direction > 0 {
+                    RegisterMove::Up
+                } else {
+                    RegisterMove::Down
+                };
+                self.navigate_active_register_target(movement);
+                Task::none()
+            }
+            _ => self.step_memory_address(-direction),
+        }
+    }
+
+    pub(crate) fn handle_horizontal_arrow_key(&mut self, direction: i32) -> Task<Message> {
+        if self.focused_input.is_none() && self.active_register_target.is_some() {
+            let movement = if direction < 0 {
+                RegisterMove::Left
+            } else {
+                RegisterMove::Right
+            };
+            self.navigate_active_register_target(movement);
+        }
+        Task::none()
+    }
+}

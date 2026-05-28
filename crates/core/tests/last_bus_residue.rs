@@ -1,15 +1,15 @@
-//! Регрессионные тесты на «последние шинные» латчи: РК
-//! (`last_fetched_opcode`), Буфер данных (`last_data_bus_byte`) и
-//! Буфер адреса (`last_address_bus`). Это четыре блока схематика,
-//! которые до этой задачи показывали look-ahead в RAM по PC и
-//! расходились со школьным эталоном после `HLT`, после операций
-//! записи и после fetch операнда. Здесь фиксируем семантику:
+//! Regression coverage for the bus-latch residues that the schematic
+//! reads out: `last_fetched_opcode` (IR), `last_data_bus_byte` (data
+//! buffer) and `last_address_bus` (address buffer). Before the fix
+//! these four panels showed a `memory.read(pc)` look-ahead and drifted
+//! from the reference after `HLT`, after writes, and after operand
+//! fetches. The tests pin the semantics down:
 //!
-//! - после fetch'а опкода РК хранит **тот** байт, не RAM[PC];
-//! - после записи в память буфер данных хранит записанный байт,
-//!   а адресный — адрес записи (не PC);
-//! - после `HLT` PC шагнул, но РК продолжает держать `0x76`
-//!   до следующего M1 (которого не будет, пока не сбросим halt).
+//! - after an opcode fetch the IR holds **that** byte, not RAM[PC];
+//! - after a memory write the data buffer holds the written byte and
+//!   the address buffer holds the write target (not PC);
+//! - after `HLT` PC has advanced but the IR keeps `0x76` until the
+//!   next M1 (which never happens until the halt clears).
 
 use k580_core::{Cpu8080State, NullBus};
 
@@ -24,12 +24,6 @@ fn put_program(cpu: &mut Cpu8080State, bytes: &[u8]) {
     }
 }
 
-/// После выполнения `MVI A, 0x42` РК должен хранить `0x3E` (опкод
-/// MVI A), а буфер данных — `0x42` (последний байт через шину, это
-/// immediate-операнд, прочитанный после опкода). Если бы мы по-
-/// прежнему читали РК как `memory.read(pc)`, после инструкции PC
-/// шагнул бы на следующий байт и UI показал бы байт по новому PC,
-/// а не реально загруженный опкод.
 #[test]
 fn mvi_records_opcode_in_ir_and_immediate_in_data_buffer() {
     let mut cpu = Cpu8080State::default();
@@ -38,24 +32,18 @@ fn mvi_records_opcode_in_ir_and_immediate_in_data_buffer() {
     assert_eq!(cpu.registers.a, 0x42);
     assert_eq!(
         cpu.last_fetched_opcode, 0x3E,
-        "РК хранит опкод MVI A, не байт по новому PC"
+        "IR holds the MVI A opcode, not the byte at the new PC"
     );
     assert_eq!(
         cpu.last_data_bus_byte, 0x42,
-        "Буфер данных хранит immediate-операнд (последний байт через шину)"
+        "data buffer holds the immediate operand (last byte across the bus)"
     );
-    // Адрес последней операции — адрес immediate-байта (PC=1), не
-    // новый PC=2. Раньше мы показывали бы новый PC.
     assert_eq!(
         cpu.last_address_bus, 0x0001,
-        "Буфер адреса хранит адрес immediate-операнда"
+        "address buffer holds the immediate operand address, not the new PC"
     );
 }
 
-/// `STA 0x4000` записывает A в RAM[0x4000]. После операции буфер
-/// данных должен хранить записанный байт (значение A), а буфер
-/// адреса — `0x4000`, не новый PC. Это самый явный случай, где
-/// look-ahead по PC даст совершенно «не тот» байт.
 #[test]
 fn sta_records_written_byte_and_target_address() {
     let mut cpu = Cpu8080State::default();
@@ -65,64 +53,54 @@ fn sta_records_written_byte_and_target_address() {
     assert_eq!(cpu.memory.read(0x4000), 0x77);
     assert_eq!(
         cpu.last_data_bus_byte, 0x77,
-        "Буфер данных хранит записанный байт"
+        "data buffer holds the written byte"
     );
     assert_eq!(
         cpu.last_address_bus, 0x4000,
-        "Буфер адреса хранит адрес назначения, не PC"
+        "address buffer holds the destination, not PC"
     );
     assert_eq!(
         cpu.last_fetched_opcode, 0x32,
-        "РК хранит опкод STA до следующего M1"
+        "IR keeps the STA opcode until the next M1"
     );
 }
 
-/// После `HLT` (опкод `0x76`) PC шагает на следующий байт, но
-/// **следующий M1 не наступит** до запроса прерывания или сброса —
-/// значит РК должен продолжать держать `0x76`. Раньше readout
-/// «Регистр команд» использовал `memory.read(pc)`, и после HLT
-/// показывал `0x00` (NOP в очищенной RAM по новому PC). Это и
-/// был один из 11 расхождений со школьным эталоном.
+/// After `HLT` (opcode `0x76`) PC advances one byte, but the next M1
+/// will not happen until an interrupt or reset arrives — so the IR
+/// must keep `0x76`. The old readout used `memory.read(pc)` and
+/// showed `0x00` (NOP from blank RAM at the new PC).
 #[test]
 fn hlt_freezes_ir_at_seventy_six() {
     let mut cpu = Cpu8080State::default();
-    // Программа: 8 NOP, затем HLT по адресу 0x0008.
     put_program(
         &mut cpu,
         &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76],
     );
-    // Прокручиваем 8 NOP.
     for _ in 0..8 {
         step(&mut cpu);
     }
     assert_eq!(cpu.pc, 0x0008);
-    // Выполняем HLT.
     step(&mut cpu);
-    assert!(cpu.halted, "HLT поднял halt-флаг");
-    assert_eq!(cpu.pc, 0x0009, "PC шагнул за HLT (datasheet behaviour)");
+    assert!(cpu.halted, "HLT raised the halt flag");
+    assert_eq!(cpu.pc, 0x0009, "PC stepped past HLT (datasheet behaviour)");
     assert_eq!(
         cpu.last_fetched_opcode, 0x76,
-        "РК продолжает держать 0x76 после HLT (M1 не наступит)"
+        "IR still holds 0x76 after HLT (no further M1 until clear)"
     );
-    // Адрес последней шинной операции — адрес самого HLT'а (0x0008),
-    // не новый PC=0x0009. Школьный эмулятор показывает именно 0x0008
-    // в «Буфер адреса» после HLT.
     assert_eq!(
         cpu.last_address_bus, 0x0008,
-        "Буфер адреса = адрес HLT, не новый PC"
+        "address buffer = HLT address, not the new PC"
     );
     assert_eq!(
         cpu.last_data_bus_byte, 0x76,
-        "Буфер данных = опкод HLT (последний байт через шину)"
+        "data buffer = HLT opcode (last byte across the bus)"
     );
 }
 
-/// `MOV A, B` — чисто внутреннее перемещение между регистрами.
-/// Шину не трогает (кроме fetch'а самого опкода), значит латчи
-/// после операции хранят M1-fetch: РК = опкод, адрес = PC опкода,
-/// буфер данных = опкод (это последний байт, прошедший по D7-D0).
-/// Этот тест ловит регрессию, где `read_reg_code` для регистровых
-/// кодов (не M=110) случайно начнёт обновлять шинные латчи.
+/// `MOV A, B` is purely internal between registers. The bus only sees
+/// the M1 fetch, so all latches must reflect that fetch. Catches
+/// regressions where `read_reg_code` would touch the bus latches for
+/// register codes other than `M=110`.
 #[test]
 fn mov_register_to_register_does_not_touch_bus_beyond_m1() {
     let mut cpu = Cpu8080State::default();
@@ -131,15 +109,13 @@ fn mov_register_to_register_does_not_touch_bus_beyond_m1() {
     step(&mut cpu);
     assert_eq!(cpu.registers.a, 0xAB);
     assert_eq!(cpu.last_fetched_opcode, 0x78);
-    // Адрес последней шинной операции — это M1-fetch на PC=0.
     assert_eq!(cpu.last_address_bus, 0x0000);
     assert_eq!(cpu.last_data_bus_byte, 0x78);
 }
 
-/// `MOV A, (HL)` — чтение через индирект. Тут шина дёргается:
-/// HL выставляется на адресный буфер, прочитанный байт идёт через
-/// буфер данных. После операции латчи должны показывать HL и
-/// прочитанный байт, а не M1-fetch.
+/// `MOV A, (HL)` — indirect read. HL goes onto the address buffer
+/// and the fetched byte goes onto the data buffer; latches must
+/// reflect that, not the M1 fetch.
 #[test]
 fn mov_a_from_hl_indirect_records_hl_and_byte() {
     let mut cpu = Cpu8080State::default();
@@ -148,21 +124,21 @@ fn mov_a_from_hl_indirect_records_hl_and_byte() {
     put_program(&mut cpu, &[0x7E]); // MOV A, (HL)
     step(&mut cpu);
     assert_eq!(cpu.registers.a, 0x5A);
-    assert_eq!(cpu.last_fetched_opcode, 0x7E, "РК = опкод MOV A,(HL)");
+    assert_eq!(cpu.last_fetched_opcode, 0x7E, "IR = MOV A,(HL) opcode");
     assert_eq!(
         cpu.last_address_bus, 0x2000,
-        "Буфер адреса хранит HL, не PC опкода"
+        "address buffer holds HL, not the opcode PC"
     );
     assert_eq!(
         cpu.last_data_bus_byte, 0x5A,
-        "Буфер данных хранит прочитанный из (HL) байт"
+        "data buffer holds the byte read from (HL)"
     );
 }
 
-/// `Reset` обязан обнулить шинные латчи — иначе после загрузки
-/// программы UI покажет «остатки» с предыдущей сессии в РК и
-/// буферах. `Cpu8080State::default()` тоже даёт нули, так что
-/// проверяем оба пути.
+/// `Reset` must zero the bus latches; otherwise loading a fresh
+/// program leaves stale residues from the previous session in the
+/// IR and bus buffers. `Cpu8080State::default()` also zeroes them, so
+/// both paths are covered.
 #[test]
 fn reset_clears_bus_latches() {
     let mut cpu = Cpu8080State::default();

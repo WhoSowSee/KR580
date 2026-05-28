@@ -17,11 +17,8 @@ impl Importers {
         let mut workbook = open_workbook_auto(path.as_ref())
             .map_err(|e| ImportError::Spreadsheet(e.to_string()))?;
 
-        // Single-sheet layout: registers, flags, memory stacked
-        // vertically and separated by blank rows. Section switches are
-        // driven by header rows (`Field/Value` → registers, `Flag/Set`
-        // → flags, `Address/Value` → memory), mirroring how `parse_txt`
-        // keys on `[Registers]` / `[Flags]` / `[Memory]`.
+        // Header rows (`Field/Value`, `Flag/Set`, `Address/Value`)
+        // mirror the TXT `[Section]` markers.
         let sheet_name = workbook
             .sheet_names()
             .first()

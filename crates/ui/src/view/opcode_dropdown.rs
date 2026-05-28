@@ -90,11 +90,9 @@ struct OpcodeChoice {
 
 impl OpcodeChoice {
     /// Build an `OpcodeChoice` from a raw byte, or `None` if the byte
-    /// does not decode to a documented 8080 instruction. We deliberately
-    /// drop undocumented bytes from the picker entirely (instead of
-    /// listing them as `UNDOC`), because the user can never usefully
-    /// select one — the core refuses to execute them, and the
-    /// undocumented label was both visually noisy in the full list and
+    /// does not decode to a documented 8080 instruction. Undocumented
+    /// bytes are dropped from the picker entirely (rather than listed
+    /// as `UNDOC`) — the core refuses to execute them, and the label
     /// matched literal "UNDOC" searches as if it were a real mnemonic.
     fn new(value: u8) -> Option<Self> {
         let mnemonic = decode_opcode(value).ok()?.mnemonic;

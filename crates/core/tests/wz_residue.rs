@@ -1,23 +1,17 @@
 //! Behavioural tests for the internal `W`/`Z` scratch pair.
 //!
-//! These cells are programmer-invisible on the 8080 (no instruction
-//! reads or writes them directly), but the microsequencer parks the
-//! address operand of every memory-addressing or control-transfer
-//! command in WZ on its way to the final destination. The school-grade
-//! reference emulator we visually match against (`Эмулятор МП-системы
-//! на базе МП КР580ВМ80`) displays that residue in its multiplexer
-//! panel, so we model it on `Registers.w/z` and pump it from each
-//! relevant opcode in `ops/data.rs` and `ops/control.rs`.
+//! These cells are programmer-invisible (no instruction reads or
+//! writes them directly), but the microsequencer parks the address
+//! operand of every memory-addressing or control-transfer command in
+//! WZ on its way to the final destination. The reference emulator
+//! we visually match against displays that residue in its
+//! multiplexer panel.
 //!
 //! Conventions:
 //! * For 16-bit operands the high byte goes into `W`, the low byte
-//!   into `Z`. This matches both the textbook microcode listing and
-//!   the values shown by the reference emulator after `STA 2000`
-//!   (W=20, Z=00) on the same program flagged by the user.
-//! * Opcodes that work on already-resident register pairs (`STAX BC`,
-//!   `LDAX DE`, …) intentionally leave WZ untouched — the address is
-//!   already on the latch, no microcode cycle parks it in WZ. We
-//!   assert WZ stays at its previous residue in those cases too.
+//!   into `Z` (textbook microcode order).
+//! * Opcodes that operate on already-resident register pairs
+//!   (`STAX BC`, `LDAX DE`, …) intentionally leave WZ untouched.
 
 use k580_core::{Cpu8080State, NullBus};
 
@@ -29,8 +23,6 @@ fn run_program(bytes: &[u8]) -> Cpu8080State {
     }
     let mut bus = NullBus::default();
     for _ in 0..bytes.len() {
-        // Coarse upper bound: enough steps to clear the supplied
-        // program, never spinning past it.
         if cpu.pc as usize >= bytes.len() {
             break;
         }
@@ -46,8 +38,7 @@ fn step(cpu: &mut Cpu8080State) {
 
 #[test]
 fn sta_records_address_in_wz() {
-    // 32 00 20 → STA 2000h. Reference emulator shows W=20, Z=00 after
-    // this instruction (per the user's screenshot).
+    // STA 2000h: reference emulator shows W=20, Z=00 after.
     let cpu = run_program(&[0x3E, 0x46, 0x32, 0x00, 0x20]);
     assert_eq!(cpu.registers.w, 0x20);
     assert_eq!(cpu.registers.z, 0x00);
@@ -125,9 +116,8 @@ fn jmp_records_target_in_wz() {
 
 #[test]
 fn jcond_records_target_even_when_not_taken() {
-    // JZ 1234h with Z flag = false → not taken, but WZ still gets the
-    // operand because the microcode has already fetched both bytes
-    // before the flag test.
+    // Microcode fetches both operand bytes before the flag test, so
+    // WZ holds the operand even on the not-taken branch.
     let mut cpu = Cpu8080State::default();
     cpu.flags.zero = false;
     cpu.memory.write(0x0000, 0xCA);
@@ -205,8 +195,8 @@ fn sphl_records_hl_in_wz() {
 
 #[test]
 fn xchg_parks_previous_hl_in_wz() {
-    // HL=1122, DE=3344. After XCHG: HL=3344, DE=1122, WZ=1122 (the
-    // residue of the value that travelled HL → WZ → DE).
+    // After XCHG the WZ residue is the previous HL (it travelled
+    // HL → WZ → DE during the swap).
     let mut cpu = Cpu8080State::default();
     cpu.registers.h = 0x11;
     cpu.registers.l = 0x22;
@@ -240,9 +230,7 @@ fn xthl_records_top_of_stack_in_wz() {
 
 #[test]
 fn ldax_does_not_touch_wz() {
-    // Pre-populate WZ via LXI B, 1234h, then run LDAX B from a place
-    // where (BC) holds a known byte. WZ must keep the LXI residue —
-    // LDAX uses the BC pair directly without parking the address.
+    // LDAX uses the BC pair directly; WZ must keep the prior LXI residue.
     let mut cpu = Cpu8080State::default();
     cpu.memory.write(0x1234, 0x77);
     cpu.memory.write(0x0000, 0x01);
@@ -258,9 +246,7 @@ fn ldax_does_not_touch_wz() {
 
 #[test]
 fn rcond_not_taken_does_not_touch_wz() {
-    // Set WZ through LXI, then attempt RZ with Z flag = false (not
-    // taken). The not-taken path executes no memory cycle and must
-    // leave WZ alone.
+    // Not-taken Rcond runs no memory cycle, so it must leave WZ alone.
     let mut cpu = Cpu8080State::default();
     cpu.sp = 0x4000;
     cpu.flags.zero = false;

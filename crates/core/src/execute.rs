@@ -20,14 +20,9 @@ impl Cpu8080State {
         }
 
         let pending_before = self.interrupt_enable_pending;
-        // Через `fetch_opcode`, не `memory.read`: M1-цикл должен
-        // зафиксировать байт в РК (`last_fetched_opcode`) и пройти
-        // через буферы адреса/данных, иначе четыре readout'а на
-        // схематике (РК, Д/Ш команд, Буфер данных, Буфер адреса)
-        // показывали бы look-ahead в RAM по PC, а не реальный
-        // последний байт через шину. После `HLT` это особенно
-        // заметно: PC шагает на адрес после HLT, RAM там лежит
-        // 00 (NOP), а РК должен продолжать держать 76.
+        // `fetch_opcode` (not `memory.read`): M1 must latch the byte
+        // into IR and bus buffers so the schematic readouts reflect
+        // real bus traffic, not a look-ahead at PC.
         let opcode = self.fetch_opcode();
         let outcome = self.execute_opcode(opcode, bus)?;
         if pending_before && self.interrupt_enable_pending {

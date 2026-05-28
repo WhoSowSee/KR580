@@ -22,18 +22,16 @@ pub(crate) fn board_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.0, TOKYO_BORDER)
 }
 
-/// Variant of `board_style` for the left "schematic" panel that drops
-/// the bubble chrome: no border, no rounded corners. The schematic
-/// already provides its own outline language (mux frame, ALU frame,
-/// schematic block readouts), so wrapping it in another framed surface
-/// read as redundant.
+/// Outline-only variant of `board_style` for the left schematic panel:
+/// the schematic already provides its own outline language, so an extra
+/// rounded border around it reads as redundant.
 pub(crate) fn schematic_board_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
 }
 
-/// Divider slot under the menu bar. It keeps the existing 1-px layout
-/// rhythm for dropdown positioning, but paints the same colour as the
-/// app plate so the visual separator disappears.
+/// Divider slot under the menu bar — paints in the plate colour so it
+/// disappears visually while keeping the 1-px layout slot dropdowns
+/// position against.
 pub(crate) fn menu_bar_divider_style(_theme: &Theme) -> container::Style {
     container::Style {
         background: Some(Background::Color(TOKYO_BOARD)),
@@ -60,27 +58,17 @@ pub(crate) fn status_tooltip_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
 }
 
-/// Variant of `inset_style` for the floating error notice. The user
-/// flagged the previous `TOKYO_SURFACE` fill as too light against the
-/// surrounding chrome — a notice that is visually *louder* than the
-/// rest of the app made the rest read as suppressed even when the
-/// overlay was passive. `TOKYO_BOARD` matches the app plate (the
-/// background every other panel sits on), so the notice now reads as
-/// "another bubble on the same plate" rather than a foreign light
-/// box. Border stays `TOKYO_RED` at 1.5 px so the framing alone
-/// carries the "this is an error" signal.
+/// `error_inset_style` reuses `TOKYO_BOARD` so the notice reads as
+/// "another bubble on the same plate" instead of a foreign light box;
+/// the red 1.5 px border alone carries the "this is an error" signal.
 pub(crate) fn error_inset_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_RED)
 }
 
-/// Variant of `error_inset_style` for the passive "info" notice that
-/// appears when the user opens a legacy-format `.580` file. Same
-/// plate-on-plate chrome as the error notice — `TOKYO_BOARD` fill,
-/// 8 px radius, 1.5 px border — but the frame is `TOKYO_YELLOW`
-/// instead of `TOKYO_RED`. Yellow signals "heads up, not an error"
-/// in the same visual idiom: the user does not need to act, just
-/// notice that the snapshot came in via the legacy decoder so a
-/// subsequent save round-trips through the right serializer.
+/// `error_inset_style` for the passive "info" notice shown when a
+/// legacy-format `.580` is opened. Same plate-on-plate chrome but
+/// `TOKYO_YELLOW` border instead of `TOKYO_RED` — "heads up, not an
+/// error".
 pub(crate) fn info_inset_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_YELLOW)
 }
@@ -89,33 +77,13 @@ pub(crate) fn schematic_block_style(_theme: &Theme) -> container::Style {
     surface_style(None, 6.0, 1.0, TOKYO_BORDER)
 }
 
+/// Header strip of the multiplexer panel. Transparent at rest, with
+/// a full-rectangle border so the upper edge stays visible against
+/// the plate (the outer `mux_panel_style` perimeter "disappears"
+/// against `TOKYO_BOARD` there). Top corners share the 6 px radius;
+/// bottom corners stay square so the strip butts into the next
+/// section caption.
 pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
-    // Header strip of the multiplexer panel. It stays transparent in
-    // the resting state so the whole left schematic uses one
-    // outline-only chrome language.
-    //
-    // The full-rectangle border (rather than just a bottom edge)
-    // is deliberate: the panel's outer `mux_panel_style` already
-    // draws the perimeter, but at the top it lands on the
-    // schematic plate which uses the `TOKYO_BOARD` tone, so
-    // the user reported the upper edge "disappearing" while the
-    // sides and bottom still read fine. Painting the header strip
-    // with its own hairline gives the eye a second cue along that
-    // upper edge — the panel border now sits on top of a strip
-    // that is *also* outlined, doubling the contrast where it was
-    // weakest. The bottom edge of this rectangle additionally
-    // serves as the divider between the header text and the
-    // first section caption underneath.
-    //
-    // Top corners get the same 6 px radius as the outer panel
-    // (`mux_panel_style`) so the rounded plate-cutout shape
-    // continues seamlessly through the header strip; the previous
-    // square top corners were overwriting the panel's rounded
-    // upper edge with a 90° rectangle, which the user flagged as
-    // "у верхней части рамки нет скругления". Bottom corners stay
-    // square because the strip butts directly into the next
-    // section caption — a rounded bottom would round into a
-    // sibling row and leave a visible gap on either side.
     container::Style {
         background: None,
         text_color: Some(TOKYO_TEXT),
@@ -134,18 +102,12 @@ pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
 }
 
 pub(crate) fn mux_panel_style(_theme: &Theme) -> container::Style {
-    // Multiplexer outer panel: border only, no resting fill.
     surface_style(None, 6.0, 1.0, TOKYO_BORDER)
 }
 
-/// Chrome for individual chips inside the multiplexer panel — the
-/// W/Z scratch pair and the SP/PC inline readouts use the same
-/// outline-only resting chrome as `mux_panel_style`.
-/// The outer panel and every chip inside it read as "a frame full of
-/// bordered slots cut into the plate" instead of "a card holding a
-/// stack of darker cards". 6 px corner radius matches
-/// `mux_panel_style` so the chips visually echo the parent frame at a
-/// smaller scale.
+/// Outline-only chrome for individual chips inside the multiplexer
+/// (W/Z scratch pair, SP/PC inline readouts) — matches `mux_panel_style`
+/// at a smaller scale.
 pub(crate) fn mux_chip_style(_theme: &Theme) -> container::Style {
     surface_style(None, 6.0, 1.0, TOKYO_BORDER)
 }
@@ -168,14 +130,11 @@ pub(crate) fn input_shell_style(_theme: &Theme, focused: bool) -> container::Sty
     surface_style(Some(TOKYO_BOARD), 6.0, 1.0, border_color)
 }
 
+/// Floating opcode picker. Matches the surrounding board panels so
+/// it reads as part of the same surface, not a darker pop-up. All
+/// four corners get the same radius — the picker floats over the
+/// memory list, so a square top edge would look clipped.
 pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
-    // Match the surrounding board panels (memory list, register editor, etc.)
-    // so the floating picker reads as part of the same surface instead of a
-    // darker pop-up sitting on top of it.
-    //
-    // The opcode picker floats over the memory list, so all four
-    // corners need the same radius. A square top edge made the search
-    // popup read as if its top border had been clipped off.
     container::Style {
         text_color: Some(TOKYO_TEXT),
         background: Some(Background::Color(TOKYO_BOARD)),
@@ -193,14 +152,9 @@ pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
     }
 }
 
+/// Halted rows override the regular selection styling with a red
+/// fill (no extra border, to match the weight of the blue selection).
 pub(crate) fn memory_row_container_style(selected: bool, halted: bool) -> container::Style {
-    // Halted rows take precedence over the regular selected/unselected
-    // styling: when the program ended on HLT, the row that holds that
-    // opcode lights up red so the user sees at a glance which
-    // instruction terminated execution. Only the fill is recoloured —
-    // no extra border — to match the visual weight of the regular
-    // selection highlight (per user feedback: a 1px border on top of
-    // the surrounding row chrome read as noisy).
     if halted {
         return container::Style {
             background: Some(Background::Color(Color::from_rgba8(0xF7, 0x76, 0x8E, 0.22))),
@@ -224,8 +178,8 @@ pub(crate) fn memory_row_container_style(selected: bool, halted: bool) -> contai
         background,
         text_color: Some(TOKYO_TEXT),
         border: Border {
-            // Round only the highlighted row; the others stay flat so the
-            // 1-pixel separators between rows still meet edge-to-edge.
+            // Round only the highlighted row so 1-px separators between
+            // unhighlighted rows still meet edge-to-edge.
             radius: if selected { 6.0.into() } else { 0.0.into() },
             width: 0.0,
             color: Color::TRANSPARENT,

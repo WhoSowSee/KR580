@@ -5,25 +5,21 @@ use super::styles::{error_inset_style, info_inset_style};
 use super::theme::{TOKYO_TEXT, ui_text};
 use crate::app::Message;
 
-/// Vertical offset of the halt-blocked notice overlay from the top of
-/// the app root. Sits comfortably below the menu bar (34 px tall + 1 px
-/// hairline) with a small gap so the framed message reads as a separate
-/// floating element rather than glued to the bar.
+/// Vertical offset of the halt-blocked notice from the top of the
+/// app root. Sits below the menu bar (34 px + 1 px hairline) with a
+/// small gap so the framed message reads as a floating element.
 const HALT_NOTICE_TOP: f32 = 48.0;
 
-/// Vertical offset of the file-error notice overlay. Sits a touch
-/// further below the menu bar than the halt notice so that, in the
-/// (rare) case both are visible together — a halted CPU plus a
-/// failed save dialog — the two messages stack rather than overlap.
-/// The halt notice is the longer-lived of the two (it persists until
-/// the CPU is reset), so the error notice rides on top of it; that
-/// way the new, actionable error reads first.
+/// Vertical offset of the file-error notice. Sits below the halt
+/// notice so the two stack instead of overlapping when both fire
+/// (rare: halted CPU + failed save dialog). Halt is the longer-
+/// lived one (persists until reset), so the actionable error
+/// rides on top.
 const ERROR_NOTICE_TOP: f32 = 88.0;
 
-/// Vertical offset of the info-notice overlay (legacy-format heads
-/// up). Sits below the error notice so the three stack predictably
-/// when more than one is visible at once: halt (persistent, top),
-/// error (8 s, middle), info (5 s, bottom).
+/// Vertical offset of the legacy-format info notice. Sits below
+/// the error notice so all three stack predictably when more than
+/// one is visible: halt (persistent, top), error (8 s), info (5 s).
 const INFO_NOTICE_TOP: f32 = 128.0;
 
 /// Floating notice anchored to the top centre of the window. Used for
@@ -50,9 +46,9 @@ pub(super) fn error_notice_overlay(notice: &str) -> Element<'_, Message> {
     )
 }
 
-/// Floating notice for the legacy-format heads-up ("Открыт старый
-/// формат файла"). Mirrors the error notice except for the yellow
-/// frame, which signals "heads up, not an error".
+/// Floating notice for the legacy-format heads-up. Same chrome as
+/// the error notice but a yellow frame to signal "heads up, not an
+/// error".
 pub(super) fn info_notice_overlay(notice: &str) -> Element<'_, Message> {
     notice_overlay(
         notice,

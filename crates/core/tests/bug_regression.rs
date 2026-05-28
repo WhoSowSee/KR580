@@ -1,13 +1,10 @@
 //! Integration test: run the 16 bug-tests from `D:/kr/Examples/bug-tests/`
-//! through the Rust kr-580 core and compare with Intel 8080 reference values.
+//! against the Rust core and compare with Intel 8080 reference values.
+//! Tests are taken verbatim from the KR580 RE project; a correct
+//! emulator MUST produce the Intel-reference value of A after HLT.
 //!
-//! These tests are taken verbatim from the КР580 reverse-engineering project
-//! (D:/kr/docs/) where they were used to characterize BUG-01/08/09 in the
-//! original Delphi/BCB `KP580.exe`. A correct emulator MUST produce the
-//! Intel-reference value of A after HLT for every test.
-//!
-//! Layout of `.580` files: 65536 bytes RAM, then a 13-byte CPU trailer
-//! (12 zero bytes + 0xFF). We only need the RAM portion.
+//! `.580` layout: 65536 bytes RAM + 13-byte CPU trailer; we only
+//! need the RAM portion.
 
 use std::path::PathBuf;
 
@@ -54,11 +51,7 @@ fn run_bug_test(filename: &str, expected_a: u8) {
     );
 }
 
-// ---------------------------------------------------------------------------
-// Group A — Rcc by Z, CY, P (test1..test12). A correct emulator must give
-// the Intel-reference value for all 12. Original `KP580.exe` also passed
-// these (used to localize BUG-08 strictly to op_Rcc_sign).
-// ---------------------------------------------------------------------------
+// Group A — Rcc by Z, CY, P (test1..test12).
 
 #[test]
 fn bug_test1_rz_z1_must_return() {
@@ -109,11 +102,8 @@ fn bug_test12_rpo_p1_must_not_return() {
     run_bug_test("test12_RPO_P1_must_NOT_return.580", 0xFF);
 }
 
-// ---------------------------------------------------------------------------
 // Group B — Ccc by S: CP/CM (test13..test16).
 // Original `KP580.exe` FAILS these (BUG-09: read_flag for S is constant 0).
-// A correct emulator MUST give the Intel-reference values.
-// ---------------------------------------------------------------------------
 
 #[test]
 fn bug_test13_cp_s0_p1_must_call() {
@@ -132,20 +122,15 @@ fn bug_test16_cp_s1_p0_must_not_call() {
     run_bug_test("test16_CP_S1_P0_must_NOT_call.580", 0x11);
 }
 
-// ---------------------------------------------------------------------------
-// Direct synthetic regressions for BUG-01, BUG-02, BUG-03, BUG-04, BUG-05,
-// BUG-07 (the original `KP580.exe` defects). Built in-memory so they don't
-// depend on .580 files. Each test asserts the CORRECT Intel-8080 behavior;
-// a buggy emulator following one of the known KP580.exe defects would fail.
-// ---------------------------------------------------------------------------
+// Direct synthetic regressions for BUG-01..05, BUG-07 from the
+// original `KP580.exe`. Built in-memory; each test asserts the
+// correct Intel-8080 behaviour.
 
 /// BUG-01 reproducer (JP/JM read parity instead of sign).
-/// Buggy KP580.exe: A=0x11 for the two "must_jump" cases.
-/// Correct emulator: A=0x22.
+/// Buggy: A=0x11 on the must-jump cases. Correct: A=0x22.
 #[test]
 fn bug01_jp_uses_sign_not_parity() {
-    // A=0x03: S=0, P=1. JP must jump (S==0). KP580.exe with BUG-01 reads P=1
-    // and does not jump.
+    // A=0x03 → S=0, P=1. JP must jump (S==0).
     let mut cpu = Cpu8080State::default();
     let prog = [
         0x3E, 0x03, // MVI A, 0x03

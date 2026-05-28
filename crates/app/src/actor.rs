@@ -19,20 +19,13 @@ impl EmulatorHandle {
         self.event_rx.try_iter().collect()
     }
 
-    /// Drains all currently buffered events, blocking until at least one
-    /// `AppEvent::StateChanged` is observed (or the timeout elapses, or
-    /// the worker has shut down). Used by UI handlers that *must* see
-    /// the post-command snapshot before they decide what to do next —
-    /// e.g. the step-instruction button reads the new PC to follow it
-    /// in the memory list. Without this the snapshot lag turns "click
-    /// once" into "click twice", because the first dispatch would race
-    /// the worker thread.
+    /// Blocks until at least one `StateChanged` is observed (or the
+    /// timeout elapses). Without this, UI handlers that read
+    /// `self.snapshot` after dispatch race the channel.
     pub fn drain_until_state_change(&self, timeout: std::time::Duration) -> Vec<AppEvent> {
         let deadline = std::time::Instant::now() + timeout;
         let mut events = Vec::new();
         loop {
-            // Pull anything already queued first; the StateChanged we
-            // are after may already be sitting in the channel.
             for event in self.event_rx.try_iter() {
                 let is_state_change = matches!(event, AppEvent::StateChanged(_));
                 events.push(event);
@@ -80,19 +73,6 @@ pub fn initial_snapshot() -> AppSnapshot {
     Emulator::default().snapshot()
 }
 
-/// Worker loop. Two responsibilities:
-///
-/// 1. Receive commands from the UI and apply them synchronously.
-/// 2. While `Run` is armed, fire `tick()` on every `step_interval`
-///    deadline so the program advances one instruction at a time
-///    and the UI sees a fresh snapshot per step.
-///
-/// The dual nature is why we use `select!` instead of `recv()`: a
-/// blocking `recv()` would freeze the run loop until the user
-/// happened to send another command, which is exactly the bug we
-/// are fixing. With `select!` the timer ticks independently and the
-/// command channel still wakes the worker the instant a press
-/// arrives.
 fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
     let mut emulator = Emulator::default();
     publish(
@@ -100,19 +80,9 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
         AppEvent::StateChanged(Box::new(emulator.snapshot())),
     );
     loop {
-        // `never()` parks the timer arm when we are paused, so the
-        // select degenerates to a plain `recv()` and we don't burn
-        // CPU spinning on a deadline that nobody will read.
-        //
-        // While running we pick the deadline based on the active
-        // `run_mode`: paced uses the inter-instruction delay (so
-        // each `tick()` produces one step + one snapshot), burst
-        // uses the wall-time slice (so each `tick()` runs a tight
-        // inner loop and emits a single coalesced snapshot per
-        // slice). The slice doubles as the responsiveness floor for
-        // `Stop` — a press lands within at most one slice, which is
-        // why the UI defaults it to ~16 ms even though the inner
-        // loop could keep going for much longer.
+        // `never()` parks the timer when paused; otherwise the deadline
+        // is `step_interval` (Paced) or `slice` (Burst). The slice also
+        // bounds `Stop` responsiveness — a press lands within one slice.
         let tick: Receiver<std::time::Instant> = if emulator.is_running() {
             let deadline = match emulator.run_mode() {
                 RunMode::Paced => emulator.step_interval(),
@@ -134,11 +104,6 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
                 }
             }
             recv(tick) -> _ => {
-                // The tick channel only fires when `is_running()`
-                // was true at select-time. Forward the events
-                // unconditionally — `tick()` handles its own
-                // re-entrancy (halt, budget exhausted, errors) and
-                // always returns a fresh snapshot.
                 for event in emulator.tick() {
                     publish(&event_tx, event);
                 }
@@ -153,8 +118,4 @@ fn publish(event_tx: &Sender<AppEvent>, event: AppEvent) {
     }
 }
 
-/// Smallest interval the worker will accept. Mirrors the floor in
-/// `Emulator::apply` for `SetStepInterval` so callers that want to
-/// know "fastest sensible speed" without poking at internals can
-/// reach for this constant.
 pub const MIN_STEP_INTERVAL: Duration = Duration::from_millis(1);

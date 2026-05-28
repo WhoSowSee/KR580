@@ -23,11 +23,10 @@
 //! distinguishing "STA wrote here" from "this address happened to be
 //! zero anyway".
 //!
-//! After loading and pressing «Выполнить программу» the user should
-//! see:
+//! After loading and pressing the run button the user should see:
 //!   * A = 46h, B = 37h, PC = 0009h, halted = true
 //!   * RAM[2000h] = 46h (was CCh before run)
-//!   * флаги: AC; S/Z/P/CY = 0
+//!   * flags: AC; S/Z/P/CY = 0
 //!   * cycle_count = 38 (MVI 7 + MVI 7 + ADD 4 + STA 13 + HLT 7)
 //!
 //! Tact-stepping through it is also a good smoke test for the timing

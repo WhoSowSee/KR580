@@ -113,27 +113,11 @@ fn add_adc_and_inr_flags_follow_8080_rules() {
     assert!(cpu.flags.carry, "INR must not touch carry");
 }
 
-/// Точная фиксация флагов для конкретного `ADD B` из программы
-/// `t2.580`, на которой пользователь сравнивал наш эмулятор со
-/// школьным референсным. Раньше пользователь видел в нашем
-/// «Регистре флагов» строку `010010`, а в школьном — `01001`, и
-/// возникло подозрение, что наша ALU неправильно выставляет
-/// чётность (P) и/или знак (S). Этот тест фиксирует datasheet-
-/// корректные ожидания для `0x0F + 0x37`:
-///
-/// - результат: `0x46` (66 в десятичном)
-/// - бит 7 = 0 → S = 0
-/// - результат ≠ 0 → Z = 0
-/// - полупереполнение из бита 3 (`0xF + 0x7 = 0x16`) → AC = 1
-/// - двоичная запись `0100 0110` содержит **три** единицы
-///   (нечётно) → P = 0 (8080 ставит P=1 только при чётном числе
-///   единиц)
-/// - `0x0F + 0x37 = 0x46 < 0x100`, переноса из бита 7 нет → C = 0
-///
-/// Если этот тест начнёт падать, значит регрессировала одна из
-/// четырёх ALU-веток (`add`, `set_sign_zero_parity`, AC-вычисление,
-/// или формирование C). Раскладка PSW отдельно проверяется
-/// `psw_materialization_forces_reserved_bits` выше.
+/// Datasheet-correct flag expectations for `ADD B` with `A=0x0F`,
+/// `B=0x37` (the case from `t2.580` that diverged from the reference
+/// emulator). Pins down `S/Z/AC/P/C` and the PSW byte so any future
+/// regression in `add`, `set_sign_zero_parity`, AC or carry shows up
+/// here instead of as a UI mismatch.
 #[test]
 fn add_b_zero_f_plus_three_seven_matches_datasheet_flags() {
     let mut cpu = Cpu8080State::default();
@@ -438,11 +422,10 @@ fn run_for_t_states_advances_exact_quantum() {
     assert_eq!(cpu.tact_phase, None);
 }
 
-/// Холодный старт: до первого `step_*` ни одна T-фаза не выполнена,
-/// поэтому `last_completed_tact_phase == None`. UI в этом случае
-/// рисует `-` в строке «Такт» — это и есть ожидаемое поведение
-/// «никогда не было инструкции», в отличие от `Some(_)` который
-/// означает «была, и вот её последняя выполненная T».
+/// Cold start: before any `step_*` no T-phase has run, so
+/// `last_completed_tact_phase == None`. The UI shows `-` in the tact
+/// row — distinct from `Some(_)`, which means "an instruction
+/// ran, and here is its last completed T".
 #[test]
 fn last_completed_tact_phase_is_none_on_cold_start() {
     let cpu = Cpu8080State::default();
@@ -456,10 +439,10 @@ fn last_completed_tact_phase_is_none_on_cold_start() {
     assert_eq!(cpu2.last_completed_tact_phase, None);
 }
 
-/// Атомарный путь `step_instruction` без предварительного walking:
-/// после выполнения NOP (4 такта) `last_completed_tact_phase` должен
-/// быть `Some(3)` — линейная фаза `total - 1`. Это и есть «последний
-/// горящий такт» на школьном табло после завершения инструкции.
+/// Atomic `step_instruction` path with no preceding walking: after a
+/// NOP (4 T-states) `last_completed_tact_phase` must be `Some(3)` —
+/// the linear phase `total - 1`. That is the "last lit T" the
+/// reference panel freezes on once the instruction completes.
 #[test]
 fn last_completed_tact_phase_after_step_instruction_equals_total_minus_one() {
     let mut cpu = Cpu8080State::default();
@@ -470,11 +453,11 @@ fn last_completed_tact_phase_after_step_instruction_equals_total_minus_one() {
     assert_eq!(cpu.last_completed_tact_phase, Some(3));
 }
 
-/// Walking-режим через `step_tact`: на каждом такте обновляется
-/// `last_completed_tact_phase = phase`. После 4 тактов NOP она
-/// должна быть `Some(3)`, и параллельно `tact_phase == None` (граница
-/// инструкции). Это закрывает разрыв «активная фаза vs последняя
-/// выполненная» который раньше прятал позицию между нажатиями.
+/// Walking mode through `step_tact`: every tact updates
+/// `last_completed_tact_phase = phase`. After 4 NOP tacts it must be
+/// `Some(3)` while `tact_phase == None` (instruction boundary). This
+/// closes the "active phase vs last completed" gap that used to hide
+/// the position between key presses.
 #[test]
 fn last_completed_tact_phase_walks_with_step_tact() {
     let mut cpu = Cpu8080State::default();
@@ -488,10 +471,10 @@ fn last_completed_tact_phase_walks_with_step_tact() {
     assert_eq!(cpu.last_completed_tact_phase, Some(3));
 }
 
-/// HLT и run_until_halt: после остановки последняя выполненная фаза
-/// должна совпадать со школьным эталоном — `total - 1` HLT-инструкции
-/// (7 тактов → Some(6)). Раньше UI после HLT падал в `-`/`1`, теперь
-/// «застывает» на правильной позиции.
+/// HLT + `run_until_halt`: once halted, the last completed phase
+/// must match the reference — `total - 1` of the HLT instruction
+/// (7 T-states → `Some(6)`). The UI used to fall to `-`/`1` after
+/// HLT; now it freezes on the right slot.
 #[test]
 fn last_completed_tact_phase_after_halt_run() {
     let mut cpu = Cpu8080State::default();
@@ -502,18 +485,18 @@ fn last_completed_tact_phase_after_halt_run() {
     assert_eq!(cpu.last_completed_tact_phase, Some(6));
 }
 
-/// TACT-COMPLETE flush: если walking-режим оборвали через
-/// `step_instruction` посреди инструкции, `last_completed_tact_phase`
-/// должна перенести позицию `total - 1` той инструкции которую
-/// доисполнили flush'ем, а не сбрасываться в `None`.
+/// TACT-COMPLETE flush: when walking mode is interrupted by a
+/// `step_instruction` mid-instruction, `last_completed_tact_phase`
+/// must carry the `total - 1` of the flushed instruction instead of
+/// resetting to `None`.
 #[test]
 fn last_completed_tact_phase_after_flush_carries_total_minus_one() {
     let mut cpu = Cpu8080State::default();
     put_program(&mut cpu, &[0x00]); // NOP, 4 T-states
     let mut bus = NullBus::default();
-    cpu.step_tact(&mut bus).unwrap(); // запустили walking, выполнен phase=0
+    cpu.step_tact(&mut bus).unwrap(); // start walking, phase=0 done
     assert_eq!(cpu.last_completed_tact_phase, Some(0));
-    cpu.step_instruction(&mut bus).unwrap(); // flush остатка
+    cpu.step_instruction(&mut bus).unwrap(); // flush remainder
     assert_eq!(cpu.tact_phase, None);
     assert_eq!(cpu.last_completed_tact_phase, Some(3));
 }

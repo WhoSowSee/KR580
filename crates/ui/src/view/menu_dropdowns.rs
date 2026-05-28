@@ -6,11 +6,11 @@ use super::styles::{menu_button_disabled_style, menu_button_style, opcode_dropdo
 use super::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::Message;
 
-/// Width of the floating "Файл" dropdown. Picked wide enough that the
+/// Width of the floating File dropdown. Picked wide enough that the
 /// legacy-format note and shortcut fit beside the base action label.
 pub(super) const FILE_DROPDOWN_WIDTH: f32 = 290.0;
 
-/// Width of the "МП-Система" dropdown. Tuned for the longest label plus
+/// Width of the MP-System dropdown. Tuned for the longest label plus
 /// the longest shortcut hint.
 pub(super) const MP_DROPDOWN_WIDTH: f32 = 270.0;
 

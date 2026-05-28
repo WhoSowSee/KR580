@@ -14,24 +14,16 @@ fn is_button_active(status: button::Status) -> bool {
     matches!(status, button::Status::Hovered | button::Status::Pressed)
 }
 
-/// Style for the action buttons in the "Управление" panel (Run, Step,
-/// Reset…). Reuses the same chrome as the editor `↵` button: neutral
-/// border at all times, with only the surface tone shifting on hover /
-/// press. The colour-coded affordance comes from the SVG glyph itself
-/// (each button has its own `accent` tint), so the border can stay calm
-/// without losing the per-button identity. Keeps the row of action
-/// chips visually coherent with the surrounding inputs instead of
-/// flaring up a coloured frame whenever the cursor lands on a chip.
+/// Action-panel chrome (Run, Step, Reset…). Neutral border at rest;
+/// only the surface tone shifts on hover/press. Per-button identity
+/// comes from the SVG glyph's accent tint.
 ///
-/// `Disabled` is its own visual branch: the surface stays at the
-/// resting `TOKYO_BOARD` tone, but the border drops to the same low-alpha
-/// tint the menu separator uses and the text colour fades to
-/// `TOKYO_MUTED`. The glyph itself is greyed out by
-/// `icon_action_button_glyph_color` (called from the chip widget when
-/// the caller passed `None` for `message`); the border + text fade
-/// here is what tells the *frame* "this chip is locked", so the user
-/// reads disabled-ness from the chrome even before parsing the muted
-/// glyph.
+/// `Disabled` is a separate visual branch: surface stays at the
+/// resting `TOKYO_BOARD` tone but the border drops to a low-alpha
+/// tint and text fades to `TOKYO_MUTED`. The glyph itself is greyed
+/// out separately by the chip widget when `message` is `None` —
+/// border + text fade here is what tells the *frame* that the chip
+/// is locked.
 pub(crate) fn action_button_style(status: button::Status) -> button::Style {
     let disabled = matches!(status, button::Status::Disabled);
     let background = match status {
@@ -103,17 +95,11 @@ pub(crate) fn menu_button_style(status: button::Status) -> button::Style {
     }
 }
 
-/// Disabled variant of `menu_button_style`. Same chrome (transparent
-/// background, 6 px radius, no border) but the row never lights up on
-/// hover/press because we never publish an `on_press` for it — the
-/// button stays in `Status::Disabled` for the whole render pass and
-/// the surface stays flat. Text colour is `TOKYO_MUTED` so the row
-/// reads as «недоступно сейчас» the same way the disabled action-strip
-/// chips do (see `action_chip_style`'s muted-tint branch). Used by
-/// «Сбросить флаг HLT» when the halt flip-flop is already off — the
-/// row stays in the menu so the user can still discover it and read
-/// the shortcut, but the visual weight tells them clicking changes
-/// nothing.
+/// Disabled variant of `menu_button_style`: same chrome but the row
+/// never lights up on hover/press because we never publish an
+/// `on_press` for it. Text colour is `TOKYO_MUTED` so the row reads
+/// as "currently unavailable" while staying discoverable in the menu
+/// (used by the "clear HLT flag" entry when the flip-flop is off).
 pub(crate) fn menu_button_disabled_style(_status: button::Status) -> button::Style {
     button::Style {
         background: Some(Background::Color(Color::TRANSPARENT)),
@@ -127,10 +113,8 @@ pub(crate) fn menu_button_disabled_style(_status: button::Status) -> button::Sty
 }
 
 pub(crate) fn step_button_style(status: button::Status) -> button::Style {
-    // Render the spinner arrows as inline glyphs: transparent background,
-    // no border. A subtle surface tint on hover/press is enough to signal
-    // interactivity without making them look like detached chips that sit
-    // on top of the input.
+    // Inline glyphs: transparent at rest, faint surface tint on
+    // hover/press — no border so they don't read as detached chips.
     let background = if is_button_active(status) {
         Color::from_rgba8(0x36, 0x3B, 0x59, 0.45)
     } else {

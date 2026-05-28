@@ -126,43 +126,18 @@ impl DesktopApp {
         legend_panel("Регистр и его значение", content, Length::Shrink)
     }
 
-    /// Composes the bottom toolbar: two side-by-side framed panels that
-    /// mirror the toolbar of the reference KR-580 emulator. The left
-    /// panel ("Выполнение") groups the execution-flow buttons (run /
-    /// step instruction / step tact); the right panel ("Сброс") groups
-    /// the destructive memory-state buttons (reset RAM / reset
-    /// registers). Splitting them into separate frames replaces the old
-    /// `vertical_divider` strip — the gap between the two `legend_panel`
-    /// frames now does the same visual job, and each group gets its own
-    /// title so the user can tell at a glance what the buttons do
-    /// before reading the per-button tooltip. Each button's accent
-    /// colour tints the SVG glyph at rest; the surrounding chrome stays
-    /// neutral and only the surface tone shifts on hover/press.
+    /// Bottom toolbar: two side-by-side framed panels mirroring the
+    /// reference KR-580 emulator. The left panel groups execution
+    /// controls (run / step instruction / step tact); the right
+    /// groups destructive resets (RAM / registers). Each button's
+    /// accent colour tints its glyph at rest; chrome stays neutral.
     fn actions_panel(&self) -> Element<'_, Message> {
-        // Horizontal gap between icon chips inside each action panel.
-        // Kept identical for "Выполнение" and "Сброс" so the rhythm of
-        // the two strips matches; `legend_panel`'s 10 px inner padding
-        // plus the centring `container` then makes the gap from the
-        // edge chip to its frame's border read as the same distance in
-        // both panels.
         const CHIP_SPACING: f32 = 14.0;
 
-        // The two leftmost buttons are tumblers driven by `self.running`.
-        //
-        // 1. The first button toggles between a green play glyph
-        //    ("armed for run") and a red pause glyph ("running"). The
-        //    flip and the actual `AppCommand::Run` dispatch are both
-        //    gated on the byte at `cpu.pc` inside
-        //    `DesktopApp::toggle_run`: an empty memory page is a
-        //    no-op (status-bar hint, neither icon swap nor T-states),
-        //    so `self.running` is only ever `true` while the worker
-        //    is genuinely chasing a real instruction stream.
-        // 2. The second button is `step-forward` at rest and
-        //    `refresh-ccw` while running. In the running state it sends
-        //    `Message::RestartProgram`, which resets the CPU and re-runs
-        //    from `0x0000` (memory is preserved). At rest it stays bound
-        //    to `Message::StepInstruction` and the memory list follows
-        //    the new PC after the step.
+        // Two leftmost buttons are tumblers driven by `self.running`:
+        // run/pause is gated on `cpu.pc` inside `toggle_run`;
+        // step/restart swaps `StepInstruction` ↔ `RestartProgram`
+        // (ResetCpu + Run, RAM preserved).
         let (run_icon, run_accent, run_tooltip) = if self.running {
             (icons::pause(), TOKYO_RED, "Пауза")
         } else {
@@ -182,22 +157,8 @@ impl DesktopApp {
             )
         };
 
-        // While `run_blocked_after_halt` is armed (the user just hit
-        // HLT, the worker reported the error, the 8-second halt notice
-        // is up *or has already faded*), every chip that would pump
-        // the CPU forward is rendered without an `on_press` so iced
-        // greys it out and ignores clicks. Only the two reset chips
-        // and the dedicated `Сбросить флаг HLT` menu entry remain
-        // live, mirroring the user's contract: "пока не сброшу флаг
-        // или регистры — кнопки запуска блокируются". `Пауза` while
-        // running is technically not a "запуск", but `ToggleRun`
-        // *cannot* fire when running is true *and* the latch is true:
-        // the latch is cleared the moment `apply_snapshot` sees a
-        // non-halted state, and the run loop never starts in the
-        // first place if `cpu.halted` is true (the worker would have
-        // bounced it). Wrapping `ToggleRun` in `None` therefore
-        // costs nothing — the only path it would have served is
-        // already unreachable.
+        // Post-HLT latch greys out every execution chip until reset.
+        // `apply_snapshot` clears it on the first non-halted snapshot.
         let blocked = self.run_blocked_after_halt;
         let gate = |msg: Message| if blocked { None } else { Some(msg) };
 
@@ -246,19 +207,8 @@ impl DesktopApp {
             Length::Shrink,
         );
 
-        // Pin each frame's width so the empty space *inside* the
-        // border around the chip strip is identical in both panels.
-        // `FillPortion(3) / FillPortion(2)` would split the column
-        // proportionally to the chip count — but that gives the
-        // smaller "Сброс" group too much breathing room while
-        // squeezing "Выполнение" almost flush against its border.
-        //
-        // The two strips have a fixed difference of 52 px in content
-        // width (one extra chip + one extra `CHIP_SPACING` gap), so
-        // hard-coding widths that differ by exactly 52 px guarantees
-        // each centred strip leaves the same amount of slack on each
-        // side, which reads as "the edge chip sits the same distance
-        // from the frame edge in both panels".
+        // Widths differ by exactly 52 px (one chip + one CHIP_SPACING
+        // gap) so the centred strips leave equal slack on either side.
         const EXECUTION_PANEL_WIDTH: f32 = 186.0;
         const RESET_PANEL_WIDTH: f32 = 134.0;
 

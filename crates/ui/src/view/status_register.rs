@@ -1,44 +1,11 @@
-//! «Регистр состояния» — статусный байт T1 + русская расшифровка.
-//!
-//! Школьный референсный эмулятор КР-580 (по которому пользователь
-//! сверяется) рисует в верхнем левом углу плиты блок «Регистр состояния»:
-//! 8 бит того статусного байта, который чип защёлкивает в T1 каждого
-//! M-цикла и выкатывает на D7-D0 вместе с импульсом SYNC, плюс
-//! текстовая расшифровка («Чтение памяти», «Запись в порт», и т.д.).
-//! Раскладка битов — Intel 8080A datasheet, рис. «Status Information»:
+//! Status register (T1 status byte + Russian label) for the schematic.
+//! The byte mirrors Intel 8080A datasheet "Status Information":
 //!
 //! ```text
 //! D7  D6  D5    D4    D3   D2  D1   D0
 //! MEM INP M1   OUT   HLTA STK WO   INTA
 //! R           Read         Bar
 //! ```
-//!
-//! Мы не моделируем M-циклы внутри исполнителя (см.
-//! `docs/assumptions.md` — инструкция атомарна, T-states раздаются
-//! счётчиком), но `last_completed_tact_phase` + таблица из
-//! `core::machine_cycle` дают достаточно чтобы UI выдавал тот же
-//! статусный байт на той же T-фазе, что и физическая стойка КР-580.
-//! Преобразование: линейная T-фаза → `position_for(layout, taken,
-//! phase)` → индекс M-цикла → `kind_at(opcode, idx, taken)` → тип
-//! M-цикла → `status_byte()` + `label_ru()`.
-//!
-//! Два рантайм-оверрайда поверх таблицы:
-//!
-//! - `cpu.halted` ⇒ `HaltAck`. После `HLT`-fetch чип переходит в
-//!   состояние с MEMR=1, HLTA=1, WO=1 на шине статуса и виснет до
-//!   прерывания. В таблице `kinds_for` HaltAck не лежит специально —
-//!   физическая M-цикл-таблица для опкода 0x76 = `[4]` (только
-//!   M1Fetch, 4 такта), а HLTA-цикл — это уже **следующий** M-цикл
-//!   который чип никогда не закончит, потому что `READY` снят. UI
-//!   проще выставить статус по флагу `cpu.halted`, чем расширять
-//!   layout HLT'а на «второй M-цикл с бесконечной длиной».
-//! - `cpu.interrupt_request_pending && cpu.interrupt_enable` ⇒
-//!   `InterruptAck`. На физическом 8080 INTE-pin = 1 + INT-pin = 1
-//!   запускает специальный M1, в котором чип защёлкивает INTA=1,
-//!   M1=1, WO=1 и читает RST n / CALL прямо с шины устройства,
-//!   минуя PC. У нас нет PIC-чипа, но семантика та же: пока
-//!   `interrupt_request_pending` стоит и IF разрешён, чип
-//!   собирается принять прерывание на следующем M1.
 
 use iced::widget::{Space, column, container, row, tooltip};
 use iced::{Element, Length, Padding, alignment};
@@ -51,15 +18,9 @@ use super::styles::status_tooltip_style;
 use super::theme::{TOKYO_BLUE, TOKYO_TEXT, ui_text};
 use crate::app::Message;
 
-/// Угадываем «занят ли branch» так же, как делает `view::cycles`:
-/// если `last_completed_tact_phase` указывает на сумму tact'ов одной
-/// из веток — берём её. Для условных инструкций (Cxxx, Rxxx, Jxxx)
-/// taken и not-taken различаются по числу T-states (17 vs 11, 11 vs
-/// 5, etc.), поэтому однозначно восстанавливается. Для безусловных
-/// инструкций ветки совпадают — taken=true возвращает тот же layout.
+/// For conditional opcodes the taken/not-taken branches differ in
+/// length, so the current `phase` uniquely identifies the branch.
 fn branch_taken_from_phase(layout: MachineCycleLayout, phase: u8) -> bool {
-    // Сначала пробуем not-taken: если фаза в его пределах — это
-    // not-taken. Иначе taken (он всегда длиннее или равен).
     if let Some(not_taken) = layout.not_taken {
         let not_taken_total: u8 = not_taken.iter().sum();
         if phase < not_taken_total {
@@ -69,19 +30,9 @@ fn branch_taken_from_phase(layout: MachineCycleLayout, phase: u8) -> bool {
     true
 }
 
-/// Определяет тип машинного цикла, в котором сейчас (по последней
-/// выполненной T-фазе) находится CPU. Возвращаемое значение — то,
-/// что школьный эталон рисует в блоке «Регистр состояния»: статусный
-/// байт + текстовая расшифровка.
 pub(super) fn derive_status_kind(cpu: &Cpu8080State) -> MachineCycleKind {
-    // Рантайм-оверрайды — раньше всех табличных проверок.
-    //
-    // INTA проверяем до HLT: если CPU висит в HLT, но устройство
-    // подняло INT и IF разрешён, чип на следующем такте поднимет
-    // INTA-цикл и сбросит HLT — статус-байт уже должен это
-    // отражать, потому что школьный эталон именно так и рисует
-    // («подтверждение прерывания», а не «подтверждение останова»,
-    // как только INT поднялся).
+    // INTA before HLT: an INT raised while halted lifts HLT on the next
+    // tact, so the status byte must reflect interrupt-ack already.
     if cpu.interrupt_request_pending && cpu.interrupt_enable {
         return MachineCycleKind::InterruptAck;
     }
@@ -89,12 +40,8 @@ pub(super) fn derive_status_kind(cpu: &Cpu8080State) -> MachineCycleKind {
         return MachineCycleKind::HaltAck;
     }
 
-    // Холодный старт: ни одной инструкции не выполнено,
-    // `last_completed_tact_phase == None`. На физическом чипе после
-    // RESET первая T1 — это уже M1 первой инструкции (PC=0000), и
-    // статусный байт = M1Fetch. Это совпадает со школьным эталоном:
-    // блок «Регистр состояния» при холодном старте показывает «Загрузка
-    // опкода» / `1010 0010`, а не пустоту.
+    // Cold start: nothing executed yet, but T1 of the first M1 must
+    // already read as `M1Fetch` to match the reference panel.
     let Some(phase) = cpu.last_completed_tact_phase else {
         return MachineCycleKind::M1Fetch;
     };
@@ -102,10 +49,6 @@ pub(super) fn derive_status_kind(cpu: &Cpu8080State) -> MachineCycleKind {
     let layout = layout_for(cpu.last_fetched_opcode);
     let taken = branch_taken_from_phase(layout, phase);
     let Some(position) = position_for(layout, taken, phase) else {
-        // Layout пуст (нелегальный опкод) или фаза вылезла за
-        // пределы — возвращаем M1Fetch как нейтральный дефолт.
-        // На реальном чипе нелегальный опкод всё равно проходит
-        // через M1, просто потом исполнитель ловит его как NOP.
         return MachineCycleKind::M1Fetch;
     };
 
@@ -186,15 +129,6 @@ pub(super) fn status_register_tooltip<'a>(
 
 #[cfg(test)]
 mod tests {
-    //! Тесты привязаны к `derive_status_kind` — единственная чисто
-    //! логическая часть модуля (рендер-функции возвращают iced
-    //! `Element` и не тестируются юнитами). Каждый тест строит
-    //! `Cpu8080State` руками, а не через `step_instruction`, чтобы
-    //! зафиксировать ровно то состояние, которое нужно проверить:
-    //! `last_completed_tact_phase`, `last_fetched_opcode`,
-    //! `halted`, `interrupt_request_pending`, `interrupt_enable`.
-    //! Это и есть «контракт» между core и блоком «Регистр состояния».
-
     use super::*;
 
     fn cpu_with(opcode: u8, phase: Option<u8>) -> Cpu8080State {
@@ -206,10 +140,6 @@ mod tests {
 
     #[test]
     fn cold_start_is_m1_fetch() {
-        // Холодный старт: ни одной инструкции не выполнено,
-        // last_completed_tact_phase == None. Школьный эталон при
-        // RESET показывает «Загрузка опкода» / 1010 0010 — первая
-        // T1 первой инструкции по PC=0000.
         let cpu = Cpu8080State::default();
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::M1Fetch);
     }
@@ -234,9 +164,6 @@ mod tests {
 
     #[test]
     fn halt_overrides_table() {
-        // HLT (опкод 0x76) после исполнения: cpu.halted=true. Школьный
-        // эталон в этом состоянии рисует «Подтв. останова» / 1000
-        // 1010, а не M1Fetch последней инструкции.
         let mut cpu = cpu_with(0x76, Some(3));
         cpu.halted = true;
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::HaltAck);
@@ -244,10 +171,6 @@ mod tests {
 
     #[test]
     fn interrupt_overrides_halt() {
-        // INTE+INT поверх HLT: чип на следующем такте поднимет INTA
-        // и сбросит HLT. Статус-байт уже должен показывать
-        // «Подтв. прерывания», а не «Подтв. останова» — школьный
-        // эталон рисует так же.
         let mut cpu = cpu_with(0x76, Some(3));
         cpu.halted = true;
         cpu.interrupt_request_pending = true;
@@ -257,10 +180,7 @@ mod tests {
 
     #[test]
     fn interrupt_pending_without_inte_uses_table() {
-        // INT поднят, но IF=0 — чип игнорирует прерывание, продолжает
-        // обычный цикл. Статус-байт берётся из таблицы M-циклов,
-        // не из рантайм-оверрайда.
-        let mut cpu = cpu_with(0x00, Some(0)); // NOP, T1 первого M1
+        let mut cpu = cpu_with(0x00, Some(0));
         cpu.interrupt_request_pending = true;
         cpu.interrupt_enable = false;
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::M1Fetch);
@@ -268,9 +188,6 @@ mod tests {
 
     #[test]
     fn first_phase_of_any_opcode_is_m1_fetch() {
-        // T1 любого M1 — это всегда M1Fetch (datasheet 8080A,
-        // обязательный invariant). Берём набор покрывающих опкодов:
-        // NOP, MOV, MVI, LXI, STA, LDA, PUSH, POP, CALL, RET, IN, OUT.
         let opcodes = [
             0x00, 0x40, 0x06, 0x01, 0x32, 0x3A, 0xC5, 0xC1, 0xCD, 0xC9, 0xDB, 0xD3,
         ];
@@ -287,54 +204,34 @@ mod tests {
 
     #[test]
     fn sta_second_m_cycle_is_memory_read_third_is_memory_write() {
-        // STA addr (опкод 0x32) = 13T = M1(4) + MR(3) + MR(3) + MW(3).
-        // M1 — fetch опкода (T1..T4 = phase 0..3). M2 — fetch lo
-        // байта адреса (phase 4..6). M3 — fetch hi байта адреса
-        // (phase 7..9). M4 — запись A в память (phase 10..12).
-        // Школьный эталон на phase 4 рисует «Чтение памяти», на
-        // phase 10 — «Запись в память».
-        let cpu = cpu_with(0x32, Some(4)); // T1 второго M-цикла (MR)
+        let cpu = cpu_with(0x32, Some(4));
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::MemoryRead);
-
-        let cpu = cpu_with(0x32, Some(7)); // T1 третьего M-цикла (MR)
+        let cpu = cpu_with(0x32, Some(7));
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::MemoryRead);
-
-        let cpu = cpu_with(0x32, Some(10)); // T1 четвёртого M-цикла (MW)
+        let cpu = cpu_with(0x32, Some(10));
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::MemoryWrite);
     }
 
     #[test]
     fn out_second_m_cycle_is_io_write() {
-        // OUT port (опкод 0xD3) = 10T = M1(4) + MR(3) + IoWrite(3).
-        // На phase 7 (T1 третьего M-цикла) школьный эталон рисует
-        // «Запись в порт» / 0001 0000.
         let cpu = cpu_with(0xD3, Some(7));
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::IoWrite);
     }
 
     #[test]
     fn in_second_m_cycle_is_io_read() {
-        // IN port (опкод 0xDB) = 10T = M1(4) + MR(3) + IoRead(3).
-        // На phase 7 школьный эталон рисует «Чтение из порта» /
-        // 0100 0010.
         let cpu = cpu_with(0xDB, Some(7));
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::IoRead);
     }
 
     #[test]
     fn push_writes_to_stack() {
-        // PUSH B (опкод 0xC5) = 11T = M1(5) + StackWrite(3) + StackWrite(3).
-        // На phase 5 (T1 второго M-цикла) школьный эталон рисует
-        // «Запись в стек» / 0000 0100.
         let cpu = cpu_with(0xC5, Some(5));
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::StackWrite);
     }
 
     #[test]
     fn pop_reads_from_stack() {
-        // POP B (опкод 0xC1) = 10T = M1(4) + StackRead(3) + StackRead(3).
-        // На phase 4 школьный эталон рисует «Чтение из стека» /
-        // 1000 0110.
         let cpu = cpu_with(0xC1, Some(4));
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::StackRead);
     }

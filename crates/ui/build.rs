@@ -19,8 +19,9 @@ fn main() {
     println!("cargo:rerun-if-changed={}", icon_path.display());
 
     if !icon_path.exists() {
-        // Don't break the build if the icon is missing. This keeps fresh
-        // checkouts compilable before the artist has run the icon script.
+        // Don't break the build if the icon is missing — fresh
+        // checkouts must compile before the artist has run the
+        // icon script.
         println!(
             "cargo:warning=icon resource not embedded: {} is missing",
             icon_path.display()
@@ -36,8 +37,8 @@ fn main() {
     );
 
     if let Err(error) = resource.compile() {
-        // A failure here would prevent compilation entirely, which is too
-        // aggressive for a cosmetic feature. Surface it as a warning instead.
+        // Surface as a warning rather than fail compilation —
+        // cosmetic feature, too aggressive to block the build.
         println!("cargo:warning=failed to embed Windows icon resource: {error}");
     }
 }

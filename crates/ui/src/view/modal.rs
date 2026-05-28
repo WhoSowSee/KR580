@@ -4,46 +4,30 @@ use iced::{Background, Border, Color, Element, Length};
 use super::theme::{TOKYO_BG, TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::{DiscardModalButton, Message, PendingAction};
 
-/// Renders the "unsaved changes" confirmation modal. The layout is
-/// three layers stacked together:
+/// Renders the "unsaved changes" confirmation modal as three layers:
 ///
-/// 1. **Backdrop** — a full-window dark fill (`TOKYO_BOARD` at 70%
-///    alpha) wrapped in `mouse_area` + `opaque`. The mouse_area
-///    catches *every* click that misses the dialog so the user can
-///    dismiss with Esc-style "click outside" without needing the
-///    button; the opaque wrapper guarantees those clicks do not
-///    pass through to the application underneath. Together they
-///    deliver the "ничего не было кликабельным" requirement: any
-///    click anywhere on the page either dismisses the modal or
-///    activates a button on the modal itself, never anything
-///    behind it.
-/// 2. **Centred dialog** — a column with the title, the body
-///    paragraph, and the two action buttons. Wrapped in a second
-///    `opaque` so pointer events on the dialog do not bubble back
-///    up to the backdrop's `mouse_area` (otherwise clicking inside
-///    the dialog would dismiss it). The focused button reuses the
-///    hover fill; keyboard routing lives in `app::modal`.
-/// 3. **Spacer rows** above and below + `Space::with(Length::Fill)`
-///    flanks on either side push the dialog to the geometric centre
-///    of the window without needing absolute coordinates.
+/// 1. **Backdrop** — full-window 70%-alpha dark fill in `mouse_area` + `opaque`.
+///    The `mouse_area` catches every click that misses the dialog and routes it
+///    to `CancelDiscard` (click-outside = cancel); `opaque` blocks those clicks
+///    from reaching the app behind. Together they enforce that nothing behind
+///    the modal is clickable.
+/// 2. **Centred dialog** — title, body paragraph, two action buttons. A second
+///    `opaque` keeps clicks inside the dialog from bubbling back to the
+///    backdrop's `mouse_area`. Focused button reuses the hover fill; keyboard
+///    routing lives in `app::modal`.
+/// 3. **Spacer rows** above/below + side spacers centre the dialog without
+///    absolute coordinates.
 ///
-/// `action` is the queued gesture, used only for the dialog title so
-/// the user sees which gesture they are confirming ("Открыть файл" /
-/// "Новый файл" / "Импорт" / "Закрыть приложение"). The body
-/// paragraph is the same for every variant — the unsaved-changes
-/// warning carries the actionable information.
+/// `action` only affects the title (so the user knows which gesture they are
+/// confirming); the body paragraph is shared.
 pub(super) fn discard_modal_overlay(
     action: &PendingAction,
     focused: DiscardModalButton,
 ) -> Element<'_, Message> {
     let (title, title_note) = discard_modal_title(action);
 
-    // Backdrop: wraps the whole window in a darkened fill. The
-    // `mouse_area` swallows clicks landing outside the dialog and
-    // routes them to `CancelDiscard` — same gesture as clicking
-    // "Отменить", so a click on dead space behaves the same way as
-    // pressing the cancel button. `opaque` then prevents that
-    // mouse_area from passing the event further down the tree.
+    // Backdrop click → `CancelDiscard`, same as the cancel button.
+    // `opaque` keeps the event from passing further down the tree.
     let backdrop = mouse_area(
         container(Space::new())
             .width(Length::Fill)
@@ -98,10 +82,8 @@ pub(super) fn discard_modal_overlay(
     .padding(16)
     .style(modal_dialog_style);
 
-    // Centre the dialog. `Length::Fill` spacers above/below and on
-    // both sides push the framed body to the middle of the
-    // window — works for any window size without picking absolute
-    // pixel coordinates.
+    // `Length::Fill` spacers on all four sides centre the dialog
+    // without picking absolute pixel coordinates.
     let centred = column![
         Space::new().height(Length::Fill),
         row![
@@ -115,9 +97,8 @@ pub(super) fn discard_modal_overlay(
     .width(Length::Fill)
     .height(Length::Fill);
 
-    // The backdrop sits underneath the centred dialog — both stacked
-    // together so the dark fill spans the whole window while the
-    // dialog only takes its content size.
+    // Backdrop spans the whole window; the dialog only takes its
+    // content size — both stacked together.
     stack![opaque(backdrop), centred]
         .width(Length::Fill)
         .height(Length::Fill)
@@ -143,13 +124,11 @@ fn discard_confirm_label(action: &PendingAction) -> &'static str {
     }
 }
 
-/// Semi-transparent dark overlay for the modal backdrop. Iced 0.14
-/// has no native gaussian blur primitive, so we approximate the
-/// "blur the background" intent with a darkening fill — the standard
-/// pattern modal dialogs use across desktop UI when blur is not
-/// available. 70% alpha on `TOKYO_BOARD` lets just enough of the
-/// schematic bleed through that the user remembers what they were
-/// doing while still reading the surrounding chrome as suppressed.
+/// Iced 0.14 has no native gaussian blur, so the modal backdrop
+/// approximates the "blur the background" intent with a 70%-alpha
+/// dark fill. Lets enough of the schematic bleed through that the
+/// user remembers what they were doing while reading it as
+/// suppressed.
 fn modal_backdrop_style(_theme: &iced::Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
         background: Some(Background::Color(Color {
@@ -167,11 +146,8 @@ fn modal_backdrop_style(_theme: &iced::Theme) -> iced::widget::container::Style 
     }
 }
 
-/// Framed body of the modal dialog. Solid surface (no transparency
-/// — the backdrop already provides the contrast) with a 1-px border
-/// so the dialog reads as a discrete element floating above the
-/// suppressed background. 8 px corner radius matches the rest of
-/// the bubble chrome.
+/// Solid surface (the backdrop already provides contrast) with a
+/// 1-px border so the dialog reads as a discrete floating element.
 fn modal_dialog_style(_theme: &iced::Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
         text_color: Some(TOKYO_TEXT),
@@ -185,9 +161,8 @@ fn modal_dialog_style(_theme: &iced::Theme) -> iced::widget::container::Style {
     }
 }
 
-/// The cancel and confirm buttons share the same neutral chrome. The
-/// focused twin reuses the hover fill so keyboard users can see what
-/// Enter will activate without introducing a second border language.
+/// Cancel/confirm share neutral chrome. The focused twin reuses the
+/// hover fill so keyboard users see what Enter will activate.
 fn modal_button_style(
     _theme: &iced::Theme,
     status: iced::widget::button::Status,

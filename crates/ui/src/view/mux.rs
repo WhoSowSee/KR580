@@ -1,13 +1,8 @@
-//! Мультиплексор panel — the right column of the schematic plate.
+//! Multiplexer panel — the right column of the schematic plate.
 //!
-//! Carries the W/Z scratch pair, the РОН register grid (B/C, D/E,
-//! H/L), and the SP/PC footer. Lives in its own module because the
-//! panel is ~270 lines on its own and `schematic.rs` was running over
-//! the workspace's 400-line ceiling.
-//!
-//! Public surface is just `mux_panel(...)` — the rest of
-//! the helpers (`mux_section_caption`, `mux_static`, `mux_readout`,
-//! `mux_register`) are private to this module.
+//! Carries the W/Z scratch pair, the general-purpose register grid
+//! (B/C, D/E, H/L), and the SP/PC footer. Split out of `schematic.rs`
+//! to keep that file under the 400-line workspace ceiling.
 
 use iced::widget::{Space, column, container, mouse_area, row, text_input};
 use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
@@ -44,9 +39,9 @@ pub(super) struct MuxRegisterValues {
     pub(super) l: String,
 }
 
-/// Builds the "Мультиплексор" panel as three framed subgroups:
-/// W/Z scratch registers, the two-column B/C-D/E-H/L РОН grid, and the
-/// stack/program-counter footer.
+/// Three framed subgroups: W/Z scratch registers, the two-column
+/// B/C-D/E-H/L general-purpose grid, and the stack/program-counter
+/// footer.
 pub(super) fn mux_panel<'a>(
     cpu: &Cpu8080State,
     selected: RegisterName,
@@ -153,16 +148,11 @@ pub(super) fn mux_panel<'a>(
     .into()
 }
 
-/// Section caption inside the multiplexer panel — paints the centred
-/// muted-text divider that splits the chip group into "временного
-/// хранения" / "РОН" / footer. Reuses `mux_header_style` so the strip
-/// reads as a sibling of the panel's main header (same plate surface,
-/// same hairline border) only with smaller, muted text. The
-/// `align_x(Center)` is applied to both the inner `Text` and the
-/// surrounding `container` so the caption sits centred regardless of
-/// how iced rounds the inner-text bounding box against the outer
-/// width — without the container-level alignment the centring drifts
-/// a few pixels left at certain sizes.
+/// Centred muted-text divider that splits the chip group into
+/// scratch / general-purpose / footer subblocks. `align_x(Center)`
+/// is applied to both the inner `Text` and the container so the
+/// caption stays centred regardless of how iced rounds the inner
+/// text bounding box against the outer width.
 fn mux_section_caption(label: &'static str) -> Element<'static, Message> {
     container(ui_text(label, 11, TOKYO_MUTED).align_x(alignment::Horizontal::Center))
         .padding([3, 8])
@@ -253,22 +243,10 @@ fn mux_register_cell(
     let editing = edit_state.inline_target == Some(target);
     let hovered = edit_state.hovered_target == Some(target);
 
-    // Register name colour mirrors the memory-row address column:
-    // `TOKYO_BLUE` when the chip is the active selection,
-    // `TOKYO_MUTED` otherwise. The user explicitly asked the
-    // multiplexer to reuse the same idiom — "selected → blue,
-    // unselected → grey" — so the eye does not have to learn a
-    // separate visual language for the two panels. The byte stays
-    // green (`TOKYO_GREEN`) at all times, same as the value column
-    // on memory rows: it answers "what's stored here right now",
-    // independent of which row holds the cursor.
+    // Selected register name uses TOKYO_BLUE, idle uses TOKYO_MUTED —
+    // matches the memory-row address column. Byte stays TOKYO_GREEN.
     let label_color = if is_selected { TOKYO_BLUE } else { TOKYO_MUTED };
 
-    // Inline layout: register name on the left, value pushed to the
-    // right by a flexible spacer. Each chip occupies a single row in
-    // the multiplexer panel — same reading rhythm as the reference
-    // KR-580 schematic.
-    //
     let value: Element<'_, Message> = if editing {
         text_input("00", edit_state.input_value)
             .id(REGISTER_INLINE_INPUT_ID)

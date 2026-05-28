@@ -319,21 +319,11 @@ impl DesktopApp {
     }
 }
 
-// ---------------------------------------------------------------------------
-// schematic-specific helpers
-// ---------------------------------------------------------------------------
-//
-// The pure widget builders that paint individual chips on this plate
+// Pure widget builders for individual chips on this plate
 // (`schematic_readout`, `schematic_mnemonic_readout`, `flag_strip`,
-// `device_chip`, `functional_block`) live in `super::chips`. They were
-// extracted to keep this file under the workspace's 400-line ceiling
-// (see `AGENTS.md`) — call sites read `chips::schematic_readout(...)`
-// the same way they used to read the local function.
+// `device_chip`, `functional_block`) live in `super::chips`.
 
-/// Builds the "Мультиплексор" panel — implementation lives in
-/// `super::mux` to keep this file under the workspace's 400-line
-/// ceiling. Re-exported here as a one-liner so the call site reads
-/// the same way it did before the split.
+/// Multiplexer panel — implementation in `super::mux`.
 fn mux_panel<'a>(
     cpu: &Cpu8080State,
     selected: RegisterName,
@@ -354,10 +344,7 @@ fn mux_panel<'a>(
     )
 }
 
-/// Four-tier speed switch — implementation lives in `super::speed`
-/// to keep this file under the 400-line ceiling. Re-exported here as
-/// a one-liner so the call site reads the same way it did before
-/// the split.
+/// Four-tier speed switch — implementation in `super::speed`.
 fn speed_panel(active: SpeedTier) -> Element<'static, Message> {
     super::speed::speed_panel(active)
 }

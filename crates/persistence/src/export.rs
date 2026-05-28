@@ -13,20 +13,9 @@ pub struct ExportModel {
 pub struct Exporters;
 
 impl ExportModel {
-    /// Builds an export model from the live CPU state. Memory is emitted
-    /// **sparsely**: only cells that differ from the default `0x00` are
-    /// included, scanning the full 64 KiB address space. The emulator
-    /// boots with a zeroed RAM, so `value != 0` is exactly the set of
-    /// bytes the user has actually touched (via `SetMemory`, snapshot
-    /// load, or import) — anything else is implicit and gets restored to
-    /// zero on import via `ExportModel::apply_to`.
-    ///
-    /// This replaces an earlier dense range (`0x0000..=0x00FF`) which
-    /// dumped the first 256 bytes regardless of content. The user
-    /// reported the dump was illogical — most rows were `0000=00` noise
-    /// that obscured the handful of actually-edited cells, and bytes
-    /// past `0x00FF` were silently lost. Scanning all 64 KiB with a
-    /// non-zero filter solves both problems at once.
+    /// Memory is emitted sparsely — only non-zero cells. Importing
+    /// zero-fills any address not in the export, so the round-trip
+    /// stays exact.
     pub fn from_cpu(state: &Cpu8080State) -> Self {
         let registers = vec![
             ("A".to_owned(), hex8(state.registers.a)),
@@ -73,15 +62,9 @@ impl Exporters {
         sheet
             .set_name("State")
             .map_err(|e| ExportError::Spreadsheet(e.to_string()))?;
-        // One sheet, three sections stacked vertically: registers, then
-        // flags, then memory. Each section starts with its own header row
-        // (`Field/Value`, `Flag/Set`, `Address/Value`) and is separated
-        // from the next by a single blank row. The importer keys on the
-        // header row strings to switch sections, mirroring how
-        // `parse_txt` keys on `[Registers]` / `[Flags]` / `[Memory]`.
-        // Splitting into two sheets earlier was over-engineered: every
-        // user opens the file, sees one tab, scrolls. The second tab was
-        // pure friction.
+        // Three sections stacked: registers, flags, memory. Each
+        // starts with a header row the importer keys on, followed
+        // by a blank separator.
         let mut row: u32 = 0;
         sheet
             .write_string(row, 0, "Field")
@@ -138,11 +121,8 @@ impl Exporters {
             .map_err(|e| ExportError::Spreadsheet(e.to_string()))
     }
 
-    /// Serialises the model as the human-readable TXT format. The output
-    /// is three sections — `[Registers]`, `[Flags]`, `[Memory]` — each
-    /// listing `key=value` pairs and separated by a blank line. No
-    /// banner, no version line: the format has a single shape and the
-    /// importer is the source of truth for what's parseable.
+    /// Three sections (`[Registers]`, `[Flags]`, `[Memory]`) separated
+    /// by blank lines.
     pub fn to_text(model: &ExportModel) -> String {
         let mut out = String::new();
         out.push_str("[Registers]\n");

@@ -22,30 +22,67 @@ run CPU instructions directly, or store emulator state in widgets.
   icon. It also pins the Windows subsystem to GUI on release builds (see
   "Console window suppression").
 - `app/` defines `DesktopApp`, message routing, theme, and the keyboard
-  subscription:
-  - `app/mod.rs` — state container, `update`, `subscription`, and
-    `handle_arrow_key`, the router that maps a raw ArrowUp/ArrowDown
-    press to the editor that currently owns focus.
+  subscription. To stay under the 400-line per-file budget the shell is
+  split into focused submodules:
+  - `app/mod.rs` — module root, re-exports the public surface
+    (`DesktopApp`, `Message`, `MenuId`, `SpeedTier`, widget identifiers).
+  - `app/state.rs` — the `DesktopApp` struct, `PendingAction`,
+    `with_initial_path`, and the floating-notice helpers
+    (`clear_*_notice` / `raise_halt_notice` / `raise_info_notice` /
+    `run_new_file`).
   - `app/messages.rs` — the `Message` enum.
-  - `app/constants.rs` — widget identifiers, register order, and the
-    name lookup helpers. Re-exported from `crate::app::*` so the rest
-    of the crate keeps importing them by short path.
+  - `app/constants.rs` — widget identifiers, register order, and name
+    lookup helpers. Re-exported from `crate::app::*` so the rest of the
+    crate keeps importing them by short path.
+  - `app/update.rs` — the `update()` message handler (one match arm per
+    `Message` variant).
+  - `app/handlers.rs` — helper handlers shared with `update`/`subscription`:
+    `handle_tick`, `handle_focus_reconciled`, `handle_esc`, plus the
+    `tick_interval` and `ctrl_shortcut` resolvers.
+  - `app/subscription.rs` — global keyboard / mouse / window listener
+    that drives the `Message` stream.
+  - `app/keymap.rs` — arrow-key dispatch (`handle_arrow_key`,
+    `handle_horizontal_arrow_key`).
+  - `app/speed.rs` — speed-tier constants and the `tier_hz` resolver.
+  - `app/modal.rs` — discard-modal focus state and routing.
+  - `app/register_inline.rs` — inline register-cell editor (Tab/Shift+Tab
+    walk, Ctrl+Arrow navigation).
+  - `app/undo.rs` — `UndoEntry` / `UndoStack` storage and coalescing,
+    plus tests under `app/undo/tests.rs`.
 - `runtime/` contains app-facing command dispatch, event draining, file
   dialogs, and the per-panel update logic. The methods all hang off
   `impl DesktopApp` and are grouped by responsibility:
-  - `runtime/mod.rs` — `dispatch`, `pull_events`, `apply_snapshot`,
-    file-dialog helpers.
-  - `runtime/register.rs` — register name/value editing, including
+  - `runtime/mod.rs` — module root.
+  - `runtime/dispatch.rs` — sync/async worker dispatch
+    (`dispatch`, `dispatch_sync`, `dispatch_with_undo`) plus the
+    `toggle_run` / `restart_program` control flow.
+  - `runtime/events.rs` — `pull_events`, `consume_event`, and the
+    `apply_snapshot` reconciler.
+  - `runtime/files.rs` — Open / Save / Save-As / Save-legacy /
+    Open-legacy / Import / Export and the export-path normaliser.
+  - `runtime/register.rs` — register name/value editing including
     `step_register_value_input` for ArrowUp/ArrowDown ±1 stepping.
-  - `runtime/memory.rs` — memory list, address spinner, inline editor,
-    Ctrl+Enter pattern search, and the matching value-step helpers
-    (`step_memory_value_input`, `step_inline_memory_value_input`).
+  - `runtime/memory/` — memory list, address spinner, inline editor,
+    pattern search, and step-instruction follow-PC, split into:
+    - `cursor.rs` — cursor / spinner state, scroll math, PC-sync.
+    - `editor.rs` — value-cell editing, inline editing, opcode picker.
+    - `search.rs` — Ctrl+Enter pattern search and Alt+Enter jump.
+    - `step.rs` — step-instruction / step-tact + follow-PC during a
+      paced run.
   - `runtime/focus.rs` — Tab/Shift+Tab cycling between fields.
-  - `runtime/parse.rs` — small free helpers (hex parsing, normalization,
-    `saturating_step_u8`).
-- `view.rs` renders the current snapshot, lays out every panel, and owns
-  every widget style.
-- `platform.rs` is a Windows-only helper used by `app/mod.rs` for DWM
+  - `runtime/focus_ops.rs` — custom `Focusable` operations
+    (`find_focusable_at`, `find_focused_optional`, `unfocus_except`)
+    used by post-click focus reconciliation.
+  - `runtime/humanize_error.rs` — translates English `AppError` Display
+    strings into short Russian phrases for the floating overlay.
+  - `runtime/parse.rs` — small free helpers (hex parsing,
+    `saturating_step_u8`, `scroll_memory_to`).
+  - `runtime/undo.rs` — applies a popped `UndoEntry` back to live
+    state (text-field restore, `ApplyCpuState` replay).
+- `view/` renders the current snapshot and lays out every panel
+  (split into focused submodules — see “Левая панель: расщепление
+  модулей” below).
+- `platform.rs` is a Windows-only helper used by `app/update.rs` for DWM
   cloaking during launch (see "Launch flash mitigation"). On non-Windows
   targets it compiles down to a no-op.
 

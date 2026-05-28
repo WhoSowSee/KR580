@@ -101,14 +101,9 @@ pub(super) fn legend_panel_left<'a>(
         .into()
 }
 
-/// Builds a `<text_input> + ▲▼` shell that publishes `up`/`down` messages
-/// for the spinner buttons and reports focus state through the border
-/// colour. `id` makes the inner input addressable for focus operations.
-///
-/// The arrows live in a stacked overlay rather than next to the input in
-/// a row, so the input gets the full inner width of the shell. That keeps
-/// the focus glow from being clipped on the right edge by a sibling
-/// column, which used to leave a visible artefact behind the buttons.
+/// `<text_input> + ▲▼` shell. Arrows are stacked over the input
+/// rather than placed in a row so the input keeps the full inner
+/// width — otherwise the focus glow gets clipped on the right edge.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn spinner_text_input<'a>(
     placeholder: &'static str,
@@ -121,9 +116,8 @@ pub(super) fn spinner_text_input<'a>(
     id: &'static str,
     focused: bool,
 ) -> Element<'a, Message> {
-    // Width reserved for the arrow stack on the right side of the shell.
-    // The same amount is added as left padding so the entered text stays
-    // centred horizontally relative to the visible border.
+    // Reserved for the right-side arrow stack; mirrored as left
+    // padding so the typed text stays centred.
     const ARROW_RESERVED: f32 = 18.0;
 
     let input: Element<'a, Message> = text_input(placeholder, value)
@@ -181,10 +175,6 @@ pub(super) fn step_button(label: &'static str, message: Message) -> Element<'sta
 }
 
 pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
-    // The glyph is `chevrons-right` from the Lucide set: twin
-    // right-pointing chevrons, tinted green to mirror the action-panel
-    // accent palette ("commit and move on"). Sized to 18 px so it sits
-    // visually centred inside the 28 px square chrome.
     const GLYPH_SIZE: f32 = 18.0;
     let glyph = svg(super::icons::chevrons_right())
         .width(Length::Fixed(GLYPH_SIZE))
@@ -207,27 +197,10 @@ pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
     .into()
 }
 
-/// A square icon-only action button with a hover tooltip. Used to
-/// compose the "Управление" panel as a single horizontal row of glyph
-/// chips, mirroring the toolbar look of the reference KR-580 emulator.
-/// The SVG glyph is tinted with `accent` so each button is unambiguously
-/// identified by its colour; the surrounding chrome stays neutral and
-/// only the surface tone shifts on hover/press, matching the editor `↵`
-/// button so the chips read as part of the same family. The tooltip
-/// body uses the editor `inset_style` so it visually belongs to the
-/// same chrome family as the rest of the side panel.
-///
-/// `message` is `Option<Message>` rather than `Message` so the caller
-/// can render a *disabled* chip without juggling a parallel "is it
-/// enabled" branch in the layout: passing `None` skips the
-/// `.on_press(...)` call, and iced 0.14's `button` widget treats a
-/// button with no `on_press` as non-interactive (no hover highlight,
-/// no click). The tooltip still appears on hover so the user can see
-/// the hint even while the button is locked. This is the chokepoint
-/// that the post-HLT run-block (`run_blocked_after_halt`) uses to
-/// grey out the four execution chips while leaving the reset chips
-/// alive — the resets are the way out of the latch, so they must
-/// stay clickable.
+/// Square icon-only action button with hover tooltip. The SVG is
+/// tinted with `accent`; passing `None` for `message` renders a
+/// disabled chip (no `on_press`, faded glyph) — used by the post-HLT
+/// latch to grey out execution chips while keeping resets clickable.
 pub(super) fn icon_action_button(
     handle: svg::Handle,
     message: Option<Message>,
@@ -237,21 +210,9 @@ pub(super) fn icon_action_button(
     const BUTTON_SIZE: f32 = 38.0;
     const GLYPH_SIZE: f32 = 20.0;
 
-    // Tint the SVG geometry by overriding `currentColor` with the
-    // accent — the source files are authored with `stroke="currentColor"`
-    // so the same handle can be reused at any tone. When the chip is
-    // locked (`message` is `None`), we collapse the glyph to a low-alpha
-    // `TOKYO_MUTED` grey instead. iced 0.14's `svg::Style` callback
-    // also receives the host widget's status, but for this widget the
-    // host is a `container`, not the `button` itself, so the status is
-    // always `Idle` and we cannot key off it. The enabled/disabled
-    // decision is therefore baked into the closure at construction
-    // time — same lifetime as the `Option<Message>` we already branch
-    // on for `.on_press(...)`. This is what makes the chip read as
-    // "out of service" at a glance: the frame fades via
-    // `action_button_style`'s `Disabled` arm, the glyph fades here,
-    // and together they outvoter the per-chip accent colour the chip
-    // wears when alive.
+    // Disabled chip → low-alpha muted grey. The style callback's host
+    // is a `container`, not the `button`, so its status stays `Idle`
+    // and we have to bake the enabled/disabled choice in at build time.
     let enabled = message.is_some();
     let glyph_color = if enabled {
         accent

@@ -29,9 +29,8 @@ fn actor_publishes_state_changes() {
     handle.send(AppCommand::Shutdown).unwrap();
 }
 
-/// Regression for «программа не перестаёт выполняться при сбросе
-/// регистров»: clicking ResetCpu while the actor is in `Run` must
-/// flip `running` to false *and* publish `Stopped` so the UI's
+/// Regression for "program keeps running after a register reset":
+/// clicking ResetCpu while the actor is in `Run` must flip `running` to false *and* publish `Stopped` so the UI's
 /// play/pause toggle returns to its idle state. Same contract for
 /// ResetRam — wiping code under a running worker would otherwise
 /// keep stepping into zero bytes (NOPs) until the per-session budget
@@ -82,7 +81,7 @@ fn reset_ram_during_run_emits_stopped() {
 /// Counter-case: ResetCpu while the worker is *idle* must not
 /// fabricate a `Stopped` event — the UI consumes `Stopped` to flip
 /// the play/pause toggle, and a spurious one would briefly flash
-/// the «остановлено» status in a session that was never running.
+/// the "stopped" status in a session that was never running.
 #[test]
 fn reset_cpu_while_idle_does_not_emit_stopped() {
     let mut emulator = Emulator::default();
@@ -166,10 +165,10 @@ fn apply_cpu_state_during_run_emits_stopped() {
 }
 
 /// Rewinding past a HLT must clear the halt notice on the UI side.
-/// The contract is: when the restored snapshot has `halted == false`,
-/// the worker emits `HaltStateChanged(false)` so the floating
-/// "Процессор остановлен" frame disappears as soon as the user undoes
-/// the instruction that halted the CPU.
+/// The contract: when the restored snapshot has `halted == false`,
+/// the worker emits `HaltStateChanged(false)` so the floating "CPU
+/// halted" frame disappears as soon as the user undoes the
+/// instruction that halted the CPU.
 #[test]
 fn apply_cpu_state_unhalts_emits_halt_event() {
     let mut emulator = Emulator::default();

@@ -1,27 +1,13 @@
 use crate::SnapshotError;
 use k580_core::{Cpu8080State, Flags, Memory64K};
 
-/// Which on-disk `.580` flavour a freshly opened file turned out to be.
-///
-/// The two formats share the `.580` extension (the user's reference
-/// emulator and ours both write to it) but the wire shape is
-/// completely different: K580 v1 starts with a `K580` magic, then a
-/// version word, then a TLV payload, while the legacy reference dump
-/// is a flat 64 KiB of RAM followed by a 13-byte trailer ending in
-/// `FF FF`. The double-click / `argv[1]` path therefore needs to
-/// *probe* the file, not just trust the extension — and the caller
-/// needs to know which branch matched so it can route a subsequent
-/// "Сохранить" / "Сохранить (старый формат)" gesture to the right
-/// serializer.
-///
-/// Returned by `Snapshot580Serializer::from_any_bytes`.
+/// Probed at load time so a subsequent save routes through the matching
+/// serializer (a legacy file would otherwise round-trip into modern).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Snapshot580Flavour {
-    /// Modern, versioned K580 v1 format with `K580` magic and a TLV
-    /// payload. Round-trips every CPU field.
+    /// Versioned K580 v1 (TLV); round-trips every CPU field.
     Modern,
-    /// Reference 65 549-byte legacy dump. Carries RAM + PC only;
-    /// every other CPU field comes back as default.
+    /// Reference 65 549-byte flat dump; RAM + PC only.
     Legacy,
 }
 
@@ -31,31 +17,8 @@ impl Snapshot580Serializer {
     pub const MAGIC: &'static [u8; 4] = b"K580";
     pub const VERSION: u16 = 1;
 
-    /// Length of the reference ("legacy") `.580` file produced by
-    /// the original emulator the project was based on: 65 536 bytes
-    /// of raw RAM followed by a 13-byte trailer. No magic, no
-    /// version, no TLV — just a flat dump.
     pub const LEGACY_LENGTH: usize = Memory64K::SIZE + Self::LEGACY_TRAILER_LENGTH;
-    /// Length of the legacy trailer that sits *after* the 64 KiB of
-    /// RAM. Layout (offsets relative to the trailer's first byte):
-    ///
-    /// - `[0..9]`  — nine bytes of zeros in every reference file we
-    ///   inspected. These almost certainly correspond to register /
-    ///   flag / SP fields the reference emulator zeroes when the
-    ///   snapshot is saved at idle, but without the original
-    ///   emulator's source we cannot map them precisely. We write
-    ///   zeros here on save and ignore the value on load — that is
-    ///   what every reference file we have on disk does, so it
-    ///   round-trips cleanly.
-    /// - `[9..11]` — `PC_LO PC_HI` (little-endian u16). The slot
-    ///   carries different values across the seven reference files
-    ///   (`0x0011`, `0x0012`, `0x0000`, …); the only consistent
-    ///   reading that fits all of them is "the program counter at
-    ///   save time". We write our live `state.pc` here and read it
-    ///   back into `state.pc` on load.
-    /// - `[11..13]` — `FF FF` end-of-record marker. Constant across
-    ///   every reference file; the loader rejects files where these
-    ///   two bytes are anything else.
+    /// Trailer: `[0..9]` zeros, `[9..11]` PC_LO/PC_HI, `[11..13]` `FF FF`.
     pub const LEGACY_TRAILER_LENGTH: usize = 13;
 
     pub fn to_bytes(state: &Cpu8080State) -> Vec<u8> {
@@ -90,29 +53,15 @@ impl Snapshot580Serializer {
         );
         write_tlv(&mut payload, 0x07, &[u8::from(state.halted)]);
         let mut timing = state.cycle_count.to_le_bytes().to_vec();
-        // Slot[8] — `tact_phase` (Option<u8>): пишем только если есть.
-        // Slot[9] — `last_completed_tact_phase` (Option<u8>): пишем
-        // только если slot[8] уже занят и есть что писать. Schema
-        // оставлена variable-length, чтобы старые v1 файлы (8 или 9
-        // байт) грузились без миграции, а новые могут уносить обе
-        // фазы одновременно — без этого после сохранения/загрузки
-        // строка «Такт» в блоке «Машинный цикл» сбрасывалась бы в `-`,
-        // и пользователь видел расхождение между «открыл и сразу
-        // посмотрел» и «открыл, прошёл шаг».
+        // Variable-length payload so 8 / 9-byte v1 files still load.
+        // Sentinel `0xFF` in slot[8] of a 10-byte payload = "no
+        // tact_phase, last_completed valid" (real T-phase ≤ ~38).
         if let Some(phase) = state.tact_phase {
             timing.push(phase);
             if let Some(last) = state.last_completed_tact_phase {
                 timing.push(last);
             }
         } else if let Some(last) = state.last_completed_tact_phase {
-            // Особый случай: `tact_phase == None` (инструкция
-            // завершена), но «последняя выполненная фаза» есть. Чтобы
-            // не ломать формат «slot[8] = tact_phase, slot[9] = last»,
-            // используем sentinel `0xFF` в slot[8] — реальная T-фаза
-            // не может быть 255 (8080 укладывается в 0..38, см.
-            // `decode.rs` timing). Loader при чтении 0xFF из slot[8]
-            // знает, что это «нет tact_phase» и читает только slot[9]
-            // как `last_completed_tact_phase`.
             timing.push(0xFF);
             timing.push(last);
         }
@@ -173,47 +122,17 @@ impl Snapshot580Serializer {
         Ok(state)
     }
 
-    /// Serialize the CPU state into the reference ("legacy") 65 549-byte
-    /// `.580` layout used by the emulator the project was originally
-    /// based on. The output is `RAM (65 536 B) + 13-byte trailer`,
-    /// where the trailer is `0x00 × 9 + PC_LO + PC_HI + 0xFF + 0xFF`.
-    /// See `LEGACY_TRAILER_LENGTH` for why we map only PC across the
-    /// 13 bytes — the reference format does not preserve registers,
-    /// flags, SP, halt, or cycle counters, so this dumps RAM and PC
-    /// only and leaves everything else for the K580 v1 path. Round-trips
-    /// the seven reference files we have on disk byte-for-byte when
-    /// loaded with `from_legacy_bytes` (the trailer's first 9 bytes are
-    /// already zero in every reference file, and `FF FF` is constant).
     pub fn to_legacy_bytes(state: &Cpu8080State) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::LEGACY_LENGTH);
         out.extend_from_slice(state.memory.as_slice());
-        // Nine zero bytes covering whatever the reference format
-        // stores here (likely registers / flags / SP at idle). Every
-        // reference file we have on disk leaves this zone clear, so
-        // emitting zeros keeps the round-trip clean.
         out.resize(out.len() + 9, 0);
         out.extend_from_slice(&state.pc.to_le_bytes());
-        // End-of-record marker. Constant across every reference file
-        // we have; the loader rejects files where it's anything else.
         out.push(0xFF);
         out.push(0xFF);
         debug_assert_eq!(out.len(), Self::LEGACY_LENGTH);
         out
     }
 
-    /// Probes `bytes` and dispatches to the matching deserializer.
-    ///
-    /// Both the modern K580 v1 format and the legacy reference dump share
-    /// the `.580` extension, so a double-click / `argv[1]` open cannot
-    /// trust the file name — it has to *probe* the contents. The cheap
-    /// discriminator is the four-byte `K580` magic at offset 0: present
-    /// → modern TLV path; absent → legacy 65 549-byte flat-RAM path.
-    ///
-    /// Returns the recovered CPU state plus the flavour that matched, so
-    /// the UI can remember which serializer to use when the user later
-    /// hits "Сохранить" (modern) versus "Сохранить (старый формат)"
-    /// (legacy). Without that hint a legacy file opened by double-click
-    /// would silently round-trip into the modern format on the next save.
     pub fn from_any_bytes(
         bytes: &[u8],
     ) -> Result<(Cpu8080State, Snapshot580Flavour), SnapshotError> {
@@ -222,23 +141,10 @@ impl Snapshot580Serializer {
         } else if bytes.len() == Self::LEGACY_LENGTH {
             Self::from_legacy_bytes(bytes).map(|state| (state, Snapshot580Flavour::Legacy))
         } else {
-            // Neither magic nor legacy length matched. Surface the
-            // modern-format error so the caller's existing diagnostics
-            // ("not a valid .580 snapshot") still apply — the file
-            // genuinely isn't either flavour.
             Err(SnapshotError::InvalidMagic)
         }
     }
 
-    /// Parse a legacy 65 549-byte `.580` file produced by the original
-    /// emulator. The format carries only RAM + PC (see
-    /// `to_legacy_bytes` for the layout rationale), so registers,
-    /// flags, SP, halt, interrupts, cycle count, and tact phase all
-    /// come back as `Cpu8080State::default()`. That is what the
-    /// reference files actually carry — every trailer we've inspected
-    /// has nine zero bytes ahead of the PC slot — and it makes the
-    /// "open legacy file" gesture predictable: the user gets RAM +
-    /// resume-from-PC, with everything else in a clean power-on state.
     pub fn from_legacy_bytes(bytes: &[u8]) -> Result<Cpu8080State, SnapshotError> {
         if bytes.len() != Self::LEGACY_LENGTH {
             return Err(SnapshotError::InvalidLegacyLength(bytes.len()));
@@ -354,17 +260,9 @@ fn read_interrupts(state: &mut Cpu8080State, value: &[u8]) -> Result<(), Snapsho
 }
 
 fn read_timing(state: &mut Cpu8080State, value: &[u8]) -> Result<(), SnapshotError> {
-    // Длины:
-    //   8  — старый формат (только cycle_count)
-    //   9  — старый формат + tact_phase (slot[8])
-    //   10 — новый формат: cycle_count + tact_phase + last_completed_tact_phase
-    //
-    // В новом формате slot[8] == 0xFF означает sentinel «tact_phase
-    // отсутствует, но last_completed_tact_phase валиден» (см. писатель
-    // в `to_bytes`: реальная фаза не превышает ~38 на 8080, поэтому
-    // 0xFF свободна). Если файл 10 байт и slot[8] != 0xFF — обе фазы
-    // живые. 9-байтовые файлы (старые) грузятся как раньше,
-    // last_completed_tact_phase у них остаётся `None` (Default).
+    // 8 = cycle_count only; 9 = + tact_phase; 10 = + last_completed.
+    // Sentinel `0xFF` in slot[8] of a 10-byte payload means "no
+    // active phase, last_completed is valid".
     if !matches!(value.len(), 8..=10) {
         return Err(SnapshotError::InvalidLength {
             tag: 0x08,

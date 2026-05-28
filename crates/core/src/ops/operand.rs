@@ -20,6 +20,8 @@ impl RegPair {
 }
 
 impl Cpu8080State {
+    /// `&mut self` because the M=`(HL)` arm goes through the bus
+    /// latches; the other seven register codes are internal-only.
     pub(crate) fn read_reg_code(&mut self, code: u8) -> u8 {
         match code & 0x07 {
             0 => self.registers.b,
@@ -28,14 +30,6 @@ impl Cpu8080State {
             3 => self.registers.e,
             4 => self.registers.h,
             5 => self.registers.l,
-            // M-код 110 = `(HL)` — единственная ветка, где регистр-
-            // код реально дёргает шину. Раньше `read_reg_code` был
-            // `&self`, потому что `Memory64K::read` чист от побочек,
-            // но теперь чтение через шину обновляет латчи адреса/
-            // данных (`last_address_bus`, `last_data_bus_byte`),
-            // и без `&mut self` это не выразить. Все остальные семь
-            // регистров — внутренние, шины не касаются, и латчи не
-            // должны меняться от MOV r1, r2.
             6 => self.bus_read(self.registers.hl()),
             _ => self.registers.a,
         }
@@ -49,8 +43,6 @@ impl Cpu8080State {
             3 => self.registers.e = value,
             4 => self.registers.h = value,
             5 => self.registers.l = value,
-            // Симметрично `read_reg_code`: M=`(HL)` → запись через
-            // шину с обновлением латчей.
             6 => self.bus_write(self.registers.hl(), value),
             _ => self.registers.a = value,
         }
@@ -75,9 +67,6 @@ impl Cpu8080State {
     }
 
     pub(crate) fn fetch_byte(&mut self, offset: u16) -> u8 {
-        // Operand fetch: PC+offset выставляется на адресную шину,
-        // байт идёт через буфер данных. `&mut self`, потому что
-        // bus_read обновляет латчи (см. `bus_read` doc-comment).
         self.bus_read(self.pc.wrapping_add(offset))
     }
 

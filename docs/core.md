@@ -31,6 +31,14 @@ Implemented behavior follows standard Intel 8080/KR580 semantics from `prompt/`:
 - `ops/stack.rs` for PUSH/POP and PSW stack handling;
 - `ops/misc.rs` for NOP, rotates, DAA, flag toggles, EI/DI, and IN/OUT.
 
+## Machine-cycle layout
+
+`machine_cycle/` ships the schoolbook M-cycle / T-phase tables that the UI uses to mirror the reference KR-580 panel. Split into focused submodules to stay under the 400-line per-file budget:
+
+- `machine_cycle/mod.rs` — public types: `MachineCycleLengths`, `MachineCycleLayout`, `MachineCyclePosition`, `MachineCycleKind`, `MachineCycleKinds`, plus `position_for` and the `status_byte()` / `label_ru()` helpers on `MachineCycleKind`.
+- `machine_cycle/tables.rs` — opcode → M-cycle layout (`layout_for`) and opcode → M-cycle types (`kinds_for` / `kind_at`). For conditional instructions both `taken` and `not_taken` branches are covered; HLT layout is `[4]` (only the visible M1, school convention) while `decode.rs` keeps the datasheet 7T total.
+- `machine_cycle/tests.rs` — invariants pinning the tables to `decode.rs` timing for all 244 documented opcodes and to the Intel 8080A datasheet status-byte raster.
+
 ## Tested opcode areas
 
 The semantic test suite now covers:

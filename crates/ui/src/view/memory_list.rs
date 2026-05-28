@@ -40,15 +40,8 @@ impl DesktopApp {
 
         for address in render_start..render_end {
             let address = address as u16;
-            // The HLT row gets a red highlight when the program has
-            // halted on it. After HLT the 8080 advances PC one byte
-            // past the halt opcode, so the matching condition is
-            // "PC sits exactly one past this row, and this row holds
-            // a 0x76 (HLT)". The byte check defends against rare
-            // corner cases (e.g. a halted CPU whose PC happened to
-            // land one past an unrelated byte after a SetPc; the
-            // halt visual should follow the actual opcode, not the
-            // counter).
+            // PC sits one byte past the HLT opcode after halt;
+            // halted row = `pc == addr+1` AND byte == 0x76.
             let halted_here =
                 cpu.halted && address.wrapping_add(1) == cpu.pc && cpu.memory.read(address) == 0x76;
             rows = rows.push(memory_row(
@@ -140,11 +133,8 @@ fn memory_row<'a>(
     inline_value_input: &'a str,
 ) -> Element<'a, Message> {
     let value = cpu.memory.read(address);
-    // For the selected row mirror whatever byte the user is currently
-    // typing into the inline editor; for any other row decode the byte
-    // that is actually stored in memory. This makes the "Команда"
-    // column update live as the user types instead of waiting for
-    // Enter to commit the write.
+    // Mirror the in-progress inline edit on the selected row so the
+    // command column updates live; others decode the stored byte.
     let preview_value = if selected {
         parse_hex_u8_preview(inline_value_input).unwrap_or(value)
     } else {
@@ -153,9 +143,6 @@ fn memory_row<'a>(
     let command = decode_opcode(preview_value)
         .map(|instruction| instruction.mnemonic)
         .unwrap_or_else(|_| "-".to_owned());
-    // Halt accent overrides the regular selected/unselected accent so
-    // the address column on the HLT row reads in the same red as the
-    // surrounding row chrome.
     let accent = if halted_here {
         TOKYO_RED
     } else if selected {
@@ -164,11 +151,8 @@ fn memory_row<'a>(
         TOKYO_MUTED
     };
 
-    // The cells fill the entire row height (including the strip where
-    // the 1-pixel separator is painted). Each cell's `mouse_area` is
-    // `Length::Fill`, so clicks on the bottom-edge pixel land on
-    // whichever cell is directly above them — the separator itself is
-    // a purely cosmetic overlay.
+    // Cells fill the full row height; clicks on the bottom-edge
+    // pixel land on the cell above (separator is purely cosmetic).
     let cells_row: Element<'a, Message> = container(
         row![
             address_cell(address, accent),
@@ -183,19 +167,8 @@ fn memory_row<'a>(
     .style(move |_theme| memory_row_container_style(selected, halted_here))
     .into();
 
-    // The 1-pixel divider between rows used to live in its own
-    // `mouse_area` underneath the row. That worked but added a third
-    // hit-tested element per row, and a separate dispatch path for
-    // separator clicks. Now the cells_row owns the full
-    // `MEMORY_ROW_HEIGHT`, and we just paint a 1-pixel line on top of
-    // it via a non-interactive `container`. `container` does not
-    // capture pointer events, so a click landing on the separator
-    // pixel falls straight through to whichever cell `mouse_area` sits
-    // beneath it — the cell takes the gesture and routes it through
-    // its own `on_press` / `on_double_click`. When the current row or
-    // the row below it is selected (or this row carries the halt
-    // accent) we hide the line entirely so the rounded highlight
-    // doesn't bump into a horizontal stripe.
+    // Cosmetic 1-px divider over the cells row. Hidden when this/next
+    // row is selected or halted.
     let separator_overlay: Element<'a, Message> = if selected || next_selected || halted_here {
         Space::new()
             .width(Length::Fill)
@@ -220,16 +193,10 @@ fn memory_row<'a>(
         .into()
 }
 
-/// Wraps a centred text in a `mouse_area` that fires `on_press` on a
-/// single click and `on_double_click` on a double click, with a fixed
-/// `FillPortion(1)` width so all three columns line up. The reason we
-/// don't use `button` for the address/command cells: `button::update`
-/// captures `ButtonPressed`, and `mouse_area::update` returns early on
-/// `shell.is_event_captured()` — so wrapping a row of buttons in an
-/// outer `mouse_area` would make the outer one blind to every click.
-/// Switching to `mouse_area` per cell lets each cell route its own
-/// gestures (single click, double click) independently while still
-/// leaving the press uncaptured for sibling listeners.
+/// `mouse_area`-wrapped cell that fires `on_press`/`on_double_click`
+/// with `FillPortion(1)`. Not a `button` because `button::update`
+/// captures `ButtonPressed` and an outer `mouse_area` would then go
+/// blind to every click.
 fn cell_mouse_area<'a>(
     label: Text<'a>,
     on_press: Message,
@@ -261,25 +228,11 @@ fn address_cell(address: u16, accent: iced::Color) -> Element<'static, Message> 
     .into()
 }
 
+/// Two stacked listeners: an inner `mouse_area` over the mnemonic
+/// glyph fires `OpcodeDropdownToggled`, the outer one fires
+/// `MemorySelected`. `mouse_area::update` ignores presses an inner
+/// widget already captured, so each gesture reaches one listener.
 fn command_cell(command: String, address: u16) -> Element<'static, Message> {
-    // The opcode dropdown should open only when the user clicks the
-    // mnemonic itself, not when they click anywhere in the column's
-    // empty horizontal slack. Two listeners do the work:
-    //
-    //   * The text glyph is wrapped in a `mouse_area` that fires
-    //     `OpcodeDropdownToggled`. Its bounds match the rendered
-    //     text exactly (no `width: Fill`), so only clicks on the
-    //     mnemonic open the picker.
-    //   * The surrounding cell is a second `mouse_area` (full
-    //     column width) that fires `MemorySelected` on click. This
-    //     mirrors the address column: clicking the empty space of
-    //     the row still moves the highlight, just without entering
-    //     edit mode or opening the dropdown.
-    //
-    // `mouse_area::update` ignores presses that an inner widget
-    // already captured, so a click on the mnemonic reaches only the
-    // inner listener; a click in the slack reaches only the outer
-    // one.
     let glyph: Element<'static, Message> = mouse_area(mono_text(command, 14, TOKYO_TEXT))
         .on_press(Message::OpcodeDropdownToggled(address))
         .on_double_click(Message::MemoryEnter(address))
@@ -328,15 +281,11 @@ fn memory_value_cell<'a>(
     }
 }
 
+/// Single click on the value column means "let me type here", so
+/// both single-click and double-click open the inline editor.
 fn value_cell_button(value: u8, address: u16) -> Element<'static, Message> {
     container(cell_mouse_area(
         mono_text(format!("{value:02X}"), 14, TOKYO_GREEN),
-        // Single click on the value column unambiguously means "let me
-        // type here", so it goes straight to `MemoryEnter` (select +
-        // focus the inline editor). Double-click does the same thing,
-        // which makes the gesture forgiving — clicking twice quickly
-        // still ends up in editing mode instead of falling back to
-        // bare selection.
         Message::MemoryEnter(address),
         Message::MemoryEnter(address),
     ))

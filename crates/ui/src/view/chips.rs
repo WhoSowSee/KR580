@@ -1,27 +1,11 @@
-//! Small reusable chip helpers for the left schematic plate.
+//! Reusable chip helpers for the left schematic plate.
 //!
-//! Extracted from `view/schematic.rs` to keep that file under the
-//! workspace's 400-line ceiling (see `AGENTS.md`). These are pure
-//! widget builders: each returns an `Element<'static, Message>`,
-//! takes only primitives or pre-tinted colours, and never reads
-//! `DesktopApp` state. The boundary is "geometry / chrome of one
-//! framed slot" — they are reused both inside `schematic.rs` and
-//! by sibling modules that paint similar capsules on the plate.
-//!
-//! Public surface:
-//! - `schematic_readout` — fixed-footprint label + 20 px hex value
-//!   capsule (the "Регистр команд" / "Буфер данных" / "PSW" /
-//!   "Регистр признаков" rows).
-//! - `schematic_mnemonic_readout` — same chassis, 16 px value, used
-//!   by the «Д/Ш команд» block where the value is a full mnemonic
-//!   (`MVI M,d8`, `LXI SP,d16`, `JNZ a16`) instead of two hex
-//!   digits.
-//! - `flag_strip` / `flag_dot` — the Z/S/P/C/AC dot row that sits
-//!   inside the top bus row.
-//! - `device_chip` — peripheral chip on the bottom strip (tinted
-//!   SVG glyph + tooltip).
-//! - `functional_block` — clickable register chip (`Аккумулятор`,
-//!   `Буферный регистр 1`, `Буферный регистр 2`).
+//! - `schematic_readout` — fixed-footprint label + 20 px hex value.
+//! - `schematic_wide_readout` — same idea, full-width.
+//! - `schematic_mnemonic_readout` — 16 px value for full mnemonics.
+//! - `flag_strip` / `flag_dot` — Z/S/P/C/AC dot row.
+//! - `device_chip` — peripheral chip on the bottom strip.
+//! - `functional_block` — clickable register chip.
 
 use iced::widget::{Space, button, column, container, mouse_area, row, svg, text_input, tooltip};
 use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
@@ -43,21 +27,14 @@ pub(super) struct FunctionalBlockState {
     pub(super) hovered: bool,
 }
 
+/// 134×60 fits the longest Russian flag-register label at 11 px
+/// alongside a 20 px monospace value, matching `functional_block`
+/// footprint so they line up pixel-for-pixel in the same row.
 pub(super) fn schematic_readout(
     label: impl Into<String>,
     value: impl Into<String>,
     accent: Color,
 ) -> Element<'static, Message> {
-    // Width and height are fixed on purpose: with `Length::Fill` the row
-    // stretches each readout to fill the schematic, so a 2-hex value floats
-    // inside a half-panel-wide capsule. 134×60 fits the longest label we
-    // render here («Регистр команд», «Буфер данных», «Регистр признаков»)
-    // plus a 20 px monospace value, mirroring `functional_block`'s
-    // footprint so the two helpers line up pixel-for-pixel when used in
-    // the same row. Заголовок сжали с 12 до 11 px ровно по той же
-    // причине, по которой расширили коробку — длиннее русские слова
-    // («Регистр признаков» и сосед «Буферный регистр 1») едва влезали в
-    // прежние 110 px при 12 px кеглем.
     container(
         column![
             ui_text(label, 11, TOKYO_MUTED),
@@ -97,28 +74,8 @@ pub(super) fn schematic_wide_readout(
     .into()
 }
 
-/// Same chassis as `schematic_readout`, but with a 16 px monospace
-/// value instead of 20 px so longer mnemonics fit. Used by the
-/// «Д/Ш команд» block (instruction decoder), where the readout is
-/// not a 2-hex byte but a full mnemonic with an operand —
-/// `MVI M,d8`, `LXI SP,d16`, `JNZ a16` are all 7–10 characters,
-/// and the 20 px font would push them past the 134 px capsule
-/// width. The label and frame stay identical to `schematic_readout`
-/// so the block visually rhymes with «Регистр команд» / «Регистр
-/// флагов» — only the value column reads at a smaller size.
-///
-/// Кегль значения подняли с 14 → 16 px. На 14 px коротенькие
-/// мнемоники вроде `NOP` (3 символа) выглядели заметно мельче
-/// соседних значений при 20 px у `schematic_readout` («00» в РК,
-/// в Буфере данных, в PSW), и пользователь это поймал на скрине.
-/// 20 px напрямую поднять нельзя: самая длинная декодируемая
-/// мнемоника — `LXI SP,d16` (10 символов) — на 20 px моноширинной
-/// займёт ~120 px, а внутренняя ширина капсулы после padding'а
-/// всего ~118 px, и текст вылезет за правую границу. 16 px — это
-/// та же арифметика: 16 × 0.6 × 10 = 96 px, влезает с запасом, а
-/// глаз уже не ловит ступеньку между «NOP» здесь и «00» рядом —
-/// разница со соседним 20 px превратилась из «явно меньше» в
-/// «чуть-чуть, но ритм один».
+/// 16 px value (vs 20 px for `schematic_readout`) so 10-character
+/// mnemonics like `LXI SP,d16` fit inside the 134 px capsule.
 pub(super) fn schematic_mnemonic_readout(
     label: impl Into<String>,
     value: impl Into<String>,
@@ -173,13 +130,8 @@ fn flag_dot(label: &'static str, active: bool) -> Element<'static, Message> {
     .into()
 }
 
-/// Single peripheral chip on the bottom row of the schematic plate.
-/// Replaces the older two-line "MON / Ready" textual block with a tinted
-/// SVG glyph inside the same neutral button chassis as the action chips, plus a
-/// hover tooltip that reuses the editor `inset_style` so it visually
-/// belongs to the same chrome family as the action-panel tooltips. The
-/// chip intentionally dispatches an empty `MenuBatch`: it has no command
-/// yet, but iced only exposes hover status for interactive buttons.
+/// Empty `MenuBatch` because iced only exposes hover status for
+/// interactive buttons; the chip has no command of its own yet.
 pub(super) fn device_chip(
     handle: svg::Handle,
     accent: Color,
@@ -235,18 +187,6 @@ pub(super) fn functional_block<'a>(
     state: FunctionalBlockState,
     input_value: &'a str,
 ) -> Element<'a, Message> {
-    // Same fixed footprint as `schematic_readout` so the two helpers visually
-    // line up when used in the same row (Аккумулятор / Буферный регистр 1 /
-    // Регистр признаков; Буферный регистр 2 / Регистр команд). 134×60 fits
-    // the longest label rendered through this helper («Буферный регистр 1»
-    // / «Буферный регистр 2» at 11 px) plus a 24 px monospace value with
-    // breathing room. The inner column claims `Length::Fill` so the
-    // centring directive actually has room to act on — without it the
-    // column hugs the longest child and shorter labels slide left.
-    //
-    // The custom container style keeps the resting chip matched to the
-    // outline-only readouts. Hover/editing only raise the fill tone while
-    // the frame stays neutral.
     let value: Element<'_, Message> = if state.editing {
         container(
             text_input("00", input_value)

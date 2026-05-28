@@ -42,12 +42,12 @@ fn snapshot_roundtrips_core_state_without_ui_data() {
     assert_eq!(restored.last_completed_tact_phase, Some(7));
 }
 
-/// Sentinel-путь в timing-TLV: `tact_phase == None`, но
-/// `last_completed_tact_phase == Some(_)`. Запись использует sentinel
-/// 0xFF в slot[8] чтобы отличить «нет активной фазы, есть последняя
-/// выполненная» от «нет ни одной». Loader должен прочитать обратно
-/// ровно ту же пару — иначе после сохранения/загрузки UI будет
-/// рисовать `-` в строке «Такт» вместо застывшей последней T-фазы.
+/// Sentinel path in the timing TLV: `tact_phase == None` but
+/// `last_completed_tact_phase == Some(_)`. The writer uses sentinel
+/// `0xFF` in slot[8] to distinguish "no active phase, last completed
+/// is valid" from "neither field set". The loader must round-trip
+/// the same pair, otherwise the UI redraws `-` in the tact row
+/// instead of the frozen last T-phase.
 #[test]
 fn snapshot_roundtrips_last_completed_with_no_active_tact_phase() {
     let mut cpu = Cpu8080State::default();
@@ -62,9 +62,9 @@ fn snapshot_roundtrips_last_completed_with_no_active_tact_phase() {
     assert_eq!(restored.cycle_count, 7);
 }
 
-/// Холодный путь: оба поля `None`. Writer не должен писать ни slot[8],
-/// ни slot[9]; reader должен видеть 8-байтовый payload и оставить
-/// оба поля `None` (Default), не падая в `InvalidLength`.
+/// Cold path: both fields `None`. The writer must emit neither
+/// slot[8] nor slot[9]; the reader must see an 8-byte payload and
+/// keep both fields `None` instead of returning `InvalidLength`.
 #[test]
 fn snapshot_roundtrips_both_tact_phases_none() {
     let cpu = Cpu8080State::default();
@@ -74,12 +74,11 @@ fn snapshot_roundtrips_both_tact_phases_none() {
     assert_eq!(restored.last_completed_tact_phase, None);
 }
 
-/// Backward compat: старый 9-байтовый timing-payload (только
-/// `cycle_count` + `tact_phase`, без `last_completed_tact_phase`).
-/// Файлы, сохранённые до добавления поля, должны грузиться без
-/// миграции — `tact_phase` восстанавливается, `last_completed_tact_phase`
-/// остаётся `None`. Иначе пользователь получит `SnapshotError`
-/// при открытии прежних `.580` v1.
+/// Backward compat: 9-byte timing payload (`cycle_count` + `tact_phase`
+/// only, no `last_completed_tact_phase`). Files saved before the field
+/// was added must load without migration — `tact_phase` restores and
+/// `last_completed_tact_phase` stays `None`. Otherwise older `.580` v1
+/// snapshots fail with `SnapshotError`.
 #[test]
 fn snapshot_loads_legacy_v1_payload_without_last_completed() {
     let mut cpu = Cpu8080State::default();
@@ -87,15 +86,14 @@ fn snapshot_loads_legacy_v1_payload_without_last_completed() {
     cpu.tact_phase = Some(2);
     cpu.last_completed_tact_phase = None;
 
-    // Соберём timing-payload руками в старом формате (9 байт):
-    // 8 байт cycle_count LE + 1 байт tact_phase. Без slot[9].
+    // Legacy 9-byte timing payload: 8 LE bytes of cycle_count + 1
+    // byte of tact_phase, no slot[9].
     let mut timing = cpu.cycle_count.to_le_bytes().to_vec();
     timing.push(2);
     assert_eq!(timing.len(), 9);
 
-    // Соберём весь снимок руками: магик + версия + payload, где
-    // tag 0x08 несёт нашу 9-байтовую timing-нагрузку, а остальные
-    // теги берём из стандартного writer'а Cpu8080State::default().
+    // Replace tag 0x08 with the 9-byte blob; other tags from the
+    // standard writer for `Cpu8080State::default()`.
     let full = Snapshot580Serializer::to_bytes(&cpu);
     let legacy_bytes = rewrite_timing_tlv(full, &timing);
 
@@ -107,27 +105,23 @@ fn snapshot_loads_legacy_v1_payload_without_last_completed() {
 
 #[test]
 fn legacy_snapshot_roundtrips_ram_and_pc() {
-    // The reference emulator's `.580` file is a flat 64 KiB RAM
-    // dump followed by a 13-byte trailer carrying the PC. Saving
-    // and reloading must preserve every byte of RAM plus the PC,
-    // and must zero everything else (registers, flags, SP, halt
-    // bit, …) — the legacy format simply does not encode them.
+    // Legacy `.580` is a flat 64 KiB RAM dump + 13-byte trailer
+    // carrying PC. RAM and PC must round-trip; everything else is
+    // not encoded by this format.
     let mut cpu = Cpu8080State::default();
     cpu.memory.write(0x0000, 0x3E);
     cpu.memory.write(0x0001, 0x42);
     cpu.memory.write(0xFFFF, 0xAA);
     cpu.memory.write(0x4000, 0x5A);
     cpu.pc = 0xBEEF;
-    // Set every other field to a non-default value so we can prove
-    // the legacy reader does not pick them up by accident.
+    // Non-default fields prove the legacy reader doesn't pick them up.
     cpu.registers.a = 0x99;
     cpu.sp = 0xC0DE;
     cpu.halted = true;
 
     let bytes = Snapshot580Serializer::to_legacy_bytes(&cpu);
     assert_eq!(bytes.len(), Snapshot580Serializer::LEGACY_LENGTH);
-    // Trailer must end with the FF FF marker every reference file
-    // we inspected carries; without it the loader rejects the file.
+    // The reference always ends with FF FF; without it the loader rejects.
     assert_eq!(bytes[bytes.len() - 2], 0xFF);
     assert_eq!(bytes[bytes.len() - 1], 0xFF);
 
@@ -137,11 +131,8 @@ fn legacy_snapshot_roundtrips_ram_and_pc() {
     assert_eq!(restored.memory.read(0xFFFF), 0xAA);
     assert_eq!(restored.memory.read(0x4000), 0x5A);
     assert_eq!(restored.pc, 0xBEEF);
-    // Fields not encoded by the legacy format come back as defaults.
-    // SP по новому дефолту равен `Cpu8080State::RESET_SP` (0xFFFF):
-    // legacy не несёт регистров, поэтому загрузка должна давать
-    // ровно те же дефолты, что `Cpu8080State::default()` — а тот
-    // теперь ставит SP=FFFF (как школьный референс), не 0.
+    // Unencoded fields fall back to `Cpu8080State::default()`; SP =
+    // RESET_SP (0xFFFF), not zero.
     assert_eq!(restored.registers.a, 0);
     assert_eq!(restored.sp, Cpu8080State::RESET_SP);
     assert!(!restored.halted);
@@ -158,8 +149,7 @@ fn legacy_snapshot_rejects_bad_length_and_trailer() {
         Err(SnapshotError::InvalidLegacyLength(_))
     ));
 
-    // Wipe the FF FF marker — every reference file ends with it,
-    // so a file that doesn't is not a legacy `.580`.
+    // Wipe the FF FF marker — every reference legacy `.580` ends with it.
     let len = bytes.len();
     bytes[len - 2] = 0x00;
     bytes[len - 1] = 0x00;
@@ -340,10 +330,9 @@ fn append_tlv(mut bytes: Vec<u8>, tag: u8, value: &[u8]) -> Vec<u8> {
     bytes
 }
 
-/// Найти TLV с тегом 0x08 (timing) в готовом снимке и заменить его
-/// `value` на переданный `new_value`, пересчитав длину payload в
-/// заголовке. Используется чтобы синтезировать «старый» 9-байтовый
-/// timing-TLV из снимка, который writer выдал в новом формате.
+/// Find the timing TLV (tag 0x08) inside a snapshot and replace its
+/// value, recomputing the payload length. Used to synthesise a legacy
+/// 9-byte timing TLV from the new-format writer output.
 fn rewrite_timing_tlv(bytes: Vec<u8>, new_value: &[u8]) -> Vec<u8> {
     let mut out = bytes[..10].to_vec();
     let mut offset = 10;
@@ -376,8 +365,7 @@ fn unique_temp_dir() -> PathBuf {
 
 /// Auto-detect path: a K580 v1 blob (with the `K580` magic) must
 /// resolve to `Snapshot580Flavour::Modern` and round-trip every CPU
-/// field. This is the path a double-clicked modern `.580` file goes
-/// through, so the recovered state has to match `from_bytes` exactly.
+/// field — same path a double-clicked modern `.580` goes through.
 #[test]
 fn from_any_bytes_recognises_modern_snapshot() {
     let mut cpu = Cpu8080State::default();
@@ -398,11 +386,10 @@ fn from_any_bytes_recognises_modern_snapshot() {
 }
 
 /// Auto-detect path: a 65 549-byte legacy dump (no magic, ends with
-/// `FF FF`) must resolve to `Snapshot580Flavour::Legacy`, recover RAM
-/// and PC, and leave everything else at default — exactly what
-/// `from_legacy_bytes` does. This is the bug the user filed: opening
-/// such a file via double-click failed with `InvalidMagic` because
-/// the UI dispatched the modern decoder unconditionally.
+/// `FF FF`) must resolve to `Snapshot580Flavour::Legacy`. Regression
+/// for the bug where double-clicking such a file failed with
+/// `InvalidMagic` because the UI dispatched the modern decoder
+/// unconditionally.
 #[test]
 fn from_any_bytes_recognises_legacy_snapshot() {
     let mut cpu = Cpu8080State::default();
@@ -418,22 +405,14 @@ fn from_any_bytes_recognises_legacy_snapshot() {
     assert_eq!(restored.pc, 0x1234);
     assert_eq!(restored.memory.read(0x0100), 0x42);
     assert_eq!(restored.memory.read(0xFFFE), 0x99);
-    // Legacy carries no register state — verify defaults survive.
-    // SP по-новому дефолту равен `Cpu8080State::RESET_SP` (0xFFFF):
-    // школьный референс ставит вершину 64K, чтобы первый PUSH без
-    // явного `LXI SP` не топтал низкие адреса. Раньше тест ожидал
-    // 0x0000 — это был автодеривированный `Default`, и он расходился
-    // со школьным эталоном уже на холодном старте.
+    // Defaults survive; SP falls back to RESET_SP (0xFFFF), not zero.
     assert_eq!(restored.registers.a, 0);
     assert_eq!(restored.sp, Cpu8080State::RESET_SP);
     assert!(!restored.halted);
 }
 
-/// Garbage that matches neither flavour (no magic, wrong length)
-/// must be rejected — otherwise the auto-detect path would happily
-/// hand the modern decoder a stray binary and surface a misleading
-/// `Truncated` error instead of the cleaner `InvalidMagic` the
-/// existing UI diagnostics already key off.
+/// Garbage with no magic and the wrong length must surface
+/// `InvalidMagic`, not the modern decoder's `Truncated`.
 #[test]
 fn from_any_bytes_rejects_unrecognised_blob() {
     let garbage = vec![0u8; 100];
@@ -442,14 +421,12 @@ fn from_any_bytes_rejects_unrecognised_blob() {
 }
 
 /// A modern blob whose magic matches but whose body is corrupt must
-/// not be silently misclassified as legacy — the magic check pins
-/// the flavour, and the modern decoder's own error (here:
-/// `PayloadLengthMismatch`) bubbles up.
+/// not be silently misclassified as legacy — the magic pins the
+/// flavour and the modern decoder's error bubbles up.
 #[test]
 fn from_any_bytes_propagates_modern_decode_error() {
     let mut bytes = Snapshot580Serializer::to_bytes(&Cpu8080State::default());
-    // Corrupt the payload length so `from_bytes` errors out, while
-    // keeping the K580 magic intact.
+    // Corrupt the payload length while keeping the K580 magic intact.
     bytes[6] = 0xFF;
     bytes[7] = 0xFF;
     let err = Snapshot580Serializer::from_any_bytes(&bytes).unwrap_err();
@@ -457,8 +434,7 @@ fn from_any_bytes_propagates_modern_decode_error() {
 }
 
 /// A 65 549-byte blob with the wrong end-of-record marker must be
-/// rejected by the legacy decoder rather than silently round-trip
-/// — `from_any_bytes` keeps the existing trailer-check semantics.
+/// rejected by the legacy decoder rather than silently round-trip.
 #[test]
 fn from_any_bytes_propagates_legacy_decode_error() {
     let mut bytes = Snapshot580Serializer::to_legacy_bytes(&Cpu8080State::default());

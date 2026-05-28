@@ -26,11 +26,6 @@ impl Cpu8080State {
             0x37 => self.flags.carry = true,
             0x3F => self.flags.carry = !self.flags.carry,
             0xD3 => {
-                // `OUT port`: fetch_byte теперь обновляет шинные
-                // латчи и требует `&mut self`, а bus.output тоже
-                // берёт `&mut bus` — нельзя вызывать в одном
-                // выражении из-за двойного заимствования. Берём
-                // порт в локальную переменную.
                 let port = self.fetch_byte(1);
                 bus.output(port, self.registers.a)?;
             }
