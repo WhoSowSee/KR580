@@ -12,6 +12,7 @@
 
 mod constants;
 mod messages;
+mod modal;
 mod register_inline;
 mod undo;
 
@@ -23,6 +24,7 @@ pub(crate) use constants::{
     register_name,
 };
 pub(crate) use messages::{MenuId, Message, RegisterInlineTarget, SpeedTier};
+pub(crate) use modal::DiscardModalButton;
 pub(crate) use register_inline::RegisterMove;
 pub(crate) use undo::{UndoEntry, UndoStack};
 
@@ -194,7 +196,7 @@ pub(crate) struct DesktopApp {
     /// overwriting the other in a format the reference emulator
     /// could not load back. Cleared whenever the document switches
     /// to a non-legacy origin (Open / New / Import / Save-as on the
-    /// v1 path) — the next "Сохранить (старый формат)" then prompts
+    /// v1 path) — the next legacy-format save then prompts
     /// for a fresh location instead of reusing a stale path that no
     /// longer matches the document.
     pub(crate) current_legacy_snapshot_path: Option<PathBuf>,
@@ -343,7 +345,7 @@ pub(crate) struct DesktopApp {
     /// the screen.
     pub(crate) window_maximized: bool,
     /// Whether the top-level menu category labels (Файл, МП-Система,
-    /// View, Settings, Help) are currently visible in the menu bar.
+    /// Вид, Настройки, Справка) are currently visible in the menu bar.
     /// Toggled by clicking the cpu brand mark on the far left of the
     /// bar — same gesture native macOS / Windows apps assign to a
     /// hamburger or "show menu" affordance, and it lets the user
@@ -373,14 +375,20 @@ pub(crate) struct DesktopApp {
     /// compare the live snapshot against the on-disk file, which is
     /// both expensive and racy.
     pub(crate) dirty: bool,
+    /// Keyboard focus inside the unsaved-changes confirmation modal.
+    /// The modal is drawn by our own overlay rather than a native
+    /// dialog, so Tab / Shift+Tab / Enter are routed through this
+    /// explicit two-button focus ring while `pending_action` is set.
+    pub(crate) discard_modal_focus: DiscardModalButton,
     /// Action that has been queued behind a confirmation modal. The
     /// gestures that may throw away unsaved work (open file / new
     /// file / import / close window) check `dirty` first; with the
     /// flag set they stash the action here and put up a modal that
     /// asks the user to confirm or cancel. `Message::ConfirmDiscard`
     /// then runs whatever was stashed; `Message::CancelDiscard`
-    /// clears the field. `None` means there is no modal; the rest of
-    /// the UI keeps interacting normally.
+    /// clears the field. While this is `Some`, `app::modal` captures
+    /// every user event except the modal's own buttons, Enter,
+    /// Tab/Shift+Tab, Esc, and passive system bookkeeping.
     pub(crate) pending_action: Option<PendingAction>,
 }
 
@@ -402,7 +410,7 @@ pub(crate) enum PendingAction {
     /// User picked \"Файл → Импорт\" / Ctrl+I. Same shape as
     /// `OpenSnapshot`: confirmation opens the picker.
     Import,
-    /// User picked \"Файл → Открыть (старый формат)\". Same shape as
+    /// User picked the legacy-format open row. Same shape as
     /// `OpenSnapshot`: the file dialog has not run yet; confirmation
     /// re-enters `open_legacy_snapshot` so the dialog opens after
     /// the user accepts the discard. Saving as legacy does not need
@@ -467,7 +475,7 @@ impl DesktopApp {
                 // startup task drains.
                 current_snapshot_path: None,
                 // Same rationale as `current_snapshot_path`: nothing
-                // is loaded yet, the legacy "Сохранить (старый формат)"
+                // is loaded yet, the legacy-format save row
                 // gesture must therefore prompt for a path on first
                 // use. The startup task may flip this if the OS hands
                 // us a `.580` via argv[1] *and* the loader picks the
@@ -513,6 +521,7 @@ impl DesktopApp {
                 // tick) matches what the user sees. Both fields stay
                 // `false`/`None` until a gesture flips them.
                 dirty: false,
+                discard_modal_focus: DiscardModalButton::Cancel,
                 pending_action: None,
             },
             startup_task,
@@ -602,6 +611,10 @@ impl DesktopApp {
     }
 
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
+        if let Some(task) = self.route_discard_modal_message(&message) {
+            return task;
+        }
+
         match message {
             Message::Tick => {
                 self.pull_events();
@@ -923,7 +936,7 @@ impl DesktopApp {
                 // through `Task::done`, but by then `dirty` has been
                 // cleared so this branch falls through to the picker.
                 if self.dirty {
-                    self.pending_action = Some(PendingAction::OpenSnapshot);
+                    self.open_discard_modal(PendingAction::OpenSnapshot);
                 } else {
                     self.open_snapshot();
                 }
@@ -941,14 +954,14 @@ impl DesktopApp {
                 // message after wiping `dirty`, and the second pass
                 // falls through to the picker.
                 if self.dirty {
-                    self.pending_action = Some(PendingAction::OpenLegacySnapshot);
+                    self.open_discard_modal(PendingAction::OpenLegacySnapshot);
                 } else {
                     self.open_legacy_snapshot();
                 }
             }
             Message::NewFile => {
                 if self.dirty {
-                    self.pending_action = Some(PendingAction::NewFile);
+                    self.open_discard_modal(PendingAction::NewFile);
                 } else {
                     self.run_new_file();
                 }
@@ -956,7 +969,7 @@ impl DesktopApp {
             Message::Export => self.export_file(),
             Message::Import => {
                 if self.dirty {
-                    self.pending_action = Some(PendingAction::Import);
+                    self.open_discard_modal(PendingAction::Import);
                 } else {
                     self.import_file();
                 }
@@ -1201,15 +1214,12 @@ impl DesktopApp {
                     self.clear_info_notice();
                     return Task::none();
                 }
-                // Modal takes priority over every other Esc gesture:
-                // when the unsaved-changes confirmation is up, Esc is
-                // the standard "back out of this dialog" key (mirrors
-                // the cancel button and the click-outside scrim). We
-                // skip the focus-resolve dance — the modal does not
-                // own any text input — and just clear the pending
-                // action.
-                if self.pending_action.is_some() {
-                    self.pending_action = None;
+                // Top-level menus are transient popup chrome, so Esc
+                // should collapse them before it falls through to
+                // editor-specific recovery like inline-memory revert
+                // or opcode picker dismissal.
+                if self.open_menu.is_some() {
+                    self.open_menu = None;
                     return Task::none();
                 }
                 // Pick the gesture by current focus: with the inline
@@ -1455,6 +1465,9 @@ impl DesktopApp {
                 self.dispatch(k580_app::AppCommand::SetRunMode(mode));
             }
             Message::WindowDragStart => {
+                if self.close_titlebar_popup_before_drag() {
+                    return Task::none();
+                }
                 // Hand the press over to the OS so it can run its
                 // native drag loop on the borderless window. iced
                 // proxies the call straight to winit's
@@ -1507,24 +1520,14 @@ impl DesktopApp {
                 // real handler instead of bouncing back into the
                 // modal. `CloseWindow` is not gated, so we dispatch
                 // `WindowClose` directly.
-                let Some(action) = self.pending_action.take() else {
-                    return Task::none();
-                };
-                self.dirty = false;
-                return match action {
-                    PendingAction::OpenSnapshot => Task::done(Message::OpenSnapshot),
-                    PendingAction::NewFile => Task::done(Message::NewFile),
-                    PendingAction::Import => Task::done(Message::Import),
-                    PendingAction::OpenLegacySnapshot => Task::done(Message::OpenLegacySnapshot),
-                    PendingAction::CloseWindow => Task::done(Message::WindowClose),
-                };
+                return self.confirm_discard();
             }
             Message::CancelDiscard => {
                 // User backed out of the destructive gesture. Drop
                 // the queued action and leave the document untouched
                 // — the modal disappears on the next frame because
                 // `view` only paints it when `pending_action.is_some()`.
-                self.pending_action = None;
+                self.cancel_discard();
             }
             Message::WindowCloseRequested => {
                 // The OS has asked the window to close (× caption
@@ -1536,7 +1539,7 @@ impl DesktopApp {
                 // through to `WindowClose`, which dispatches
                 // `iced::window::close` for the cached window id.
                 if self.dirty {
-                    self.pending_action = Some(PendingAction::CloseWindow);
+                    self.open_discard_modal(PendingAction::CloseWindow);
                 } else {
                     return Task::done(Message::WindowClose);
                 }

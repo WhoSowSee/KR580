@@ -636,7 +636,7 @@ impl DesktopApp {
         self.status = format!("Сохранено в {display}");
     }
 
-    /// "Сохранить (старый формат)": writes the live CPU state out in
+    /// Legacy-format save: writes the live CPU state out in
     /// the reference 65 549-byte layout — RAM + 13-byte trailer with
     /// PC, no registers / flags / SP / halt / cycles. Behaves like
     /// the regular "Сохранить": if a legacy path is remembered (from
@@ -705,10 +705,10 @@ impl DesktopApp {
         }
         if picked_now {
             // Remember the chosen path so the next "Сохранить
-            // (старый формат)" goes straight to disk.
+            // legacy-format save goes straight to disk.
             self.current_legacy_snapshot_path = Some(path);
         }
-        // The user explicitly chose "Сохранить (старый формат)", the
+        // The user explicitly chose legacy-format save, the
         // file is now on disk, the gesture has succeeded — clear the
         // dirty flag so the close/open/save-as guards stop pretending
         // there is still pending work. See the doc comment above.
@@ -716,7 +716,7 @@ impl DesktopApp {
         self.status = format!("Сохранено в {display} (старый формат)");
     }
 
-    /// "Открыть (старый формат)": reads a 65 549-byte reference
+    /// Legacy-format open: reads a 65 549-byte reference
     /// `.580` file produced by the original emulator, replaces RAM
     /// and PC with whatever the file carries, and resets every other
     /// CPU field to its default. Mirrors `load_snapshot_from_path`'s

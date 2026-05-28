@@ -110,7 +110,7 @@ pub(crate) enum Message {
     /// message so the menu maps cleanly to user-visible labels and
     /// future work can split the two without churning the menu code.
     SaveSnapshotAs,
-    /// "Сохранить (старый формат)" entry from the File dropdown.
+    /// legacy "Сохранить" entry from the File dropdown.
     /// Always opens a save picker (we deliberately do not remember
     /// a "current legacy path" — saving as legacy is a deliberate
     /// export-style gesture rather than an in-place save) and writes
@@ -119,7 +119,7 @@ pub(crate) enum Message {
     /// SP, halt, and timing fall on the floor — that is what the
     /// reference emulator did and what makes the file readable by it.
     SaveLegacySnapshot,
-    /// "Открыть (старый формат)" entry from the File dropdown.
+    /// legacy "Открыть" entry from the File dropdown.
     /// Opens a file picker filtered to `.580`, reads the file via
     /// `Snapshot580Serializer::from_legacy_bytes`, and replaces the
     /// live CPU state with RAM + PC from the file (everything else
@@ -371,7 +371,7 @@ pub(crate) enum Message {
     FrameRendered,
     /// User clicked the cpu brand mark on the far left of the menu
     /// bar. Toggles `DesktopApp::menu_categories_visible`: visible
-    /// labels (Файл / МП-Система / View / Settings / Help) collapse,
+    /// labels (Файл / МП-Система / Вид / Настройки / Справка) collapse,
     /// hidden labels reappear. Also clears `open_menu` on the
     /// "hide" half of the toggle so a dropdown can't outlive its
     /// trigger label and end up floating over an empty bar with no
@@ -443,7 +443,7 @@ pub(crate) enum Message {
     /// `after` half (text or CPU), and pushes the entry back onto
     /// the undo stack.
     Redo,
-    /// User clicked "Закрыть" in the unsaved-changes confirmation
+    /// User clicked the confirm button in the unsaved-changes confirmation
     /// modal. The handler reads `pending_action`, clears it, and
     /// runs the queued action (open file / new file / import /
     /// close window) without re-checking `dirty` — the user has

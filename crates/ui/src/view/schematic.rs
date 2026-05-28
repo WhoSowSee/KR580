@@ -165,7 +165,6 @@ impl DesktopApp {
         );
 
         let left_board = column![
-            status_row,
             psw_row,
             registers_panel,
             cycles,
@@ -194,16 +193,30 @@ impl DesktopApp {
             1,
             u8::from(cpu.flags.carry),
         );
-        let status_chip = row![
-            ui_text("Статус", 12, TOKYO_MUTED),
-            mono_text(&self.status, 13, TOKYO_TEXT),
-        ]
-        .spacing(12)
-        .align_y(alignment::Vertical::Center);
-        let central_column = column![
+        let (status_text, status_note) = split_legacy_status_note(&self.status);
+        let status_value: Element<'_, Message> = match status_note {
+            Some(note) => row![
+                mono_text(status_text, 13, TOKYO_TEXT),
+                ui_text(note, 12, TOKYO_MUTED),
+            ]
+            .spacing(10)
+            .align_y(alignment::Vertical::Center)
+            .into(),
+            None => mono_text(status_text, 13, TOKYO_TEXT).into(),
+        };
+        let status_chip = row![ui_text("Статус", 12, TOKYO_MUTED), status_value,]
+            .spacing(12)
+            .align_y(alignment::Vertical::Center);
+        let header_row = row![
+            status_row,
             container(status_chip)
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Right),
+        ]
+        .spacing(20)
+        .align_y(alignment::Vertical::Center)
+        .width(Length::Fill);
+        let central_column = column![
             schematic_wide_readout(
                 "Буфер данных",
                 format!("{:02X}", cpu.last_data_bus_byte),
@@ -232,9 +245,14 @@ impl DesktopApp {
         .width(Length::Fixed(240.0));
 
         let top = container(
-            row![left_board, Space::new().width(Length::Fill), central_column]
-                .spacing(20)
-                .height(Length::Fill),
+            column![
+                header_row,
+                row![left_board, Space::new().width(Length::Fill), central_column]
+                    .spacing(20)
+                    .height(Length::Fill),
+            ]
+            .spacing(12)
+            .height(Length::Fill),
         )
         .padding(12)
         .width(Length::Fill)
@@ -342,4 +360,30 @@ fn mux_panel<'a>(
 /// the split.
 fn speed_panel(active: SpeedTier) -> Element<'static, Message> {
     super::speed::speed_panel(active)
+}
+
+fn split_legacy_status_note(status: &str) -> (&str, Option<&'static str>) {
+    const LEGACY_SUFFIX: &str = " (старый формат)";
+    match status.strip_suffix(LEGACY_SUFFIX) {
+        Some(base) => (base, Some("старый формат")),
+        None => (status, None),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::split_legacy_status_note;
+
+    #[test]
+    fn legacy_status_suffix_renders_as_note_without_parentheses() {
+        assert_eq!(
+            split_legacy_status_note("Открыто C:\\test.580 (старый формат)"),
+            ("Открыто C:\\test.580", Some("старый формат"))
+        );
+    }
+
+    #[test]
+    fn regular_status_has_no_format_note() {
+        assert_eq!(split_legacy_status_note("Готов"), ("Готов", None));
+    }
 }

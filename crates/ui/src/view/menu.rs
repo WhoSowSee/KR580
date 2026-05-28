@@ -21,31 +21,15 @@ use iced::widget::{Space, button, column, container, mouse_area, row, svg};
 use iced::{Element, Length, alignment};
 
 use super::icons;
+use super::menu_dropdowns::{
+    FILE_DROPDOWN_WIDTH, MENU_ICON_SIZE, MP_DROPDOWN_WIDTH, file_dropdown, mp_dropdown,
+};
+use super::menu_labels::inactive_category_labels;
 use super::styles::{
     caption_button_style, close_caption_button_style, menu_bar_divider_style, menu_bar_style,
-    menu_button_disabled_style, menu_button_style, opcode_dropdown_style,
 };
-use super::theme::{TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{TOKYO_MAGENTA, TOKYO_TEXT, ui_text};
 use crate::app::{DesktopApp, MenuId, Message};
-
-/// Width of the floating "Файл" dropdown. Picked wide enough that
-/// "Сохранить (старый формат)" — the longest label after the legacy
-/// rows were added below the standard save/open group — sits on one
-/// line at 13 px without wrapping, with room for the leading 16 px
-/// glyph and its gap. The legacy rows carry no shortcut hint, so the
-/// width is bounded by the label alone rather than label + hint.
-const FILE_DROPDOWN_WIDTH: f32 = 290.0;
-
-/// Width of the "МП-Система" dropdown. Tuned for the longest label
-/// here ("Очистить регистры") plus the longest shortcut hint
-/// ("Ctrl+Shift+R") so the row fits on one line next to the 16 px
-/// glyph without wrapping.
-const MP_DROPDOWN_WIDTH: f32 = 270.0;
-
-/// Edge length of the icon square that prefixes every dropdown row.
-/// 16 px reads as "menu glyph" — small enough to not compete with the
-/// label, large enough to remain legible at 100 % DPI.
-const MENU_ICON_SIZE: f32 = 16.0;
 
 /// Edge length of the SVG glyph rendered inside each caption button
 /// (minimise / maximise / close). 14 px gives the same optical weight
@@ -132,8 +116,8 @@ impl DesktopApp {
             .interaction(iced::mouse::Interaction::Pointer)
             .into();
 
-        // The category strip (Файл / МП-Система / View / Settings /
-        // Help) is built into a `Vec` so we can fold it out of the
+        // The category strip (Файл / МП-Система / Вид / Настройки /
+        // Справка) is built into a `Vec` so we can fold it out of the
         // bar entirely when the user has toggled it off. Always
         // present in the layout would be the wrong approach: leaving
         // an empty 18-px-spaced gap where the labels used to sit
@@ -155,9 +139,9 @@ impl DesktopApp {
                 MenuId::Mp,
                 self.open_menu == Some(MenuId::Mp),
             ));
-            bar_children.push(menu_label("View"));
-            bar_children.push(menu_label("Settings"));
-            bar_children.push(menu_label("Help"));
+            for label in inactive_category_labels() {
+                bar_children.push(menu_label(label));
+            }
         }
         bar_children.push(drag_handle);
         bar_children.push(caption_buttons.into());
@@ -289,8 +273,8 @@ impl DesktopApp {
     }
 }
 
-/// A non-clickable label for the menus we have not wired up yet (View,
-/// Settings, Help). They keep their place in the bar so the visual
+/// A non-clickable label for the menus we have not wired up yet (Вид,
+/// Настройки, Справка). They keep their place in the bar so the visual
 /// rhythm matches the reference emulator's chrome, even though clicking
 /// them is currently a no-op.
 fn menu_label(label: &'static str) -> Element<'static, Message> {
@@ -309,290 +293,6 @@ fn menu_trigger(label: &'static str, menu: MenuId, active: bool) -> Element<'sta
         .on_press(Message::MenuToggled(menu))
         .interaction(iced::mouse::Interaction::Pointer)
         .into()
-}
-
-/// Renders the actual "Файл" dropdown column. Both "Импорт" and
-/// "Экспорт" are flat rows: each one opens a single OS file dialog
-/// where the user picks the format via the file extension, so a
-/// submenu inside the app would just duplicate that choice.
-///
-/// Each row carries a faint right-aligned shortcut hint so the user
-/// can pick up the keyboard binding without having to consult a
-/// help page. The hints mirror the actual handlers in the keyboard
-/// subscription — see `DesktopApp::subscription` in `app/mod.rs`.
-fn file_dropdown() -> Element<'static, Message> {
-    let items: Vec<Element<'static, Message>> = vec![
-        menu_item(
-            "Новый файл",
-            "Ctrl+N",
-            icons::file(),
-            Message::NewFile,
-            true,
-        ),
-        menu_item(
-            "Открыть",
-            "Ctrl+O",
-            icons::folder_open(),
-            Message::OpenSnapshot,
-            true,
-        ),
-        menu_item(
-            "Сохранить",
-            "Ctrl+S",
-            icons::save(),
-            Message::SaveSnapshot,
-            true,
-        ),
-        menu_item(
-            "Сохранить как",
-            "Ctrl+Shift+S",
-            icons::save_as(),
-            Message::SaveSnapshotAs,
-            true,
-        ),
-        menu_item(
-            "Импорт",
-            "Ctrl+I",
-            icons::file_down(),
-            Message::Import,
-            true,
-        ),
-        menu_item("Экспорт", "Ctrl+E", icons::file_up(), Message::Export, true),
-        // Legacy `.580` interop sits below a separator so the two
-        // groups read as distinct: the rows above operate on the
-        // project's native v1 TLV snapshots (round-trippable, lossless,
-        // tracked by `current_snapshot_path` for plain Ctrl+S), while
-        // the rows below trade in the reference emulator's flat 65549-
-        // byte format (RAM + PC only, lossy, never claims the path).
-        // No shortcut hints — these are deliberately discoverable via
-        // the menu rather than the keyboard, which keeps the legacy
-        // path out of muscle memory and discourages accidental data
-        // loss when the user means to hit Ctrl+S on a v1 snapshot.
-        //
-        // Order is "Открыть → Сохранить" to mirror the native group
-        // above (Открыть is row 2 there, Сохранить is row 3): a user
-        // scanning the menu from top to bottom encounters the same
-        // verb sequence in both groups, so the legacy block reads as
-        // a parallel duplicate of the modern block rather than an
-        // arbitrarily reshuffled afterthought. Opening also tends to
-        // be the more common entry point into a session — typically
-        // you load a `.580` from the reference emulator first, then
-        // optionally save it back — which makes "Открыть" the natural
-        // first row in the pair.
-        menu_separator(),
-        menu_item(
-            "Открыть (старый формат)",
-            "Ctrl+Alt+O",
-            icons::folder_open(),
-            Message::OpenLegacySnapshot,
-            true,
-        ),
-        menu_item(
-            "Сохранить (старый формат)",
-            "Ctrl+Alt+S",
-            icons::save(),
-            Message::SaveLegacySnapshot,
-            true,
-        ),
-    ];
-
-    container(column(items).spacing(0))
-        .padding(4)
-        .width(Length::Fixed(FILE_DROPDOWN_WIDTH))
-        .style(opcode_dropdown_style)
-        .into()
-}
-
-/// Renders the "МП-Система" dropdown column. The three execution
-/// gestures (run / step instruction / step tact) sit at the top, then a
-/// thin separator, then the two reset gestures. Each row carries a
-/// Ctrl-letter shortcut hint mirroring the actual handler in the
-/// keyboard subscription — see `DesktopApp::subscription` in
-/// `app/mod.rs`. Bindings: `Ctrl+R` runs the program (R = Run),
-/// `Ctrl+T` steps one instruction, `Ctrl+Y` steps one tact (T and Y
-/// sit next to each other on both QWERTY and ЙЦУКЕН so the pair
-/// reads as "instruction → finer-grained tact"). The destructive
-/// resets sit on `Ctrl+Shift+R` (RAM) and `Ctrl+Shift+G` (reGisters)
-/// so an accidental modifier slip while typing in the address field
-/// can't blow the program away.
-fn mp_dropdown(halted: bool) -> Element<'static, Message> {
-    let items: Vec<Element<'static, Message>> = vec![
-        menu_item(
-            "Выполнить программу",
-            "Ctrl+R",
-            icons::play(),
-            Message::ToggleRun,
-            true,
-        ),
-        menu_item(
-            "Выполнить команду",
-            "Ctrl+T",
-            icons::step_forward(),
-            Message::StepInstruction,
-            true,
-        ),
-        menu_item(
-            "Выполнить такт",
-            "Ctrl+Y",
-            icons::redo_dot(),
-            Message::StepTact,
-            true,
-        ),
-        menu_separator(),
-        menu_item(
-            "Очистить ОЗУ",
-            "Ctrl+Shift+R",
-            icons::reset_ram(),
-            Message::ResetRam,
-            true,
-        ),
-        menu_item(
-            "Очистить регистры",
-            "Ctrl+Shift+G",
-            icons::reset_registers(),
-            Message::ResetCpu,
-            true,
-        ),
-        // The HLT-only reset sits *below* the destructive group on
-        // purpose: it is the lightest of the three resets (it touches
-        // exactly one bit — the halt flip-flop — and leaves
-        // registers, flags, PC, SP, RAM, and `cycle_count` untouched),
-        // so a user who wandered down from "Очистить регистры" will
-        // read the trio as a top-down weakening of blast radius.
-        // It is also the way out of the post-HLT run-block: the
-        // `run_blocked_after_halt` latch is cleared on this gesture
-        // *and* on `Message::ResetCpu`, mirroring the user's contract
-        // "пока не сброшу флаг или регистры — кнопки запуска
-        // блокируются". Shortcut is `Ctrl+Shift+H` (H = Halt) so it
-        // fits the `Ctrl+Shift+...` family of destructive resets and
-        // is hard to hit by accident while typing in the editor.
-        // No separator before it: the three reset rows form a single
-        // "сбросить X" block, ordered from most-destructive (RAM) to
-        // least-destructive (the single halt bit), and a divider in
-        // the middle would visually split a group that conceptually
-        // belongs together.
-        //
-        // `enabled = halted`: пункт активен только когда halt-флипфлоп
-        // включён. Если флаг уже выключен, сбрасывать нечего — строка
-        // рисуется в `TOKYO_MUTED` без hover-эффекта (см. `menu_item`
-        // с `enabled=false`). Пользователь видит, что действие
-        // недоступно, но строка остаётся на своём месте, чтобы не
-        // ломать вертикальный ритм меню и оставлять подсказку
-        // шортката на виду.
-        menu_item(
-            "Сбросить флаг HLT",
-            "Ctrl+Shift+H",
-            icons::clear_halt(),
-            Message::ClearHalt,
-            halted,
-        ),
-    ];
-
-    container(column(items).spacing(0))
-        .padding(4)
-        .width(Length::Fixed(MP_DROPDOWN_WIDTH))
-        .style(opcode_dropdown_style)
-        .into()
-}
-
-/// One row inside a dropdown. Closing the menu *first* and then
-/// dispatching the actual action via `Task::done(action)` keeps the
-/// dropdown from sticking around behind a file dialog when the
-/// dispatched action opens one — the user sees the menu close as soon
-/// as they click, not after the dialog returns.
-///
-/// The row layout is `[icon] [label]  …  [shortcut]`: a 16 px tinted
-/// SVG glyph on the left, the label spaced out with the same horizontal
-/// gap used elsewhere in the editor chrome, a flexible spacer that
-/// pushes the shortcut hint to the right edge, and the shortcut itself
-/// rendered in `TOKYO_MUTED` so it reads as supplementary information
-/// rather than a competing label.
-///
-/// `enabled` controls the disabled-state visual branch. When `false`,
-/// the row drops its `on_press` handler (so neither click nor any
-/// future `MenuBatch` keyboard re-dispatch can fire the action) and
-/// switches to `menu_button_disabled_style`: text and glyph fade to
-/// `TOKYO_MUTED`, hover/press surface tinting is suppressed, the row
-/// reads as «недоступно сейчас». Used by «Сбросить флаг HLT» when the
-/// halt flip-flop is already off — there is nothing to clear, but the
-/// row stays in the menu so the user can still discover the gesture
-/// and read its shortcut hint.
-fn menu_item(
-    label: &'static str,
-    shortcut: &'static str,
-    icon: svg::Handle,
-    action: Message,
-    enabled: bool,
-) -> Element<'static, Message> {
-    // Glyph and text colour both follow the enabled flag so the row
-    // reads as a single muted family when disabled — fading only the
-    // text while leaving the icon at full TOKYO_TEXT would split the
-    // visual weight between «дозволено» (icon) и «нельзя» (label) and
-    // confuse what the row's actual state is.
-    let glyph_color = if enabled { TOKYO_TEXT } else { TOKYO_MUTED };
-    let label_color = if enabled { TOKYO_TEXT } else { TOKYO_MUTED };
-
-    let glyph = svg(icon)
-        .width(Length::Fixed(MENU_ICON_SIZE))
-        .height(Length::Fixed(MENU_ICON_SIZE))
-        .style(move |_theme, _status| svg::Style {
-            color: Some(glyph_color),
-        });
-
-    let body = container(
-        row![
-            glyph,
-            ui_text(label, 13, label_color),
-            Space::new().width(Length::Fill),
-            ui_text(shortcut, 11, TOKYO_MUTED),
-        ]
-        .spacing(10)
-        .align_y(alignment::Vertical::Center),
-    )
-    .padding([6, 10])
-    .width(Length::Fill)
-    .align_y(alignment::Vertical::Center);
-
-    let mut btn = button(body).padding(0).width(Length::Fill);
-    if enabled {
-        let pair = vec![Message::MenuClosed, action];
-        btn = btn
-            .on_press(Message::MenuBatch(pair))
-            .style(move |_theme, status| menu_button_style(status));
-    } else {
-        // No `on_press` → button stays in `Status::Disabled` for the
-        // whole render pass, hover/press never tints the surface, and
-        // the click is a no-op even if the user lands on the row.
-        btn = btn.style(move |_theme, status| menu_button_disabled_style(status));
-    }
-    btn.into()
-}
-
-/// Visual divider between two groups of dropdown entries. iced 0.14 has
-/// no native `<hr>`, so we render a 1-pixel-tall full-width container
-/// painted in a low-alpha tint of the same border hue the dropdown
-/// surface uses on its outline. The reduced alpha keeps the rule
-/// readable as a hint without competing with the row labels — at full
-/// `TOKYO_BORDER` strength the separator visually outranked the items
-/// it was meant to group. A few pixels of vertical padding above and
-/// below give the rule breathing room so it does not collide with the
-/// glyphs of the adjacent rows.
-fn menu_separator() -> Element<'static, Message> {
-    container(
-        container(Space::new())
-            .width(Length::Fill)
-            .height(Length::Fixed(1.0))
-            .style(|_theme| iced::widget::container::Style {
-                background: Some(iced::Background::Color(iced::Color {
-                    a: 0.35,
-                    ..TOKYO_BORDER
-                })),
-                ..iced::widget::container::Style::default()
-            }),
-    )
-    .padding([4, 8])
-    .width(Length::Fill)
-    .into()
 }
 
 /// Picks which of the two caption-button styles to use. `Neutral` is

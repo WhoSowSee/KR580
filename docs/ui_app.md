@@ -65,6 +65,23 @@ quieter surface while the dropdown offsets stay unchanged. Dropdowns
 still open at the same 34 px vertical offset and keep their own framed
 panel border.
 
+The visible top-level categories are localized as `Файл`,
+`МП-Система`, `Вид`, `Настройки`, and `Справка`. `Файл` and
+`МП-Система` open dropdowns; the last three are still inactive
+placeholders, but they use the same Russian UI language as the rest of
+the menu bar.
+
+Legacy `.580` rows in the file dropdown keep the primary action as the
+main label (`Открыть` / `Сохранить`) and render `старый формат` as a
+small muted note beside it, not as parenthesized label text.
+
+The empty title-bar band between the menu labels and caption buttons is
+also the window drag handle. When no transient UI is open it dispatches
+`iced::window::drag`; when a dropdown or opcode picker is open, the same
+press is treated as a dead-space click and closes that popup instead of
+starting a drag. That keeps title-bar whitespace consistent with the
+rest of the inactive app surface.
+
 ## Side panel layout
 
 The right-hand 330 px column stacks four legend-framed panels in this
@@ -282,13 +299,13 @@ with a wide remaining row.
 ### Левая панель: расщепление модулей
 
 `view/schematic.rs` пробивал лимит 400 строк (был 727). Расщеплено
-на пять файлов, каждый под потолок:
+на focused-модули, каждый под потолок:
 
-- `view/schematic.rs` (~260 строк) — каркас левой панели: общая
-  верхняя рамка с CPU-группой слева и центральной колонкой (`Статус` /
-  `Буфер данных` / `Регистр признаков` / `Мультиплексор` /
-  `Регистр состояния`) справа, затем нижний ряд `Быстрый доступ` +
-  speed switch. `mux_panel` и
+- `view/schematic.rs` (~390 строк) — каркас левой панели: общая
+  верхняя рамка с full-width статусной шапкой, CPU-группой слева и
+  центральной колонкой (`Буфер данных` / `Регистр признаков` /
+  `Мультиплексор` / `Регистр состояния`) справа, затем нижний ряд
+  `Быстрый доступ` + speed switch. `mux_panel` и
   `speed_panel` остаются one-liner-делегатами в свои модули.
 - `view/chips.rs` (~250 строк) — чистые widget-билдеры под одиночные
   плашки на плате: `schematic_readout` (134×60, 20 px hex value),
@@ -303,19 +320,33 @@ with a wide remaining row.
 - `view/current_command.rs` (~170 строк) — блок «Текущая команда»
   под сигналами управления: код, мнемоника, операнд, длина, тип и
   адресация команды по текущему `PC`.
-- `view/speed.rs` (~83 строки) — четырёх-ступенчатый переключатель
-  скорости и его кнопочный helper `tier_button`.
+- `view/speed.rs` (~384 строки) — четырёх-ступенчатый переключатель
+  скорости, segment gauge и тесты его геометрии/цветов.
+- `view/notices.rs` (~90 строк) — пассивные floating notice overlays
+  для HLT, file error и legacy-format heads-up.
+- `view/menu.rs` (~350 строк) — top title/menu bar, menu visibility
+  toggle, divider gap, dropdown routing and caption buttons.
+- `view/menu_dropdowns.rs` (~245 строк) — dropdown rows for `Файл` and
+  `МП-Система`, including muted legacy-format notes and disabled HLT
+  reset state.
+- `view/modal.rs` (~250 строк) — modal overlay несохранённых
+  изменений, его backdrop, кнопки и focused-button styling.
+- `view/menu_labels.rs` (~10 строк) — localized labels for inactive
+  top-level menu categories (`Вид`, `Настройки`, `Справка`) plus a
+  regression test.
+- `view/mod.rs` (~260 строк) — root stack: меню, основная раскладка,
+  transient overlays и порядок слоёв.
 
 ### Left schematic layout
 
 The left UI zone is split into two visual bands:
 
 - the shared upper frame: CPU row (`PC` / `SP` / `T` / clickable
-  `HLT`) and PSW/flags on the left, the `Регистры и операнды` grid,
+  `HLT`) plus the right-aligned textual `Статус` line across the full
+  top row, then PSW/flags on the left, the `Регистры и операнды` grid,
   `Цикл и такт`, `Внутренние тайминги`, `Сигналы управления`,
-  `Текущая команда`, plus the right-aligned central column with
-  `Статус`, same-width `Буфер данных` and `Регистр признаков`,
-  the multiplexer, and the
+  `Текущая команда`, plus the right-side central column with same-width
+  `Буфер данных` and `Регистр признаков`, the multiplexer, and the
   `Регистр состояния` readout below it;
 - the bottom row: «Быстрый доступ» on the left and the speed switch on
   the right. The main schematic frame uses 8 px spacing to this bottom
@@ -330,6 +361,13 @@ The tooltip does not repeat the status-byte value; it uses the darker
 does not snap flush to the window edge, and colours only the current
 status label blue. Regular hover tooltips use the same dark fill via
 `inset_style`.
+
+The free-form top-row `Статус` string is not constrained to the
+multiplexer column anymore: it is rendered in the upper frame header, so
+long open-file paths can use the full width left after the `PC` / `SP`
+/ `T` / `HLT` cluster. If the status string ends with
+`(старый формат)`, the suffix is displayed as a muted `старый формат`
+note without parentheses.
 
 This is a layout-only change. All readouts still come from the same
 `AppSnapshot` / `Cpu8080State` fields, and the clickable chips still
@@ -906,11 +944,31 @@ editor so the user can keep typing.
 The keyboard subscription emits `Message::EscPressed`; the `update`
 router checks `self.focused_input` and calls
 `cancel_inline_memory_edit` when the inline editor owns focus,
-falling back to `hide_opcode_dropdown` (the legacy Esc binding)
-otherwise. Routing in `update` rather than the `Fn` event listener
-keeps the listener stateless. With the inline buffer already matching
-storage the handler is a no-op so a stray Esc does not snap the caret
-to the end of the field.
+falling back to closing the open top menu, then `hide_opcode_dropdown`
+(the legacy Esc binding) otherwise. Routing in `update` rather than the
+`Fn` event listener keeps the listener stateless. With the inline buffer
+already matching storage the handler is a no-op so a stray Esc does not
+snap the caret to the end of the field.
+
+### Unsaved-changes modal
+
+Discard paths (`Open`, legacy open, `New`, `Import`, and window close)
+route through `DesktopApp::pending_action` when `dirty` is set. While
+that field is `Some`, the modal layer captures user interaction before
+the main update router sees it: emulator shortcuts, arrow keys, opcode
+picker gestures, menu actions, and title-bar dragging are ignored until
+the modal closes. Passive bookkeeping such as `Tick`, cursor tracking,
+and window state updates still flows so the app does not stall.
+
+The modal owns a two-button keyboard ring. Focus starts on `Отменить`,
+Tab and Shift+Tab cycle around cancel / confirm, Enter activates the
+focused button, and Esc cancels. The confirm label matches the queued
+action (`Открыть` for open-file paths, `Создать` for new-file, `Закрыть`
+for window close). Legacy open uses the same muted `старый формат` note
+as the file menu instead of parenthesized title text. The focused button
+reuses the same surface fill as the hover state while keeping the
+regular neutral border; mouse clicks on either button still dispatch the
+same `CancelDiscard` / `ConfirmDiscard` messages.
 
 The opcode/mnemonic picker uses `opcode_dropdown_style` with a 7 px
 radius on all four corners. The popup floats over the memory rows, so
@@ -1122,7 +1180,9 @@ than continuing to move the register highlight.
 
 | Shortcut | Effect |
 |---|---|
-| Esc | Routed by `Message::EscPressed`: reverts an unsaved inline-edit byte when the inline editor owns focus, otherwise hides the opcode dropdown if it is open. |
+| Esc | Routed by `Message::EscPressed`: cancels the unsaved-changes modal first, then closes passive notices / open top menus, reverts an unsaved inline-edit byte when the inline editor owns focus, otherwise hides the opcode dropdown if it is open. |
+| Tab / Shift+Tab | Normal focus-cycle inside editor groups; while the unsaved-changes modal is open, cycles cancel / confirm in a closed ring. |
+| Enter | Normal submit / inline-edit recovery; while the unsaved-changes modal is open, activates the focused modal button. |
 | ArrowUp / ArrowDown | Routed by `DesktopApp::handle_arrow_key` to the editor that currently owns focus (see the panel-specific tables above). With nothing tracked focused they fall back to memory list navigation. |
 | PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
 

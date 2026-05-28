@@ -18,6 +18,8 @@
 //!   memory row.
 //! - [`editors`]: right-hand side panel with the memory cell editor and
 //!   the register editor.
+//! - [`notices`]: passive floating HLT/error/info overlays.
+//! - [`modal`]: the blocking unsaved-changes confirmation overlay.
 //!
 //! All submodules attach their `impl DesktopApp { fn ... }` blocks to the
 //! same `DesktopApp` defined in `crate::app`, which keeps panel logic
@@ -31,7 +33,11 @@ mod icons;
 mod lamps;
 mod memory_list;
 mod menu;
+mod menu_dropdowns;
+mod menu_labels;
+mod modal;
 mod mux;
+mod notices;
 mod opcode_dropdown;
 mod schematic;
 mod speed;
@@ -41,13 +47,14 @@ mod theme;
 mod utils;
 mod widgets;
 
-use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
-use iced::{Background, Border, Color, Element, Length, alignment};
+use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
+use iced::{Element, Length};
 
-use styles::{app_style, error_inset_style, info_inset_style};
-use theme::{TOKYO_BG, TOKYO_BORDER, TOKYO_TEXT, ui_text};
+use modal::discard_modal_overlay;
+use notices::{error_notice_overlay, halt_notice_overlay, info_notice_overlay};
+use styles::app_style;
 
-use crate::app::{DesktopApp, MenuId, Message, PendingAction};
+use crate::app::{DesktopApp, MenuId, Message};
 
 /// Vertical offset of the floating menu dropdown from the top of the
 /// app root. The menu bar is 34 px tall and sits flush with the top of
@@ -58,31 +65,6 @@ use crate::app::{DesktopApp, MenuId, Message, PendingAction};
 /// the divider line and the dropdown's top edge, breaking the
 /// "frame hangs off the line" illusion the user flagged.
 const MENU_DROPDOWN_TOP: f32 = 34.0;
-
-/// Vertical offset of the halt-blocked notice overlay from the top of
-/// the app root. Sits comfortably below the menu bar (34 px tall + 1 px
-/// hairline) with a small gap so the framed message reads as a separate
-/// floating element rather than glued to the bar.
-const HALT_NOTICE_TOP: f32 = 48.0;
-
-/// Vertical offset of the file-error notice overlay. Sits a touch
-/// further below the menu bar than the halt notice so that, in the
-/// (rare) case both are visible together — a halted CPU plus a
-/// failed save dialog — the two messages stack rather than overlap.
-/// The halt notice is the longer-lived of the two (it persists until
-/// the CPU is reset), so the error notice rides on top of it; that
-/// way the new, actionable error reads first.
-const ERROR_NOTICE_TOP: f32 = 88.0;
-
-/// Vertical offset of the info-notice overlay (legacy-format heads
-/// up). Sits below the error notice so the three stack predictably
-/// when more than one is visible at once: halt (persistent, top),
-/// error (8 s, middle), info (5 s, bottom). In practice the info
-/// overlay is rarely co-visible with the others — it fires only on
-/// the legacy-open path, which clears any prior error notice on the
-/// way in — but the offsets are picked so a freak overlap reads as
-/// stacked frames rather than overlapping rectangles.
-const INFO_NOTICE_TOP: f32 = 128.0;
 
 /// Horizontal offset of the floating menu dropdown from the app's left
 /// edge, **per top-level menu**. Each value puts the dropdown's left
@@ -250,10 +232,13 @@ impl DesktopApp {
         // dark semi-transparent overlay instead — the same pattern
         // every modal-using iced app reaches for.
         if let Some(action) = self.pending_action.as_ref() {
-            stack![scrimmed, discard_modal_overlay(action)]
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into()
+            stack![
+                scrimmed,
+                discard_modal_overlay(action, self.discard_modal_focus)
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
         } else {
             scrimmed
         }
@@ -277,314 +262,4 @@ fn menu_dropdown_overlay(dropdown: Element<'_, Message>, left: f32) -> Element<'
     .width(Length::Fill)
     .height(Length::Fill)
     .into()
-}
-
-/// Floating notice anchored to the top centre of the window. Used for
-/// the halt-blocked Variant A message — see `docs/ui_app.md` and the
-/// `halt_notice` field on `DesktopApp`. The framed body uses
-/// `error_inset_style` (the same red-on-`TOKYO_BOARD` frame as the
-/// file-error overlay) so the user reads "this is a blocking notice"
-/// from the chrome alone. The user explicitly asked for the two
-/// notices to look the same; surfacing different chromes for the two
-/// passive blockers ("file error" vs. "halted CPU") was reading as
-/// arbitrary noise rather than as different severities.
-///
-/// The body is two lines: a diagnosis (\"Процессор остановлен
-/// командой HLT\") and a recommendation (\"Сбросьте регистры или
-/// флаг HLT\"). The text is centred horizontally so the second
-/// (shorter) line sits visually under the first instead of leaning
-/// against the left padding — without `align_x(Center)` iced lays
-/// each line out flush-left and the second one would look detached
-/// from the bubble.
-///
-/// Click-to-dismiss: wrapping the body in a `mouse_area` whose
-/// `on_press` emits `Message::DismissHaltNotice` lets the user clear
-/// the overlay by clicking on it. Esc also dismisses (handled in
-/// `app::update::Message::EscPressed`). The overlay also auto-fades
-/// on an 8-second timer wired through `Message::Tick` — see
-/// `halt_notice_dismiss_at` on `DesktopApp` and `raise_halt_notice`
-/// for the lockstep arming. The notice also clears the moment the
-/// halt state lifts (the `apply_snapshot` branch nulls both the
-/// notice and the deadline so a reset wipes the block and the hint
-/// in the same frame).
-fn halt_notice_overlay(notice: &str) -> Element<'_, Message> {
-    let body = container(
-        ui_text(notice.to_owned(), 15, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
-    )
-    .padding([12, 22])
-    .style(error_inset_style);
-    let dismissible = mouse_area(opaque(body)).on_press(Message::DismissHaltNotice);
-    column![
-        Space::new().height(Length::Fixed(HALT_NOTICE_TOP)),
-        row![
-            Space::new().width(Length::Fill),
-            dismissible,
-            Space::new().width(Length::Fill),
-        ]
-        .width(Length::Fill),
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
-}
-
-/// Floating notice for file-system errors (failed open / save /
-/// import / export). Routed through `error_notice` rather than the
-/// status bar because the status bar at 13 px on the dark schematic
-/// plate is too quiet a channel — the user reported missing the
-/// message entirely. Frame uses `error_inset_style` (red border on
-/// the dark `TOKYO_BOARD` plate, same fill as every other panel in
-/// the app) so the notice reads as "another bubble on the same
-/// plate" rather than a light foreign box.
-///
-/// The body is rendered at 15 px with comfortable padding — large
-/// enough that the user cannot miss it, small enough that the
-/// framed line still looks like a sibling of the surrounding
-/// chrome rather than a banner stretched across the schematic. An
-/// earlier 18 px / `[18, 28]` variant felt oversized to the user;
-/// 15 px / `[12, 22]` is the compromise.
-///
-/// Click-to-dismiss: wrapping the body in a `mouse_area` whose
-/// `on_press` emits `Message::DismissErrorNotice` lets the user
-/// clear the overlay by clicking on it. Esc also dismisses (handled
-/// in `app::keyboard_subscription`). The overlay also auto-fades on
-/// an 8-second timer wired through `Message::Tick` — see
-/// `error_notice_dismiss_at` on `DesktopApp`. Without those exits the
-/// only way out would be to trigger another file gesture (which sets
-/// `error_notice = None` at the start of), which felt trapped.
-fn error_notice_overlay(notice: &str) -> Element<'_, Message> {
-    let body = container(
-        ui_text(notice.to_owned(), 15, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
-    )
-    .padding([12, 22])
-    .style(error_inset_style);
-    let dismissible = mouse_area(opaque(body)).on_press(Message::DismissErrorNotice);
-    column![
-        Space::new().height(Length::Fixed(ERROR_NOTICE_TOP)),
-        row![
-            Space::new().width(Length::Fill),
-            dismissible,
-            Space::new().width(Length::Fill),
-        ]
-        .width(Length::Fill),
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
-}
-
-/// Floating notice for the legacy-format heads-up ("Открыт старый
-/// формат файла"). Mirrors `error_notice_overlay` exactly — same
-/// plate, same 15 px text, same `[12, 22]` padding, same
-/// click-and-Esc dismissal — except the frame is `TOKYO_YELLOW`
-/// instead of `TOKYO_RED` (`info_inset_style` vs.
-/// `error_inset_style`). Yellow signals "heads up, not an error":
-/// the user does not have to act, the notice just confirms that
-/// auto-detect dispatched the legacy decoder so the next save
-/// routes through the matching serializer.
-///
-/// Auto-fades on a 5-second timer (vs. 8 s for the red overlays)
-/// because there is nothing to act on — a longer fade would block
-/// more of the schematic without adding value. See
-/// `info_notice_dismiss_at` on `DesktopApp` and `raise_info_notice`
-/// for the lockstep arming, and `Message::DismissInfoNotice` for
-/// the click-driven dismissal that this overlay routes into.
-fn info_notice_overlay(notice: &str) -> Element<'_, Message> {
-    let body = container(
-        ui_text(notice.to_owned(), 15, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
-    )
-    .padding([12, 22])
-    .style(info_inset_style);
-    let dismissible = mouse_area(opaque(body)).on_press(Message::DismissInfoNotice);
-    column![
-        Space::new().height(Length::Fixed(INFO_NOTICE_TOP)),
-        row![
-            Space::new().width(Length::Fill),
-            dismissible,
-            Space::new().width(Length::Fill),
-        ]
-        .width(Length::Fill),
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
-}
-
-/// Renders the "unsaved changes" confirmation modal. The layout is
-/// three layers stacked together:
-///
-/// 1. **Backdrop** — a full-window dark fill (`TOKYO_BOARD` at 70%
-///    alpha) wrapped in `mouse_area` + `opaque`. The mouse_area
-///    catches *every* click that misses the dialog so the user can
-///    dismiss with Esc-style "click outside" without needing the
-///    button; the opaque wrapper guarantees those clicks do not
-///    pass through to the application underneath. Together they
-///    deliver the "ничего не было кликабельным" requirement: any
-///    click anywhere on the page either dismisses the modal or
-///    activates a button on the modal itself, never anything
-///    behind it.
-/// 2. **Centred dialog** — a column with the title, the body
-///    paragraph, and the two action buttons. Wrapped in a second
-///    `opaque` so pointer events on the dialog do not bubble back
-///    up to the backdrop's `mouse_area` (otherwise clicking inside
-///    the dialog would dismiss it).
-/// 3. **Spacer rows** above and below + `Space::with(Length::Fill)`
-///    flanks on either side push the dialog to the geometric centre
-///    of the window without needing absolute coordinates.
-///
-/// `action` is the queued gesture, used only for the dialog title so
-/// the user sees which gesture they are confirming ("Открыть файл" /
-/// "Новый файл" / "Импорт" / "Закрыть приложение"). The body
-/// paragraph is the same for every variant — the unsaved-changes
-/// warning carries the actionable information.
-fn discard_modal_overlay(action: &PendingAction) -> Element<'_, Message> {
-    let title = match action {
-        PendingAction::OpenSnapshot => "Открыть файл",
-        PendingAction::NewFile => "Новый файл",
-        PendingAction::Import => "Импорт",
-        PendingAction::OpenLegacySnapshot => "Открыть файл (старый формат)",
-        PendingAction::CloseWindow => "Закрыть приложение",
-    };
-
-    // Backdrop: wraps the whole window in a darkened fill. The
-    // `mouse_area` swallows clicks landing outside the dialog and
-    // routes them to `CancelDiscard` — same gesture as clicking
-    // "Отменить", so a click on dead space behaves the same way as
-    // pressing the cancel button. `opaque` then prevents that
-    // mouse_area from passing the event further down the tree.
-    let backdrop = mouse_area(
-        container(Space::new())
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .style(modal_backdrop_style),
-    )
-    .on_press(Message::CancelDiscard);
-
-    let cancel_button = button(container(ui_text("Отменить", 13, TOKYO_TEXT)).padding([6, 16]))
-        .on_press(Message::CancelDiscard)
-        .style(modal_button_style);
-
-    let confirm_button = button(container(ui_text("Закрыть", 13, TOKYO_TEXT)).padding([6, 16]))
-        .on_press(Message::ConfirmDiscard)
-        .style(modal_button_style);
-
-    let buttons = row![
-        Space::new().width(Length::Fill),
-        cancel_button,
-        Space::new().width(Length::Fixed(8.0)),
-        confirm_button,
-    ]
-    .width(Length::Fill);
-
-    let body = container(
-        column![
-            ui_text(title.to_owned(), 16, TOKYO_TEXT),
-            Space::new().height(Length::Fixed(8.0)),
-            ui_text(
-                "Несохранённые изменения будут потеряны.".to_owned(),
-                13,
-                TOKYO_TEXT,
-            ),
-            Space::new().height(Length::Fixed(16.0)),
-            buttons,
-        ]
-        .width(Length::Fixed(360.0)),
-    )
-    .padding(16)
-    .style(modal_dialog_style);
-
-    // Centre the dialog. `Length::Fill` spacers above/below and on
-    // both sides push the framed body to the middle of the
-    // window — works for any window size without picking absolute
-    // pixel coordinates.
-    let centred = column![
-        Space::new().height(Length::Fill),
-        row![
-            Space::new().width(Length::Fill),
-            opaque(body),
-            Space::new().width(Length::Fill),
-        ]
-        .width(Length::Fill),
-        Space::new().height(Length::Fill),
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill);
-
-    // The backdrop sits underneath the centred dialog — both stacked
-    // together so the dark fill spans the whole window while the
-    // dialog only takes its content size.
-    stack![opaque(backdrop), centred]
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
-}
-
-/// Semi-transparent dark overlay for the modal backdrop. Iced 0.14
-/// has no native gaussian blur primitive, so we approximate the
-/// "blur the background" intent with a darkening fill — the standard
-/// pattern modal dialogs use across desktop UI when blur is not
-/// available. 70% alpha on `TOKYO_BOARD` lets just enough of the
-/// schematic bleed through that the user remembers what they were
-/// doing while still reading the surrounding chrome as suppressed.
-fn modal_backdrop_style(_theme: &iced::Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        background: Some(Background::Color(Color {
-            r: 0.07,
-            g: 0.07,
-            b: 0.13,
-            a: 0.70,
-        })),
-        border: Border {
-            radius: 0.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        ..iced::widget::container::Style::default()
-    }
-}
-
-/// Framed body of the modal dialog. Solid surface (no transparency
-/// — the backdrop already provides the contrast) with a 1-px border
-/// so the dialog reads as a discrete element floating above the
-/// suppressed background. 8 px corner radius matches the rest of
-/// the bubble chrome.
-fn modal_dialog_style(_theme: &iced::Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BG)),
-        border: Border {
-            radius: 8.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..iced::widget::container::Style::default()
-    }
-}
-
-/// "Отменить" / "Закрыть" — both modal buttons share the same neutral
-/// chrome. The user explicitly asked the destructive twin to look the
-/// same as the cancel button: visual weight should not push them
-/// toward either choice. Surface-tone fill, neutral border, subtle
-/// hover/press feedback — same shape as the editor `↵` button.
-fn modal_button_style(
-    _theme: &iced::Theme,
-    status: iced::widget::button::Status,
-) -> iced::widget::button::Style {
-    use crate::view::theme::{TOKYO_SURFACE, TOKYO_SURFACE_2};
-    use iced::widget::button;
-    let background = match status {
-        button::Status::Pressed => TOKYO_SURFACE_2,
-        button::Status::Hovered => TOKYO_SURFACE,
-        _ => TOKYO_BG,
-    };
-    button::Style {
-        background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
-        border: Border {
-            radius: 6.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..button::Style::default()
-    }
 }
