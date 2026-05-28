@@ -2,7 +2,7 @@
 
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message,
-    REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
+    REGISTER_INLINE_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
 };
 use iced::Task;
 use iced::widget::operation;
@@ -37,6 +37,9 @@ impl DesktopApp {
         }
         if focused == iced::widget::Id::new(REGISTER_VALUE_INPUT_ID) {
             return operation::focus(REGISTER_NAME_INPUT_ID);
+        }
+        if focused == iced::widget::Id::new(REGISTER_INLINE_INPUT_ID) {
+            return operation::focus(REGISTER_VALUE_INPUT_ID);
         }
         if focused == iced::widget::Id::new(MEMORY_INLINE_INPUT_ID) {
             // The inline editor lives on whatever address is currently

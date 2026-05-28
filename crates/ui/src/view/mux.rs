@@ -5,182 +5,114 @@
 //! panel is ~270 lines on its own and `schematic.rs` was running over
 //! the workspace's 400-line ceiling.
 //!
-//! Public surface is just `mux_panel(cpu, selected)` — the rest of
+//! Public surface is just `mux_panel(...)` — the rest of
 //! the helpers (`mux_section_caption`, `mux_static`, `mux_readout`,
 //! `mux_register`) are private to this module.
 
-use iced::widget::{Space, button, column, container, row};
-use iced::{Element, Length, alignment};
+use iced::widget::{Space, column, container, mouse_area, row, text_input};
+use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
 use k580_core::{Cpu8080State, RegisterName, decode_opcode};
 
 use super::styles::{
-    mux_chip_style, mux_header_style, mux_panel_style, schematic_select_button_style,
+    inline_value_input_style, mux_chip_style, mux_header_style, mux_panel_style, solid_style,
 };
-use super::theme::{TOKYO_BLUE, TOKYO_GREEN, TOKYO_MUTED, mono_text, ui_text};
-use crate::app::{Message, register_name};
+use super::theme::{
+    MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MUTED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE,
+    TOKYO_TEXT, mono_text, ui_text,
+};
+use super::utils::row_separator;
+use crate::app::{Message, REGISTER_INLINE_INPUT_ID, RegisterInlineTarget, register_name};
 
-/// Builds the "Мультиплексор" panel that mirrors the layout from the
-/// reference KR-580 schematic the user is studying:
-///
-/// ```text
-/// ┌─────────── Мультиплексор ───────────┐
-/// │      Регистры временного хранения   │
-/// │   W  00              Z  00          │
-/// │   Регистры общего назначения (РОН)  │
-/// │   B  00              C  00          │
-/// │   D  00              E  00          │
-/// │   H  00              L  00          │
-/// │  ─────────────────────────────────  │
-/// │   Указатель стека (УС)         FFFF │
-/// │   Счётчик команд (СК)          0000 │
-/// │   Схема инкремента-декремента    +1 │
-/// └─────────────────────────────────────┘
-/// ```
-///
-/// Key visual choices the user converged on over a few rounds:
-/// 1. **Russian labels everywhere**: header is "Мультиплексор", the
-///    two register groups carry the schoolbook 8080 captions
-///    "Регистры временного хранения" / "Регистры общего назначения
-///    (РОН)" — the user is teaching from a Russian-language reference,
-///    so matching the captions verbatim is what makes the panel
-///    readable as "the same diagram". The captions are centred
-///    horizontally so the eye reads them as section titles rather
-///    than left-flush list rows.
-/// 2. **Inline name + value**: each register chip puts its name on
-///    the left and its value on the right of the same row, instead
-///    of stacking them vertically. Same reading rhythm as the
-///    schematic notation, half the vertical footprint.
-/// 3. **Outline-only chrome**: the panel and every chip inside it
-///    are transparent in the resting state — the panel reads as a
-///    bordered cut-out on the plate rather than a lifted card.
-///    Borders carry the structure on their own.
-/// 4. **A is gone from the РОН block**: the accumulator already has
-///    its own dedicated chip in the status strip above the schematic
-///    plate, so listing A here was duplicating the same readout in
-///    two places. Click-target for selecting A still works through
-///    the register editor's name input. The РОН grid now holds B/C,
-///    D/E, H/L — three pairs in three rows, no orphan trailing
-///    register.
-/// 5. **SP and PC inline**: "Указатель стека (УС)" / "Счётчик команд
-///    (СК)" each render as a single-row readout (label left, value
-///    right) instead of label-above-value. Mirrors the rhythm of the
-///    register chips above so the footer reads as a continuation of
-///    the same column.
-pub(super) fn mux_panel(cpu: &Cpu8080State, selected: RegisterName) -> Element<'static, Message> {
-    container(
+const MUX_REGISTER_CELL_HEIGHT: f32 = 30.0;
+const MUX_REGISTER_VALUE_WIDTH: f32 = 28.0;
+
+#[derive(Clone, Copy)]
+struct MuxEditState<'a> {
+    selected: RegisterName,
+    inline_target: Option<RegisterInlineTarget>,
+    active_target: Option<RegisterInlineTarget>,
+    hovered_target: Option<RegisterInlineTarget>,
+    input_value: &'a str,
+}
+
+pub(super) struct MuxRegisterValues {
+    pub(super) b: String,
+    pub(super) c: String,
+    pub(super) d: String,
+    pub(super) e: String,
+    pub(super) h: String,
+    pub(super) l: String,
+}
+
+/// Builds the "Мультиплексор" panel as three framed subgroups:
+/// W/Z scratch registers, the two-column B/C-D/E-H/L РОН grid, and the
+/// stack/program-counter footer.
+pub(super) fn mux_panel<'a>(
+    cpu: &Cpu8080State,
+    selected: RegisterName,
+    inline_target: Option<RegisterInlineTarget>,
+    active_target: Option<RegisterInlineTarget>,
+    hovered_target: Option<RegisterInlineTarget>,
+    input_value: &'a str,
+    values: MuxRegisterValues,
+) -> Element<'a, Message> {
+    let edit_state = MuxEditState {
+        selected,
+        inline_target,
+        active_target,
+        hovered_target,
+        input_value,
+    };
+
+    let scratch_group = container(
         column![
-            // Header: centred 14 px text, same size as the legend
-            // titles on the right-hand panels ("Содержимое ячеек
-            // ОЗУ", "Ячейка ОЗУ и её значение"). The earlier 16 px
-            // pass made the strip read as a much heavier title than
-            // its siblings — the user wanted "Мультиплексор" to
-            // visually rhyme with the other section headers, not
-            // tower over them. Centring on both the inner text and
-            // the wrapping container keeps the caption pinned to
-            // the middle regardless of how iced rounds the inner
-            // bounding box at this width. The header tone is
-            // `TOKYO_MUTED` (same swatch the section captions use)
-            // so the caption sits in the same grey weight class as
-            // every other label on the schematic plate — the user
-            // explicitly asked the white-bright variant to come
-            // back to the same muted register the rest of the
-            // chrome lives in.
-            container(
-                ui_text("Мультиплексор", 14, TOKYO_MUTED).align_x(alignment::Horizontal::Center),
-            )
-            .padding([4, 7])
-            .width(Length::Fill)
-            .align_x(alignment::Horizontal::Center)
-            .style(mux_header_style),
             mux_section_caption("Регистры временного хранения"),
-            // W and Z are the 8080's internal scratch pair. They are
-            // programmatically invisible — no instruction can read or
-            // write them directly — so we render them through
-            // `mux_static`: same chrome as `mux_register`, but without
-            // the `mouse_area`/`RegisterSelected` wiring (clicking
-            // them would advertise an interaction the architecture
-            // does not have).
-            //
-            // What they DO carry is a real value: the microsequencer
-            // parks the address operand of `STA`/`LDA`/`LHLD`/`SHLD`/
-            // `JMP*`/`CALL*`/`RET*`/`RST`/`XCHG`/`XTHL`/`PCHL`/`SPHL`/
-            // `LXI` in W/Z on its way to the final destination. The
-            // reference emulator we match against shows that residue,
-            // and now we do too — `cpu.registers.w` / `.z` are
-            // populated by the matching `set_wz` calls in `ops/data`
-            // and `ops/control`. So after `STA 2000`, W reads `20`,
-            // Z reads `00`, exactly like the school-grade emulator.
-            row![
-                mux_static("W", cpu.registers.w),
-                mux_static("Z", cpu.registers.z),
-            ]
-            .spacing(0),
+            mux_static_pair("W", cpu.registers.w, "Z", cpu.registers.z),
+        ]
+        .spacing(0),
+    )
+    .width(Length::Fill)
+    .style(mux_chip_style);
+
+    let general_group = container(
+        column![
             mux_section_caption("Регистры общего назначения (РОН)"),
-            // Three register pairs in three rows, no A. The user
-            // explicitly removed A from this block because it lives
-            // in the status strip's `compact_value("A", …)` slot
-            // above the schematic plate; duplicating the readout
-            // here would have it tracking the same byte from two
-            // different chips. B/C / D/E / H/L are exactly the
-            // three register pairs the chip exposes as 16-bit
-            // operands (BC, DE, HL), which is also how every 8080
-            // schoolbook diagram pairs them.
-            row![
-                mux_register(RegisterName::B, cpu.registers.b, selected),
-                mux_register(RegisterName::C, cpu.registers.c, selected),
-            ]
-            .spacing(0),
-            row![
-                mux_register(RegisterName::D, cpu.registers.d, selected),
-                mux_register(RegisterName::E, cpu.registers.e, selected),
-            ]
-            .spacing(0),
-            row![
-                mux_register(RegisterName::H, cpu.registers.h, selected),
-                mux_register(RegisterName::L, cpu.registers.l, selected),
-            ]
-            .spacing(0),
-            // SP and PC live below the register grid as a single
-            // column of inline readouts. They are not "registers" in
-            // the РОН sense — the user cannot click them to slot
-            // into the register editor — so painting them as
-            // `mux_readout` (label on the left, mono value on the
-            // right) is what telegraphs the difference. Full Russian
-            // names mirror the reference schematic; the parenthesised
-            // abbreviations after them ("УС", "СК") are how the
-            // textbook labels the same readouts on the bus diagram.
-            mux_readout("Указатель стека (УС)", format!("{:04X}", cpu.sp)),
-            mux_readout("Счётчик команд (СК)", format!("{:04X}", cpu.pc)),
-            // "Схема инкремента-декремента" — the dedicated +1
-            // increment block that the reference schematic paints
-            // right under the SP/PC pair. On the real chip this is
-            // the auxiliary adder that walks PC forward by the
-            // length of the current instruction during the fetch
-            // (and is also the path SP/HL go through for INX/DCX).
-            // We surface the **PC step** here because that is what
-            // the reference panel shows: the value reads `+1` for a
-            // single-byte opcode, `+2` for opcodes with one operand
-            // byte (`MVI r, d8`, `IN`, `OUT`, immediate ALU), `+3`
-            // for those with a 16-bit operand (`LXI`, `JMP`,
-            // `CALL`, `LDA`, `STA`, `LHLD`, `SHLD`). The byte at
-            // `cpu.pc` is the next opcode about to be fetched, so
-            // `decode_opcode(byte).size` is exactly the step the
-            // increment circuit will commit on the next M1 cycle.
-            // Undocumented bytes fall back to `+1` because that is
-            // what the reference emulator paints for them too — it
-            // never lets the readout go blank, and our
-            // `decode_opcode` returning `Err` only happens on the
-            // formally-undefined slots from `opcode_dispatch.md`.
-            // Лейбл укорочен с «Схема инкремента-декремента» до
-            // «Инкремент-декремент»: полная фраза не помещалась в
-            // chip-ширину `FillPortion(1)` мультиплексора на дефолтном
-            // окне — «декремента» вылезало за правую границу chip'а
-            // прямо на value-колонку с `+N`. Слово «Схема» тут
-            // избыточно: блок и так нарисован как chip в схематической
-            // плите, читатель и так видит что это схема. Семантика та
-            // же — это auxiliary adder, который шагает PC вперёд на
-            // длину текущей инструкции (см. ниже про +1/+2/+3).
-            mux_readout(
+            mux_register_pair(
+                RegisterName::B,
+                values.b,
+                RegisterName::C,
+                values.c,
+                edit_state,
+            ),
+            row_separator(),
+            mux_register_pair(
+                RegisterName::D,
+                values.d,
+                RegisterName::E,
+                values.e,
+                edit_state,
+            ),
+            row_separator(),
+            mux_register_pair(
+                RegisterName::H,
+                values.h,
+                RegisterName::L,
+                values.l,
+                edit_state,
+            ),
+        ]
+        .spacing(0),
+    )
+    .width(Length::Fill)
+    .style(mux_chip_style);
+
+    let pointer_group = container(
+        column![
+            mux_readout_row("Указатель стека (УС)", format!("{:04X}", cpu.sp)),
+            row_separator(),
+            mux_readout_row("Счётчик команд (СК)", format!("{:04X}", cpu.pc)),
+            row_separator(),
+            mux_readout_row(
                 "Инкремент-декремент",
                 format!(
                     "+{}",
@@ -192,6 +124,30 @@ pub(super) fn mux_panel(cpu: &Cpu8080State, selected: RegisterName) -> Element<'
         ]
         .spacing(0),
     )
+    .width(Length::Fill)
+    .style(mux_chip_style);
+
+    let table = column![scratch_group, general_group, pointer_group].spacing(6);
+
+    container(
+        column![
+            container(
+                ui_text("Мультиплексор", 14, TOKYO_MUTED).align_x(alignment::Horizontal::Center),
+            )
+            .height(Length::Fixed(18.0))
+            .width(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+            table,
+        ]
+        .spacing(2),
+    )
+    .padding(Padding {
+        top: 4.0,
+        right: 8.0,
+        bottom: 6.0,
+        left: 8.0,
+    })
     .width(Length::FillPortion(1))
     .style(mux_panel_style)
     .into()
@@ -209,30 +165,30 @@ pub(super) fn mux_panel(cpu: &Cpu8080State, selected: RegisterName) -> Element<'
 /// a few pixels left at certain sizes.
 fn mux_section_caption(label: &'static str) -> Element<'static, Message> {
     container(ui_text(label, 11, TOKYO_MUTED).align_x(alignment::Horizontal::Center))
-        .padding([2, 8])
+        .padding([3, 8])
         .width(Length::Fill)
         .align_x(alignment::Horizontal::Center)
         .style(mux_header_style)
         .into()
 }
 
-/// Read-only chip used for the W/Z scratch pair. Same chrome as
-/// `mux_register` (so the row visually matches the РОН rows
-/// underneath it) but without the `mouse_area` wrapper or the
-/// `RegisterSelected` press handler — W/Z are NOT programmer-visible
-/// on the 8080. No 8080 instruction can read or write them directly,
-/// so making them clickable would advertise an interaction the
-/// architecture does not have.
-///
-/// They DO carry a real value: the microsequencer parks the address
-/// operand of `STA`/`LDA`/`LHLD`/`SHLD`/`JMP*`/`CALL*`/`RET*`/`RST`/
-/// `XCHG`/`XTHL`/`PCHL`/`SPHL`/`LXI` in W/Z on its way to the final
-/// destination. The school-grade reference emulator we match against
-/// shows that residue, and so do we — value text is `TOKYO_GREEN`
-/// (same intensity as every other live numeric readout in the panel)
-/// and the label drops to `TOKYO_MUTED` to keep telegraphing "this
-/// row is special, you cannot click it".
-fn mux_static(label: &'static str, value: u8) -> Element<'static, Message> {
+fn mux_static_pair(
+    left_label: &'static str,
+    left_value: u8,
+    right_label: &'static str,
+    right_value: u8,
+) -> Element<'static, Message> {
+    row![
+        mux_static_cell(left_label, left_value),
+        mux_column_separator(),
+        mux_static_cell(right_label, right_value),
+    ]
+    .spacing(0)
+    .height(Length::Fixed(MUX_REGISTER_CELL_HEIGHT))
+    .into()
+}
+
+fn mux_static_cell(label: &'static str, value: u8) -> Element<'static, Message> {
     container(
         row![
             ui_text(label, 13, TOKYO_MUTED),
@@ -245,17 +201,13 @@ fn mux_static(label: &'static str, value: u8) -> Element<'static, Message> {
     .padding([4, 10])
     .width(Length::Fill)
     .height(Length::Fixed(30.0))
-    .style(mux_chip_style)
     .into()
 }
 
-/// Inline readout used for the SP / PC footer rows — same single-row
-/// layout as `mux_static` (label left, mono value right) so the
-/// footer reads as a continuation of the chip column above instead
-/// of a stacked block with the value on a second line. Background
-/// sticks to `mux_chip_style` for the same plate-coloured-with-border
-/// look every chip in the panel wears.
-fn mux_readout(label: &'static str, value: String) -> Element<'static, Message> {
+/// Single row inside the SP / PC footer group. The group owns the
+/// frame; rows stay borderless and are split by 1-px separators so the
+/// footer reads as one subblock instead of three rounded chips.
+fn mux_readout_row(label: &'static str, value: String) -> Element<'static, Message> {
     container(
         row![
             ui_text(label, 12, TOKYO_MUTED),
@@ -267,16 +219,39 @@ fn mux_readout(label: &'static str, value: String) -> Element<'static, Message> 
     )
     .padding([4, 10])
     .width(Length::Fill)
-    .style(mux_chip_style)
     .into()
 }
 
-fn mux_register(
+fn mux_register_pair(
+    left: RegisterName,
+    left_value: String,
+    right: RegisterName,
+    right_value: String,
+    edit_state: MuxEditState<'_>,
+) -> Element<'_, Message> {
+    row![
+        mux_register_cell(left, left_value, edit_state),
+        mux_column_separator(),
+        mux_register_cell(right, right_value, edit_state),
+    ]
+    .spacing(0)
+    .height(Length::Fixed(30.0))
+    .into()
+}
+
+fn mux_register_cell(
     register: RegisterName,
-    value: u8,
-    selected: RegisterName,
-) -> Element<'static, Message> {
-    let is_selected = register == selected;
+    value: String,
+    edit_state: MuxEditState<'_>,
+) -> Element<'_, Message> {
+    let target = RegisterInlineTarget::Mux(register);
+    let is_selected = if edit_state.active_target.is_some() {
+        edit_state.active_target == Some(target)
+    } else {
+        register == edit_state.selected
+    };
+    let editing = edit_state.inline_target == Some(target);
+    let hovered = edit_state.hovered_target == Some(target);
 
     // Register name colour mirrors the memory-row address column:
     // `TOKYO_BLUE` when the chip is the active selection,
@@ -294,20 +269,107 @@ fn mux_register(
     // the multiplexer panel — same reading rhythm as the reference
     // KR-580 schematic.
     //
-    button(
+    let value: Element<'_, Message> = if editing {
+        text_input("00", edit_state.input_value)
+            .id(REGISTER_INLINE_INPUT_ID)
+            .on_input(move |value| Message::InlineRegisterValueChanged(target, value))
+            .on_submit(Message::ApplyInlineRegisterValue(target))
+            .font(MONO_FONT)
+            .size(16)
+            .padding(0)
+            .align_x(alignment::Horizontal::Center)
+            .width(Length::Fixed(MUX_REGISTER_VALUE_WIDTH))
+            .style(inline_value_input_style)
+            .into()
+    } else {
+        mouse_area(
+            container(mono_text(value, 16, TOKYO_GREEN))
+                .width(Length::Fixed(MUX_REGISTER_VALUE_WIDTH))
+                .align_x(alignment::Horizontal::Center),
+        )
+        .on_press(Message::RegisterEnter(target))
+        .on_double_click(Message::RegisterEnter(target))
+        .interaction(iced::mouse::Interaction::Pointer)
+        .into()
+    };
+
+    let body = container(
         row![
             ui_text(register_name(register), 13, label_color),
             Space::new().width(Length::Fill),
-            mono_text(format!("{value:02X}"), 16, TOKYO_GREEN),
+            value,
         ]
         .align_y(alignment::Vertical::Center)
         .spacing(8)
         .width(Length::Fill),
     )
-    .on_press(Message::RegisterSelected(register))
     .padding([4, 10])
     .width(Length::Fill)
-    .height(Length::Fixed(30.0))
-    .style(move |_theme, status| schematic_select_button_style(status, is_selected))
-    .into()
+    .height(Length::Fixed(MUX_REGISTER_CELL_HEIGHT))
+    .style(move |theme| {
+        mux_register_cell_style(theme, is_selected || hovered || editing, is_selected)
+    });
+
+    let area = mouse_area(body)
+        .on_enter(Message::RegisterHoverStarted(target))
+        .on_exit(Message::RegisterHoverEnded(target))
+        .interaction(iced::mouse::Interaction::Pointer);
+
+    if editing {
+        area.into()
+    } else {
+        area.on_press(Message::RegisterSelected(target))
+            .on_double_click(Message::RegisterEnter(target))
+            .into()
+    }
+}
+
+fn mux_register_cell_style(_theme: &Theme, active: bool, selected: bool) -> container::Style {
+    let background = if selected {
+        Some(TOKYO_SELECTION_BLUE)
+    } else if active {
+        Some(TOKYO_SURFACE)
+    } else {
+        None
+    };
+
+    container::Style {
+        background: background.map(Background::Color),
+        text_color: Some(TOKYO_TEXT),
+        border: iced::Border {
+            radius: 0.0.into(),
+            width: if active { 1.0 } else { 0.0 },
+            color: if active {
+                mux_grid_line_color()
+            } else {
+                Color::TRANSPARENT
+            },
+        },
+        ..container::Style::default()
+    }
+}
+
+fn mux_column_separator() -> Element<'static, Message> {
+    container(Space::new())
+        .width(Length::Fixed(1.0))
+        .height(Length::Fixed(MUX_REGISTER_CELL_HEIGHT))
+        .style(|_theme| solid_style(mux_grid_line_color(), 0.0))
+        .into()
+}
+
+fn mux_grid_line_color() -> Color {
+    Color::from_rgba8(0x41, 0x48, 0x68, 0.26)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn register_cell_hover_restores_grid_line_without_accent_border() {
+        let style = mux_register_cell_style(&Theme::TokyoNight, true, false);
+
+        assert_eq!(style.border.width, 1.0);
+        assert_eq!(style.border.color, mux_grid_line_color());
+    }
 }

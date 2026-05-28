@@ -12,15 +12,18 @@
 
 mod constants;
 mod messages;
+mod register_inline;
 mod undo;
 
 pub(crate) use constants::{
     MEMORY_ADDRESS_COUNT, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
     MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, MEMORY_SCROLL_VISIBLE_TICKS,
-    MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_ORDER,
-    REGISTER_VALUE_INPUT_ID, parse_register_name, register_name,
+    MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID, REGISTER_INLINE_INPUT_ID,
+    REGISTER_NAME_INPUT_ID, REGISTER_ORDER, REGISTER_VALUE_INPUT_ID, parse_register_name,
+    register_name,
 };
-pub(crate) use messages::{MenuId, Message, SpeedTier};
+pub(crate) use messages::{MenuId, Message, RegisterInlineTarget, SpeedTier};
+pub(crate) use register_inline::RegisterMove;
 pub(crate) use undo::{UndoEntry, UndoStack};
 
 use iced::{Point, event, keyboard, mouse, time};
@@ -100,6 +103,9 @@ pub(crate) struct DesktopApp {
     pub(crate) selected_register: RegisterName,
     pub(crate) register_name_input: String,
     pub(crate) register_value_input: String,
+    pub(crate) active_register_target: Option<RegisterInlineTarget>,
+    pub(crate) inline_register_target: Option<RegisterInlineTarget>,
+    pub(crate) hovered_register_target: Option<RegisterInlineTarget>,
     pub(crate) memory_scroll_first_row: u16,
     pub(crate) memory_scroll_offset: f32,
     pub(crate) memory_viewport_height: f32,
@@ -432,6 +438,9 @@ impl DesktopApp {
                 selected_register: RegisterName::A,
                 register_name_input: "A".to_owned(),
                 register_value_input: "00".to_owned(),
+                active_register_target: None,
+                inline_register_target: None,
+                hovered_register_target: None,
                 memory_scroll_first_row: 0,
                 memory_scroll_offset: 0.0,
                 memory_viewport_height: 0.0,
@@ -708,11 +717,12 @@ impl DesktopApp {
                 .map(Message::FocusReconciled);
             }
             Message::FocusReconciled(hit) => {
-                const TRACKED: [&str; 5] = [
+                const TRACKED: [&str; 6] = [
                     MEMORY_ADDRESS_INPUT_ID,
                     MEMORY_VALUE_INPUT_ID,
                     REGISTER_NAME_INPUT_ID,
                     REGISTER_VALUE_INPUT_ID,
+                    REGISTER_INLINE_INPUT_ID,
                     MEMORY_INLINE_INPUT_ID,
                 ];
 
@@ -951,7 +961,6 @@ impl DesktopApp {
                     self.import_file();
                 }
             }
-            Message::RegisterSelected(register) => self.select_register(register),
             Message::RegisterNameChanged(value) => {
                 // Mirror focus into our cosmetic tracker so the shell
                 // border updates the same frame the user starts typing.
@@ -960,6 +969,8 @@ impl DesktopApp {
                 // user reaches the field via Tab and starts typing
                 // before the next click event arrives.
                 self.change_register_name(value);
+                self.active_register_target = None;
+                self.inline_register_target = None;
                 self.focused_input = Some(REGISTER_NAME_INPUT_ID);
             }
             Message::RegisterPrevious => self.step_register(-1),
@@ -973,6 +984,8 @@ impl DesktopApp {
                 // clicked input. The authoritative focus mutation
                 // happens in `MousePressed` -> `reconcile_focus_at`.
                 self.change_register_value(value);
+                self.active_register_target = None;
+                self.inline_register_target = None;
                 self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
             }
             Message::ApplyRegister => {
@@ -981,6 +994,30 @@ impl DesktopApp {
                         .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
                 }
                 return self.apply_register_and_step(self.keyboard_modifiers.shift());
+            }
+            Message::RegisterSelected(target) => self.select_register_target(target),
+            Message::RegisterEnter(target) => {
+                self.enter_inline_register(target);
+                self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
+                return Task::done(Message::RefocusInlineRegister);
+            }
+            Message::RefocusInlineRegister => {
+                return iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID);
+            }
+            Message::InlineRegisterValueChanged(target, value) => {
+                self.change_inline_register_value(target, value);
+                self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
+            }
+            Message::ApplyInlineRegisterValue(target) => {
+                return self.apply_inline_register_value(target, self.keyboard_modifiers.shift());
+            }
+            Message::RegisterHoverStarted(target) => {
+                self.hovered_register_target = Some(target);
+            }
+            Message::RegisterHoverEnded(target) => {
+                if self.hovered_register_target == Some(target) {
+                    self.hovered_register_target = None;
+                }
             }
             Message::MemorySelected(address) => {
                 // Single-click on the row: only move the highlight.
@@ -1031,6 +1068,12 @@ impl DesktopApp {
             Message::MemoryAddressPageUp => return self.step_memory_address(-16),
             Message::MemoryAddressPageDown => return self.step_memory_address(16),
             Message::ArrowKey(direction) => return self.handle_arrow_key(direction),
+            Message::HorizontalArrowKey(direction) => {
+                return self.handle_horizontal_arrow_key(direction);
+            }
+            Message::RegisterCtrlArrowKey(direction) => {
+                return self.navigate_inline_register_target(direction);
+            }
             Message::MemoryScrolled(offset, viewport_height) => {
                 self.memory_viewport_height = viewport_height;
                 self.scroll_memory(offset);
@@ -1189,6 +1232,9 @@ impl DesktopApp {
                 let resolve =
                     iced::advanced::widget::operate(crate::runtime::find_focused_optional())
                         .map(Message::ResolveFocusedTracker);
+                if self.focused_input == Some(REGISTER_INLINE_INPUT_ID) {
+                    return self.cancel_inline_register_edit().chain(resolve);
+                }
                 if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
                     return self.cancel_inline_memory_edit().chain(resolve);
                 }
@@ -1206,6 +1252,10 @@ impl DesktopApp {
                 // `ApplyInlineMemoryValue`, …) before this branch
                 // ever ran.
                 //
+                if let Some(target) = self.active_register_target {
+                    return Task::done(Message::RegisterEnter(target));
+                }
+
                 // Re-enter inline editing for whichever row the
                 // memory address spinner is currently pointing at.
                 // The spinner mirrors the highlight, so this is the
@@ -1603,6 +1653,10 @@ impl DesktopApp {
                     }),
                     _,
                 ) if modifiers.command() => {
+                    if let Some(direction) = register_inline::ctrl_arrow_move(&key, modifiers) {
+                        return Some(Message::RegisterCtrlArrowKey(direction));
+                    }
+
                     let latin = key.to_latin(physical_key)?;
                     // The match arms read `(letter, shift, alt)`. Alt is
                     // tracked explicitly so the legacy save/open
@@ -1708,6 +1762,12 @@ impl DesktopApp {
                     keyboard::Key::Named(keyboard::key::Named::ArrowDown) => {
                         Some(Message::ArrowKey(-1))
                     }
+                    keyboard::Key::Named(keyboard::key::Named::ArrowLeft) => {
+                        Some(Message::HorizontalArrowKey(-1))
+                    }
+                    keyboard::Key::Named(keyboard::key::Named::ArrowRight) => {
+                        Some(Message::HorizontalArrowKey(1))
+                    }
                     keyboard::Key::Named(keyboard::key::Named::PageUp) => {
                         Some(Message::MemoryAddressPageUp)
                     }
@@ -1808,6 +1868,10 @@ impl DesktopApp {
                 self.step_register_value_input(direction);
                 Task::none()
             }
+            Some(REGISTER_INLINE_INPUT_ID) => {
+                self.step_register_value_input(direction);
+                iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID)
+            }
             Some(MEMORY_VALUE_INPUT_ID) => {
                 self.step_memory_value_input(direction);
                 Task::none()
@@ -1843,11 +1907,32 @@ impl DesktopApp {
                 let scroll = self.step_memory_address_browse(-direction);
                 scroll.chain(Task::done(Message::RefocusInline))
             }
+            None if self.active_register_target.is_some() => {
+                let movement = if direction > 0 {
+                    RegisterMove::Up
+                } else {
+                    RegisterMove::Down
+                };
+                self.navigate_active_register_target(movement);
+                Task::none()
+            }
             // Memory address field and "no focus" both fall through to
             // memory navigation: stepping the address there *is* what the
             // user wants, and the unfocused case keeps the legacy global
             // shortcut.
             _ => self.step_memory_address(-direction),
         }
+    }
+
+    fn handle_horizontal_arrow_key(&mut self, direction: i32) -> Task<Message> {
+        if self.focused_input.is_none() && self.active_register_target.is_some() {
+            let movement = if direction < 0 {
+                RegisterMove::Left
+            } else {
+                RegisterMove::Right
+            };
+            self.navigate_active_register_target(movement);
+        }
+        Task::none()
     }
 }

@@ -6,53 +6,11 @@ use iced::widget::button;
 use iced::{Background, Border, Color};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BORDER, TOKYO_MUTED, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE,
-    TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT,
+    TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_RED, TOKYO_SURFACE, TOKYO_SURFACE_2,
+    TOKYO_SURFACE_3, TOKYO_TEXT,
 };
 
-/// Capsule-shaped button used by `functional_block` (Аккумулятор /
-/// Буферный регистр 1 / Буферный регистр 2) on the schematic plate.
-///
-/// Resting state has no fill: the border is what makes every
-/// schematic slot read as part of one outline-only family. Hover and
-/// press temporarily raise the surface tone so the chip still
-/// telegraphs interactivity.
-///
-/// The per-chip accent only paints the border under hover/press/
-/// selected. Resting frames stay neutral so the row does not flare
-/// with coloured outlines just because the cursor passes by.
-pub(crate) fn schematic_block_button_style(
-    status: button::Status,
-    accent: Color,
-    selected: bool,
-) -> button::Style {
-    let active = is_button_active(status);
-    let background = if selected {
-        Some(Color::from_rgba8(0xBB, 0x9A, 0xF7, 0.18))
-    } else if active {
-        Some(TOKYO_SURFACE_3)
-    } else {
-        None
-    };
-    let border_color = if active || selected {
-        accent
-    } else {
-        TOKYO_BORDER
-    };
-
-    button::Style {
-        background: background.map(Background::Color),
-        text_color: TOKYO_TEXT,
-        border: Border {
-            radius: 6.0.into(),
-            width: if selected { 1.5 } else { 1.0 },
-            color: border_color,
-        },
-        ..button::Style::default()
-    }
-}
-
-pub(crate) fn is_button_active(status: button::Status) -> bool {
+fn is_button_active(status: button::Status) -> bool {
     matches!(status, button::Status::Hovered | button::Status::Pressed)
 }
 
@@ -66,7 +24,7 @@ pub(crate) fn is_button_active(status: button::Status) -> bool {
 /// flaring up a coloured frame whenever the cursor lands on a chip.
 ///
 /// `Disabled` is its own visual branch: the surface stays at the
-/// resting `TOKYO_BG` tone, but the border drops to the same low-alpha
+/// resting `TOKYO_BOARD` tone, but the border drops to the same low-alpha
 /// tint the menu separator uses and the text colour fades to
 /// `TOKYO_MUTED`. The glyph itself is greyed out by
 /// `icon_action_button_glyph_color` (called from the chip widget when
@@ -79,7 +37,7 @@ pub(crate) fn action_button_style(status: button::Status) -> button::Style {
     let background = match status {
         button::Status::Pressed => TOKYO_SURFACE_2,
         button::Status::Hovered => TOKYO_SURFACE,
-        _ => TOKYO_BG,
+        _ => TOKYO_BOARD,
     };
     let border_color = if disabled {
         Color {
@@ -112,7 +70,7 @@ pub(crate) fn enter_button_style(status: button::Status) -> button::Style {
     let background = match status {
         button::Status::Pressed => TOKYO_SURFACE_2,
         button::Status::Hovered => TOKYO_SURFACE,
-        _ => TOKYO_BG,
+        _ => TOKYO_BOARD,
     };
 
     button::Style {
@@ -191,37 +149,6 @@ pub(crate) fn step_button_style(status: button::Status) -> button::Style {
     }
 }
 
-pub(crate) fn schematic_select_button_style(
-    status: button::Status,
-    selected: bool,
-) -> button::Style {
-    let background = if selected {
-        Some(TOKYO_SELECTION_BLUE)
-    } else {
-        match status {
-            button::Status::Hovered => Some(TOKYO_SURFACE),
-            button::Status::Pressed => Some(TOKYO_SURFACE_2),
-            _ => None,
-        }
-    };
-    let (border_width, border_color) = if selected || is_button_active(status) {
-        (0.0, Color::TRANSPARENT)
-    } else {
-        (1.0, TOKYO_BORDER)
-    };
-
-    button::Style {
-        background: background.map(Background::Color),
-        text_color: TOKYO_TEXT,
-        border: Border {
-            radius: 4.0.into(),
-            width: border_width,
-            color: border_color,
-        },
-        ..button::Style::default()
-    }
-}
-
 pub(crate) fn opcode_option_style(status: button::Status) -> button::Style {
     let background = if is_button_active(status) {
         TOKYO_SURFACE_3
@@ -285,5 +212,27 @@ pub(crate) fn close_caption_button_style(status: button::Status) -> button::Styl
             ..Border::default()
         },
         ..button::Style::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::theme::TOKYO_BOARD;
+    use super::*;
+
+    #[test]
+    fn action_button_resting_background_matches_app_plate() {
+        let active = action_button_style(button::Status::Active);
+        let disabled = action_button_style(button::Status::Disabled);
+
+        assert_eq!(active.background, Some(Background::Color(TOKYO_BOARD)));
+        assert_eq!(disabled.background, Some(Background::Color(TOKYO_BOARD)));
+    }
+
+    #[test]
+    fn enter_button_resting_background_matches_app_plate() {
+        let style = enter_button_style(button::Status::Active);
+
+        assert_eq!(style.background, Some(Background::Color(TOKYO_BOARD)));
     }
 }

@@ -23,14 +23,25 @@
 //! - `functional_block` — clickable register chip (`Аккумулятор`,
 //!   `Буферный регистр 1`, `Буферный регистр 2`).
 
-use iced::widget::{Space, button, column, container, row, svg, tooltip};
-use iced::{Color, Element, Length, Padding, alignment};
+use iced::widget::{Space, button, column, container, mouse_area, row, svg, text_input, tooltip};
+use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
 use k580_core::Cpu8080State;
 use std::time::Duration;
 
-use super::styles::{inset_style, schematic_block_button_style, schematic_block_style};
-use super::theme::{TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT, mono_text, ui_text};
-use crate::app::Message;
+use super::styles::inline_value_input_style;
+use super::styles::{action_button_style, inset_style, schematic_block_style};
+use super::theme::{
+    MONO_FONT, TOKYO_MUTED, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE, TOKYO_TEXT, mono_text,
+    ui_text,
+};
+use crate::app::{Message, REGISTER_INLINE_INPUT_ID, RegisterInlineTarget};
+
+#[derive(Clone, Copy)]
+pub(super) struct FunctionalBlockState {
+    pub(super) selected: bool,
+    pub(super) editing: bool,
+    pub(super) hovered: bool,
+}
 
 pub(super) fn schematic_readout(
     label: impl Into<String>,
@@ -164,13 +175,11 @@ fn flag_dot(label: &'static str, active: bool) -> Element<'static, Message> {
 
 /// Single peripheral chip on the bottom row of the schematic plate.
 /// Replaces the older two-line "MON / Ready" textual block with a tinted
-/// SVG glyph inside the same `schematic_block_style` chassis, plus a
+/// SVG glyph inside the same neutral button chassis as the action chips, plus a
 /// hover tooltip that reuses the editor `inset_style` so it visually
 /// belongs to the same chrome family as the action-panel tooltips. The
-/// chip is rendered as a plain `container`, not a `button` — the user
-/// asked for tooltips only at this stage; no per-chip click handler is
-/// wired yet, and a no-op `button` would advertise an interaction the
-/// chip does not have.
+/// chip intentionally dispatches an empty `MenuBatch`: it has no command
+/// yet, but iced only exposes hover status for interactive buttons.
 pub(super) fn device_chip(
     handle: svg::Handle,
     accent: Color,
@@ -187,13 +196,19 @@ pub(super) fn device_chip(
             color: Some(accent),
         });
 
-    let face = container(glyph)
-        .padding(0)
-        .width(Length::Fixed(CHIP_WIDTH))
-        .height(Length::Fixed(CHIP_HEIGHT))
-        .align_x(alignment::Horizontal::Center)
-        .align_y(alignment::Vertical::Center)
-        .style(schematic_block_style);
+    let face = button(
+        container(glyph)
+            .padding(0)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+    )
+    .on_press(Message::MenuBatch(Vec::new()))
+    .padding(0)
+    .width(Length::Fixed(CHIP_WIDTH))
+    .height(Length::Fixed(CHIP_HEIGHT))
+    .style(|_theme, status| action_button_style(status));
 
     let body = container(ui_text(hint, 12, TOKYO_TEXT))
         .padding(Padding {
@@ -212,12 +227,14 @@ pub(super) fn device_chip(
         .into()
 }
 
-pub(super) fn functional_block(
-    title: impl Into<String>,
-    value: impl Into<String>,
+pub(super) fn functional_block<'a>(
+    title: &'static str,
+    value: String,
     accent: Color,
-    message: Message,
-) -> Element<'static, Message> {
+    target: RegisterInlineTarget,
+    state: FunctionalBlockState,
+    input_value: &'a str,
+) -> Element<'a, Message> {
     // Same fixed footprint as `schematic_readout` so the two helpers visually
     // line up when used in the same row (Аккумулятор / Буферный регистр 1 /
     // Регистр признаков; Буферный регистр 2 / Регистр команд). 134×60 fits
@@ -227,23 +244,71 @@ pub(super) fn functional_block(
     // centring directive actually has room to act on — without it the
     // column hugs the longest child and shorter labels slide left.
     //
-    // Style routes through `schematic_block_button_style` so the resting
-    // chip matches the outline-only readouts. Hover/press still climb to
-    // `TOKYO_SURFACE_3` so the chip telegraphs interactivity without
-    // reintroducing a permanent block fill.
-    button(
-        column![
-            ui_text(title, 11, TOKYO_MUTED),
-            mono_text(value, 24, accent),
-        ]
+    // The custom container style keeps the resting chip matched to the
+    // outline-only readouts. Hover/editing only raise the fill tone while
+    // the frame stays neutral.
+    let value: Element<'_, Message> = if state.editing {
+        container(
+            text_input("00", input_value)
+                .id(REGISTER_INLINE_INPUT_ID)
+                .on_input(move |value| Message::InlineRegisterValueChanged(target, value))
+                .on_submit(Message::ApplyInlineRegisterValue(target))
+                .font(MONO_FONT)
+                .size(24)
+                .padding(0)
+                .align_x(alignment::Horizontal::Center)
+                .width(Length::Fill)
+                .style(inline_value_input_style),
+        )
+        .width(Length::Fixed(54.0))
         .align_x(alignment::Horizontal::Center)
-        .width(Length::Fill)
-        .spacing(2),
+        .into()
+    } else {
+        mouse_area(
+            container(mono_text(value, 24, accent).align_x(alignment::Horizontal::Center))
+                .width(Length::Fixed(54.0))
+                .align_x(alignment::Horizontal::Center),
+        )
+        .on_press(Message::RegisterEnter(target))
+        .on_double_click(Message::RegisterEnter(target))
+        .interaction(iced::mouse::Interaction::Pointer)
+        .into()
+    };
+
+    let face = container(
+        column![ui_text(title, 11, TOKYO_MUTED), value,]
+            .align_x(alignment::Horizontal::Center)
+            .width(Length::Fill)
+            .spacing(2),
     )
-    .on_press(message)
     .padding(8)
     .width(Length::Fixed(134.0))
     .height(Length::Fixed(60.0))
-    .style(move |_theme, status| schematic_block_button_style(status, accent, false))
-    .into()
+    .align_x(alignment::Horizontal::Center)
+    .style(move |theme| {
+        functional_block_style(theme, state.selected, state.hovered || state.editing)
+    });
+
+    let area = mouse_area(face)
+        .on_enter(Message::RegisterHoverStarted(target))
+        .on_exit(Message::RegisterHoverEnded(target))
+        .interaction(iced::mouse::Interaction::Pointer);
+
+    if state.editing {
+        area.into()
+    } else {
+        area.on_press(Message::RegisterSelected(target))
+            .on_double_click(Message::RegisterEnter(target))
+            .into()
+    }
+}
+
+fn functional_block_style(theme: &Theme, selected: bool, active: bool) -> container::Style {
+    let mut style = schematic_block_style(theme);
+    if selected {
+        style.background = Some(Background::Color(TOKYO_SELECTION_BLUE));
+    } else if active {
+        style.background = Some(Background::Color(TOKYO_SURFACE));
+    }
+    style
 }

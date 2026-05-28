@@ -16,6 +16,8 @@ use super::parse::{
 
 impl DesktopApp {
     pub(crate) fn select_memory(&mut self, address: u16) {
+        self.active_register_target = None;
+        self.inline_register_target = None;
         self.opcode_dropdown_address = None;
         self.opcode_search_input.clear();
         self.set_memory_address(address);

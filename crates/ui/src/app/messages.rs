@@ -5,6 +5,7 @@
 //! messages should be added here together with a one-paragraph doc that
 //! explains what user gesture maps to them.
 
+use super::register_inline::RegisterMove;
 use iced::Point;
 use iced::keyboard;
 use k580_core::RegisterName;
@@ -50,6 +51,20 @@ pub(crate) enum SpeedTier {
     Medium,
     High,
     Max,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RegisterInlineTarget {
+    Schematic(RegisterName),
+    Mux(RegisterName),
+}
+
+impl RegisterInlineTarget {
+    pub(crate) fn register(self) -> RegisterName {
+        match self {
+            Self::Schematic(register) | Self::Mux(register) => register,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -134,12 +149,18 @@ pub(crate) enum Message {
     /// imports so the user does not pick the format twice
     /// (extension + dialog filter).
     Import,
-    RegisterSelected(RegisterName),
     RegisterNameChanged(String),
     RegisterPrevious,
     RegisterNext,
     RegisterValueChanged(String),
     ApplyRegister,
+    RegisterSelected(RegisterInlineTarget),
+    RegisterEnter(RegisterInlineTarget),
+    RefocusInlineRegister,
+    InlineRegisterValueChanged(RegisterInlineTarget, String),
+    ApplyInlineRegisterValue(RegisterInlineTarget),
+    RegisterHoverStarted(RegisterInlineTarget),
+    RegisterHoverEnded(RegisterInlineTarget),
     /// Single-click on a memory row: select the address (move the
     /// highlight onto it) but do **not** focus the inline value editor.
     /// The user has to either click the value cell directly or
@@ -172,6 +193,11 @@ pub(crate) enum Message {
     /// focus, so the very same key changes a register byte in one place
     /// and scrolls the memory list in another, depending on context.
     ArrowKey(i32),
+    HorizontalArrowKey(i32),
+    /// Ctrl+Arrow while an inline register editor owns the caret. This
+    /// bypasses the text-input cursor movement and keeps navigation on
+    /// register cells instead.
+    RegisterCtrlArrowKey(RegisterMove),
     MemoryScrolled(f32, f32),
     JumpMemoryAddress,
     MemoryAddressChanged(String),

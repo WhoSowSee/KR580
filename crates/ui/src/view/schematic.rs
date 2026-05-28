@@ -11,18 +11,19 @@ use iced::{Element, Length, Padding, alignment};
 use k580_core::{Cpu8080State, RegisterName, decode_opcode};
 
 use super::chips::{
-    device_chip, flag_strip, functional_block, schematic_mnemonic_readout, schematic_readout,
-    schematic_wide_readout,
+    FunctionalBlockState, device_chip, flag_strip, functional_block, schematic_mnemonic_readout,
+    schematic_readout, schematic_wide_readout,
 };
 use super::icons;
 use super::lamps::control_lamps;
+use super::mux::MuxRegisterValues;
 use super::styles::{schematic_block_style, schematic_board_style};
 use super::theme::{
     TOKYO_BLUE, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT,
     TOKYO_YELLOW, mono_text, ui_text,
 };
 use super::widgets::legend_panel_left;
-use crate::app::{DesktopApp, Message, SpeedTier};
+use crate::app::{DesktopApp, Message, RegisterInlineTarget, SpeedTier};
 
 const MAIN_TO_BOTTOM_SPACING: f32 = 8.0;
 
@@ -73,27 +74,52 @@ impl DesktopApp {
         .spacing(18)
         .align_y(alignment::Vertical::Center);
 
+        let accumulator_target = RegisterInlineTarget::Schematic(RegisterName::A);
+        let buffer1_target = RegisterInlineTarget::Schematic(RegisterName::B);
+        let buffer2_target = RegisterInlineTarget::Schematic(RegisterName::C);
+        let active_target = self.active_register_target;
+        let inline_target = self.inline_register_target;
+        let hovered_target = self.hovered_register_target;
+
         let registers_grid = column![
             row![
                 functional_block(
                     "Аккумулятор",
-                    format!("{:02X}", cpu.registers.a),
+                    self.display_register_value(RegisterName::A),
                     TOKYO_GREEN,
-                    Message::RegisterSelected(RegisterName::A),
+                    accumulator_target,
+                    FunctionalBlockState {
+                        selected: active_target == Some(accumulator_target),
+                        editing: inline_target == Some(accumulator_target),
+                        hovered: hovered_target == Some(accumulator_target),
+                    },
+                    &self.register_value_input,
                 ),
                 Space::new().width(Length::Fill),
                 functional_block(
                     "Буферный регистр 1",
-                    format!("{:02X}", cpu.registers.b),
+                    self.display_register_value(RegisterName::B),
                     TOKYO_GREEN,
-                    Message::RegisterSelected(RegisterName::B),
+                    buffer1_target,
+                    FunctionalBlockState {
+                        selected: active_target == Some(buffer1_target),
+                        editing: inline_target == Some(buffer1_target),
+                        hovered: hovered_target == Some(buffer1_target),
+                    },
+                    &self.register_value_input,
                 ),
                 Space::new().width(Length::Fill),
                 functional_block(
                     "Буферный регистр 2",
-                    format!("{:02X}", cpu.registers.c),
+                    self.display_register_value(RegisterName::C),
                     TOKYO_GREEN,
-                    Message::RegisterSelected(RegisterName::C),
+                    buffer2_target,
+                    FunctionalBlockState {
+                        selected: active_target == Some(buffer2_target),
+                        editing: inline_target == Some(buffer2_target),
+                        hovered: hovered_target == Some(buffer2_target),
+                    },
+                    &self.register_value_input,
                 ),
             ]
             .spacing(14),
@@ -172,7 +198,22 @@ impl DesktopApp {
                 TOKYO_GREEN,
             ),
             schematic_wide_readout("Регистр признаков", flag_bits, TOKYO_GREEN),
-            mux_panel(cpu, self.selected_register),
+            mux_panel(
+                cpu,
+                self.selected_register,
+                self.inline_register_target,
+                self.active_register_target,
+                self.hovered_register_target,
+                &self.register_value_input,
+                MuxRegisterValues {
+                    b: self.display_register_value(RegisterName::B),
+                    c: self.display_register_value(RegisterName::C),
+                    d: self.display_register_value(RegisterName::D),
+                    e: self.display_register_value(RegisterName::E),
+                    h: self.display_register_value(RegisterName::H),
+                    l: self.display_register_value(RegisterName::L),
+                },
+            ),
             status_register_block,
         ]
         .spacing(12)
@@ -228,7 +269,7 @@ impl DesktopApp {
             speed_panel(self.speed_tier),
         ]
         .spacing(24)
-        .align_y(alignment::Vertical::Center);
+        .align_y(alignment::Vertical::Bottom);
 
         let content = column![top, bottom]
             .spacing(MAIN_TO_BOTTOM_SPACING)
@@ -263,8 +304,24 @@ impl DesktopApp {
 /// `super::mux` to keep this file under the workspace's 400-line
 /// ceiling. Re-exported here as a one-liner so the call site reads
 /// the same way it did before the split.
-fn mux_panel(cpu: &Cpu8080State, selected: RegisterName) -> Element<'static, Message> {
-    super::mux::mux_panel(cpu, selected)
+fn mux_panel<'a>(
+    cpu: &Cpu8080State,
+    selected: RegisterName,
+    inline_target: Option<RegisterInlineTarget>,
+    active_target: Option<RegisterInlineTarget>,
+    hovered_target: Option<RegisterInlineTarget>,
+    input_value: &'a str,
+    values: MuxRegisterValues,
+) -> Element<'a, Message> {
+    super::mux::mux_panel(
+        cpu,
+        selected,
+        inline_target,
+        active_target,
+        hovered_target,
+        input_value,
+        values,
+    )
 }
 
 /// Four-tier speed switch — implementation lives in `super::speed`

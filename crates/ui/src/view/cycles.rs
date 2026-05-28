@@ -219,6 +219,10 @@ fn total_tacts_text(cpu: &Cpu8080State) -> String {
     }
 }
 
+fn cycle_timing_spacer_width() -> Length {
+    Length::Fill
+}
+
 pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
     // «Активная» позиция: где сейчас находится исполнение. Для
     // отображения по M-циклам (M / T в текущем M-цикле) при
@@ -334,9 +338,10 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
 
     row![
         cycle_block,
-        Space::new().width(Length::Fixed(12.0)),
+        Space::new().width(cycle_timing_spacer_width()),
         our_block
     ]
+    .width(Length::Fill)
     .into()
 }
 
@@ -353,6 +358,11 @@ mod tests {
     #[test]
     fn cycle_and_timing_blocks_share_width() {
         assert_eq!(CYCLE_BLOCK_WIDTH, TIMING_BLOCK_WIDTH);
+    }
+
+    #[test]
+    fn cycle_and_timing_blocks_are_pushed_to_opposite_edges() {
+        assert!(matches!(cycle_timing_spacer_width(), Length::Fill));
     }
 
     #[test]

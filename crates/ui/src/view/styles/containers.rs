@@ -6,7 +6,7 @@ use iced::widget::container;
 use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
-    TOKYO_BG, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_TEXT,
+    TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_TEXT,
     TOKYO_YELLOW,
 };
 
@@ -31,14 +31,12 @@ pub(crate) fn schematic_board_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
 }
 
-/// Hairline divider used under the menu bar in place of a full bubble
-/// border. Renders as a 1-px container filled with the regular
-/// `TOKYO_BORDER` tone, so the seam between the title bar and the
-/// schematic plate underneath stays visible without bringing back the
-/// rounded-corner chrome.
+/// Divider slot under the menu bar. It keeps the existing 1-px layout
+/// rhythm for dropdown positioning, but paints the same colour as the
+/// app plate so the visual separator disappears.
 pub(crate) fn menu_bar_divider_style(_theme: &Theme) -> container::Style {
     container::Style {
-        background: Some(Background::Color(TOKYO_BORDER)),
+        background: Some(Background::Color(TOKYO_BOARD)),
         border: Border {
             radius: 0.0.into(),
             width: 0.0,
@@ -167,7 +165,7 @@ pub(crate) fn transparent_style(_theme: &Theme) -> container::Style {
 pub(crate) fn input_shell_style(_theme: &Theme, focused: bool) -> container::Style {
     let border_color = if focused { TOKYO_BLUE } else { TOKYO_BORDER };
 
-    surface_style(Some(TOKYO_BG), 6.0, 1.0, border_color)
+    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, border_color)
 }
 
 pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
@@ -283,5 +281,21 @@ mod tests {
         let status = status_tooltip_style(&Theme::TokyoNight);
 
         assert_eq!(inset.background, status.background);
+    }
+
+    #[test]
+    fn input_shell_background_matches_app_plate() {
+        let idle = input_shell_style(&Theme::TokyoNight, false);
+        let focused = input_shell_style(&Theme::TokyoNight, true);
+
+        assert_eq!(idle.background, Some(Background::Color(TOKYO_BOARD)));
+        assert_eq!(focused.background, Some(Background::Color(TOKYO_BOARD)));
+    }
+
+    #[test]
+    fn menu_bar_divider_paints_as_app_plate() {
+        let divider = menu_bar_divider_style(&Theme::TokyoNight);
+
+        assert_eq!(divider.background, Some(Background::Color(TOKYO_BOARD)));
     }
 }

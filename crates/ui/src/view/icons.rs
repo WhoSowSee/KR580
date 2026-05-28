@@ -42,6 +42,8 @@ static REFRESH_CCW: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("refresh-ccw").as_slice()));
 static RESET_REGISTERS: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("reset-registers").as_slice()));
+static CHEVRONS_LEFT: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("chevrons-left").as_slice()));
 static CHEVRONS_RIGHT: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("chevrons-right").as_slice()));
 static FILE: LazyLock<svg::Handle> =
@@ -124,9 +126,15 @@ pub(super) fn reset_registers() -> svg::Handle {
     RESET_REGISTERS.clone()
 }
 
+/// Lucide `chevrons-left` — twin left-pointing chevrons. Used as the
+/// speed stepper's left-side button.
+pub(super) fn chevrons_left() -> svg::Handle {
+    CHEVRONS_LEFT.clone()
+}
+
 /// Lucide `chevrons-right` — twin right-pointing chevrons. Used as the
 /// glyph for the "apply" (Enter) buttons next to the memory cell and
-/// register value editors. Reads as "commit and move on".
+/// register value editors, and as the speed stepper's right-side button.
 pub(super) fn chevrons_right() -> svg::Handle {
     CHEVRONS_RIGHT.clone()
 }

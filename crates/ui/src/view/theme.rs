@@ -12,7 +12,7 @@ pub(super) const MONO_FONT: Font = Font::MONOSPACE;
 
 pub(super) const TOKYO_BG: Color = Color::from_rgb8(0x1A, 0x1B, 0x26);
 pub(super) const TOKYO_BOARD: Color = Color::from_rgb8(0x12, 0x13, 0x20);
-pub(super) const TOKYO_SURFACE: Color = Color::from_rgb8(0x24, 0x28, 0x3B);
+pub(super) const TOKYO_SURFACE: Color = Color::from_rgb8(0x1D, 0x20, 0x30);
 pub(super) const TOKYO_SURFACE_2: Color = Color::from_rgb8(0x2F, 0x33, 0x4D);
 pub(super) const TOKYO_SURFACE_3: Color = Color::from_rgb8(0x36, 0x3B, 0x59);
 pub(super) const TOKYO_BORDER: Color = Color::from_rgb8(0x41, 0x48, 0x68);

@@ -22,6 +22,7 @@ pub(crate) const MEMORY_ADDRESS_INPUT_ID: &str = "memory-address-input";
 pub(crate) const MEMORY_VALUE_INPUT_ID: &str = "memory-value-input";
 pub(crate) const REGISTER_NAME_INPUT_ID: &str = "register-name-input";
 pub(crate) const REGISTER_VALUE_INPUT_ID: &str = "register-value-input";
+pub(crate) const REGISTER_INLINE_INPUT_ID: &str = "register-inline-input";
 /// The inline value editor inside the memory list. Only one such input is
 /// rendered at a time (for the currently selected address), so a single ID
 /// keeps focus continuity when the user steps from one row to the next.
