@@ -29,9 +29,8 @@ const GAUGE_SEGMENT_WIDTH: f32 = 4.0;
 const GAUGE_SEGMENT_HEIGHT: f32 = 18.0;
 const GAUGE_SEGMENT_GAP: f32 = 5.0;
 const GAUGE_READOUT_SPACING: f32 = 4.0;
-const GAUGE_ACTIVE_EDGE_HEIGHT: f32 = 0.78;
-const GAUGE_INACTIVE_EDGE_HEIGHT: f32 = 0.55;
-const GAUGE_INACTIVE_CENTER_HEIGHT: f32 = 0.78;
+const GAUGE_WAVE_EDGE_HEIGHT: f32 = 0.55;
+const GAUGE_WAVE_CENTER_HEIGHT: f32 = 0.78;
 const GAUGE_HALO_SEGMENTS: usize = 4;
 const SPEED_READOUT_UNIT: &str = "инстр/сек";
 
@@ -128,7 +127,7 @@ fn gauge_row(active: SpeedTier) -> Element<'static, Message> {
 
 fn gauge_segment(index: usize, active: SpeedTier) -> Element<'static, Message> {
     let color = gauge_segment_color(index, active);
-    let height = gauge_segment_height(index, active);
+    let height = gauge_segment_height(index);
 
     container(Space::new())
         .width(Length::Fixed(GAUGE_SEGMENT_WIDTH))
@@ -169,17 +168,10 @@ fn gauge_segment_color(index: usize, active: SpeedTier) -> Color {
     }
 }
 
-fn gauge_segment_height(index: usize, active: SpeedTier) -> f32 {
-    let (start, end) = active_segment_range(active);
-
-    let factor = if (start..end).contains(&index) {
-        let strength = active_segment_strength(index, start, end);
-        GAUGE_ACTIVE_EDGE_HEIGHT + (1.0 - GAUGE_ACTIVE_EDGE_HEIGHT) * strength
-    } else {
-        let strength = whole_gauge_strength(index);
-        GAUGE_INACTIVE_EDGE_HEIGHT
-            + (GAUGE_INACTIVE_CENTER_HEIGHT - GAUGE_INACTIVE_EDGE_HEIGHT) * strength
-    };
+fn gauge_segment_height(index: usize) -> f32 {
+    let strength = whole_gauge_strength(index);
+    let factor =
+        GAUGE_WAVE_EDGE_HEIGHT + (GAUGE_WAVE_CENTER_HEIGHT - GAUGE_WAVE_EDGE_HEIGHT) * strength;
 
     GAUGE_SEGMENT_HEIGHT * factor
 }
@@ -331,18 +323,18 @@ mod tests {
     }
 
     #[test]
-    fn active_gauge_wave_tapers_toward_edges() {
-        let center = gauge_segment_height(9, SpeedTier::Medium);
-        let edge = gauge_segment_height(5, SpeedTier::Medium);
+    fn gauge_wave_tapers_toward_edges() {
+        let center = gauge_segment_height(9);
+        let edge = gauge_segment_height(5);
 
         assert!(std::hint::black_box(center > edge));
         assert!(std::hint::black_box(edge > GAUGE_SEGMENT_HEIGHT * 0.6));
     }
 
     #[test]
-    fn inactive_gauge_segments_taper_toward_panel_edges() {
-        let near_active = gauge_segment_height(4, SpeedTier::Medium);
-        let outer_edge = gauge_segment_height(0, SpeedTier::Medium);
+    fn gauge_wave_keeps_outer_segments_shorter() {
+        let near_active = gauge_segment_height(4);
+        let outer_edge = gauge_segment_height(0);
 
         assert!(std::hint::black_box(near_active > outer_edge));
         assert!(std::hint::black_box(near_active < GAUGE_SEGMENT_HEIGHT));
@@ -350,9 +342,25 @@ mod tests {
     }
 
     #[test]
+    fn lighting_gauge_segment_changes_color_without_changing_height() {
+        let segment = 5;
+        let slow_range = active_segment_range(SpeedTier::Slow);
+        let medium_range = active_segment_range(SpeedTier::Medium);
+        let inactive_height = gauge_segment_height(segment);
+        let inactive_color = gauge_segment_color(segment, SpeedTier::Slow);
+        let active_height = gauge_segment_height(segment);
+        let active_color = gauge_segment_color(segment, SpeedTier::Medium);
+
+        assert!(!std::hint::black_box(slow_range.0..slow_range.1).contains(&segment));
+        assert!(std::hint::black_box(medium_range.0..medium_range.1).contains(&segment));
+        assert_eq!(std::hint::black_box(active_height), inactive_height);
+        assert_ne!(std::hint::black_box(active_color), inactive_color);
+    }
+
+    #[test]
     fn max_gauge_wave_still_tapers_toward_panel_edges() {
-        let center = gauge_segment_height(9, SpeedTier::Max);
-        let outer_edge = gauge_segment_height(0, SpeedTier::Max);
+        let center = gauge_segment_height(9);
+        let outer_edge = gauge_segment_height(0);
 
         assert!(std::hint::black_box(center > outer_edge));
     }

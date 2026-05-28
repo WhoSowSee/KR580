@@ -986,11 +986,11 @@ the monitor".
 
 The centre gauge always renders 20 small vertical segments. The active
 tier lights a centred band of 5 / 10 / 15 / 20 segments for Slow /
-Medium / High / Max respectively. The active band is tallest in the
-middle and tapers toward its edges; inactive segments now ride the same
-overall wave envelope instead of staying full-height, and neighbouring
-inactive bars receive a very light magenta halo that fades back into
-`TOKYO_SURFACE_2` over four segments. The text below shows the resolved
+Medium / High / Max respectively. Every segment keeps a fixed height
+from the whole-gauge wave envelope, so changing tiers only recolours
+segments instead of resizing them. Neighbouring inactive bars receive
+a very light magenta halo that fades back into `TOKYO_SURFACE_2` over
+four segments. The text below shows the resolved
 `tier_hz(active)` value as CPU instructions per second: the paced run loop
 executes one CPU instruction per worker tick, while `step_tact` remains
 the separate tact-level debug control. The chevron buttons use the same
