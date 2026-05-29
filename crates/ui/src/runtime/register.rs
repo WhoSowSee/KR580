@@ -42,6 +42,7 @@ impl DesktopApp {
         );
         self.active_register_target = Some(target);
         self.inline_register_target = Some(target);
+        self.inline_register_just_entered = true;
     }
 
     pub(crate) fn change_register_name(&mut self, value: String) {

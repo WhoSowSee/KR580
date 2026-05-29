@@ -52,6 +52,7 @@ pub(crate) struct DesktopApp {
     /// even though `running` is already false (high-speed bursts where
     /// auto-pause clears `running` before Tick reads it).
     pub(crate) pending_follow_pc: bool,
+    pub(crate) inline_register_just_entered: bool,
     /// Set on `TactAdvanced { instruction_boundary: true }`.
     pub(crate) last_tact_was_boundary: bool,
     pub(crate) startup_frames_seen: u8,
@@ -117,6 +118,7 @@ impl DesktopApp {
                 latest_cursor_position: Point::ORIGIN,
                 running: false,
                 pending_follow_pc: false,
+                inline_register_just_entered: false,
                 last_tact_was_boundary: false,
                 startup_frames_seen: 0,
                 open_menu: None,

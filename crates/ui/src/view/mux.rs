@@ -294,7 +294,9 @@ fn mux_register_cell(
         .interaction(iced::mouse::Interaction::Pointer);
 
     if editing {
-        area.into()
+        area.on_press(Message::RegisterEnter(target))
+            .on_double_click(Message::RegisterEnter(target))
+            .into()
     } else {
         area.on_press(Message::RegisterSelected(target))
             .on_double_click(Message::RegisterEnter(target))

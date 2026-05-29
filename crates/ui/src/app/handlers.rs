@@ -61,6 +61,31 @@ impl DesktopApp {
                 .find(|known| *id == iced::widget::Id::new(known))
         });
 
+        if self.inline_register_just_entered {
+            self.inline_register_just_entered = false;
+            if let Some(id) = hit {
+                self.focused_input = resolved;
+                return iced::advanced::widget::operate(crate::runtime::unfocus_except(id))
+                    .discard();
+            }
+            return iced::advanced::widget::operate(crate::runtime::find_focused_optional())
+                .map(Message::ResolveFocusedTracker);
+        }
+
+        if self.inline_register_target.is_some()
+            && !matches!(
+                resolved,
+                Some(REGISTER_INLINE_INPUT_ID)
+                    | Some(MEMORY_INLINE_INPUT_ID)
+                    | Some(MEMORY_ADDRESS_INPUT_ID)
+                    | Some(MEMORY_VALUE_INPUT_ID)
+                    | Some(REGISTER_NAME_INPUT_ID)
+                    | Some(REGISTER_VALUE_INPUT_ID)
+            )
+        {
+            return self.cancel_inline_register_edit();
+        }
+
         if let Some(id) = hit {
             self.focused_input = resolved;
             return iced::advanced::widget::operate(crate::runtime::unfocus_except(id)).discard();

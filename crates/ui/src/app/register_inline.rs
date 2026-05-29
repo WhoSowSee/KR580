@@ -307,4 +307,54 @@ mod tests {
             None
         );
     }
+
+    #[test]
+    fn focus_reconcile_outside_inline_register_cancels_edit() {
+        use RegisterInlineTarget::Schematic;
+
+        let (mut app, _task) = DesktopApp::with_initial_path(None);
+        app.enter_inline_register(Schematic(RegisterName::A));
+        app.focused_input = Some(crate::app::REGISTER_INLINE_INPUT_ID);
+        let _task = app.handle_focus_reconciled(None);
+        assert_eq!(app.inline_register_target, Some(Schematic(RegisterName::A)));
+
+        let _task = app.handle_focus_reconciled(None);
+
+        assert_eq!(app.inline_register_target, None);
+        assert_eq!(app.focused_input, None);
+        assert_eq!(app.active_register_target, Some(Schematic(RegisterName::A)));
+    }
+
+    #[test]
+    fn focus_reconcile_on_inline_register_input_keeps_edit() {
+        use RegisterInlineTarget::Mux;
+
+        let (mut app, _task) = DesktopApp::with_initial_path(None);
+        app.enter_inline_register(Mux(RegisterName::B));
+        app.focused_input = Some(crate::app::REGISTER_INLINE_INPUT_ID);
+        let _task = app.handle_focus_reconciled(None);
+
+        let hit = iced::widget::Id::new(crate::app::REGISTER_INLINE_INPUT_ID);
+        let _task = app.handle_focus_reconciled(Some(hit));
+
+        assert_eq!(app.inline_register_target, Some(Mux(RegisterName::B)));
+        assert_eq!(
+            app.focused_input,
+            Some(crate::app::REGISTER_INLINE_INPUT_ID)
+        );
+    }
+
+    #[test]
+    fn focus_reconcile_keeps_inline_open_on_entry_frame() {
+        use RegisterInlineTarget::Mux;
+
+        let (mut app, _task) = DesktopApp::with_initial_path(None);
+        app.enter_inline_register(Mux(RegisterName::C));
+        assert!(app.inline_register_just_entered);
+
+        let _task = app.handle_focus_reconciled(None);
+
+        assert_eq!(app.inline_register_target, Some(Mux(RegisterName::C)));
+        assert!(!app.inline_register_just_entered);
+    }
 }
