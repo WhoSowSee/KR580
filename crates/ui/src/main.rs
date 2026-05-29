@@ -1,6 +1,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod app;
+mod file_assoc;
 mod platform;
 mod runtime;
 mod view;
@@ -22,12 +23,24 @@ fn main() -> iced::Result {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
-    // OS-launched `k580 path/to/snap.580` arrives as `argv[1]`.
-    // Filter to existing files so a stale shortcut leaves us empty.
-    let initial_snapshot_path: Option<PathBuf> = std::env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .filter(|path| path.is_file());
+
+    let mut args = std::env::args().skip(1);
+    let initial_arg = args.next();
+
+    if let Some(arg) = initial_arg.as_deref() {
+        match arg {
+            "--register-file-type" => {
+                return run_assoc(file_assoc::register, "Ассоциация .580 зарегистрирована");
+            }
+            "--unregister-file-type" => {
+                return run_assoc(file_assoc::unregister, "Ассоциация .580 удалена");
+            }
+            _ => {}
+        }
+    }
+
+    let initial_snapshot_path: Option<PathBuf> =
+        initial_arg.map(PathBuf::from).filter(|path| path.is_file());
     iced::application(
         move || DesktopApp::with_initial_path(initial_snapshot_path.clone()),
         DesktopApp::update,
@@ -52,6 +65,19 @@ fn main() -> iced::Result {
     // Route OS close requests through the dirty gate.
     .exit_on_close_request(false)
     .run()
+}
+
+fn run_assoc(action: fn() -> Result<(), String>, success: &str) -> iced::Result {
+    match action() {
+        Ok(()) => {
+            println!("{success}");
+            Ok(())
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::exit(1);
+        }
+    }
 }
 
 fn app_style(_state: &DesktopApp, _theme: &Theme) -> theme::Style {

@@ -9,19 +9,18 @@ fn main() {
     use std::path::PathBuf;
 
     let manifest_dir = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    // `crates/ui` -> workspace root.
     let workspace_root = manifest_dir
         .parent()
         .and_then(|p| p.parent())
         .expect("workspace root must be two levels above crates/ui");
-    let icon_path = workspace_root.join("assets").join("icons").join("icon.ico");
+    let icons_dir = workspace_root.join("assets").join("icons");
+    let icon_path = icons_dir.join("icon.ico");
+    let file_icon_path = icons_dir.join("file-580.ico");
 
     println!("cargo:rerun-if-changed={}", icon_path.display());
+    println!("cargo:rerun-if-changed={}", file_icon_path.display());
 
     if !icon_path.exists() {
-        // Don't break the build if the icon is missing — fresh
-        // checkouts must compile before the artist has run the
-        // icon script.
         println!(
             "cargo:warning=icon resource not embedded: {} is missing",
             icon_path.display()
@@ -36,9 +35,21 @@ fn main() {
             .expect("icon path must be valid UTF-8 for the resource compiler"),
     );
 
+    if file_icon_path.exists() {
+        resource.set_icon_with_id(
+            file_icon_path
+                .to_str()
+                .expect("file-icon path must be valid UTF-8 for the resource compiler"),
+            "2",
+        );
+    } else {
+        println!(
+            "cargo:warning=file-type icon not embedded: {} is missing",
+            file_icon_path.display()
+        );
+    }
+
     if let Err(error) = resource.compile() {
-        // Surface as a warning rather than fail compilation —
-        // cosmetic feature, too aggressive to block the build.
         println!("cargo:warning=failed to embed Windows icon resource: {error}");
     }
 }
