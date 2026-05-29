@@ -34,12 +34,14 @@ impl DesktopApp {
             AppEvent::SnapshotFlavourLoaded(flavour) => {
                 self.pending_snapshot_flavour = Some(flavour);
             }
-            AppEvent::HaltStateChanged(_) => {
+            AppEvent::HaltStateChanged(halted) => {
                 self.running = false;
-                // High-Hz: `running` is already false by the time Tick
-                // reads it, so the closing follow-pc runs via the pending flag.
                 self.pending_follow_pc = true;
-                self.status = "ЦП остановлен".to_owned();
+                self.status = if halted {
+                    "ЦП остановлен".to_owned()
+                } else {
+                    "Готов".to_owned()
+                };
             }
             AppEvent::ErrorRaised(error) => {
                 self.running = false;
