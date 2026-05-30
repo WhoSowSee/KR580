@@ -14,6 +14,7 @@ use super::styles::inset_style;
 use super::theme::{TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
 use super::widgets::legend_panel_left;
 use crate::app::Message;
+use crate::i18n::{Key, Lang};
 
 const CYCLE_BLOCK_WIDTH: f32 = 200.0;
 const TIMING_BLOCK_WIDTH: f32 = 200.0;
@@ -54,14 +55,14 @@ fn position_at(
 }
 
 fn labeled_row_with_tooltip(
-    label_short: &'static str,
+    label_short: &str,
     value_text: String,
-    hint: &'static str,
+    hint: &str,
 ) -> Element<'static, Message> {
     use std::time::Duration;
 
     let face = row![
-        ui_text(label_short, 12, TOKYO_MUTED),
+        ui_text(label_short.to_owned(), 12, TOKYO_MUTED),
         Space::new().width(Length::Fill),
         mono_text(value_text, 14, TOKYO_GREEN),
     ]
@@ -70,7 +71,7 @@ fn labeled_row_with_tooltip(
 
     let face_container = container(face).width(Length::Fill);
 
-    let body = container(ui_text(hint, 12, TOKYO_TEXT))
+    let body = container(ui_text(hint.to_owned(), 12, TOKYO_TEXT))
         .padding(Padding {
             top: 4.0,
             right: 8.0,
@@ -100,7 +101,7 @@ fn cycle_timing_spacer_width() -> Length {
     Length::Fill
 }
 
-pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
+pub(super) fn cycle_panels(cpu: &Cpu8080State, lang: Lang) -> Element<'_, Message> {
     let active_phase = cpu.tact_phase.or(cpu.last_completed_tact_phase);
 
     let cycle_active = position_at(cpu, active_phase, false);
@@ -121,23 +122,15 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
     };
 
     let cycle_block = container(legend_panel_left(
-        "Цикл и такт",
+        lang.t(Key::CyclesAndTacts),
         column![
             Space::new().height(Length::Fixed(CYCLE_BLOCK_BALANCE_SPACER_HEIGHT)),
             labeled_row_with_tooltip(
-                "Цикл",
+                lang.t(Key::CycleLabel),
                 cycle_text,
-                "Какой по счёту шаг сейчас выполняет команда. \
-                 Простые команды делают всё за один шаг, сложные \
-                 (например вызов подпрограммы) – за несколько.",
+                lang.t(Key::CycleTooltip),
             ),
-            labeled_row_with_tooltip(
-                "Такт",
-                tact_text,
-                "Номер такта внутри текущего шага команды. \
-                 После остановки удерживается на последнем \
-                 выполненном такте.",
-            ),
+            labeled_row_with_tooltip(lang.t(Key::TactLabel), tact_text, lang.t(Key::TactTooltip),),
             Space::new().height(Length::Fixed(CYCLE_BLOCK_BALANCE_SPACER_HEIGHT)),
         ]
         .spacing(6),
@@ -153,28 +146,22 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State) -> Element<'static, Message> {
     };
 
     let our_block = container(legend_panel_left(
-        "Внутренние тайминги",
+        lang.t(Key::InternalTimings),
         column![
             labeled_row_with_tooltip(
-                "Тактов",
+                lang.t(Key::TotalTacts),
                 total_tacts_text(cpu),
-                "Сколько тактов всего прошло с начала программы. \
-                 Сбрасывается при сбросе процессора.",
+                lang.t(Key::TotalTactsTooltip),
             ),
             labeled_row_with_tooltip(
-                "Такт инструкции",
+                lang.t(Key::InstructionTact),
                 tact_full_text,
-                "Номер такта внутри текущей команды по полной \
-                 длительности из технического описания. Считает все \
-                 такты команды подряд, в том числе те, что блок \
-                 «Цикл и такт» скрывает (например у HLT – 7, а не 4).",
+                lang.t(Key::InstructionTactTooltip),
             ),
             labeled_row_with_tooltip(
-                "Фаза",
+                lang.t(Key::PhaseLabel),
                 linear_phase_text,
-                "То же, что «Такт инструкции», но считается с нуля. \
-                 Звёздочка после числа – команда уже завершилась, \
-                 показано последнее значение.",
+                lang.t(Key::PhaseTooltip),
             ),
         ]
         .spacing(6),

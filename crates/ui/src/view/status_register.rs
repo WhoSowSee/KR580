@@ -17,6 +17,7 @@ use std::time::Duration;
 use super::styles::status_tooltip_style;
 use super::theme::{TOKYO_BLUE, TOKYO_TEXT, ui_text};
 use crate::app::Message;
+use crate::i18n::{Key, Lang};
 
 /// For conditional opcodes the taken/not-taken branches differ in
 /// length, so the current `phase` uniquely identifies the branch.
@@ -76,24 +77,28 @@ pub(super) fn status_register_bits(cpu: &Cpu8080State) -> String {
     status_bits(byte)
 }
 
-fn status_register_tooltip_body_lines(cpu: &Cpu8080State) -> [String; 2] {
-    let label = derive_status_kind(cpu).label_ru();
+fn status_register_tooltip_body_lines(cpu: &Cpu8080State, lang: Lang) -> [String; 2] {
+    let kind = derive_status_kind(cpu);
+    let label = match lang {
+        Lang::Ru => kind.label_ru(),
+        Lang::En => kind.label_en(),
+    };
     [
-        "Статусный байт T1: что процессор делает на текущем такте.\n\
-         Биты слева направо: чтение памяти, ввод, загрузка опкода, \
-         вывод, останов, стек, запись, подтверждение прерывания."
-            .to_owned(),
-        format!("Статус: {label}"),
+        lang.t(Key::StatusByteHeader).to_owned(),
+        format!("{} {label}", lang.t(Key::StatusPrefix)),
     ]
 }
 
 pub(super) fn status_register_tooltip<'a>(
     cpu: &Cpu8080State,
     face: impl Into<Element<'a, Message>>,
+    lang: Lang,
 ) -> Element<'a, Message> {
-    let [description, status_line] = status_register_tooltip_body_lines(cpu);
+    let [description, status_line] = status_register_tooltip_body_lines(cpu, lang);
+    let prefix = lang.t(Key::StatusPrefix);
+    let prefix_with_space = format!("{prefix} ");
     let status_label = status_line
-        .strip_prefix("Статус: ")
+        .strip_prefix(&prefix_with_space)
         .unwrap_or(&status_line)
         .to_owned();
 
@@ -102,7 +107,7 @@ pub(super) fn status_register_tooltip<'a>(
             ui_text(description, 12, TOKYO_TEXT),
             Space::new().height(Length::Fixed(6.0)),
             row![
-                ui_text("Статус: ", 12, TOKYO_TEXT),
+                ui_text(format!("{prefix} "), 12, TOKYO_TEXT),
                 ui_text(status_label, 12, TOKYO_BLUE),
             ]
             .spacing(0)
@@ -153,13 +158,16 @@ mod tests {
     #[test]
     fn tooltip_body_does_not_repeat_status_register_bits() {
         let cpu = Cpu8080State::default();
-        let lines = status_register_tooltip_body_lines(&cpu);
+        let lines = status_register_tooltip_body_lines(&cpu, Lang::Ru);
         assert!(
             !lines
                 .iter()
                 .any(|line| line.contains("Регистр состояния 1010 0010"))
         );
         assert!(lines.iter().any(|line| line == "Статус: Загрузка опкода"));
+
+        let en_lines = status_register_tooltip_body_lines(&cpu, Lang::En);
+        assert!(en_lines.iter().any(|line| line == "Status: Opcode fetch"));
     }
 
     #[test]

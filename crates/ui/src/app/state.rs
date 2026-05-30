@@ -6,8 +6,11 @@ use std::time::{Duration, Instant};
 
 use super::messages::{MenuId, Message, RegisterInlineTarget, SpeedTier};
 use super::modal::DiscardModalButton;
-use super::speed::DEFAULT_SPEED_TIER;
+use super::settings_modal::SettingsDialog;
+use super::status::StatusKind;
 use super::undo::UndoStack;
+use crate::i18n::{Key, Lang};
+use crate::settings_storage::{lang_from_language, load_settings, speed_tier_from_preset};
 
 #[derive(Clone, Debug)]
 pub(crate) enum PendingAction {
@@ -22,6 +25,7 @@ pub(crate) struct DesktopApp {
     pub(crate) handle: EmulatorHandle,
     pub(crate) snapshot: AppSnapshot,
     pub(crate) status: String,
+    pub(crate) status_kind: StatusKind,
     pub(crate) selected_register: RegisterName,
     pub(crate) register_name_input: String,
     pub(crate) register_value_input: String,
@@ -82,6 +86,9 @@ pub(crate) struct DesktopApp {
     pub(crate) dirty: bool,
     pub(crate) discard_modal_focus: DiscardModalButton,
     pub(crate) pending_action: Option<PendingAction>,
+    pub(crate) lang: Lang,
+    pub(crate) default_speed: SpeedTier,
+    pub(crate) settings_dialog: Option<SettingsDialog>,
 }
 
 impl DesktopApp {
@@ -91,11 +98,19 @@ impl DesktopApp {
             Some(path) => Task::done(Message::LoadSnapshotFromPath(path)),
             None => Task::none(),
         };
+        let settings = load_settings();
+        let lang = lang_from_language(settings.general.language);
+        let default_speed = speed_tier_from_preset(settings.general.default_speed);
+        let initial_status_kind = StatusKind::Ready;
+        let initial_status = initial_status_kind
+            .render(lang)
+            .unwrap_or_else(|| lang.t(Key::StatusReady).to_owned());
         (
             Self {
                 handle,
                 snapshot: initial_snapshot(),
-                status: "Готов".to_owned(),
+                status: initial_status,
+                status_kind: initial_status_kind,
                 selected_register: RegisterName::A,
                 register_name_input: "A".to_owned(),
                 register_value_input: "00".to_owned(),
@@ -125,7 +140,7 @@ impl DesktopApp {
                 current_snapshot_path: None,
                 current_legacy_snapshot_path: None,
                 pending_snapshot_flavour: None,
-                speed_tier: DEFAULT_SPEED_TIER,
+                speed_tier: default_speed,
                 halt_notice: None,
                 halt_notice_dismiss_at: None,
                 run_blocked_after_halt: false,
@@ -140,6 +155,9 @@ impl DesktopApp {
                 dirty: false,
                 discard_modal_focus: DiscardModalButton::Cancel,
                 pending_action: None,
+                lang,
+                default_speed,
+                settings_dialog: None,
             },
             startup_task,
         )
@@ -147,6 +165,24 @@ impl DesktopApp {
 
     pub(crate) fn theme(&self) -> Theme {
         Theme::TokyoNight
+    }
+
+    pub(crate) fn set_status(&mut self, kind: StatusKind) {
+        if let Some(rendered) = kind.render(self.lang) {
+            self.status = rendered;
+            self.status_kind = kind;
+        }
+    }
+
+    pub(crate) fn set_status_custom(&mut self, text: String) {
+        self.status = text;
+        self.status_kind = StatusKind::Custom;
+    }
+
+    pub(crate) fn refresh_localized_status(&mut self) {
+        if let Some(rendered) = self.status_kind.render(self.lang) {
+            self.status = rendered;
+        }
     }
 
     pub(crate) fn clear_error_notice(&mut self) {
@@ -173,8 +209,7 @@ impl DesktopApp {
     /// the run-block latch are armed here so callers can't forget
     /// one half.
     pub(crate) fn raise_halt_notice(&mut self) {
-        self.halt_notice =
-            Some("Процессор остановлен командой HLT\nСбросьте регистры или флаг HLT".to_owned());
+        self.halt_notice = Some(self.lang.t(crate::i18n::Key::HaltNotice).to_owned());
         self.halt_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
         self.run_blocked_after_halt = true;
     }
@@ -187,6 +222,21 @@ impl DesktopApp {
         self.current_legacy_snapshot_path = None;
         self.undo_stack.clear();
         self.dirty = false;
-        self.status = "Новый файл".to_owned();
+        self.speed_tier = self.default_speed;
+        self.set_status(StatusKind::NewFile);
+    }
+
+    pub(crate) fn apply_speed_tier(&mut self, tier: SpeedTier) {
+        self.speed_tier = tier;
+        let hz = super::tier_hz(tier);
+        let interval = Duration::from_micros(1_000_000 / u64::from(hz.max(1)));
+        self.dispatch(k580_app::AppCommand::SetStepInterval(interval));
+        let mode = match tier {
+            SpeedTier::Max => k580_app::RunMode::Burst {
+                slice: Duration::from_millis(16),
+            },
+            _ => k580_app::RunMode::Paced,
+        };
+        self.dispatch(k580_app::AppCommand::SetRunMode(mode));
     }
 }

@@ -209,7 +209,7 @@ impl DesktopApp {
                     None => self.undo_stack.push_cpu(before, after),
                 }
             }
-            Err(error) => self.status = error,
+            Err(error) => self.set_status_custom(error),
         }
     }
 

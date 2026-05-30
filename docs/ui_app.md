@@ -1222,6 +1222,102 @@ than continuing to move the register highlight.
 | Enter | Normal submit / inline-edit recovery; while the unsaved-changes modal is open, activates the focused modal button. |
 | ArrowUp / ArrowDown | Routed by `DesktopApp::handle_arrow_key` to the editor that currently owns focus (see the panel-specific tables above). With nothing tracked focused they fall back to memory list navigation. |
 | PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
+| Ctrl+, | Open the Settings dialog. Implemented as a punctuation-aware branch in `app::handlers::ctrl_shortcut` so the shortcut survives keyboard layouts where `,` is not at QWERTY position. |
+
+### Settings dialog (sectioned keyboard navigation)
+
+The Settings modal owns its own focus model on top of the global one.
+Its router (`route_settings_modal_message` in
+`app/settings_modal/routing.rs`) intercepts every keypress while the
+dialog is open and turns it into one of four section-aware actions.
+
+- **Sections** — `SettingsSection::{Search, Sidebar, Content, Footer}`,
+  walked in screen order (top-left search → category list → main pane →
+  bottom buttons).
+- **Section state** lives on `SettingsDialog`:
+  - `section: SettingsSection` is the active zone,
+  - `content_focus: Option<ContentFocus>` is the per-row focus inside
+    the right-hand pane (`LanguageAnchor`, `SpeedSlow`, `SpeedMedium`,
+    `SpeedFast`, `SpeedMax`, `Theme`),
+  - `footer_focus: FooterFocus::{Reset, Cancel, Save}` is the bottom
+    bar focus.
+
+| Shortcut | Effect |
+|---|---|
+| Ctrl+Tab / Ctrl+Shift+Tab | Cycle between sections. The keyboard subscription routes `Ctrl+Tab` to `Message::SettingsSectionCycle { backward }` before `to_latin` runs, so the shortcut does not depend on layout. Entering a section seeds its local focus: Content lands on the first / last interactive item, Footer lands on `Cancel` / `Save`, Sidebar leaves the existing category active, Search additionally focuses the text input through `iced::widget::operation::focus(SETTINGS_SEARCH_INPUT_ID)` so typing routes into the field; on every other section the dialog focuses a dummy id no widget owns to blur the search input and keep Tab/Enter from being eaten by it. |
+| Tab / Shift+Tab | Walk **only inside** the current section — never crosses into the neighbouring zone. In `Content` the order is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax` and wraps at both ends. In `Footer` the three buttons cycle as a ring (`Reset → Cancel → Save → Reset`). In `Sidebar` Tab walks the categories as a ring (`General → Appearance → Shortcuts → General`) — same role as Up/Down, just reachable from the layout-agnostic key. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
+| ArrowUp / ArrowDown | Inside `Sidebar` walks the categories `General ↔ Appearance ↔ Shortcuts` (and applies the category change), stopping at the ends instead of wrapping. With the language dropdown open they only **highlight** the next/previous option without committing — `dropdown_highlight: Option<Lang>` on `SettingsDialog` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
+| ArrowLeft / ArrowRight | Inside the speed segment row of `Content` walks the four chips. Wraps at the ends. Has no effect outside the speed row. |
+| Enter | When the language dropdown is open, applies `dropdown_highlight` (or the current draft if nothing was highlighted) and closes the panel. Otherwise activates the focused item: opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier when one of the speed chips does, and triggers `SettingsResetRequested` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
+| Esc | Closes the language dropdown if it is open, otherwise closes the reset-confirm sub-modal if it is open, otherwise closes the dialog. |
+
+The two arrow handlers and the section-aware Tab handler all early-out
+with `Task::none()` instead of falling back to the global routes, so
+arrow / Tab presses inside the modal can never reach the schematic
+panel underneath.
+
+### Settings dialog: live preview, sub-modal, persistence
+
+`SettingsDialog::{draft_lang, draft_speed}` are the user's tentative
+values; `original_lang` / `original_speed` snapshot the live state at
+the moment the modal opens.
+
+- Editing a draft updates **live state** (`DesktopApp::lang`,
+  `default_speed`, `speed_tier`) immediately so the schematic and
+  status bar re-render in the new language / pacing without waiting
+  for `Save`. The settings router whitelists only its own message
+  variants, so the speed change is applied **synchronously** through
+  `apply_speed_tier` instead of routing a `Task::done(SpeedTierChanged)`
+  that the router would swallow.
+- `Cancel` / backdrop click / `Esc` in the empty dialog rolls back to
+  the snapshot (`original_*`) and re-applies the original speed tier
+  through the same chokepoint.
+- `Save` keeps the live state and dispatches `Message::PersistSettings`
+  to write the JSON.
+- `Reset` opens a stack-layer sub-modal whose `Cancel` / `Confirm`
+  buttons follow `reset_confirm_focus`. `Confirm` writes
+  `Lang::Ru` / `SpeedTier::Medium`, rewrites the dialog's `original_*`
+  snapshot so a follow-up `Cancel` cannot restore the pre-reset values,
+  and persists.
+
+`StatusKind` (in `app/status.rs`) tags every canonical status string
+with its provenance (`Ready`, `Stopped`, `SavedTo { display, legacy }`,
+…) so a language switch can re-render the cached `self.status` from
+its tag instead of leaving a stale Russian phrase under an English UI.
+Custom error strings keep the `StatusKind::Custom` tag and are not
+re-translated.
+
+### Settings dialog: file layout
+
+The dialog state and view live in matching multi-file modules to keep
+each file under the 400-line ceiling:
+
+- `app/settings_modal/mod.rs` — module root, re-exports `SettingsDialog`,
+  `SettingsCategory`, `SettingsSection`, `ContentFocus`, `FooterFocus`,
+  `ResetConfirmFocus`.
+- `app/settings_modal/focus.rs` — the focus enums + `next/previous`
+  helpers (sections, footer ring, content order, two-button confirm
+  toggle).
+- `app/settings_modal/dialog.rs` — `SettingsDialog` struct,
+  `SettingsCategory`, `first_content_focus` / `last_content_focus`,
+  `next_content_focus` / `previous_content_focus`.
+- `app/settings_modal/routing.rs` — `route_settings_modal_message` plus
+  the section-aware Enter / Tab / arrow handlers.
+- `app/settings_modal/tests.rs` — focus / live-preview / reset-confirm
+  regression tests.
+- `app/update_settings.rs` — `dispatch_settings_message`, called from
+  the main `update` loop before the big `match` so every
+  `Message::Settings*` is handled in one focused module.
+- `app/status.rs` — `StatusKind` and its `render(lang)` so language
+  changes re-render the status bar.
+- `view/settings_dialog/{mod,consts,header,sidebar,content,language,
+  speed,theme_row,footer,setting_row,reset_confirm,styles}.rs` — the
+  view layer split per zone. `mod.rs` composes the four-zone modal
+  and stacks the reset-confirm overlay on top when armed.
+- `i18n/{mod,keys,ru,en}.rs` — translation registry split out of the
+  monolithic `i18n.rs`. `Lang::t(Key)` thin-wraps `ru::translate(key)`
+  / `en::translate(key)`; adding a string adds one variant in
+  `keys.rs` and one row in each of `ru.rs` / `en.rs`.
 
 ## Focus rings and styling
 

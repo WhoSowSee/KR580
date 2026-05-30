@@ -24,18 +24,20 @@ use super::theme::{
 };
 use super::widgets::legend_panel_left;
 use crate::app::{DesktopApp, Message, RegisterInlineTarget, SpeedTier};
+use crate::i18n::{Key, Lang};
 
 const MAIN_TO_BOTTOM_SPACING: f32 = 8.0;
 
 impl DesktopApp {
     pub(super) fn schematic_panel(&self) -> Element<'_, Message> {
         let cpu = &self.snapshot.cpu;
+        let lang = self.lang;
 
         let halt_indicator = mouse_area(mono_text(
             if cpu.halted {
-                "HLT ВКЛ"
+                lang.t(Key::HltOn)
             } else {
-                "HLT ВЫКЛ"
+                lang.t(Key::HltOff)
             },
             13,
             if cpu.halted { TOKYO_RED } else { TOKYO_GREEN },
@@ -84,7 +86,7 @@ impl DesktopApp {
         let registers_grid = column![
             row![
                 functional_block(
-                    "Аккумулятор",
+                    lang.t(Key::Accumulator),
                     self.display_register_value(RegisterName::A),
                     TOKYO_GREEN,
                     accumulator_target,
@@ -97,7 +99,7 @@ impl DesktopApp {
                 ),
                 Space::new().width(Length::Fill),
                 functional_block(
-                    "Буферный регистр 1",
+                    lang.t(Key::BufferRegister1),
                     self.display_register_value(RegisterName::B),
                     TOKYO_GREEN,
                     buffer1_target,
@@ -110,7 +112,7 @@ impl DesktopApp {
                 ),
                 Space::new().width(Length::Fill),
                 functional_block(
-                    "Буферный регистр 2",
+                    lang.t(Key::BufferRegister2),
                     self.display_register_value(RegisterName::C),
                     TOKYO_GREEN,
                     buffer2_target,
@@ -125,19 +127,19 @@ impl DesktopApp {
             .spacing(14),
             row![
                 schematic_readout(
-                    "Буфер адреса",
+                    lang.t(Key::AddressBuffer),
                     format!("{:04X}", cpu.last_address_bus),
                     TOKYO_GREEN,
                 ),
                 Space::new().width(Length::Fill),
                 schematic_readout(
-                    "Регистр команд",
+                    lang.t(Key::InstructionRegister),
                     format!("{:02X}", cpu.last_fetched_opcode),
                     TOKYO_GREEN,
                 ),
                 Space::new().width(Length::Fill),
                 schematic_mnemonic_readout(
-                    "Д/Ш команд",
+                    lang.t(Key::InstructionDecoder),
                     decode_opcode(cpu.last_fetched_opcode)
                         .map(|info| info.mnemonic)
                         .unwrap_or_else(|_| "-".to_owned()),
@@ -148,19 +150,22 @@ impl DesktopApp {
         ]
         .spacing(14);
 
-        let registers_panel =
-            legend_panel_left("Регистры и операнды", registers_grid, Length::Shrink);
-        let cycles = super::cycles::cycle_panels(cpu);
+        let registers_panel = legend_panel_left(
+            lang.t(Key::RegistersAndOperands),
+            registers_grid,
+            Length::Shrink,
+        );
+        let cycles = super::cycles::cycle_panels(cpu, lang);
         let signals_panel = legend_panel_left(
-            "Сигналы управления",
+            lang.t(Key::ControlSignals),
             container(control_lamps(cpu))
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center),
             Length::Shrink,
         );
         let current_command_panel = legend_panel_left(
-            "Текущая команда",
-            super::current_command::current_command_panel(cpu),
+            lang.t(Key::CurrentCommand),
+            super::current_command::current_command_panel(cpu, lang),
             Length::Shrink,
         );
 
@@ -177,10 +182,11 @@ impl DesktopApp {
         let status_register_block = super::status_register::status_register_tooltip(
             cpu,
             schematic_wide_readout(
-                "Регистр состояния",
+                lang.t(Key::StatusRegister),
                 super::status_register::status_register_bits(cpu),
                 TOKYO_GREEN,
             ),
+            lang,
         );
         let flag_bits = format!(
             "{}{}{}{} {}{}{}{}",
@@ -193,7 +199,7 @@ impl DesktopApp {
             1,
             u8::from(cpu.flags.carry),
         );
-        let (status_text, status_note) = split_legacy_status_note(&self.status);
+        let (status_text, status_note) = split_legacy_status_note(&self.status, self.lang);
         let status_value: Element<'_, Message> = match status_note {
             Some(note) => row![
                 mono_text(status_text, 13, TOKYO_TEXT),
@@ -204,9 +210,12 @@ impl DesktopApp {
             .into(),
             None => mono_text(status_text, 13, TOKYO_TEXT).into(),
         };
-        let status_chip = row![ui_text("Статус", 12, TOKYO_MUTED), status_value,]
-            .spacing(12)
-            .align_y(alignment::Vertical::Center);
+        let status_chip = row![
+            ui_text(lang.t(Key::HeaderStatus), 12, TOKYO_MUTED),
+            status_value,
+        ]
+        .spacing(12)
+        .align_y(alignment::Vertical::Center);
         let header_row = row![
             status_row,
             container(status_chip)
@@ -218,11 +227,11 @@ impl DesktopApp {
         .width(Length::Fill);
         let central_column = column![
             schematic_wide_readout(
-                "Буфер данных",
+                lang.t(Key::DataBuffer),
                 format!("{:02X}", cpu.last_data_bus_byte),
                 TOKYO_GREEN,
             ),
-            schematic_wide_readout("Регистр признаков", flag_bits, TOKYO_GREEN),
+            schematic_wide_readout(lang.t(Key::FlagsRegister), flag_bits, TOKYO_GREEN),
             mux_panel(
                 cpu,
                 self.selected_register,
@@ -238,6 +247,7 @@ impl DesktopApp {
                     h: self.display_register_value(RegisterName::H),
                     l: self.display_register_value(RegisterName::L),
                 },
+                lang,
             ),
             status_register_block,
         ]
@@ -260,33 +270,33 @@ impl DesktopApp {
         .style(schematic_block_style);
 
         let devices = row![
-            device_chip(icons::device_monitor(), TOKYO_GREEN, "Отобразить монитор",),
+            device_chip(
+                icons::device_monitor(),
+                TOKYO_GREEN,
+                lang.t(Key::DeviceMonitor)
+            ),
             device_chip(
                 icons::device_floppy(),
                 TOKYO_CYAN,
-                "Отобразить буфер дисковода",
+                lang.t(Key::DeviceFloppy),
             ),
-            device_chip(
-                icons::device_hdd(),
-                TOKYO_BLUE,
-                "Отобразить буфер жёсткого диска",
-            ),
+            device_chip(icons::device_hdd(), TOKYO_BLUE, lang.t(Key::DeviceHdd),),
             device_chip(
                 icons::device_network(),
                 TOKYO_YELLOW,
-                "Отобразить буфер сетевого адаптера",
+                lang.t(Key::DeviceNetwork),
             ),
             device_chip(
                 icons::device_printer(),
                 TOKYO_MAGENTA,
-                "Отобразить буфер принтера",
+                lang.t(Key::DevicePrinter),
             ),
         ]
         .spacing(14)
         .align_y(alignment::Vertical::Center);
 
         let quick_access = container(legend_panel_left(
-            "Быстрый доступ",
+            lang.t(Key::QuickAccess),
             container(devices)
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center),
@@ -296,7 +306,7 @@ impl DesktopApp {
         let bottom = row![
             quick_access,
             Space::new().width(Length::Fill),
-            speed_panel(self.speed_tier),
+            speed_panel(self.speed_tier, self.lang),
         ]
         .spacing(24)
         .align_y(alignment::Vertical::Bottom);
@@ -319,11 +329,7 @@ impl DesktopApp {
     }
 }
 
-// Pure widget builders for individual chips on this plate
-// (`schematic_readout`, `schematic_mnemonic_readout`, `flag_strip`,
-// `device_chip`, `functional_block`) live in `super::chips`.
-
-/// Multiplexer panel — implementation in `super::mux`.
+#[allow(clippy::too_many_arguments)]
 fn mux_panel<'a>(
     cpu: &Cpu8080State,
     selected: RegisterName,
@@ -332,6 +338,7 @@ fn mux_panel<'a>(
     hovered_target: Option<RegisterInlineTarget>,
     input_value: &'a str,
     values: MuxRegisterValues,
+    lang: Lang,
 ) -> Element<'a, Message> {
     super::mux::mux_panel(
         cpu,
@@ -341,18 +348,20 @@ fn mux_panel<'a>(
         hovered_target,
         input_value,
         values,
+        lang,
     )
 }
 
 /// Four-tier speed switch — implementation in `super::speed`.
-fn speed_panel(active: SpeedTier) -> Element<'static, Message> {
-    super::speed::speed_panel(active)
+fn speed_panel(active: SpeedTier, lang: crate::i18n::Lang) -> Element<'static, Message> {
+    super::speed::speed_panel(active, lang)
 }
 
-fn split_legacy_status_note(status: &str) -> (&str, Option<&'static str>) {
-    const LEGACY_SUFFIX: &str = " (старый формат)";
-    match status.strip_suffix(LEGACY_SUFFIX) {
-        Some(base) => (base, Some("старый формат")),
+fn split_legacy_status_note(status: &str, lang: crate::i18n::Lang) -> (&str, Option<&'static str>) {
+    let note = lang.t(crate::i18n::Key::LegacyFormatNote);
+    let suffix = format!(" ({note})");
+    match status.strip_suffix(&suffix) {
+        Some(base) => (base, Some(note)),
         None => (status, None),
     }
 }
@@ -360,17 +369,23 @@ fn split_legacy_status_note(status: &str) -> (&str, Option<&'static str>) {
 #[cfg(test)]
 mod tests {
     use super::split_legacy_status_note;
+    use crate::i18n::Lang;
 
     #[test]
     fn legacy_status_suffix_renders_as_note_without_parentheses() {
         assert_eq!(
-            split_legacy_status_note("Открыто C:\\test.580 (старый формат)"),
+            split_legacy_status_note("Открыто C:\\test.580 (старый формат)", Lang::Ru),
             ("Открыто C:\\test.580", Some("старый формат"))
+        );
+        assert_eq!(
+            split_legacy_status_note("Opened C:\\test.580 (legacy format)", Lang::En),
+            ("Opened C:\\test.580", Some("legacy format"))
         );
     }
 
     #[test]
     fn regular_status_has_no_format_note() {
-        assert_eq!(split_legacy_status_note("Готов"), ("Готов", None));
+        assert_eq!(split_legacy_status_note("Готов", Lang::Ru), ("Готов", None));
+        assert_eq!(split_legacy_status_note("Ready", Lang::En), ("Ready", None));
     }
 }

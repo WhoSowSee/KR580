@@ -14,18 +14,20 @@ use super::styles::{
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text};
 use super::utils::row_separator;
 use crate::app::{Message, OPCODE_SEARCH_INPUT_ID};
+use crate::i18n::{Key, Lang};
 
 pub(super) fn opcode_dropdown_overlay<'a>(
     address: u16,
     search: &'a str,
     reveal: bool,
     top: f32,
+    lang: Lang,
 ) -> Element<'a, Message> {
     column![
         Space::new().height(Length::Fixed(top)),
         row![
             Space::new().width(Length::Fill),
-            opaque(opcode_dropdown(address, search, reveal)),
+            opaque(opcode_dropdown(address, search, reveal, lang)),
             Space::new().width(Length::Fixed(24.0)),
         ]
         .width(Length::Fill),
@@ -35,7 +37,12 @@ pub(super) fn opcode_dropdown_overlay<'a>(
     .into()
 }
 
-fn opcode_dropdown<'a>(address: u16, search: &'a str, reveal: bool) -> Element<'a, Message> {
+fn opcode_dropdown<'a>(
+    address: u16,
+    search: &'a str,
+    reveal: bool,
+    lang: Lang,
+) -> Element<'a, Message> {
     let mut options = Column::new().spacing(0);
 
     for choice in filtered_opcode_choices(search) {
@@ -43,7 +50,7 @@ fn opcode_dropdown<'a>(address: u16, search: &'a str, reveal: bool) -> Element<'
     }
 
     let content = column![
-        text_input("Поиск: hex или мнемоника", search)
+        text_input(lang.t(Key::OpcodeSearchPlaceholder), search)
             .id(OPCODE_SEARCH_INPUT_ID)
             .on_input(Message::OpcodeSearchChanged)
             .font(MONO_FONT)

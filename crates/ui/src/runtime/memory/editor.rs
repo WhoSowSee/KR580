@@ -68,7 +68,7 @@ impl DesktopApp {
                 self.undo_stack.break_coalescing();
                 self.dispatch_with_undo(AppCommand::SetMemory(address, value));
             }
-            Err(error) => self.status = error,
+            Err(error) => self.set_status_custom(error),
         }
     }
 
@@ -122,7 +122,7 @@ impl DesktopApp {
                 Task::none()
             }
             (Err(error), _) | (_, Err(error)) => {
-                self.status = error;
+                self.set_status_custom(error);
                 Task::none()
             }
         }

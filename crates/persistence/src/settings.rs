@@ -10,7 +10,32 @@ pub struct Settings {
     pub storage: StorageSettings,
     pub export: ExportSettings,
     pub ui: UiSettings,
+    pub general: GeneralSettings,
     pub recent_files: Vec<PathBuf>,
+}
+
+/// General-purpose user preferences exposed via the in-app Settings dialog.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneralSettings {
+    pub language: Language,
+    pub default_speed: SpeedPreset,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Language {
+    Ru,
+    En,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SpeedPreset {
+    Slow,
+    Medium,
+    High,
+    Max,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,7 +86,17 @@ impl Default for Settings {
             storage: StorageSettings::default(),
             export: ExportSettings::default(),
             ui: UiSettings::default(),
+            general: GeneralSettings::default(),
             recent_files: Vec::new(),
+        }
+    }
+}
+
+impl Default for GeneralSettings {
+    fn default() -> Self {
+        Self {
+            language: Language::Ru,
+            default_speed: SpeedPreset::Medium,
         }
     }
 }

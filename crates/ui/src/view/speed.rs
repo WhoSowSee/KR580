@@ -16,6 +16,7 @@ use super::theme::{
 };
 use super::widgets::legend_panel_left;
 use crate::app::{Message, SpeedTier, tier_hz};
+use crate::i18n::{Key, Lang};
 
 const CONTROL_BUTTON_WIDTH: f32 = 36.0;
 const CONTROL_BUTTON_HEIGHT: f32 = 36.0;
@@ -32,17 +33,16 @@ const GAUGE_READOUT_SPACING: f32 = 4.0;
 const GAUGE_WAVE_EDGE_HEIGHT: f32 = 0.55;
 const GAUGE_WAVE_CENTER_HEIGHT: f32 = 0.78;
 const GAUGE_HALO_SEGMENTS: usize = 4;
-const SPEED_READOUT_UNIT: &str = "инстр/сек";
 
 /// Four-tier speed switch for the paced `Run` loop. Lives in the
 /// lower-left strip next to the quick-access panel. The title remains
 /// in the framed legend; the body uses chevron buttons and a segmented
 /// gauge so the control reads like the reference speed instrument
 /// while still dispatching the same `Message::SpeedTierChanged`.
-pub(super) fn speed_panel(active: SpeedTier) -> Element<'static, Message> {
+pub(super) fn speed_panel(active: SpeedTier, lang: Lang) -> Element<'static, Message> {
     let gauge = column![
         gauge_row(active),
-        ui_text(speed_readout(active), 13, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+        ui_text(speed_readout(active, lang), 13, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
     ]
     .spacing(GAUGE_READOUT_SPACING)
     .align_x(alignment::Horizontal::Center);
@@ -59,7 +59,7 @@ pub(super) fn speed_panel(active: SpeedTier) -> Element<'static, Message> {
     .width(Length::Fill);
 
     container(legend_panel_left(
-        "Скорость",
+        lang.t(Key::SpeedTitle),
         container(control)
             .width(Length::Fill)
             .align_x(alignment::Horizontal::Center),
@@ -226,8 +226,8 @@ fn blend_color(base: Color, accent: Color, amount: f32) -> Color {
     }
 }
 
-fn speed_readout(tier: SpeedTier) -> String {
-    format!("{} {}", tier_hz(tier), SPEED_READOUT_UNIT)
+fn speed_readout(tier: SpeedTier, lang: Lang) -> String {
+    format!("{} {}", tier_hz(tier), lang.t(Key::SpeedUnit))
 }
 
 fn previous_tier(tier: SpeedTier) -> SpeedTier {
@@ -379,6 +379,13 @@ mod tests {
 
     #[test]
     fn speed_readout_uses_instruction_rate_units() {
-        assert_eq!(speed_readout(SpeedTier::Slow), "5 инстр/сек");
+        assert_eq!(
+            speed_readout(SpeedTier::Slow, crate::i18n::Lang::Ru),
+            "5 инстр/сек"
+        );
+        assert_eq!(
+            speed_readout(SpeedTier::Slow, crate::i18n::Lang::En),
+            "5 instr/sec"
+        );
     }
 }

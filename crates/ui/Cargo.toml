@@ -9,6 +9,7 @@ build = "build.rs"
 [dependencies]
 k580-app = { path = "../app" }
 k580-core = { path = "../core" }
+k580-persistence = { path = "../persistence" }
 iced = { workspace = true, features = ["image", "svg", "advanced"] }
 rfd.workspace = true
 tracing.workspace = true

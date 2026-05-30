@@ -13,6 +13,7 @@ pub(crate) const REGISTER_VALUE_INPUT_ID: &str = "register-value-input";
 pub(crate) const REGISTER_INLINE_INPUT_ID: &str = "register-inline-input";
 pub(crate) const MEMORY_INLINE_INPUT_ID: &str = "memory-inline-input";
 pub(crate) const OPCODE_SEARCH_INPUT_ID: &str = "opcode-search-input";
+pub(crate) const SETTINGS_SEARCH_INPUT_ID: &str = "settings-search-input";
 
 /// Number of 100 ms ticks the memory scrollbar stays visible after the
 /// last scroll event.

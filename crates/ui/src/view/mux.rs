@@ -17,6 +17,7 @@ use super::theme::{
 };
 use super::utils::row_separator;
 use crate::app::{Message, REGISTER_INLINE_INPUT_ID, RegisterInlineTarget, register_name};
+use crate::i18n::{Key, Lang};
 
 const MUX_REGISTER_CELL_HEIGHT: f32 = 30.0;
 const MUX_REGISTER_VALUE_WIDTH: f32 = 28.0;
@@ -42,6 +43,7 @@ pub(super) struct MuxRegisterValues {
 /// Three framed subgroups: W/Z scratch registers, the two-column
 /// B/C-D/E-H/L general-purpose grid, and the stack/program-counter
 /// footer.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn mux_panel<'a>(
     cpu: &Cpu8080State,
     selected: RegisterName,
@@ -50,6 +52,7 @@ pub(super) fn mux_panel<'a>(
     hovered_target: Option<RegisterInlineTarget>,
     input_value: &'a str,
     values: MuxRegisterValues,
+    lang: Lang,
 ) -> Element<'a, Message> {
     let edit_state = MuxEditState {
         selected,
@@ -61,7 +64,7 @@ pub(super) fn mux_panel<'a>(
 
     let scratch_group = container(
         column![
-            mux_section_caption("Регистры временного хранения"),
+            mux_section_caption(lang.t(Key::TempStorageRegisters)),
             mux_static_pair("W", cpu.registers.w, "Z", cpu.registers.z),
         ]
         .spacing(0),
@@ -71,7 +74,7 @@ pub(super) fn mux_panel<'a>(
 
     let general_group = container(
         column![
-            mux_section_caption("Регистры общего назначения (РОН)"),
+            mux_section_caption(lang.t(Key::GeneralPurposeRegisters)),
             mux_register_pair(
                 RegisterName::B,
                 values.b,
@@ -103,12 +106,12 @@ pub(super) fn mux_panel<'a>(
 
     let pointer_group = container(
         column![
-            mux_readout_row("Указатель стека (УС)", format!("{:04X}", cpu.sp)),
+            mux_readout_row(lang.t(Key::StackPointer), format!("{:04X}", cpu.sp)),
             row_separator(),
-            mux_readout_row("Счётчик команд (СК)", format!("{:04X}", cpu.pc)),
+            mux_readout_row(lang.t(Key::ProgramCounter), format!("{:04X}", cpu.pc)),
             row_separator(),
             mux_readout_row(
-                "Инкремент-декремент",
+                lang.t(Key::IncDec),
                 format!(
                     "+{}",
                     decode_opcode(cpu.memory.read(cpu.pc))
@@ -127,7 +130,8 @@ pub(super) fn mux_panel<'a>(
     container(
         column![
             container(
-                ui_text("Мультиплексор", 14, TOKYO_MUTED).align_x(alignment::Horizontal::Center),
+                ui_text(lang.t(Key::Multiplexer), 14, TOKYO_MUTED)
+                    .align_x(alignment::Horizontal::Center),
             )
             .height(Length::Fixed(18.0))
             .width(Length::Fill)
@@ -153,8 +157,8 @@ pub(super) fn mux_panel<'a>(
 /// is applied to both the inner `Text` and the container so the
 /// caption stays centred regardless of how iced rounds the inner
 /// text bounding box against the outer width.
-fn mux_section_caption(label: &'static str) -> Element<'static, Message> {
-    container(ui_text(label, 11, TOKYO_MUTED).align_x(alignment::Horizontal::Center))
+fn mux_section_caption(label: &str) -> Element<'_, Message> {
+    container(ui_text(label.to_owned(), 11, TOKYO_MUTED).align_x(alignment::Horizontal::Center))
         .padding([3, 8])
         .width(Length::Fill)
         .align_x(alignment::Horizontal::Center)
@@ -197,10 +201,10 @@ fn mux_static_cell(label: &'static str, value: u8) -> Element<'static, Message> 
 /// Single row inside the SP / PC footer group. The group owns the
 /// frame; rows stay borderless and are split by 1-px separators so the
 /// footer reads as one subblock instead of three rounded chips.
-fn mux_readout_row(label: &'static str, value: String) -> Element<'static, Message> {
+fn mux_readout_row(label: &str, value: String) -> Element<'_, Message> {
     container(
         row![
-            ui_text(label, 12, TOKYO_MUTED),
+            ui_text(label.to_owned(), 12, TOKYO_MUTED),
             Space::new().width(Length::Fill),
             mono_text(value, 16, TOKYO_GREEN),
         ]

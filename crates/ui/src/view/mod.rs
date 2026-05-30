@@ -15,6 +15,7 @@ mod mux;
 mod notices;
 mod opcode_dropdown;
 mod schematic;
+mod settings_dialog;
 mod speed;
 mod status_register;
 mod styles;
@@ -27,6 +28,7 @@ use iced::{Element, Length};
 
 use modal::discard_modal_overlay;
 use notices::{error_notice_overlay, halt_notice_overlay, info_notice_overlay};
+use settings_dialog::settings_modal_overlay;
 use styles::app_style;
 
 use crate::app::{DesktopApp, MenuId, Message};
@@ -127,11 +129,16 @@ impl DesktopApp {
         if let Some(action) = self.pending_action.as_ref() {
             stack![
                 scrimmed,
-                discard_modal_overlay(action, self.discard_modal_focus)
+                discard_modal_overlay(action, self.discard_modal_focus, self.lang)
             ]
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
+        } else if let Some(dialog) = self.settings_dialog.as_ref() {
+            stack![scrimmed, settings_modal_overlay(dialog, self.lang)]
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
         } else {
             scrimmed
         }

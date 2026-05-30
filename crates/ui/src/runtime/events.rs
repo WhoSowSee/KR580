@@ -1,6 +1,8 @@
 use std::time::{Duration, Instant};
 
 use crate::app::DesktopApp;
+use crate::app::StatusKind;
+use crate::i18n::Key;
 use k580_app::{AppEvent, AppSnapshot};
 
 use super::humanize_error;
@@ -17,19 +19,25 @@ impl DesktopApp {
         match event {
             AppEvent::StateChanged(snapshot) => self.apply_snapshot(*snapshot),
             AppEvent::InstructionBoundaryReached(outcome) => {
-                self.status = format!("{} at {:04X}", outcome.mnemonic, outcome.pc_before)
+                self.set_status(StatusKind::InstructionAt {
+                    mnemonic: outcome.mnemonic,
+                    pc_before: outcome.pc_before,
+                });
             }
             AppEvent::TactAdvanced(outcome) => {
                 if outcome.instruction_boundary {
                     self.last_tact_was_boundary = true;
                 }
-                self.status = format!("Такт {} цикл {}", outcome.tact_phase, outcome.cycle_count)
+                self.set_status(StatusKind::TactProgress {
+                    tact_phase: outcome.tact_phase,
+                    cycle_count: outcome.cycle_count,
+                });
             }
             AppEvent::PortRead { port, value } => {
-                self.status = format!("IN {port:02X} -> {value:02X}")
+                self.set_status(StatusKind::PortRead { port, value });
             }
             AppEvent::PortWritten { port, value } => {
-                self.status = format!("OUT {port:02X} <- {value:02X}")
+                self.set_status(StatusKind::PortWrite { port, value });
             }
             AppEvent::SnapshotFlavourLoaded(flavour) => {
                 self.pending_snapshot_flavour = Some(flavour);
@@ -37,26 +45,28 @@ impl DesktopApp {
             AppEvent::HaltStateChanged(halted) => {
                 self.running = false;
                 self.pending_follow_pc = true;
-                self.status = if halted {
-                    "ЦП остановлен".to_owned()
+                if halted {
+                    self.set_status(StatusKind::CpuHalted);
                 } else {
-                    "Готов".to_owned()
-                };
+                    self.set_status(StatusKind::Ready);
+                }
             }
             AppEvent::ErrorRaised(error) => {
                 self.running = false;
                 self.pending_follow_pc = true;
                 let raw = error.to_string();
-                // Status bar shows raw English (dev-visible); overlay gets
-                // a Russian translation via `humanize_error`.
-                self.status = raw.clone();
-                self.error_notice = Some(format!("Ошибка: {}", humanize_error::humanize(&raw)));
+                self.set_status_custom(raw.clone());
+                self.error_notice = Some(format!(
+                    "{}: {}",
+                    self.lang.t(Key::ErrorPrefix),
+                    humanize_error::humanize(&raw, self.lang)
+                ));
                 self.error_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
             }
             AppEvent::Stopped => {
                 self.running = false;
                 self.pending_follow_pc = true;
-                self.status = "Остановлен".to_owned();
+                self.set_status(StatusKind::Stopped);
             }
         }
     }

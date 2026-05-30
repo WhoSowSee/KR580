@@ -9,8 +9,8 @@ pub use error::{ExportError, ImportError, PersistenceError, SettingsError, Snaps
 pub use export::{ExportModel, Exporters};
 pub use import::Importers;
 pub use settings::{
-    ExportSettings, NetworkMode, NetworkSettings, Settings, SettingsStore, StorageSettings,
-    UiSettings,
+    ExportSettings, GeneralSettings, Language, NetworkMode, NetworkSettings, Settings,
+    SettingsStore, SpeedPreset, StorageSettings, UiSettings,
 };
 pub use snapshot::{Snapshot580Flavour, Snapshot580Serializer};
 pub use subprogram::{Subprogram, SubprogramSerializer};

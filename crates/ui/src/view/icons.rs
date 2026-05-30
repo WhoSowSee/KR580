@@ -71,6 +71,10 @@ static DEVICE_NETWORK: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(device_icon_bytes!("network").as_slice()));
 static DEVICE_PRINTER: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(device_icon_bytes!("printer").as_slice()));
+static SEARCH: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("search").as_slice()));
+static CHEVRON_DOWN: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("chevron-down").as_slice()));
 
 pub(super) fn play() -> svg::Handle {
     PLAY.clone()
@@ -185,4 +189,12 @@ pub(super) fn device_network() -> svg::Handle {
 
 pub(super) fn device_printer() -> svg::Handle {
     DEVICE_PRINTER.clone()
+}
+
+pub(super) fn search() -> svg::Handle {
+    SEARCH.clone()
+}
+
+pub(super) fn chevron_down() -> svg::Handle {
+    CHEVRON_DOWN.clone()
 }

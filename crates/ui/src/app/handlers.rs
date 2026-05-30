@@ -98,7 +98,10 @@ impl DesktopApp {
 
     pub(crate) fn handle_esc(&mut self) -> Task<Message> {
         self.undo_stack.break_coalescing();
-        // Priority: error → halt → info → menu → inline edit → opcode dropdown.
+        if self.settings_dialog.is_some() {
+            self.settings_dialog = None;
+            return Task::none();
+        }
         if self.error_notice.is_some() {
             self.clear_error_notice();
             return Task::none();
@@ -148,6 +151,14 @@ pub(crate) fn ctrl_shortcut(
     if let Some(direction) = super::register_inline::ctrl_arrow_move(key, modifiers) {
         return Some(Message::RegisterCtrlArrowKey(direction));
     }
+    if let keyboard::Key::Named(keyboard::key::Named::Tab) = key {
+        return Some(Message::SettingsSectionCycle {
+            backward: modifiers.shift(),
+        });
+    }
+    if !modifiers.shift() && !modifiers.alt() && is_comma_key(key, physical_key) {
+        return Some(Message::OpenSettings);
+    }
     let latin = key.to_latin(physical_key)?;
     let alt = modifiers.alt();
     match (latin, modifiers.shift(), alt) {
@@ -169,4 +180,16 @@ pub(crate) fn ctrl_shortcut(
         ('z', true, false) => Some(Message::Redo),
         _ => None,
     }
+}
+
+fn is_comma_key(key: &keyboard::Key, physical_key: keyboard::key::Physical) -> bool {
+    if let keyboard::Key::Character(c) = key
+        && c.as_str() == ","
+    {
+        return true;
+    }
+    matches!(
+        physical_key,
+        keyboard::key::Physical::Code(keyboard::key::Code::Comma)
+    )
 }

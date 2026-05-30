@@ -2085,6 +2085,7 @@ dependencies = [
  "iced",
  "k580-app",
  "k580-core",
+ "k580-persistence",
  "rfd",
  "tracing",
  "tracing-subscriber",

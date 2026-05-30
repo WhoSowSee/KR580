@@ -3,6 +3,7 @@ use iced::{Background, Border, Color, Element, Length};
 
 use super::theme::{TOKYO_BG, TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::{DiscardModalButton, Message, PendingAction};
+use crate::i18n::{Key, Lang};
 
 /// Renders the "unsaved changes" confirmation modal as three layers:
 ///
@@ -23,8 +24,11 @@ use crate::app::{DiscardModalButton, Message, PendingAction};
 pub(super) fn discard_modal_overlay(
     action: &PendingAction,
     focused: DiscardModalButton,
+    lang: Lang,
 ) -> Element<'_, Message> {
-    let (title, title_note) = discard_modal_title(action);
+    let (title_key, title_note_key) = discard_modal_title_keys(action);
+    let title = lang.t(title_key);
+    let title_note = title_note_key.map(|k| lang.t(k));
 
     // Backdrop click → `CancelDiscard`, same as the cancel button.
     // `opaque` keeps the event from passing further down the tree.
@@ -36,18 +40,25 @@ pub(super) fn discard_modal_overlay(
     )
     .on_press(Message::CancelDiscard);
 
-    let cancel_button = button(container(ui_text("Отменить", 13, TOKYO_TEXT)).padding([6, 16]))
-        .on_press(Message::CancelDiscard)
-        .style(move |theme, status| {
-            modal_button_style(theme, status, focused == DiscardModalButton::Cancel)
-        });
-
-    let confirm_button =
-        button(container(ui_text(discard_confirm_label(action), 13, TOKYO_TEXT)).padding([6, 16]))
-            .on_press(Message::ConfirmDiscard)
+    let cancel_button =
+        button(container(ui_text(lang.t(Key::DiscardCancel), 13, TOKYO_TEXT)).padding([6, 16]))
+            .on_press(Message::CancelDiscard)
             .style(move |theme, status| {
-                modal_button_style(theme, status, focused == DiscardModalButton::Confirm)
+                modal_button_style(theme, status, focused == DiscardModalButton::Cancel)
             });
+
+    let confirm_button = button(
+        container(ui_text(
+            lang.t(discard_confirm_label_key(action)),
+            13,
+            TOKYO_TEXT,
+        ))
+        .padding([6, 16]),
+    )
+    .on_press(Message::ConfirmDiscard)
+    .style(move |theme, status| {
+        modal_button_style(theme, status, focused == DiscardModalButton::Confirm)
+    });
 
     let buttons = row![
         Space::new().width(Length::Fill),
@@ -69,11 +80,7 @@ pub(super) fn discard_modal_overlay(
         column![
             title_row,
             Space::new().height(Length::Fixed(8.0)),
-            ui_text(
-                "Несохранённые изменения будут потеряны.".to_owned(),
-                13,
-                TOKYO_TEXT,
-            ),
+            ui_text(lang.t(Key::DiscardBody), 13, TOKYO_TEXT,),
             Space::new().height(Length::Fixed(16.0)),
             buttons,
         ]
@@ -105,22 +112,22 @@ pub(super) fn discard_modal_overlay(
         .into()
 }
 
-fn discard_modal_title(action: &PendingAction) -> (&'static str, Option<&'static str>) {
+fn discard_modal_title_keys(action: &PendingAction) -> (Key, Option<Key>) {
     match action {
-        PendingAction::OpenSnapshot => ("Открыть файл", None),
-        PendingAction::NewFile => ("Новый файл", None),
-        PendingAction::Import => ("Импорт", None),
-        PendingAction::OpenLegacySnapshot => ("Открыть файл", Some("старый формат")),
-        PendingAction::CloseWindow => ("Закрыть приложение", None),
+        PendingAction::OpenSnapshot => (Key::DiscardTitleOpen, None),
+        PendingAction::NewFile => (Key::DiscardTitleNew, None),
+        PendingAction::Import => (Key::DiscardTitleImport, None),
+        PendingAction::OpenLegacySnapshot => (Key::DiscardTitleOpen, Some(Key::LegacyFormatNote)),
+        PendingAction::CloseWindow => (Key::DiscardTitleClose, None),
     }
 }
 
-fn discard_confirm_label(action: &PendingAction) -> &'static str {
+fn discard_confirm_label_key(action: &PendingAction) -> Key {
     match action {
-        PendingAction::OpenSnapshot | PendingAction::OpenLegacySnapshot => "Открыть",
-        PendingAction::NewFile => "Создать",
-        PendingAction::Import => "Импортировать",
-        PendingAction::CloseWindow => "Закрыть",
+        PendingAction::OpenSnapshot | PendingAction::OpenLegacySnapshot => Key::DiscardConfirmOpen,
+        PendingAction::NewFile => Key::DiscardConfirmNew,
+        PendingAction::Import => Key::DiscardConfirmImport,
+        PendingAction::CloseWindow => Key::DiscardConfirmClose,
     }
 }
 
@@ -190,8 +197,9 @@ fn modal_button_style(
 
 #[cfg(test)]
 mod tests {
-    use super::{discard_confirm_label, discard_modal_title, modal_button_style};
+    use super::{discard_confirm_label_key, discard_modal_title_keys, modal_button_style};
     use crate::app::PendingAction;
+    use crate::i18n::{Key, Lang};
     use crate::view::theme::{TOKYO_BORDER, TOKYO_SURFACE};
     use iced::widget::button;
     use iced::{Background, Theme};
@@ -206,26 +214,33 @@ mod tests {
 
     #[test]
     fn legacy_open_modal_uses_muted_format_note_without_parentheses() {
-        assert_eq!(
-            discard_modal_title(&PendingAction::OpenLegacySnapshot),
-            ("Открыть файл", Some("старый формат"))
-        );
+        let (title_key, note_key) = discard_modal_title_keys(&PendingAction::OpenLegacySnapshot);
+
+        assert_eq!(title_key, Key::DiscardTitleOpen);
+        assert_eq!(note_key, Some(Key::LegacyFormatNote));
+
+        let note = Lang::Ru.t(Key::LegacyFormatNote);
+        assert!(!note.contains('('));
+        assert!(!note.contains(')'));
     }
 
     #[test]
     fn discard_confirm_label_matches_pending_action() {
         assert_eq!(
-            discard_confirm_label(&PendingAction::OpenLegacySnapshot),
-            "Открыть"
+            discard_confirm_label_key(&PendingAction::OpenLegacySnapshot),
+            Key::DiscardConfirmOpen
         );
         assert_eq!(
-            discard_confirm_label(&PendingAction::OpenSnapshot),
-            "Открыть"
+            discard_confirm_label_key(&PendingAction::OpenSnapshot),
+            Key::DiscardConfirmOpen
         );
-        assert_eq!(discard_confirm_label(&PendingAction::NewFile), "Создать");
         assert_eq!(
-            discard_confirm_label(&PendingAction::CloseWindow),
-            "Закрыть"
+            discard_confirm_label_key(&PendingAction::NewFile),
+            Key::DiscardConfirmNew
+        );
+        assert_eq!(
+            discard_confirm_label_key(&PendingAction::CloseWindow),
+            Key::DiscardConfirmClose
         );
     }
 }

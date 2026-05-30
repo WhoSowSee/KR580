@@ -10,7 +10,7 @@ use k580_core::{Cpu8080State, RegisterName};
 impl DesktopApp {
     pub(crate) fn apply_undo(&mut self) -> Task<Message> {
         let Some(entry) = self.undo_stack.pop_undo() else {
-            self.status = "Нечего отменять".to_owned();
+            self.set_status(crate::app::StatusKind::NothingToUndo);
             return Task::none();
         };
         match entry {
@@ -31,7 +31,7 @@ impl DesktopApp {
 
     pub(crate) fn apply_redo(&mut self) -> Task<Message> {
         let Some(entry) = self.undo_stack.pop_redo() else {
-            self.status = "Нечего вернуть".to_owned();
+            self.set_status(crate::app::StatusKind::NothingToRedo);
             return Task::none();
         };
         match entry {

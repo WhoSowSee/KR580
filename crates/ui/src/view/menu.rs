@@ -9,12 +9,13 @@ use super::icons;
 use super::menu_dropdowns::{
     FILE_DROPDOWN_WIDTH, MENU_ICON_SIZE, MP_DROPDOWN_WIDTH, file_dropdown, mp_dropdown,
 };
-use super::menu_labels::inactive_category_labels;
+use super::menu_labels::{inactive_category_keys, settings_category_key};
 use super::styles::{
     caption_button_style, close_caption_button_style, menu_bar_divider_style, menu_bar_style,
 };
 use super::theme::{TOKYO_MAGENTA, TOKYO_TEXT, ui_text};
 use crate::app::{DesktopApp, MenuId, Message};
+use crate::i18n::Key;
 
 const CAPTION_ICON_SIZE: f32 = 14.0;
 /// Two diagonal strokes carry less optical weight than the minimise
@@ -74,18 +75,22 @@ impl DesktopApp {
         bar_children.push(cpu_toggle);
         if self.menu_categories_visible {
             bar_children.push(menu_trigger(
-                "Файл",
+                self.lang.t(Key::MenuFile),
                 MenuId::File,
                 self.open_menu == Some(MenuId::File),
             ));
             bar_children.push(menu_trigger(
-                "МП-Система",
+                self.lang.t(Key::MenuMp),
                 MenuId::Mp,
                 self.open_menu == Some(MenuId::Mp),
             ));
-            for label in inactive_category_labels() {
-                bar_children.push(menu_label(label));
+            for key in inactive_category_keys() {
+                bar_children.push(menu_label(self.lang.t(key)));
             }
+            bar_children.insert(
+                bar_children.len() - 1,
+                settings_trigger(self.lang.t(settings_category_key())),
+            );
         }
         bar_children.push(drag_handle);
         bar_children.push(caption_buttons.into());
@@ -142,20 +147,27 @@ impl DesktopApp {
 
     pub(super) fn menu_dropdown(&self) -> Option<Element<'_, Message>> {
         match self.open_menu? {
-            MenuId::File => Some(file_dropdown()),
-            MenuId::Mp => Some(mp_dropdown(self.snapshot.cpu.halted)),
+            MenuId::File => Some(file_dropdown(self.lang)),
+            MenuId::Mp => Some(mp_dropdown(self.snapshot.cpu.halted, self.lang)),
         }
     }
 }
 
-fn menu_label(label: &'static str) -> Element<'static, Message> {
-    ui_text(label, 13, TOKYO_TEXT).into()
+fn menu_label(label: &str) -> Element<'_, Message> {
+    ui_text(label.to_owned(), 13, TOKYO_TEXT).into()
 }
 
-fn menu_trigger(label: &'static str, menu: MenuId, active: bool) -> Element<'static, Message> {
+fn menu_trigger(label: &str, menu: MenuId, active: bool) -> Element<'_, Message> {
     let color = if active { TOKYO_MAGENTA } else { TOKYO_TEXT };
-    mouse_area(ui_text(label, 13, color))
+    mouse_area(ui_text(label.to_owned(), 13, color))
         .on_press(Message::MenuToggled(menu))
+        .interaction(iced::mouse::Interaction::Pointer)
+        .into()
+}
+
+fn settings_trigger(label: &str) -> Element<'_, Message> {
+    mouse_area(ui_text(label.to_owned(), 13, TOKYO_TEXT))
+        .on_press(Message::OpenSettings)
         .interaction(iced::mouse::Interaction::Pointer)
         .into()
 }

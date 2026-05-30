@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use crate::app::DesktopApp;
+use crate::app::{DesktopApp, StatusKind};
+use crate::i18n::Key;
 use k580_app::{AppCommand, Snapshot580Flavour};
 
 use super::parse::parse_hex_u16;
@@ -32,24 +33,34 @@ impl DesktopApp {
             Some(Snapshot580Flavour::Modern) => {
                 self.current_snapshot_path = Some(path);
                 self.current_legacy_snapshot_path = None;
-                self.status = format!("Открыто {display}");
+                self.set_status(StatusKind::Opened {
+                    display: display.clone(),
+                    legacy: false,
+                });
             }
             Some(Snapshot580Flavour::Legacy) => {
                 self.current_snapshot_path = None;
                 self.current_legacy_snapshot_path = Some(path);
-                self.status = format!("Открыто {display} (старый формат)");
-                self.raise_info_notice("Открыт старый формат файла".to_owned());
+                self.set_status(StatusKind::Opened {
+                    display: display.clone(),
+                    legacy: true,
+                });
+                self.raise_info_notice(self.lang.t(Key::LegacyOpenedNotice).to_owned());
             }
             None => {
                 // Worker accepted the load but failed to publish a
                 // flavour — fall back to v1 so Ctrl+S still works.
                 self.current_snapshot_path = Some(path);
                 self.current_legacy_snapshot_path = None;
-                self.status = format!("Открыто {display}");
+                self.set_status(StatusKind::Opened {
+                    display: display.clone(),
+                    legacy: false,
+                });
             }
         }
         self.undo_stack.clear();
         self.dirty = false;
+        self.speed_tier = self.default_speed;
         let pc = self.snapshot.cpu.pc;
         self.set_memory_address(pc);
     }
@@ -77,7 +88,10 @@ impl DesktopApp {
         }
         self.current_legacy_snapshot_path = None;
         self.dirty = false;
-        self.status = format!("Сохранено в {display}");
+        self.set_status(StatusKind::SavedTo {
+            display,
+            legacy: false,
+        });
     }
 
     pub(crate) fn save_snapshot_as(&mut self) {
@@ -103,7 +117,10 @@ impl DesktopApp {
         self.current_snapshot_path = Some(path);
         self.current_legacy_snapshot_path = None;
         self.dirty = false;
-        self.status = format!("Сохранено в {display}");
+        self.set_status(StatusKind::SavedTo {
+            display,
+            legacy: false,
+        });
     }
 
     /// v1 and legacy share the `.580` extension but not the wire
@@ -135,7 +152,10 @@ impl DesktopApp {
             self.current_legacy_snapshot_path = Some(path);
         }
         self.dirty = false;
-        self.status = format!("Сохранено в {display} (старый формат)");
+        self.set_status(StatusKind::SavedTo {
+            display,
+            legacy: true,
+        });
     }
 
     pub(crate) fn open_legacy_snapshot(&mut self) {
@@ -156,9 +176,13 @@ impl DesktopApp {
         self.current_snapshot_path = None;
         self.current_legacy_snapshot_path = Some(path);
         self.dirty = false;
+        self.speed_tier = self.default_speed;
         let pc = self.snapshot.cpu.pc;
         self.set_memory_address(pc);
-        self.status = format!("Открыто {display} (старый формат)");
+        self.set_status(StatusKind::Opened {
+            display,
+            legacy: true,
+        });
     }
 
     /// Push any uncommitted inline byte to the worker before saving.
@@ -200,7 +224,7 @@ impl DesktopApp {
         if self.error_notice.is_some() {
             return;
         }
-        self.status = format!("Экспорт в {display}");
+        self.set_status(StatusKind::ExportTo { display });
     }
 
     pub(crate) fn import_file(&mut self) {

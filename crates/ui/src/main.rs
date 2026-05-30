@@ -2,8 +2,10 @@
 
 mod app;
 mod file_assoc;
+mod i18n;
 mod platform;
 mod runtime;
+mod settings_storage;
 mod view;
 
 use app::DesktopApp;

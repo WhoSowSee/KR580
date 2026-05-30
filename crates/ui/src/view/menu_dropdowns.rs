@@ -5,6 +5,7 @@ use super::icons;
 use super::styles::{menu_button_disabled_style, menu_button_style, opcode_dropdown_style};
 use super::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::Message;
+use crate::i18n::{Key, Lang};
 
 /// Width of the floating File dropdown. Picked wide enough that the
 /// legacy-format note and shortcut fit beside the base action label.
@@ -17,57 +18,61 @@ pub(super) const MP_DROPDOWN_WIDTH: f32 = 270.0;
 /// Edge length of the icon square that prefixes every dropdown row.
 pub(super) const MENU_ICON_SIZE: f32 = 16.0;
 
-fn legacy_format_note() -> &'static str {
-    "старый формат"
-}
-
-pub(super) fn file_dropdown() -> Element<'static, Message> {
+pub(super) fn file_dropdown(lang: Lang) -> Element<'static, Message> {
     let items: Vec<Element<'static, Message>> = vec![
         menu_item(
-            "Новый файл",
+            lang.t(Key::FileNew),
             "Ctrl+N",
             icons::file(),
             Message::NewFile,
             true,
         ),
         menu_item(
-            "Открыть",
+            lang.t(Key::FileOpen),
             "Ctrl+O",
             icons::folder_open(),
             Message::OpenSnapshot,
             true,
         ),
         menu_item(
-            "Сохранить",
+            lang.t(Key::FileSave),
             "Ctrl+S",
             icons::save(),
             Message::SaveSnapshot,
             true,
         ),
         menu_item(
-            "Сохранить как",
+            lang.t(Key::FileSaveAs),
             "Ctrl+Shift+S",
             icons::save_as(),
             Message::SaveSnapshotAs,
             true,
         ),
         menu_item(
-            "Импорт",
+            lang.t(Key::FileImport),
             "Ctrl+I",
             icons::file_down(),
             Message::Import,
             true,
         ),
-        menu_item("Экспорт", "Ctrl+E", icons::file_up(), Message::Export, true),
+        menu_item(
+            lang.t(Key::FileExport),
+            "Ctrl+E",
+            icons::file_up(),
+            Message::Export,
+            true,
+        ),
         menu_separator(),
         legacy_menu_item(
-            "Открыть",
+            lang.t(Key::FileOpen),
+            lang.t(Key::LegacyFormatNote),
             "Ctrl+Alt+O",
             icons::folder_open(),
             Message::OpenLegacySnapshot,
         ),
         legacy_menu_item(
-            "Сохранить",
+            lang.t(Key::FileSave),
+            lang.t(Key::LegacyFormatNote),
             "Ctrl+Alt+S",
             icons::save(),
             Message::SaveLegacySnapshot,
@@ -81,24 +86,24 @@ pub(super) fn file_dropdown() -> Element<'static, Message> {
         .into()
 }
 
-pub(super) fn mp_dropdown(halted: bool) -> Element<'static, Message> {
+pub(super) fn mp_dropdown(halted: bool, lang: Lang) -> Element<'static, Message> {
     let items: Vec<Element<'static, Message>> = vec![
         menu_item(
-            "Выполнить программу",
+            lang.t(Key::MpRunProgram),
             "Ctrl+R",
             icons::play(),
             Message::ToggleRun,
             true,
         ),
         menu_item(
-            "Выполнить команду",
+            lang.t(Key::MpRunInstruction),
             "Ctrl+T",
             icons::step_forward(),
             Message::StepInstruction,
             true,
         ),
         menu_item(
-            "Выполнить такт",
+            lang.t(Key::MpRunTact),
             "Ctrl+Y",
             icons::redo_dot(),
             Message::StepTact,
@@ -106,21 +111,21 @@ pub(super) fn mp_dropdown(halted: bool) -> Element<'static, Message> {
         ),
         menu_separator(),
         menu_item(
-            "Очистить ОЗУ",
+            lang.t(Key::MpResetRam),
             "Ctrl+Shift+R",
             icons::reset_ram(),
             Message::ResetRam,
             true,
         ),
         menu_item(
-            "Очистить регистры",
+            lang.t(Key::MpResetCpu),
             "Ctrl+Shift+G",
             icons::reset_registers(),
             Message::ResetCpu,
             true,
         ),
         menu_item(
-            "Сбросить флаг HLT",
+            lang.t(Key::MpClearHalt),
             "Ctrl+Shift+H",
             icons::clear_halt(),
             Message::ClearHalt,
@@ -137,18 +142,12 @@ pub(super) fn mp_dropdown(halted: bool) -> Element<'static, Message> {
 
 fn legacy_menu_item(
     label: &'static str,
+    note: &'static str,
     shortcut: &'static str,
     icon: svg::Handle,
     action: Message,
 ) -> Element<'static, Message> {
-    menu_item_with_note(
-        label,
-        Some(legacy_format_note()),
-        shortcut,
-        icon,
-        action,
-        true,
-    )
+    menu_item_with_note(label, Some(note), shortcut, icon, action, true)
 }
 
 fn menu_item(
@@ -236,14 +235,11 @@ fn menu_separator() -> Element<'static, Message> {
 
 #[cfg(test)]
 mod tests {
-    use super::legacy_format_note;
+    use crate::i18n::{Key, Lang};
 
     #[test]
-    fn legacy_format_note_is_plain_muted_metadata() {
-        let note = legacy_format_note();
-
-        assert_eq!(note, "старый формат");
-        assert!(!note.contains('('));
-        assert!(!note.contains(')'));
+    fn legacy_format_note_translates_per_language() {
+        assert_eq!(Lang::Ru.t(Key::LegacyFormatNote), "старый формат");
+        assert_eq!(Lang::En.t(Key::LegacyFormatNote), "legacy format");
     }
 }

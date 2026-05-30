@@ -4,6 +4,7 @@ use k580_core::{Cpu8080State, decode_opcode};
 
 use super::theme::{TOKYO_GREEN, TOKYO_MUTED, mono_text, ui_text};
 use crate::app::Message;
+use crate::i18n::{Key, Lang};
 
 const COMMAND_COLUMN_PORTIONS: [u16; 6] = [8, 10, 12, 10, 12, 13];
 const COMMAND_GRID_SPACING: f32 = 10.0;
@@ -17,26 +18,51 @@ struct CurrentCommandFields {
     command: String,
     operand: String,
     length: String,
-    kind: &'static str,
-    addressing: &'static str,
+    kind: Key,
+    addressing: Key,
 }
 
-pub(super) fn current_command_panel(cpu: &Cpu8080State) -> Element<'static, Message> {
-    let fields = current_command_fields(cpu);
+pub(super) fn current_command_panel(cpu: &Cpu8080State, lang: Lang) -> Element<'_, Message> {
+    let fields = current_command_fields(cpu, lang);
 
     row![
-        command_column("Код", fields.code, command_column_width(0), true),
-        command_column("Команда", fields.command, command_column_width(1), true),
-        command_column("Операнд", fields.operand, command_column_width(2), true),
-        command_column("Длина", fields.length, command_column_width(3), false),
-        command_column("Тип", fields.kind, command_column_width(4), false),
+        command_column(
+            lang.t(Key::ColCmdCode),
+            fields.code,
+            command_column_width(0),
+            true
+        ),
+        command_column(
+            lang.t(Key::ColCmdMnemonic),
+            fields.command,
+            command_column_width(1),
+            true
+        ),
+        command_column(
+            lang.t(Key::ColCmdOperand),
+            fields.operand,
+            command_column_width(2),
+            true
+        ),
+        command_column(
+            lang.t(Key::ColCmdLength),
+            fields.length,
+            command_column_width(3),
+            false
+        ),
+        command_column(
+            lang.t(Key::ColCmdKind),
+            lang.t(fields.kind),
+            command_column_width(4),
+            false
+        ),
         Space::new().width(Length::Fixed(type_address_gap(
-            fields.kind,
-            fields.addressing,
+            lang.t(fields.kind),
+            lang.t(fields.addressing),
         ))),
         command_column(
-            "Адресация",
-            fields.addressing,
+            lang.t(Key::ColCmdAddressing),
+            lang.t(fields.addressing),
             command_column_width(5),
             false,
         ),
@@ -48,21 +74,21 @@ pub(super) fn current_command_panel(cpu: &Cpu8080State) -> Element<'static, Mess
 }
 
 fn command_column(
-    label: &'static str,
+    label: &str,
     value: impl Into<String>,
     width: Length,
     mono: bool,
-) -> Element<'static, Message> {
+) -> Element<'_, Message> {
     let align = command_column_alignment();
     let value = value.into();
-    let value: Element<'static, Message> = if mono {
+    let value: Element<'_, Message> = if mono {
         mono_text(value, 14, TOKYO_GREEN).into()
     } else {
         ui_text(value, 14, TOKYO_GREEN).into()
     };
 
     container(
-        column![ui_text(label, 12, TOKYO_MUTED), value]
+        column![ui_text(label.to_owned(), 12, TOKYO_MUTED), value]
             .spacing(5)
             .align_x(align),
     )
@@ -96,7 +122,7 @@ fn type_address_gap(kind: &str, addressing: &str) -> f32 {
     }
 }
 
-fn current_command_fields(cpu: &Cpu8080State) -> CurrentCommandFields {
+fn current_command_fields(cpu: &Cpu8080State, lang: Lang) -> CurrentCommandFields {
     let opcode = cpu.memory.read(cpu.pc);
     let code = format!("{opcode:02X}");
     let Ok(info) = decode_opcode(opcode) else {
@@ -104,9 +130,9 @@ fn current_command_fields(cpu: &Cpu8080State) -> CurrentCommandFields {
             code,
             command: "UNDOC".to_owned(),
             operand: "-".to_owned(),
-            length: "1 байт".to_owned(),
-            kind: "неизвестно",
-            addressing: "неявная",
+            length: byte_length(1, lang),
+            kind: Key::CmdKindUnknown,
+            addressing: Key::CmdAddrImplicit,
         };
     };
 
@@ -115,9 +141,9 @@ fn current_command_fields(cpu: &Cpu8080State) -> CurrentCommandFields {
         code,
         command: command.to_owned(),
         operand: operand.to_owned(),
-        length: byte_length(info.size),
-        kind: instruction_kind(command),
-        addressing: addressing_kind(command, operand),
+        length: byte_length(info.size, lang),
+        kind: instruction_kind_key(command),
+        addressing: addressing_kind_key(command, operand),
     }
 }
 
@@ -125,64 +151,67 @@ fn split_instruction(mnemonic: &str) -> (&str, &str) {
     mnemonic.split_once(' ').unwrap_or((mnemonic, "-"))
 }
 
-fn byte_length(size: u8) -> String {
-    match size {
-        1 => "1 байт".to_owned(),
-        2..=4 => format!("{size} байта"),
-        _ => format!("{size} байт"),
+fn byte_length(size: u8, lang: Lang) -> String {
+    match (size, lang) {
+        (1, _) => lang.t(Key::CmdLengthByte).to_owned(),
+        (2, _) => lang.t(Key::CmdLengthBytes2).to_owned(),
+        (3, _) => lang.t(Key::CmdLengthBytes3).to_owned(),
+        (n, Lang::Ru) => format!("{n} байт"),
+        (n, Lang::En) => format!("{n} bytes"),
     }
 }
 
-fn instruction_kind(command: &str) -> &'static str {
+fn instruction_kind_key(command: &str) -> Key {
     match command {
-        "NOP" | "HLT" | "EI" | "DI" => "управление",
+        "NOP" | "HLT" | "EI" | "DI" => Key::CmdKindControl,
         "JMP" | "JNZ" | "JZ" | "JNC" | "JC" | "JPO" | "JPE" | "JP" | "JM" | "CALL" | "CNZ"
         | "CZ" | "CNC" | "CC" | "CPO" | "CPE" | "CP" | "CM" | "RET" | "RNZ" | "RZ" | "RNC"
-        | "RC" | "RPO" | "RPE" | "RP" | "RM" | "RST" | "PCHL" => "переход",
-        "PUSH" | "POP" | "XTHL" | "SPHL" => "стек",
-        "IN" | "OUT" => "ввод/вывод",
+        | "RC" | "RPO" | "RPE" | "RP" | "RM" | "RST" | "PCHL" => Key::CmdKindBranch,
+        "PUSH" | "POP" | "XTHL" | "SPHL" => Key::CmdKindStack,
+        "IN" | "OUT" => Key::CmdKindIo,
         "MOV" | "MVI" | "LXI" | "LDA" | "STA" | "LHLD" | "SHLD" | "LDAX" | "STAX" | "XCHG" => {
-            "пересылка"
+            Key::CmdKindMove
         }
         "ANA" | "XRA" | "ORA" | "CMP" | "ANI" | "XRI" | "ORI" | "CPI" | "RLC" | "RRC" | "RAL"
-        | "RAR" | "CMA" | "STC" | "CMC" => "логика",
-        _ => "арифметика",
+        | "RAR" | "CMA" | "STC" | "CMC" => Key::CmdKindLogic,
+        _ => Key::CmdKindArithmetic,
     }
 }
 
-fn addressing_kind(command: &str, operand: &str) -> &'static str {
+fn addressing_kind_key(command: &str, operand: &str) -> Key {
     if operand == "-" {
-        return "неявная";
+        return Key::CmdAddrImplicit;
     }
     if operand.contains("d8") || operand.contains("d16") {
-        return "непосредств";
+        return Key::CmdAddrImmediate;
     }
     if operand.contains("a16") {
-        return "прямая";
+        return Key::CmdAddrDirect;
     }
     if operand.contains('M') || matches!(command, "LDAX" | "STAX" | "PCHL" | "SPHL" | "XTHL") {
-        return "косвенная";
+        return Key::CmdAddrIndirect;
     }
-    "регистровая"
+    Key::CmdAddrRegister
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::i18n::{Key, Lang};
     use k580_core::Cpu8080State;
 
     #[test]
     fn nop_current_command_matches_reference_panel() {
         let cpu = Cpu8080State::default();
 
-        let fields = current_command_fields(&cpu);
+        let fields = current_command_fields(&cpu, Lang::Ru);
 
         assert_eq!(fields.code, "00");
         assert_eq!(fields.command, "NOP");
         assert_eq!(fields.operand, "-");
         assert_eq!(fields.length, "1 байт");
-        assert_eq!(fields.kind, "управление");
-        assert_eq!(fields.addressing, "неявная");
+        assert_eq!(fields.kind, Key::CmdKindControl);
+        assert_eq!(fields.addressing, Key::CmdAddrImplicit);
     }
 
     #[test]
@@ -190,14 +219,14 @@ mod tests {
         let mut cpu = Cpu8080State::default();
         cpu.set_memory(cpu.pc, 0x06);
 
-        let fields = current_command_fields(&cpu);
+        let fields = current_command_fields(&cpu, Lang::Ru);
 
         assert_eq!(fields.code, "06");
         assert_eq!(fields.command, "MVI");
         assert_eq!(fields.operand, "B,d8");
         assert_eq!(fields.length, "2 байта");
-        assert_eq!(fields.kind, "пересылка");
-        assert_eq!(fields.addressing, "непосредств");
+        assert_eq!(fields.kind, Key::CmdKindMove);
+        assert_eq!(fields.addressing, Key::CmdAddrImmediate);
     }
 
     #[test]
@@ -207,14 +236,25 @@ mod tests {
         cpu.pc = 0x0000;
         cpu.set_memory(0x0000, 0x21);
 
-        let fields = current_command_fields(&cpu);
+        let fields = current_command_fields(&cpu, Lang::Ru);
 
         assert_eq!(fields.code, "21");
         assert_eq!(fields.command, "LXI");
         assert_eq!(fields.operand, "H,d16");
         assert_eq!(fields.length, "3 байта");
-        assert_eq!(fields.kind, "пересылка");
-        assert_eq!(fields.addressing, "непосредств");
+        assert_eq!(fields.kind, Key::CmdKindMove);
+        assert_eq!(fields.addressing, Key::CmdAddrImmediate);
+    }
+
+    #[test]
+    fn english_command_renders_english_byte_length_and_kind() {
+        let cpu = Cpu8080State::default();
+
+        let fields = current_command_fields(&cpu, Lang::En);
+
+        assert_eq!(fields.length, "1 byte");
+        assert_eq!(Lang::En.t(fields.kind), "control");
+        assert_eq!(Lang::En.t(fields.addressing), "implicit");
     }
 
     #[test]

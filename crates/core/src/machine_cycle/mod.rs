@@ -133,6 +133,21 @@ impl MachineCycleKind {
             Self::BusIdle => "Внутренний цикл",
         }
     }
+
+    pub fn label_en(self) -> &'static str {
+        match self {
+            Self::M1Fetch => "Opcode fetch",
+            Self::MemoryRead => "Memory read",
+            Self::MemoryWrite => "Memory write",
+            Self::StackRead => "Stack read",
+            Self::StackWrite => "Stack write",
+            Self::IoRead => "Port read",
+            Self::IoWrite => "Port write",
+            Self::InterruptAck => "Interrupt ack",
+            Self::HaltAck => "Halt ack",
+            Self::BusIdle => "Internal cycle",
+        }
+    }
 }
 
 pub type MachineCycleKinds = &'static [MachineCycleKind];

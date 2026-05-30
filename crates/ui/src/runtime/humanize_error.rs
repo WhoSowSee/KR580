@@ -1,10 +1,6 @@
-//! Translates English `thiserror` messages into short Russian
-//! phrases for the floating error overlay. Pattern-matches on the
-//! rendered string because `AppError::*` already carries a `String`
-//! payload — typing the original variant would reshape the entire
-//! error pipeline for a cosmetic concern.
+use crate::i18n::{Key, Lang};
 
-pub(super) fn humanize(raw: &str) -> String {
+pub(super) fn humanize(raw: &str, lang: Lang) -> String {
     let lower = raw.to_lowercase();
 
     if lower.contains("invalid .580 magic")
@@ -14,77 +10,78 @@ pub(super) fn humanize(raw: &str) -> String {
         || lower.contains("invalid length")
         || lower.contains("required snapshot tag")
     {
-        return "Файл повреждён или имеет неподдерживаемый формат".to_owned();
+        return lang.t(Key::ErrFileCorruptedOrUnsupported).to_owned();
     }
     if lower.contains("unsupported .580 version") {
-        return "Файл сохранён в более новой версии — обновите программу".to_owned();
+        return lang.t(Key::ErrFileNewerVersion).to_owned();
     }
     if lower.contains("legacy .580 file must be exactly") {
-        return "Файл не похож на сохранение в старом формате".to_owned();
+        return lang.t(Key::ErrNotLegacyFormat).to_owned();
     }
     if lower.contains("legacy .580 trailer") {
-        return "Конец файла повреждён — это не сохранение в старом формате".to_owned();
+        return lang.t(Key::ErrLegacyTrailerCorrupt).to_owned();
     }
 
     if lower.contains("unsupported settings version") {
-        return "Настройки сохранены в более новой версии — обновите программу".to_owned();
+        return lang.t(Key::ErrSettingsNewerVersion).to_owned();
     }
     if lower.contains("settings json error") {
-        return "Файл настроек повреждён".to_owned();
+        return lang.t(Key::ErrSettingsCorrupt).to_owned();
     }
 
     if lower.contains("malformed import file") || lower.contains("spreadsheet import error") {
-        return "Не удалось прочитать файл — проверьте формат".to_owned();
+        return lang.t(Key::ErrCannotReadFileFormat).to_owned();
     }
     if lower.contains("import i/o error") {
-        return "Не удалось прочитать файл".to_owned();
+        return lang.t(Key::ErrCannotReadFile).to_owned();
     }
     if lower.contains("spreadsheet export error") {
-        return "Не удалось записать таблицу".to_owned();
+        return lang.t(Key::ErrCannotWriteTable).to_owned();
     }
     if lower.contains("export i/o error") {
-        return "Не удалось записать файл".to_owned();
+        return lang.t(Key::ErrCannotWriteFile).to_owned();
     }
 
     if lower.contains("not found") || lower.contains("no such file") || lower.contains("os error 2")
     {
-        return "Файл не найден".to_owned();
+        return lang.t(Key::ErrFileNotFound).to_owned();
     }
     if lower.contains("permission denied") || lower.contains("os error 5") {
-        return "Нет доступа к файлу".to_owned();
+        return lang.t(Key::ErrPermissionDenied).to_owned();
     }
     if lower.contains("already exists") {
-        return "Файл уже существует".to_owned();
+        return lang.t(Key::ErrFileAlreadyExists).to_owned();
     }
     if lower.contains("disk") || lower.contains("space") {
-        return "На диске недостаточно места".to_owned();
+        return lang.t(Key::ErrDiskFull).to_owned();
     }
     if lower.starts_with("i/o error") || lower.starts_with("io error") {
-        return "Ошибка чтения или записи файла".to_owned();
+        return lang.t(Key::ErrIoGeneric).to_owned();
     }
 
     if lower.contains("address range") {
-        return "Адрес вне допустимого диапазона памяти".to_owned();
+        return lang.t(Key::ErrAddressOutOfRange).to_owned();
     }
     if lower.contains("invalid register name") {
-        return "Неизвестное имя регистра".to_owned();
+        return lang.t(Key::ErrUnknownRegister).to_owned();
     }
     if lower.contains("undocumented opcode") {
-        return "Недокументированная команда".to_owned();
+        return lang.t(Key::ErrUndocumentedOpcode).to_owned();
     }
 
     if lower.contains("worker stopped") {
-        return "Внутренняя ошибка приложения".to_owned();
+        return lang.t(Key::ErrInternal).to_owned();
     }
 
     // Fallback keeps the original in parens so a screenshot still
     // helps when the user reports the issue.
-    format!("Не удалось выполнить операцию ({raw})")
+    format!("{} ({raw})", lang.t(Key::ErrGenericFailed))
 }
 
 #[cfg(test)]
 mod tests {
     use super::humanize;
+    use crate::i18n::Lang;
 
     #[test]
     fn snapshot_format_diagnostics_are_localized() {
@@ -96,7 +93,7 @@ mod tests {
             "invalid length 5 for tag 0x01",
             "required snapshot tag 0x01 is missing",
         ] {
-            let humanized = humanize(raw);
+            let humanized = humanize(raw, Lang::Ru);
             assert!(
                 humanized.contains("повреждён") || humanized.contains("неподдерживаемый формат"),
                 "{raw} did not localize: {humanized}"
@@ -106,37 +103,57 @@ mod tests {
 
     #[test]
     fn version_skew_has_its_own_message() {
-        assert!(humanize("unsupported .580 version 2").contains("новой версии"));
-        assert!(humanize("unsupported settings version 2").contains("новой версии"));
+        assert!(humanize("unsupported .580 version 2", Lang::Ru).contains("новой версии"));
+        assert!(humanize("unsupported settings version 2", Lang::Ru).contains("новой версии"));
+        assert!(humanize("unsupported .580 version 2", Lang::En).contains("newer version"));
     }
 
     #[test]
     fn legacy_diagnostics_are_distinct() {
         assert!(
-            humanize("legacy .580 file must be exactly 65549 bytes, got 1024")
-                .contains("в старом формате")
+            humanize(
+                "legacy .580 file must be exactly 65549 bytes, got 1024",
+                Lang::Ru
+            )
+            .contains("в старом формате")
         );
-        assert!(humanize("legacy .580 trailer is missing the FF FF end marker").contains("Конец"));
+        assert!(
+            humanize(
+                "legacy .580 trailer is missing the FF FF end marker",
+                Lang::Ru
+            )
+            .contains("Конец")
+        );
     }
 
     #[test]
     fn io_kind_phrases_are_translated() {
         assert_eq!(
-            humanize("The system cannot find the file specified. (os error 2)"),
+            humanize(
+                "The system cannot find the file specified. (os error 2)",
+                Lang::Ru
+            ),
             "Файл не найден"
         );
         assert_eq!(
-            humanize("Access is denied. (os error 5)"),
+            humanize("Access is denied. (os error 5)", Lang::Ru),
             "Нет доступа к файлу"
         );
-        assert_eq!(humanize("entity not found"), "Файл не найден");
-        assert_eq!(humanize("permission denied"), "Нет доступа к файлу");
+        assert_eq!(humanize("entity not found", Lang::Ru), "Файл не найден");
+        assert_eq!(
+            humanize("permission denied", Lang::Ru),
+            "Нет доступа к файлу"
+        );
+        assert_eq!(
+            humanize("permission denied", Lang::En),
+            "Permission denied for file"
+        );
     }
 
     #[test]
     fn unknown_messages_fall_back_with_suffix() {
         let raw = "totally novel error not seen before";
-        let humanized = humanize(raw);
+        let humanized = humanize(raw, Lang::Ru);
         assert!(humanized.starts_with("Не удалось выполнить операцию"));
         assert!(humanized.contains(raw));
     }

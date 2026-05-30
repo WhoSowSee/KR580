@@ -8,7 +8,7 @@ pub(super) const SYNC_DISPATCH_TIMEOUT: Duration = Duration::from_millis(50);
 impl DesktopApp {
     pub(crate) fn dispatch(&mut self, command: AppCommand) {
         if let Err(error) = self.handle.send(command) {
-            self.status = error.to_string();
+            self.set_status_custom(error.to_string());
         }
         self.pull_events();
     }
@@ -18,7 +18,7 @@ impl DesktopApp {
     /// dispatch race the channel and the user clicks twice.
     pub(crate) fn dispatch_sync(&mut self, command: AppCommand) {
         if let Err(error) = self.handle.send(command) {
-            self.status = error.to_string();
+            self.set_status_custom(error.to_string());
             return;
         }
         for event in self.handle.drain_until_state_change(SYNC_DISPATCH_TIMEOUT) {
@@ -47,7 +47,7 @@ impl DesktopApp {
         let pc = self.snapshot.cpu.pc;
         let has_program = self.snapshot.cpu.memory.read(pc) != 0;
         if !has_program {
-            self.status = format!("Нет программы по адресу {pc:04X}");
+            self.set_status(crate::app::StatusKind::NoProgramAt { pc });
             return;
         }
         self.running = true;

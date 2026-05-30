@@ -1,19 +1,23 @@
 use iced::Task;
-use std::time::Duration;
 
 use super::constants::{
     MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_SCROLL_VISIBLE_TICKS,
     MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID, REGISTER_INLINE_INPUT_ID,
     REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
 };
-use super::messages::{Message, SpeedTier};
-use super::speed::tier_hz;
+use super::messages::Message;
 use super::state::{DesktopApp, PendingAction};
 use crate::platform;
 
 impl DesktopApp {
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
         if let Some(task) = self.route_discard_modal_message(&message) {
+            return task;
+        }
+        if let Some(task) = self.route_settings_modal_message(&message) {
+            return task;
+        }
+        if let Some(task) = self.dispatch_settings_message(message.clone()) {
             return task;
         }
 
@@ -29,11 +33,10 @@ impl DesktopApp {
                 .map(Message::FocusReconciled);
             }
             Message::FocusReconciled(hit) => return self.handle_focus_reconciled(hit),
-            Message::ResolveFocusedTracker(focused) => {
-                if focused.is_none() {
-                    self.focused_input = None;
-                }
+            Message::ResolveFocusedTracker(None) => {
+                self.focused_input = None;
             }
+            Message::ResolveFocusedTracker(Some(_)) => {}
             Message::StepInstruction => return self.step_instruction_and_advance(),
             Message::RestartProgram => self.restart_program(),
             Message::StepTact => return self.step_tact_and_maybe_advance(),
@@ -137,11 +140,10 @@ impl DesktopApp {
             Message::RegisterHoverStarted(target) => {
                 self.hovered_register_target = Some(target);
             }
-            Message::RegisterHoverEnded(target) => {
-                if self.hovered_register_target == Some(target) {
-                    self.hovered_register_target = None;
-                }
+            Message::RegisterHoverEnded(target) if self.hovered_register_target == Some(target) => {
+                self.hovered_register_target = None;
             }
+            Message::RegisterHoverEnded(_) => {}
             Message::MemorySelected(address) => self.select_memory(address),
             Message::MemoryEnter(address) => {
                 // Defer focus — `MousePressed` reconcile would clear
@@ -298,17 +300,7 @@ impl DesktopApp {
                 return Task::batch(tasks);
             }
             Message::SpeedTierChanged(tier) => {
-                self.speed_tier = tier;
-                let hz = tier_hz(tier);
-                let interval = Duration::from_micros(1_000_000 / u64::from(hz.max(1)));
-                self.dispatch(k580_app::AppCommand::SetStepInterval(interval));
-                let mode = match tier {
-                    SpeedTier::Max => k580_app::RunMode::Burst {
-                        slice: Duration::from_millis(16),
-                    },
-                    _ => k580_app::RunMode::Paced,
-                };
-                self.dispatch(k580_app::AppCommand::SetRunMode(mode));
+                self.apply_speed_tier(tier);
             }
             Message::WindowDragStart => {
                 if self.close_titlebar_popup_before_drag() {
@@ -357,6 +349,7 @@ impl DesktopApp {
                     return Task::done(Message::WindowClose);
                 }
             }
+            _ => {}
         }
         Task::none()
     }

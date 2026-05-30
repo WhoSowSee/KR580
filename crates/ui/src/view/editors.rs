@@ -15,6 +15,7 @@ use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message, REGISTER_NAME_INPUT_ID,
     REGISTER_VALUE_INPUT_ID,
 };
+use crate::i18n::Key;
 
 impl DesktopApp {
     pub(super) fn side_panel(&self) -> Element<'_, Message> {
@@ -75,7 +76,7 @@ impl DesktopApp {
             .width(Length::Fill)
             .align_x(alignment::Horizontal::Center);
 
-        legend_panel("Ячейка ОЗУ и ее значение", content, Length::Shrink)
+        legend_panel(self.lang.t(Key::MemoryEditorTitle), content, Length::Shrink)
     }
 
     fn register_editor_panel(&self) -> Element<'_, Message> {
@@ -123,7 +124,11 @@ impl DesktopApp {
             .width(Length::Fill)
             .align_x(alignment::Horizontal::Center);
 
-        legend_panel("Регистр и его значение", content, Length::Shrink)
+        legend_panel(
+            self.lang.t(Key::RegisterEditorTitle),
+            content,
+            Length::Shrink,
+        )
     }
 
     /// Bottom toolbar: two side-by-side framed panels mirroring the
@@ -139,21 +144,25 @@ impl DesktopApp {
         // step/restart swaps `StepInstruction` ↔ `RestartProgram`
         // (ResetCpu + Run, RAM preserved).
         let (run_icon, run_accent, run_tooltip) = if self.running {
-            (icons::pause(), TOKYO_RED, "Пауза")
+            (icons::pause(), TOKYO_RED, self.lang.t(Key::ActionPause))
         } else {
-            (icons::play(), TOKYO_GREEN, "Выполнить программу")
+            (
+                icons::play(),
+                TOKYO_GREEN,
+                self.lang.t(Key::ActionRunProgram),
+            )
         };
         let (step_icon, step_message, step_tooltip) = if self.running {
             (
                 icons::refresh_ccw(),
                 Message::RestartProgram,
-                "Перезапустить программу",
+                self.lang.t(Key::ActionRestartProgram),
             )
         } else {
             (
                 icons::step_forward(),
                 Message::StepInstruction,
-                "Выполнить команду",
+                self.lang.t(Key::ActionStepInstruction),
             )
         };
 
@@ -169,7 +178,7 @@ impl DesktopApp {
                 icons::redo_dot(),
                 gate(Message::StepTact),
                 TOKYO_YELLOW,
-                "Выполнить такт",
+                self.lang.t(Key::ActionStepTact),
             ),
         ]
         .spacing(CHIP_SPACING)
@@ -180,27 +189,27 @@ impl DesktopApp {
                 icons::reset_ram(),
                 Some(Message::ResetRam),
                 TOKYO_RED,
-                "Сброс ОЗУ",
+                self.lang.t(Key::ActionResetRam),
             ),
             icon_action_button(
                 icons::reset_registers(),
                 Some(Message::ResetCpu),
                 TOKYO_MAGENTA,
-                "Сброс регистров",
+                self.lang.t(Key::ActionResetCpu),
             ),
         ]
         .spacing(CHIP_SPACING)
         .align_y(alignment::Vertical::Center);
 
         let execution_panel = legend_panel(
-            "Выполнение",
+            self.lang.t(Key::ExecutionPanel),
             container(execution_strip)
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center),
             Length::Shrink,
         );
         let reset_panel = legend_panel(
-            "Сброс",
+            self.lang.t(Key::ResetPanel),
             container(reset_strip)
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center),

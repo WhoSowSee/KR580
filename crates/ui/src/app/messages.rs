@@ -1,4 +1,5 @@
 use super::register_inline::RegisterMove;
+use crate::i18n::Lang;
 use iced::Point;
 use iced::keyboard;
 use k580_core::RegisterName;
@@ -17,6 +18,8 @@ pub(crate) enum SpeedTier {
     High,
     Max,
 }
+
+pub(crate) use super::settings_modal::SettingsCategory;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RegisterInlineTarget {
@@ -126,4 +129,19 @@ pub(crate) enum Message {
     CancelDiscard,
     /// OS-side close (× / Alt+F4); routed through the dirty gate.
     WindowCloseRequested,
+    OpenSettings,
+    CloseSettings,
+    SaveSettings,
+    SettingsCategorySelected(SettingsCategory),
+    SettingsSearchChanged(String),
+    SettingsDraftLanguageChanged(Lang),
+    SettingsDraftSpeedChanged(SpeedTier),
+    SettingsLanguageDropdownToggled,
+    SettingsResetRequested,
+    SettingsResetConfirmed,
+    SettingsResetCancelled,
+    PersistSettings,
+    SettingsSectionCycle {
+        backward: bool,
+    },
 }

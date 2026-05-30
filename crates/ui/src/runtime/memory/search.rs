@@ -18,7 +18,7 @@ impl DesktopApp {
                 Task::none()
             }
             Err(error) => {
-                self.status = error;
+                self.set_status_custom(error);
                 Task::none()
             }
         }
@@ -52,7 +52,7 @@ impl DesktopApp {
         if self.memory_search_pattern.is_none() {
             let pattern = self.memory_address_input.trim().to_ascii_uppercase();
             if pattern.is_empty() {
-                self.status = "Введите hex-шаблон для поиска".to_owned();
+                self.set_status(crate::app::StatusKind::EnterHexPattern);
                 return Task::none();
             }
             self.memory_search_pattern = Some(pattern);
@@ -61,7 +61,7 @@ impl DesktopApp {
         let pattern = match self.memory_search_pattern.as_deref() {
             Some(pattern) if !pattern.is_empty() => pattern.to_owned(),
             _ => {
-                self.status = "Введите hex-шаблон для поиска".to_owned();
+                self.set_status(crate::app::StatusKind::EnterHexPattern);
                 return Task::none();
             }
         };
@@ -83,13 +83,13 @@ impl DesktopApp {
             Some(address) => {
                 self.memory_address_input = format!("{address:04X}");
                 self.refresh_memory_value(address);
-                self.status = format!("Найден шаблон {pattern} по адресу {address:04X}");
+                self.set_status(crate::app::StatusKind::PatternFound { pattern, address });
                 let target_offset = address as f32 * MEMORY_ROW_HEIGHT;
                 self.scroll_memory(target_offset);
                 scroll_memory_to(target_offset)
             }
             None => {
-                self.status = format!("Нет адресов, соответствующих {pattern}");
+                self.set_status(crate::app::StatusKind::NoMatchesFor { pattern });
                 Task::none()
             }
         }

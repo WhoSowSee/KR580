@@ -1,13 +1,29 @@
-pub(super) fn inactive_category_labels() -> [&'static str; 3] {
-    ["Вид", "Настройки", "Справка"]
+use crate::i18n::Key;
+
+pub(super) fn inactive_category_keys() -> [Key; 2] {
+    [Key::MenuView, Key::MenuHelp]
+}
+
+pub(super) fn settings_category_key() -> Key {
+    Key::MenuSettings
 }
 
 #[cfg(test)]
 mod tests {
-    use super::inactive_category_labels;
+    use super::{inactive_category_keys, settings_category_key};
+    use crate::i18n::{Key, Lang};
 
     #[test]
     fn inactive_menu_categories_are_localized() {
-        assert_eq!(inactive_category_labels(), ["Вид", "Настройки", "Справка"]);
+        let keys = inactive_category_keys();
+        assert_eq!(keys, [Key::MenuView, Key::MenuHelp]);
+        assert_eq!(Lang::Ru.t(keys[0]), "Вид");
+        assert_eq!(Lang::En.t(keys[0]), "View");
+    }
+
+    #[test]
+    fn settings_category_translates() {
+        assert_eq!(Lang::Ru.t(settings_category_key()), "Настройки");
+        assert_eq!(Lang::En.t(settings_category_key()), "Settings");
     }
 }

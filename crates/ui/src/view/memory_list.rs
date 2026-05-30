@@ -24,6 +24,7 @@ use crate::app::{
     DesktopApp, MEMORY_ADDRESS_COUNT, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
     MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, Message,
 };
+use crate::i18n::Key;
 
 impl DesktopApp {
     pub(super) fn memory_panel(&self) -> Element<'_, Message> {
@@ -79,6 +80,7 @@ impl DesktopApp {
                     &self.opcode_search_input,
                     self.opcode_scroll_visible_ticks > 0,
                     top,
+                    self.lang,
                 ),
             ])
             .width(Length::Fill)
@@ -88,24 +90,24 @@ impl DesktopApp {
             scrollable_memory
         };
 
-        let body = column![memory_header(), memory_body]
+        let body = column![memory_header(self.lang), memory_body]
             .spacing(8)
             .height(Length::Fill);
 
-        legend_panel("Содержимое ячеек ОЗУ", body, Length::Fill)
+        legend_panel(self.lang.t(Key::MemoryListTitle), body, Length::Fill)
     }
 }
 
-fn memory_header() -> Element<'static, Message> {
+fn memory_header(lang: crate::i18n::Lang) -> Element<'static, Message> {
     container(
         row![
-            ui_text("Адрес", 12, TOKYO_MUTED)
+            ui_text(lang.t(Key::ColumnAddress).to_owned(), 12, TOKYO_MUTED)
                 .width(Length::FillPortion(1))
                 .align_x(alignment::Horizontal::Center),
-            ui_text("Значение", 12, TOKYO_MUTED)
+            ui_text(lang.t(Key::ColumnValue).to_owned(), 12, TOKYO_MUTED)
                 .width(Length::FillPortion(1))
                 .align_x(alignment::Horizontal::Center),
-            ui_text("Команда", 12, TOKYO_MUTED)
+            ui_text(lang.t(Key::ColumnCommand).to_owned(), 12, TOKYO_MUTED)
                 .width(Length::FillPortion(1))
                 .align_x(alignment::Horizontal::Center),
         ]
