@@ -1,7 +1,7 @@
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
 use iced::{Background, Border, Color, Element, Length};
 
-use super::theme::{TOKYO_BG, TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::{DiscardModalButton, Message, PendingAction};
 use crate::i18n::{Key, Lang};
 
@@ -158,7 +158,7 @@ fn modal_backdrop_style(_theme: &iced::Theme) -> iced::widget::container::Style 
 fn modal_dialog_style(_theme: &iced::Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
         text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BG)),
+        background: Some(Background::Color(TOKYO_BOARD)),
         border: Border {
             radius: 8.0.into(),
             width: 1.0,
@@ -181,7 +181,7 @@ fn modal_button_style(
         button::Status::Pressed => TOKYO_SURFACE_2,
         button::Status::Hovered => TOKYO_SURFACE,
         _ if focused => TOKYO_SURFACE,
-        _ => TOKYO_BG,
+        _ => TOKYO_BOARD,
     };
     button::Style {
         background: Some(Background::Color(background)),
