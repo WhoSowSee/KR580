@@ -7,17 +7,20 @@ is just the icon set for the desktop binary.
 
 | File | Purpose |
 |---|---|
-| `icon.png` | Master image. Treated as the source of truth; everything else is regenerated from it. |
+| `icon.png` | Application icon master. Treated as the source of truth; every `icon-*.png` and `icon.ico` is regenerated from it. |
 | `icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-64.png`, `icon-128.png`, `icon-256.png` | Standalone PNGs used at runtime (currently `icon-64.png` is embedded as the iced window icon) and reserved for future installer/desktop-entry packaging. |
-| `icon.ico` | Multi-resolution Windows icon containing `256, 96, 64, 48, 40, 32, 24, 20, 16` frames in that order so default Windows previewers (Photos, Paint, IconViewer) display the 256×256 layer when the file is opened directly. Embedded into the `.exe` PE resource via `winresource`. |
+| `icon.ico` | Multi-resolution Windows application icon containing `256, 96, 64, 48, 40, 32, 24, 20, 16` frames in that order so default Windows previewers (Photos, Paint, IconViewer) display the 256×256 layer when the file is opened directly. Embedded into the `.exe` PE resource via `winresource`. |
+| `file-580.png` | `.580` file-type icon master. Treated as the source of truth; `file-580.ico` is regenerated from it. |
+| `file-580.ico` | Multi-resolution Windows `.580` file-type icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded into the `.exe` PE resource as resource id `2` via `winresource`, so Explorer can show it for files associated with the application. |
 
 The pre-rendered files are checked into the repository so the binary
 does not have to decode or resize the master image at build or run time.
 
 ## Regenerating the icon set
 
-The scripts read `assets/icons/icon.png` and rewrite every other file in
-the directory.
+The scripts read `assets/icons/icon.png` and `assets/icons/file-580.png`
+and rewrite every other file in the directory in one go (a single
+script handles both the application icon and the `.580` file-type icon).
 
 ### PowerShell (Windows)
 
@@ -54,11 +57,16 @@ to keep the PNG/ICO files small.
   into the PE resource section through the `winresource` crate. This
   drives the `.exe` icon shown by Explorer, the Start menu, pinned
   taskbar shortcuts, and the file picker.
+- `crates/ui/build.rs` (Windows only) also embeds
+  `assets/icons/file-580.ico` as PE resource id `2`. This drives the
+  Explorer icon shown for `.580` files once the file association
+  points at the built `.exe`.
 
-When you replace the master `icon.png`, run the appropriate script and
-rebuild. `cargo` re-embeds `icon-64.png` automatically because it is an
-`include_bytes!` source. The build script triggers a Windows-resource
-rebuild via `cargo:rerun-if-changed=…/icon.ico`.
+When you replace either master (`icon.png` or `file-580.png`), run the
+appropriate script and rebuild. `cargo` re-embeds `icon-64.png`
+automatically because it is an `include_bytes!` source. The build
+script triggers a Windows-resource rebuild via
+`cargo:rerun-if-changed=…/icon.ico` and `cargo:rerun-if-changed=…/file-580.ico`.
 
 ## SVG icon sets
 
