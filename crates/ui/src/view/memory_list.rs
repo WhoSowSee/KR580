@@ -26,6 +26,8 @@ use crate::app::{
 };
 use crate::i18n::Key;
 
+const VALUE_GLYPH_WIDTH: f32 = 28.0;
+
 impl DesktopApp {
     pub(super) fn memory_panel(&self) -> Element<'_, Message> {
         let cpu = &self.snapshot.cpu;
@@ -264,7 +266,7 @@ fn memory_value_cell<'a>(
     inline_value_input: &'a str,
 ) -> Element<'a, Message> {
     if selected {
-        container(
+        let editor: Element<'a, Message> = container(
             text_input("00", inline_value_input)
                 .id(MEMORY_INLINE_INPUT_ID)
                 .on_input(move |value| Message::InlineMemoryValueChanged(address, value))
@@ -273,11 +275,24 @@ fn memory_value_cell<'a>(
                 .size(14)
                 .padding(0)
                 .align_x(alignment::Horizontal::Center)
-                .width(Length::Fill)
+                .width(Length::Fixed(VALUE_GLYPH_WIDTH))
                 .style(inline_value_input_style),
         )
-        .width(Length::FillPortion(1))
-        .into()
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(alignment::Horizontal::Center)
+        .align_y(alignment::Vertical::Center)
+        .into();
+
+        let body = mouse_area(editor)
+            .on_press(Message::MemorySelected(address))
+            .on_double_click(Message::MemoryEnter(address))
+            .interaction(iced::mouse::Interaction::Pointer);
+
+        container(body)
+            .width(Length::FillPortion(1))
+            .height(Length::Fill)
+            .into()
     } else {
         value_cell_button(value, address)
     }
@@ -286,14 +301,28 @@ fn memory_value_cell<'a>(
 /// Single click on the value column means "let me type here", so
 /// both single-click and double-click open the inline editor.
 fn value_cell_button(value: u8, address: u16) -> Element<'static, Message> {
-    container(cell_mouse_area(
-        mono_text(format!("{value:02X}"), 14, TOKYO_GREEN),
-        Message::MemoryEnter(address),
-        Message::MemoryEnter(address),
-    ))
-    .width(Length::FillPortion(1))
-    .height(Length::Fill)
-    .into()
+    let glyph: Element<'static, Message> =
+        mouse_area(mono_text(format!("{value:02X}"), 14, TOKYO_GREEN))
+            .on_press(Message::MemoryEnter(address))
+            .on_double_click(Message::MemoryEnter(address))
+            .interaction(iced::mouse::Interaction::Text)
+            .into();
+
+    let body = mouse_area(
+        container(glyph)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+    )
+    .on_press(Message::MemorySelected(address))
+    .on_double_click(Message::MemoryEnter(address))
+    .interaction(iced::mouse::Interaction::Pointer);
+
+    container(body)
+        .width(Length::FillPortion(1))
+        .height(Length::Fill)
+        .into()
 }
 
 fn parse_hex_u16_preview(input: &str) -> Option<u16> {
