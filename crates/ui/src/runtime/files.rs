@@ -272,6 +272,54 @@ pub(super) fn normalise_export_path(path: PathBuf) -> PathBuf {
     }
 }
 
+impl DesktopApp {
+    pub(crate) fn save_monitor_image(&mut self) {
+        let bytes =
+            match crate::view::monitor_image::render_monitor_png(&self.snapshot.devices.monitor) {
+                Ok(b) => b,
+                Err(err) => {
+                    tracing::error!("save monitor image: render: {err}");
+                    self.set_status_custom(self.lang.t(Key::MonitorImageSaveFailed).to_owned());
+                    return;
+                }
+            };
+
+        let mut dialog = rfd::FileDialog::new()
+            .add_filter("PNG image", &["png"])
+            .set_file_name("monitor.png");
+        if let Some(current) = &self.current_snapshot_path
+            && let Some(parent) = current.parent()
+        {
+            dialog = dialog.set_directory(parent);
+        }
+
+        let Some(path) = dialog.save_file() else {
+            return;
+        };
+
+        let path = match path.extension().and_then(|s| s.to_str()) {
+            Some(ext) if ext.eq_ignore_ascii_case("png") => path,
+            _ => {
+                let mut s = path.into_os_string();
+                s.push(".png");
+                PathBuf::from(s)
+            }
+        };
+
+        if let Err(err) = std::fs::write(&path, &bytes) {
+            tracing::error!("save monitor image to {}: {err}", path.display());
+            self.set_status_custom(self.lang.t(Key::MonitorImageSaveFailed).to_owned());
+            return;
+        }
+
+        self.set_status_custom(format!(
+            "{}: {}",
+            self.lang.t(Key::MonitorImageSaved),
+            path.display()
+        ));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::normalise_export_path;

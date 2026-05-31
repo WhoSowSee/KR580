@@ -349,6 +349,37 @@ impl DesktopApp {
                     return Task::done(Message::WindowClose);
                 }
             }
+            Message::OpenMonitor => {
+                self.open_menu = None;
+                self.hide_opcode_dropdown();
+                self.monitor_open = true;
+            }
+            Message::CloseMonitor => {
+                self.monitor_open = false;
+                self.monitor_hex_popup = false;
+            }
+            Message::ToggleMonitorSplit => {
+                self.monitor_split = !self.monitor_split;
+            }
+            Message::ToggleMonitorHexPopup => {
+                self.monitor_hex_popup = !self.monitor_hex_popup;
+                if self.monitor_hex_popup {
+                    self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+                }
+            }
+            Message::CycleMonitorHexFilter => {
+                self.monitor_hex_filter = self.monitor_hex_filter.next();
+                self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+            }
+            Message::MonitorHexScrolled => {
+                self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+            }
+            Message::ClearMonitorBuffer => {
+                self.dispatch(k580_app::AppCommand::ClearMonitorBuffer);
+            }
+            Message::SaveMonitorImage => {
+                self.save_monitor_image();
+            }
             _ => {}
         }
         Task::none()

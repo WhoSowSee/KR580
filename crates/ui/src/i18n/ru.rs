@@ -155,6 +155,22 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DeviceNetwork => "Отобразить буфер сетевого адаптера",
         Key::DevicePrinter => "Отобразить буфер принтера",
 
+        // Monitor window
+        Key::MonitorUnifiedScreen => "Экран КР580",
+        Key::MonitorTextLayer => "Текстовый слой",
+        Key::MonitorPixelLayer => "Графический слой",
+        Key::MonitorHexBuffer => "Поток байт",
+        Key::MonitorClose => "Закрыть",
+        Key::MonitorViewSplit => "Разделить",
+        Key::MonitorViewUnified => "Объединить",
+        Key::MonitorClearBuffer => "Очистить буфер",
+        Key::MonitorSaveImage => "Сохранить изображение",
+        Key::MonitorImageSaved => "Изображение монитора сохранено",
+        Key::MonitorImageSaveFailed => "Не удалось сохранить изображение",
+        Key::MonitorHexFilterAll => "Фильтр: всё",
+        Key::MonitorHexFilterGraphics => "Фильтр: графика",
+        Key::MonitorHexFilterText => "Фильтр: текст",
+
         // Current command columns
         Key::ColCmdCode => "Код",
         Key::ColCmdMnemonic => "Команда",

@@ -1,34 +1,41 @@
 use k580_core::{PortBus, PortError};
-use k580_devices::{DeviceStatus, IoBus, NetworkDevice, NetworkMode};
+use k580_devices::{DeviceStatus, IoBus, MonitorPhase, NetworkDevice, NetworkMode, TextCell};
 use std::path::PathBuf;
 use std::time::Duration;
 
 #[test]
-fn monitor_port_routes_text_and_status() {
+fn monitor_text_command_writes_char_with_colour() {
     let mut bus = IoBus::default();
+    // 2-byte text command: bit7=0 + colour 0x40, then char 'A'.
+    bus.output(IoBus::MONITOR_PORT, 0x40).unwrap();
     bus.output(IoBus::MONITOR_PORT, b'A').unwrap();
     let snapshot = bus.snapshot();
-    assert_eq!(snapshot.monitor.text, "A");
-    assert_eq!(snapshot.monitor.text_cells[0].ch, b'A');
-    assert_eq!(snapshot.monitor.text_cells[0].attr, 0x07);
+    assert_eq!(
+        snapshot.monitor.text_cells[0],
+        TextCell {
+            ch: b'A',
+            color: 0x40,
+        }
+    );
+    assert_eq!(snapshot.monitor.text_cursor, 1);
+    assert_eq!(snapshot.monitor.phase, MonitorPhase::Idle);
+    // IN 00h reads device status code (Ready -> 0).
     assert_eq!(bus.input(IoBus::MONITOR_PORT).unwrap(), 0);
 }
 
 #[test]
-fn monitor_tracks_mode_attributes_and_graphics_layer() {
+fn monitor_graphics_command_writes_pixel_at_xy() {
     let mut bus = IoBus::default();
-    bus.output(IoBus::MONITOR_PORT, 0x9A).unwrap();
-    bus.output(IoBus::MONITOR_PORT, b'X').unwrap();
+    // 3-byte graphics command: bit7=1 + colour 0x7F, X=10, Y=20.
+    bus.output(IoBus::MONITOR_PORT, 0xFF).unwrap();
+    bus.output(IoBus::MONITOR_PORT, 10).unwrap();
+    bus.output(IoBus::MONITOR_PORT, 20).unwrap();
     let snapshot = bus.snapshot();
-    assert_eq!(snapshot.monitor.current_attr, 0x0A);
-    assert_eq!(snapshot.monitor.text_cells[0].attr, 0x0A);
-
-    bus.output(IoBus::MONITOR_PORT, 0x81).unwrap();
-    bus.output(IoBus::MONITOR_PORT, 0x3C).unwrap();
-    let snapshot = bus.snapshot();
-    assert_eq!(snapshot.monitor.mode, k580_devices::MonitorMode::Graphics);
-    assert_eq!(snapshot.monitor.pixels.last(), Some(&(1, 0, 0x3C)));
-    assert_eq!(snapshot.monitor.last_command, Some(0x3C));
+    assert_eq!(snapshot.monitor.pixels, vec![(10, 20, 0x7F)]);
+    assert_eq!(snapshot.monitor.last_command, Some(0xFF));
+    assert_eq!(snapshot.monitor.phase, MonitorPhase::Idle);
+    // Text layer is untouched by a graphics command.
+    assert!(snapshot.monitor.text_cells.iter().all(|c| c.ch == 0));
 }
 
 #[test]

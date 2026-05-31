@@ -75,6 +75,22 @@ static SEARCH: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("search").as_slice()));
 static CHEVRON_DOWN: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("chevron-down").as_slice()));
+static SQUARE_SPLIT_VERTICAL: LazyLock<svg::Handle> = LazyLock::new(|| {
+    svg::Handle::from_memory(action_icon_bytes!("square-split-vertical").as_slice())
+});
+static SQUARE_MERGE_VERTICAL: LazyLock<svg::Handle> = LazyLock::new(|| {
+    svg::Handle::from_memory(action_icon_bytes!("square-merge-vertical").as_slice())
+});
+static BINARY: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("binary").as_slice()));
+static LINE_SQUIGGLE: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("line-squiggle").as_slice()));
+static TEXT_CURSOR: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("text-cursor").as_slice()));
+static BRUSH_CLEANING: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("brush-cleaning").as_slice()));
+static IMAGE: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("image").as_slice()));
 
 pub(super) fn play() -> svg::Handle {
     PLAY.clone()
@@ -197,4 +213,32 @@ pub(super) fn search() -> svg::Handle {
 
 pub(super) fn chevron_down() -> svg::Handle {
     CHEVRON_DOWN.clone()
+}
+
+pub(super) fn square_split_vertical() -> svg::Handle {
+    SQUARE_SPLIT_VERTICAL.clone()
+}
+
+pub(super) fn square_merge_vertical() -> svg::Handle {
+    SQUARE_MERGE_VERTICAL.clone()
+}
+
+pub(super) fn binary() -> svg::Handle {
+    BINARY.clone()
+}
+
+pub(super) fn line_squiggle() -> svg::Handle {
+    LINE_SQUIGGLE.clone()
+}
+
+pub(super) fn text_cursor() -> svg::Handle {
+    TEXT_CURSOR.clone()
+}
+
+pub(super) fn brush_cleaning() -> svg::Handle {
+    BRUSH_CLEANING.clone()
+}
+
+pub(super) fn image() -> svg::Handle {
+    IMAGE.clone()
 }

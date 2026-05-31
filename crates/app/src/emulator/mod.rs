@@ -241,6 +241,9 @@ impl Emulator {
                 let model = Importers::read_xlsx(path)?;
                 model.apply_to(&mut self.cpu)?;
             }
+            AppCommand::ClearMonitorBuffer => {
+                self.bus.monitor.clear();
+            }
             AppCommand::Shutdown => {
                 self.running = false;
                 events.push(AppEvent::Stopped);

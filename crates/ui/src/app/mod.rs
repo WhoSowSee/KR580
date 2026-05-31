@@ -27,6 +27,6 @@ pub(crate) use settings_modal::{
     ContentFocus, FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection,
 };
 pub(crate) use speed::tier_hz;
-pub(crate) use state::{DesktopApp, PendingAction};
+pub(crate) use state::{DesktopApp, HexStreamFilter, PendingAction};
 pub(crate) use status::StatusKind;
 pub(crate) use undo::UndoEntry;

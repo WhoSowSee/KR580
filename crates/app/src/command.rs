@@ -44,6 +44,7 @@ pub enum AppCommand {
     ExportXlsx(PathBuf),
     ImportTxt(PathBuf),
     ImportXlsx(PathBuf),
+    ClearMonitorBuffer,
     Shutdown,
 }
 

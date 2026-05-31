@@ -152,6 +152,22 @@ pub(crate) enum Key {
     DeviceNetwork,
     DevicePrinter,
 
+    // Monitor window
+    MonitorUnifiedScreen,
+    MonitorTextLayer,
+    MonitorPixelLayer,
+    MonitorHexBuffer,
+    MonitorClose,
+    MonitorViewSplit,
+    MonitorViewUnified,
+    MonitorClearBuffer,
+    MonitorSaveImage,
+    MonitorImageSaved,
+    MonitorImageSaveFailed,
+    MonitorHexFilterAll,
+    MonitorHexFilterGraphics,
+    MonitorHexFilterText,
+
     // Current command columns
     ColCmdCode,
     ColCmdMnemonic,

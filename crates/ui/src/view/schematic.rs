@@ -273,23 +273,32 @@ impl DesktopApp {
             device_chip(
                 icons::device_monitor(),
                 TOKYO_GREEN,
-                lang.t(Key::DeviceMonitor)
+                lang.t(Key::DeviceMonitor),
+                Some(Message::OpenMonitor),
             ),
             device_chip(
                 icons::device_floppy(),
                 TOKYO_CYAN,
                 lang.t(Key::DeviceFloppy),
+                None,
             ),
-            device_chip(icons::device_hdd(), TOKYO_BLUE, lang.t(Key::DeviceHdd),),
+            device_chip(
+                icons::device_hdd(),
+                TOKYO_BLUE,
+                lang.t(Key::DeviceHdd),
+                None,
+            ),
             device_chip(
                 icons::device_network(),
                 TOKYO_YELLOW,
                 lang.t(Key::DeviceNetwork),
+                None,
             ),
             device_chip(
                 icons::device_printer(),
                 TOKYO_MAGENTA,
                 lang.t(Key::DevicePrinter),
+                None,
             ),
         ]
         .spacing(14)

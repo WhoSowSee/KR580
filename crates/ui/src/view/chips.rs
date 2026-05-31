@@ -130,12 +130,14 @@ fn flag_dot(label: &'static str, active: bool) -> Element<'static, Message> {
     .into()
 }
 
-/// Empty `MenuBatch` because iced only exposes hover status for
-/// interactive buttons; the chip has no command of its own yet.
+/// `on_press` is `None` for chips whose target window is not wired up
+/// yet — the chip stays interactive (hover/tooltip) but its click is a
+/// no-op so half-finished slots don't dispatch stale messages.
 pub(super) fn device_chip(
     handle: svg::Handle,
     accent: Color,
     hint: &'static str,
+    on_press: Option<Message>,
 ) -> Element<'static, Message> {
     const CHIP_WIDTH: f32 = 38.0;
     const CHIP_HEIGHT: f32 = 38.0;
@@ -156,7 +158,7 @@ pub(super) fn device_chip(
             .align_x(alignment::Horizontal::Center)
             .align_y(alignment::Vertical::Center),
     )
-    .on_press(Message::MenuBatch(Vec::new()))
+    .on_press(on_press.unwrap_or(Message::MenuBatch(Vec::new())))
     .padding(0)
     .width(Length::Fixed(CHIP_WIDTH))
     .height(Length::Fixed(CHIP_HEIGHT))

@@ -157,6 +157,22 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DeviceNetwork => "Show network buffer",
         Key::DevicePrinter => "Show printer buffer",
 
+        // Monitor window
+        Key::MonitorUnifiedScreen => "KR580 screen",
+        Key::MonitorTextLayer => "Text layer",
+        Key::MonitorPixelLayer => "Graphics layer",
+        Key::MonitorHexBuffer => "Byte stream",
+        Key::MonitorClose => "Close",
+        Key::MonitorViewSplit => "Split",
+        Key::MonitorViewUnified => "Unified",
+        Key::MonitorClearBuffer => "Clear buffer",
+        Key::MonitorSaveImage => "Save image",
+        Key::MonitorImageSaved => "Monitor image saved",
+        Key::MonitorImageSaveFailed => "Failed to save monitor image",
+        Key::MonitorHexFilterAll => "Filter: all",
+        Key::MonitorHexFilterGraphics => "Filter: graphics",
+        Key::MonitorHexFilterText => "Filter: text",
+
         // Current command columns
         Key::ColCmdCode => "Code",
         Key::ColCmdMnemonic => "Command",

@@ -11,6 +11,9 @@ mod menu;
 mod menu_dropdowns;
 mod menu_labels;
 mod modal;
+mod monitor;
+mod monitor_font;
+pub(crate) mod monitor_image;
 mod mux;
 mod notices;
 mod opcode_dropdown;
@@ -27,6 +30,7 @@ use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
 
 use modal::discard_modal_overlay;
+use monitor::monitor_window_overlay;
 use notices::{error_notice_overlay, halt_notice_overlay, info_notice_overlay};
 use settings_dialog::settings_modal_overlay;
 use styles::app_style;
@@ -139,6 +143,21 @@ impl DesktopApp {
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into()
+        } else if self.monitor_open {
+            stack![
+                scrimmed,
+                monitor_window_overlay(
+                    &self.snapshot.devices.monitor,
+                    self.monitor_split,
+                    self.monitor_hex_popup,
+                    self.monitor_hex_filter,
+                    self.monitor_hex_scroll_visible_ticks > 0,
+                    self.lang
+                )
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
         } else {
             scrimmed
         }

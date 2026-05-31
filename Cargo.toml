@@ -24,5 +24,6 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "net",
 crossbeam-channel = "0.5"
 iced = { version = "0.14.0", features = ["tokio"] }
 rfd = "0.15"
+png = "0.17"
 rust_xlsxwriter = "0.92"
 calamine = "0.35"

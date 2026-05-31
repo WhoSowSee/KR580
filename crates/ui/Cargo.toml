@@ -10,8 +10,9 @@ build = "build.rs"
 k580-app = { path = "../app" }
 k580-core = { path = "../core" }
 k580-persistence = { path = "../persistence" }
-iced = { workspace = true, features = ["image", "svg", "advanced"] }
+iced = { workspace = true, features = ["image", "svg", "canvas", "advanced"] }
 rfd.workspace = true
+png.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 

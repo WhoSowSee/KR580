@@ -14,6 +14,8 @@ impl DesktopApp {
         self.pull_events();
         self.memory_scroll_visible_ticks = self.memory_scroll_visible_ticks.saturating_sub(1);
         self.opcode_scroll_visible_ticks = self.opcode_scroll_visible_ticks.saturating_sub(1);
+        self.monitor_hex_scroll_visible_ticks =
+            self.monitor_hex_scroll_visible_ticks.saturating_sub(1);
         let now = Instant::now();
         if let Some(deadline) = self.error_notice_dismiss_at
             && now >= deadline
@@ -100,6 +102,14 @@ impl DesktopApp {
         self.undo_stack.break_coalescing();
         if self.settings_dialog.is_some() {
             self.settings_dialog = None;
+            return Task::none();
+        }
+        if self.monitor_open {
+            if self.monitor_hex_popup {
+                self.monitor_hex_popup = false;
+            } else {
+                self.monitor_open = false;
+            }
             return Task::none();
         }
         if self.error_notice.is_some() {

@@ -253,8 +253,109 @@ same footprint and icon scale as the action buttons in «Выполнение» 
 «Сброс») plus a hover tooltip that reuses the editor `inset_style` so
 it visually belongs to the same chrome family as the action-panel
 tooltips. Hover uses the shared dark `TOKYO_SURFACE` fill and keeps the
-neutral frame colour, matching the current action-button feedback while
-leaving the chips command-neutral.
+neutral frame colour, matching the current action-button feedback.
+
+`device_chip` takes an `Option<Message>` for `on_press`. The Монитор
+slot is wired to `Message::OpenMonitor`; the four remaining slots pass
+`None` and stay command-neutral until their own peripheral windows are
+implemented. A `None` chip still hovers and shows its tooltip, but its
+click resolves to `Message::MenuBatch(Vec::new())` so half-finished
+slots don't dispatch stale messages.
+
+### Окно монитора (Quick-access → Монитор)
+
+`Message::OpenMonitor` flips `DesktopApp::monitor_open` and
+`view::monitor::monitor_window_overlay` paints a **fullscreen modal**
+(`Length::Fill` × `Length::Fill`) over the whole app. The dialog has no
+fixed dimensions — its body grows to fill the window minus a 16-px
+gutter so the central canvas auto-scales to whatever the user has on
+screen.
+
+The window is a pure read-only view over `AppSnapshot.devices.monitor`
+(`MonitorState` from `k580-devices`, re-exported through `k580-app`);
+nothing in the window mutates device state.
+
+The header carries five icon-only buttons (lucide glyphs, 32×32 with
+a tooltip on hover):
+
+| Glyph | Tooltip | Action |
+|---|---|---|
+| `square-split-vertical` / `square-merge-vertical` | «Разделить» / «Объединить» | `Message::ToggleMonitorSplit` — flips `DesktopApp::monitor_split` between unified screen and split (graphics + text). The glyph swaps with the mode: in unified the button shows `square-split-vertical` (proposing a split); in split mode it shows `square-merge-vertical` (proposing a merge). |
+| `binary` | «Поток байт» | `Message::ToggleMonitorHexPopup` — opens / closes the byte-stream popup that floats *above* the monitor modal |
+| `brush-cleaning` | «Очистить буфер» | `Message::ClearMonitorBuffer` — dispatches `AppCommand::ClearMonitorBuffer` to wipe pixels, text cells, hex buffer |
+| `image` | «Сохранить изображение» | `Message::SaveMonitorImage` — encodes the current monitor framebuffer as PNG and prompts the user for a save path via `rfd::FileDialog` |
+| `x` (window-close) | «Закрыть» | `Message::CloseMonitor` — closes the modal; also clears `monitor_hex_popup` so a stale popup never lingers |
+
+Body sections (top to bottom):
+
+| Mode | Section | Source | Render |
+|---|---|---|---|
+| unified (default) | Экран КР580 | `pixels` + `text_cells` composited | one `iced::widget::Canvas` filling the remaining space, anchored to the canvas's top-left corner so absolute (x, y) writes from the program land where they were addressed. The pixel layer is drawn first using the reference KP580 Delphi formula `0xFFFFFF / 127 * (color & 0x7F)` reinterpreted as a `TColor` (LE DWORD, low byte = R) — a 128-step pseudo-coloured palette, not grayscale. The 39×20 text cells are then rasterised on top through the bundled 5×7 ASCII font in `view::monitor_font` using their own scale (the text grid is 273×200 logical px while the graphics raster is 256×256). The section title is overlaid only while the layer is empty; once any pixel or character lands the title disappears and the canvas claims the full surface. |
+| split | Графический слой | `pixels: Vec<(u8,u8,u8)>` | `Canvas` filling the section, pixel-only, top-left anchored, same Delphi-`TColor` palette as unified |
+| split | Текстовый слой | `text_cells: Vec<TextCell { ch, color }>` | mono 39×20 grid in `TOKYO_TEXT` over `TOKYO_BOARD`; non-printable bytes render as `·`, zero cells as space |
+
+The byte-stream popup (`hex_buffer: Vec<u8>`) is rendered by
+`hex_popup_overlay` — a centred panel (`430×480 px`) shown only when
+`DesktopApp::monitor_hex_popup` is true. It uses the standard scrim +
+`opaque` pattern so a click on the dim backdrop closes it without
+touching the underlying monitor modal. Its header carries a filter
+button whose icon and tooltip cycle through `binary` (всё), `line-squiggle`
+(графика), `text-cursor` (текст) on each click via
+`Message::CycleMonitorHexFilter`. The filter is purely presentational —
+`MonitorState::hex_buffer` keeps every recorded byte; `filtered_hex_bytes`
+re-runs the KR580 phase machine to classify each byte as part of a
+graphics or text command on the fly. The byte counter shown next to
+the title reflects the filtered count, not the raw buffer size. The
+scrollbar auto-hides when idle: `DesktopApp::monitor_hex_scroll_visible_ticks`
+is bumped to `MEMORY_SCROLL_VISIBLE_TICKS` whenever the user opens the
+popup, scrolls (`Message::MonitorHexScrolled`), or cycles the filter,
+and decremented every `Tick` until the scroller fades back to
+transparent. Esc handling: while the monitor modal is open, Esc first
+closes the popup if it's up, otherwise it closes the monitor itself.
+This is implemented in `DesktopApp::handle_esc` ahead of the menu /
+notice fallbacks.
+
+`Message::SaveMonitorImage` is handled by `DesktopApp::save_monitor_image`
+in `runtime/files.rs`. It calls `view::monitor_image::render_monitor_png`
+to produce an 8-bit RGB PNG at the monitor's native logical resolution
+(no upscaling, no antialiasing) using the `png` crate, then opens an
+`rfd::FileDialog` filtered to `.png` with a default file name of
+`monitor.png`. The dialog defaults to the directory of the currently
+loaded `.580` snapshot when one is available. On success the absolute
+path is surfaced via `set_status_custom`; on render or write failure
+the status falls back to `Key::MonitorImageSaveFailed` and the error
+is logged through `tracing::error`.
+
+Closing the monitor: `Message::CloseMonitor` (close button, backdrop
+click on the monitor scrim) or `Esc` (when the popup is closed). The
+dialog does not suppress runtime ticks — `Message::Tick` keeps pulling
+events while the window is open, so the layers update live as the
+program drives port `00h`.
+
+The unified screen is the default because it matches the original
+KP580 emulator's single-display behaviour. Split mode is kept as a
+debugger affordance — it isolates each device-state buffer for
+inspection without touching the underlying `MonitorState`.
+
+Strings live under the `MonitorUnifiedScreen…MonitorImageSaveFailed`
+keys in `crates/ui/src/i18n/keys.rs` with both `ru` and `en`
+translations. The icons are bundled SVGs in `assets/icons/actions/` —
+the ones introduced for the monitor are `square-split-vertical.svg`,
+`square-merge-vertical.svg`, `binary.svg`, `brush-cleaning.svg`,
+`line-squiggle.svg`, `text-cursor.svg`, and `image.svg`, all authored
+from lucide. The
+`iced` `canvas` Cargo feature is enabled in `crates/ui/Cargo.toml` so
+the renderer pulls in the `lyon` tessellator used by both canvases.
+The `png` crate is added to the workspace for the save-image path.
+
+The monitor view itself is split across `crates/ui/src/view/monitor/`:
+`mod.rs` (overlay layout, header, shared `icon_button` helper),
+`sections.rs` (unified / split section builders),
+`canvas.rs` (`PixelCanvas`, `UnifiedCanvas`, the `pixel_color`
+palette and its tests), `hex_popup.rs` (popup overlay, filter,
+`filtered_hex_bytes` and its tests), and `styles.rs` (every container
+/ button style and the `framebuffer_padding` helper). PNG export
+lives next to the view in `view::monitor_image`.
 
 The older "I/O Controller" capsule that used to sit on the right of
 the same row was removed: it duplicated the role of the device strip

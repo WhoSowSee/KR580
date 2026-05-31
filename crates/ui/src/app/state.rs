@@ -37,6 +37,7 @@ pub(crate) struct DesktopApp {
     pub(crate) memory_viewport_height: f32,
     pub(crate) memory_scroll_visible_ticks: u8,
     pub(crate) opcode_scroll_visible_ticks: u8,
+    pub(crate) monitor_hex_scroll_visible_ticks: u8,
     pub(crate) memory_address_input: String,
     pub(crate) memory_value_input: String,
     pub(crate) memory_inline_value_input: String,
@@ -89,6 +90,28 @@ pub(crate) struct DesktopApp {
     pub(crate) lang: Lang,
     pub(crate) default_speed: SpeedTier,
     pub(crate) settings_dialog: Option<SettingsDialog>,
+    pub(crate) monitor_open: bool,
+    pub(crate) monitor_split: bool,
+    pub(crate) monitor_hex_popup: bool,
+    pub(crate) monitor_hex_filter: HexStreamFilter,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum HexStreamFilter {
+    #[default]
+    All,
+    Graphics,
+    Text,
+}
+
+impl HexStreamFilter {
+    pub(crate) fn next(self) -> Self {
+        match self {
+            HexStreamFilter::All => HexStreamFilter::Graphics,
+            HexStreamFilter::Graphics => HexStreamFilter::Text,
+            HexStreamFilter::Text => HexStreamFilter::All,
+        }
+    }
 }
 
 impl DesktopApp {
@@ -122,6 +145,7 @@ impl DesktopApp {
                 memory_viewport_height: 0.0,
                 memory_scroll_visible_ticks: 0,
                 opcode_scroll_visible_ticks: 0,
+                monitor_hex_scroll_visible_ticks: 0,
                 memory_address_input: "0000".to_owned(),
                 memory_value_input: "00".to_owned(),
                 memory_inline_value_input: "00".to_owned(),
@@ -158,6 +182,10 @@ impl DesktopApp {
                 lang,
                 default_speed,
                 settings_dialog: None,
+                monitor_open: false,
+                monitor_split: false,
+                monitor_hex_popup: false,
+                monitor_hex_filter: HexStreamFilter::default(),
             },
             startup_task,
         )
