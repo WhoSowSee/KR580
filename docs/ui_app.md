@@ -1201,6 +1201,15 @@ The next `select!` iteration re-arms the timer with the new interval
 running adjusts the visible animation rate immediately — without
 restarting the program or losing the run-armed state.
 
+`DesktopApp::with_initial_path` (in `app/state.rs`) calls
+`apply_speed_tier(default_speed)` after the struct is constructed, so
+the saved tier from `settings.json` reaches the worker as
+`SetStepInterval` + `SetRunMode` *before* the first `Tick`. Without
+this seed the worker would run on its `DEFAULT_STEP_INTERVAL = 100ms` /
+`RunMode::Paced` defaults until the user manually re-selects a tier —
+which is why the saved "Максимум" / 1000 Hz used to feel like ~10–20 Hz
+on a fresh launch.
+
 The UI subscription tick interval is also coupled to the resolved Hz
 (see `subscription` in `app/mod.rs`) with a 16 ms floor. Slow / Medium
 / High deliver one snapshot per tick because the worker is paced and
