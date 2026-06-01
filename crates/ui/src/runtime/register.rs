@@ -128,7 +128,10 @@ impl DesktopApp {
         }
         self.inline_register_target = None;
         self.focused_input = None;
-        Task::none()
+        iced::advanced::widget::operate(crate::runtime::unfocus_except(
+            iced::advanced::widget::Id::new("__nothing__"),
+        ))
+        .discard()
     }
 
     pub(crate) fn navigate_active_register_target(&mut self, direction: RegisterMove) {

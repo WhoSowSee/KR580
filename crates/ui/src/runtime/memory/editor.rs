@@ -1,6 +1,4 @@
-use crate::app::{
-    DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message,
-};
+use crate::app::{DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message};
 use iced::Task;
 use iced::widget::operation;
 use k580_app::AppCommand;
@@ -73,16 +71,16 @@ impl DesktopApp {
     }
 
     pub(crate) fn cancel_inline_memory_edit(&mut self) -> Task<Message> {
-        let Ok(address) = parse_hex_u16(&self.memory_address_input) else {
-            return operation::focus(MEMORY_INLINE_INPUT_ID);
-        };
-        let stored = format!("{:02X}", self.snapshot.cpu.memory.read(address));
-        if self.memory_inline_value_input.eq_ignore_ascii_case(&stored) {
-            return Task::none();
+        if let Ok(address) = parse_hex_u16(&self.memory_address_input) {
+            let stored = format!("{:02X}", self.snapshot.cpu.memory.read(address));
+            self.memory_inline_value_input = stored.clone();
+            self.memory_value_input = stored;
         }
-        self.memory_inline_value_input = stored.clone();
-        self.memory_value_input = stored;
-        operation::focus(MEMORY_INLINE_INPUT_ID)
+        self.focused_input = None;
+        iced::advanced::widget::operate(crate::runtime::unfocus_except(
+            iced::advanced::widget::Id::new("__nothing__"),
+        ))
+        .discard()
     }
 
     pub(crate) fn toggle_opcode_dropdown(&mut self, address: u16) {

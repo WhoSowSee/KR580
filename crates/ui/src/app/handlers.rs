@@ -136,6 +136,26 @@ impl DesktopApp {
         if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
             return self.cancel_inline_memory_edit().chain(resolve);
         }
+        if self.active_register_target.is_some() {
+            self.active_register_target = None;
+            self.inline_register_target = None;
+            self.selected_register = k580_core::RegisterName::A;
+            self.register_name_input =
+                crate::app::register_name(k580_core::RegisterName::A).to_owned();
+            self.register_value_input = format!(
+                "{:02X}",
+                self.snapshot.cpu.registers.get(k580_core::RegisterName::A)
+            );
+            return resolve;
+        }
+        if self.selected_memory_address().is_some() {
+            self.memory_address_input.clear();
+            self.memory_value_input.clear();
+            self.memory_inline_value_input.clear();
+            self.opcode_dropdown_address = None;
+            self.opcode_search_input.clear();
+            return resolve;
+        }
         self.hide_opcode_dropdown();
         resolve
     }
