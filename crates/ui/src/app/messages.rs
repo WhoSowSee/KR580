@@ -111,6 +111,7 @@ pub(crate) enum Message {
     FocusReconciled(Option<iced::widget::Id>),
     ResolveFocusedTracker(Option<iced::widget::Id>),
     WindowOpened(iced::window::Id),
+    WindowResized(f32),
     FrameRendered,
     MenuCategoriesToggled,
     MenuToggled(MenuId),

@@ -267,6 +267,9 @@ impl DesktopApp {
                     iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
                 ]);
             }
+            Message::WindowResized(width) => {
+                self.window_width = width;
+            }
             Message::FrameRendered => {
                 if self.startup_frames_seen < u8::MAX {
                     self.startup_frames_seen = self.startup_frames_seen.saturating_add(1);

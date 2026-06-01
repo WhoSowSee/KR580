@@ -28,5 +28,5 @@ pub(crate) use settings_modal::{
 };
 pub(crate) use speed::tier_hz;
 pub(crate) use state::{DesktopApp, HexStreamFilter, PendingAction};
-pub(crate) use status::StatusKind;
+pub(crate) use status::{StatusKind, shorten_status_for_width};
 pub(crate) use undo::UndoEntry;

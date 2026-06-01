@@ -42,6 +42,7 @@ impl DesktopApp {
             | Message::CursorMoved(_)
             | Message::ModifiersChanged(_)
             | Message::WindowOpened(_)
+            | Message::WindowResized(_)
             | Message::FrameRendered
             | Message::WindowMaximizedChanged(_) => None,
             Message::ConfirmDiscard => Some(self.confirm_discard()),

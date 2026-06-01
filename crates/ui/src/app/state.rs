@@ -61,6 +61,7 @@ pub(crate) struct DesktopApp {
     /// Set on `TactAdvanced { instruction_boundary: true }`.
     pub(crate) last_tact_was_boundary: bool,
     pub(crate) startup_frames_seen: u8,
+    pub(crate) window_width: f32,
     pub(crate) open_menu: Option<MenuId>,
     pub(crate) current_snapshot_path: Option<PathBuf>,
     /// Separate from `current_snapshot_path` so Ctrl+S (v1) and Ctrl+Alt+S
@@ -159,6 +160,7 @@ impl DesktopApp {
             inline_register_just_entered: false,
             last_tact_was_boundary: false,
             startup_frames_seen: 0,
+            window_width: 1180.0,
             open_menu: None,
             current_snapshot_path: None,
             current_legacy_snapshot_path: None,

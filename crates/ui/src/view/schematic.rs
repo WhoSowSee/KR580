@@ -200,15 +200,24 @@ impl DesktopApp {
             u8::from(cpu.flags.carry),
         );
         let (status_text, status_note) = split_legacy_status_note(&self.status, self.lang);
+        let note_reservation_px = match status_note {
+            Some(note) => 12.0 + (note.chars().count() + 2) as f32 * 7.5,
+            None => 0.0,
+        };
+        let status_budget_px = (self.window_width - note_reservation_px).max(0.0);
+        let shortened_status = crate::app::shorten_status_for_width(status_text, status_budget_px);
         let status_value: Element<'_, Message> = match status_note {
             Some(note) => row![
-                mono_text(status_text, 13, TOKYO_TEXT),
-                ui_text(note, 12, TOKYO_MUTED),
+                mono_text(shortened_status, 13, TOKYO_TEXT)
+                    .wrapping(iced::widget::text::Wrapping::None),
+                ui_text(note, 12, TOKYO_MUTED).wrapping(iced::widget::text::Wrapping::None),
             ]
             .spacing(10)
             .align_y(alignment::Vertical::Center)
             .into(),
-            None => mono_text(status_text, 13, TOKYO_TEXT).into(),
+            None => mono_text(shortened_status, 13, TOKYO_TEXT)
+                .wrapping(iced::widget::text::Wrapping::None)
+                .into(),
         };
         let status_chip = row![
             ui_text(lang.t(Key::HeaderStatus), 12, TOKYO_MUTED),
@@ -220,7 +229,8 @@ impl DesktopApp {
             status_row,
             container(status_chip)
                 .width(Length::Fill)
-                .align_x(alignment::Horizontal::Right),
+                .align_x(alignment::Horizontal::Right)
+                .clip(true),
         ]
         .spacing(20)
         .align_y(alignment::Vertical::Center)

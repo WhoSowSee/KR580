@@ -84,6 +84,9 @@ impl DesktopApp {
                 (iced::Event::Window(iced::window::Event::CloseRequested), _) => {
                     Some(Message::WindowCloseRequested)
                 }
+                (iced::Event::Window(iced::window::Event::Resized(size)), _) => {
+                    Some(Message::WindowResized(size.width))
+                }
                 _ => None,
             }),
         ];

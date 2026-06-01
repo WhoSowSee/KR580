@@ -312,11 +312,9 @@ impl DesktopApp {
             return;
         }
 
-        self.set_status_custom(format!(
-            "{}: {}",
-            self.lang.t(Key::MonitorImageSaved),
-            path.display()
-        ));
+        self.set_status(StatusKind::MonitorImageSaved {
+            display: path.display().to_string(),
+        });
     }
 }
 
