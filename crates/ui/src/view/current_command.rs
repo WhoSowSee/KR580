@@ -123,7 +123,11 @@ fn type_address_gap(kind: &str, addressing: &str) -> f32 {
 }
 
 fn current_command_fields(cpu: &Cpu8080State, lang: Lang) -> CurrentCommandFields {
-    let opcode = cpu.memory.read(cpu.pc);
+    let opcode = if cpu.halted {
+        cpu.last_fetched_opcode
+    } else {
+        cpu.memory.read(cpu.pc)
+    };
     let code = format!("{opcode:02X}");
     let Ok(info) = decode_opcode(opcode) else {
         return CurrentCommandFields {
@@ -244,6 +248,24 @@ mod tests {
         assert_eq!(fields.length, "3 байта");
         assert_eq!(fields.kind, Key::CmdKindMove);
         assert_eq!(fields.addressing, Key::CmdAddrImmediate);
+    }
+
+    #[test]
+    fn halted_cpu_shows_hlt_opcode_not_byte_after_pc() {
+        let mut cpu = Cpu8080State::default();
+        cpu.halted = true;
+        cpu.last_fetched_opcode = 0x76;
+        cpu.pc = 0x0074;
+        cpu.set_memory(0x0073, 0x76);
+        cpu.set_memory(0x0074, 0x7A);
+
+        let fields = current_command_fields(&cpu, Lang::Ru);
+
+        assert_eq!(fields.code, "76");
+        assert_eq!(fields.command, "HLT");
+        assert_eq!(fields.operand, "-");
+        assert_eq!(fields.kind, Key::CmdKindControl);
+        assert_eq!(fields.addressing, Key::CmdAddrImplicit);
     }
 
     #[test]
