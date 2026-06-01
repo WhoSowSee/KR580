@@ -9,6 +9,7 @@ use std::path::PathBuf;
 pub(crate) enum MenuId {
     File,
     Mp,
+    Help,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -133,6 +134,10 @@ pub(crate) enum Message {
     OpenSettings,
     CloseSettings,
     SaveSettings,
+    OpenAbout,
+    CloseAbout,
+    ShowHelpComingSoon,
+    OpenUrl(&'static str),
     OpenMonitor,
     CloseMonitor,
     ToggleMonitorSplit,

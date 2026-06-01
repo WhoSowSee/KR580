@@ -7,7 +7,20 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MenuMp => "МП-Система",
         Key::MenuView => "Вид",
         Key::MenuSettings => "Настройки",
-        Key::MenuHelp => "Справка",
+        Key::MenuHelp => "Помощь",
+
+        // Help dropdown
+        Key::HelpShowDocs => "Вызвать справку",
+        Key::HelpAbout => "О программе",
+        Key::HelpComingSoon => "Справка появится в будущей версии",
+        // About dialog
+        Key::AboutTitle => "О программе",
+        Key::AppName => "KR580",
+        Key::AboutDescription => {
+            "Программа-эмулятор микропроцессорной системы на базе микропроцессора КР580ВМ80"
+        }
+        Key::AboutVersion => "Версия 1.0.0",
+        Key::AboutGithubLabel => "GitHub",
 
         // File menu
         Key::FileNew => "Новый файл",

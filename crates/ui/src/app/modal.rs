@@ -44,7 +44,9 @@ impl DesktopApp {
             | Message::WindowOpened(_)
             | Message::WindowResized(_)
             | Message::FrameRendered
-            | Message::WindowMaximizedChanged(_) => None,
+            | Message::WindowMaximizedChanged(_)
+            | Message::CloseAbout
+            | Message::OpenUrl(_) => None,
             Message::ConfirmDiscard => Some(self.confirm_discard()),
             Message::CancelDiscard | Message::EscPressed => {
                 self.cancel_discard();

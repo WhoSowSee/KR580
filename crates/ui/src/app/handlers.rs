@@ -104,6 +104,10 @@ impl DesktopApp {
             self.settings_dialog = None;
             return Task::none();
         }
+        if self.about_dialog_open {
+            self.about_dialog_open = false;
+            return Task::none();
+        }
         if self.monitor_open {
             if self.monitor_hex_popup {
                 self.monitor_hex_popup = false;
@@ -205,6 +209,7 @@ pub(crate) fn ctrl_shortcut(
         ('y', false, false) => Some(Message::StepTact),
         ('r', true, false) => Some(Message::ResetRam),
         ('g', true, false) => Some(Message::ResetCpu),
+        ('h', false, false) => Some(Message::ShowHelpComingSoon),
         ('h', true, false) => Some(Message::ClearHalt),
         ('z', false, false) => Some(Message::Undo),
         ('z', true, false) => Some(Message::Redo),

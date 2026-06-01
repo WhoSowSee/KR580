@@ -302,6 +302,22 @@ impl DesktopApp {
                 let tasks = messages.into_iter().map(Task::done).collect::<Vec<_>>();
                 return Task::batch(tasks);
             }
+            Message::OpenAbout => {
+                self.open_menu = None;
+                self.about_dialog_open = true;
+            }
+            Message::CloseAbout => {
+                self.about_dialog_open = false;
+            }
+            Message::ShowHelpComingSoon => {
+                self.open_menu = None;
+                self.set_status_custom(self.lang.t(crate::i18n::Key::HelpComingSoon).to_owned());
+            }
+            Message::OpenUrl(url) => {
+                if let Err(error) = open_external_url(url) {
+                    tracing::warn!("failed to open url {url}: {error}");
+                }
+            }
             Message::SpeedTierChanged(tier) => {
                 self.apply_speed_tier(tier);
             }
@@ -387,4 +403,28 @@ impl DesktopApp {
         }
         Task::none()
     }
+}
+
+#[cfg(target_os = "windows")]
+fn open_external_url(url: &str) -> std::io::Result<()> {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    Command::new("cmd")
+        .args(["/C", "start", "", url])
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn open_external_url(url: &str) -> std::io::Result<()> {
+    std::process::Command::new("open").arg(url).spawn()?;
+    Ok(())
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn open_external_url(url: &str) -> std::io::Result<()> {
+    std::process::Command::new("xdg-open").arg(url).spawn()?;
+    Ok(())
 }

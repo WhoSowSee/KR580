@@ -63,6 +63,7 @@ pub(crate) struct DesktopApp {
     pub(crate) startup_frames_seen: u8,
     pub(crate) window_width: f32,
     pub(crate) open_menu: Option<MenuId>,
+    pub(crate) about_dialog_open: bool,
     pub(crate) current_snapshot_path: Option<PathBuf>,
     /// Separate from `current_snapshot_path` so Ctrl+S (v1) and Ctrl+Alt+S
     /// (legacy) each remember their own path.
@@ -162,6 +163,7 @@ impl DesktopApp {
             startup_frames_seen: 0,
             window_width: 1180.0,
             open_menu: None,
+            about_dialog_open: false,
             current_snapshot_path: None,
             current_legacy_snapshot_path: None,
             pending_snapshot_flavour: None,

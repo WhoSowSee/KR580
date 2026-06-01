@@ -9,6 +9,18 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MenuSettings => "Settings",
         Key::MenuHelp => "Help",
 
+        // Help dropdown
+        Key::HelpShowDocs => "Show help",
+        Key::HelpAbout => "About",
+        Key::HelpComingSoon => "Help will be available in a future version",
+
+        // About dialog
+        Key::AboutTitle => "About",
+        Key::AppName => "KR580",
+        Key::AboutDescription => "Microprocessor system emulator based on the KR580VM80 chip",
+        Key::AboutVersion => "Version 1.0.0",
+        Key::AboutGithubLabel => "GitHub",
+
         // File menu
         Key::FileNew => "New file",
         Key::FileOpen => "Open",

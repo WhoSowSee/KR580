@@ -1,7 +1,7 @@
 use crate::i18n::Key;
 
-pub(super) fn inactive_category_keys() -> [Key; 2] {
-    [Key::MenuView, Key::MenuHelp]
+pub(super) fn inactive_category_keys() -> [Key; 1] {
+    [Key::MenuView]
 }
 
 pub(super) fn settings_category_key() -> Key {
@@ -16,7 +16,7 @@ mod tests {
     #[test]
     fn inactive_menu_categories_are_localized() {
         let keys = inactive_category_keys();
-        assert_eq!(keys, [Key::MenuView, Key::MenuHelp]);
+        assert_eq!(keys, [Key::MenuView]);
         assert_eq!(Lang::Ru.t(keys[0]), "Вид");
         assert_eq!(Lang::En.t(keys[0]), "View");
     }

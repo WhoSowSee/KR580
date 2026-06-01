@@ -15,6 +15,9 @@ pub(super) const FILE_DROPDOWN_WIDTH: f32 = 290.0;
 /// the longest shortcut hint.
 pub(super) const MP_DROPDOWN_WIDTH: f32 = 270.0;
 
+/// Width of the Help dropdown. Tuned for the longest Russian label.
+pub(super) const HELP_DROPDOWN_WIDTH: f32 = 220.0;
+
 /// Edge length of the icon square that prefixes every dropdown row.
 pub(super) const MENU_ICON_SIZE: f32 = 16.0;
 
@@ -136,6 +139,32 @@ pub(super) fn mp_dropdown(halted: bool, lang: Lang) -> Element<'static, Message>
     container(column(items).spacing(0))
         .padding(4)
         .width(Length::Fixed(MP_DROPDOWN_WIDTH))
+        .style(opcode_dropdown_style)
+        .into()
+}
+
+pub(super) fn help_dropdown(lang: Lang) -> Element<'static, Message> {
+    let items: Vec<Element<'static, Message>> = vec![
+        menu_item(
+            lang.t(Key::HelpShowDocs),
+            "Ctrl+H",
+            icons::book_marked(),
+            Message::ShowHelpComingSoon,
+            true,
+        ),
+        menu_separator(),
+        menu_item(
+            lang.t(Key::HelpAbout),
+            "",
+            icons::info(),
+            Message::OpenAbout,
+            true,
+        ),
+    ];
+
+    container(column(items).spacing(0))
+        .padding(4)
+        .width(Length::Fixed(HELP_DROPDOWN_WIDTH))
         .style(opcode_dropdown_style)
         .into()
 }

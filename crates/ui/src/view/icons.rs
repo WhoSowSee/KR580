@@ -5,6 +5,7 @@
 
 use std::sync::LazyLock;
 
+use iced::widget::image as iced_image;
 use iced::widget::svg;
 
 macro_rules! action_icon_bytes {
@@ -91,6 +92,21 @@ static BRUSH_CLEANING: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("brush-cleaning").as_slice()));
 static IMAGE: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("image").as_slice()));
+static BOOK_MARKED: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("book-marked").as_slice()));
+static INFO: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("info").as_slice()));
+static GITHUB: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("github").as_slice()));
+
+/// 128px PNG variant of the application icon — large enough that the
+/// About-dialog plate (64×64 px logical) downscales without visible
+/// pixelation on HiDPI displays.
+static APP_ICON: LazyLock<iced_image::Handle> = LazyLock::new(|| {
+    iced_image::Handle::from_bytes(
+        include_bytes!("../../../../assets/icons/icon-128.png").as_slice(),
+    )
+});
 
 pub(super) fn play() -> svg::Handle {
     PLAY.clone()
@@ -241,4 +257,20 @@ pub(super) fn brush_cleaning() -> svg::Handle {
 
 pub(super) fn image() -> svg::Handle {
     IMAGE.clone()
+}
+
+pub(super) fn book_marked() -> svg::Handle {
+    BOOK_MARKED.clone()
+}
+
+pub(super) fn info() -> svg::Handle {
+    INFO.clone()
+}
+
+pub(super) fn github() -> svg::Handle {
+    GITHUB.clone()
+}
+
+pub(super) fn app_icon() -> iced_image::Handle {
+    APP_ICON.clone()
 }

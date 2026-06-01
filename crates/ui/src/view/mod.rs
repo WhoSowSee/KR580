@@ -1,5 +1,6 @@
 //! View layer for the desktop UI.
 
+mod about;
 mod chips;
 mod current_command;
 mod cycles;
@@ -35,6 +36,8 @@ use notices::{error_notice_overlay, halt_notice_overlay, info_notice_overlay};
 use settings_dialog::settings_modal_overlay;
 use styles::app_style;
 
+use about::about_modal_overlay;
+
 use crate::app::{DesktopApp, MenuId, Message};
 
 /// Vertical offset of the dropdown so its top border sits on the
@@ -46,6 +49,10 @@ const MENU_DROPDOWN_TOP: f32 = 34.0;
 /// under the open dropdown.
 pub(super) const FILE_MENU_DROPDOWN_LEFT: f32 = 39.0;
 pub(super) const MP_MENU_DROPDOWN_LEFT: f32 = 93.0;
+/// Right-most menu trigger ("Помощь" / "Help"). Coupled to the same
+/// `.left(11)` bar padding and the per-trigger label widths between
+/// `MP_MENU_DROPDOWN_LEFT` and this offset.
+pub(super) const HELP_MENU_DROPDOWN_LEFT: f32 = 308.0;
 
 impl DesktopApp {
     pub(crate) fn view(&self) -> Element<'_, Message> {
@@ -74,6 +81,7 @@ impl DesktopApp {
             let left = match self.open_menu {
                 Some(MenuId::File) => FILE_MENU_DROPDOWN_LEFT,
                 Some(MenuId::Mp) => MP_MENU_DROPDOWN_LEFT,
+                Some(MenuId::Help) => HELP_MENU_DROPDOWN_LEFT,
                 None => FILE_MENU_DROPDOWN_LEFT,
             };
             stack![app_root, menu_dropdown_overlay(dropdown, left)]
@@ -140,6 +148,11 @@ impl DesktopApp {
             .into()
         } else if let Some(dialog) = self.settings_dialog.as_ref() {
             stack![scrimmed, settings_modal_overlay(dialog, self.lang)]
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+        } else if self.about_dialog_open {
+            stack![scrimmed, about_modal_overlay(self.lang)]
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into()

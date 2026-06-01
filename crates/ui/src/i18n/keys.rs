@@ -10,6 +10,18 @@ pub(crate) enum Key {
     MenuSettings,
     MenuHelp,
 
+    // Help dropdown
+    HelpShowDocs,
+    HelpAbout,
+    HelpComingSoon,
+
+    // About dialog
+    AboutTitle,
+    AppName,
+    AboutDescription,
+    AboutVersion,
+    AboutGithubLabel,
+
     // File dropdown
     FileNew,
     FileOpen,
