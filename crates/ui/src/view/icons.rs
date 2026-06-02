@@ -76,6 +76,12 @@ static SEARCH: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("search").as_slice()));
 static CHEVRON_DOWN: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("chevron-down").as_slice()));
+static CHEVRON_RIGHT: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("chevron-right").as_slice()));
+static EXPAND_ALL: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("expand-all").as_slice()));
+static COLLAPSE_ALL: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("collapse-all").as_slice()));
 static SQUARE_SPLIT_VERTICAL: LazyLock<svg::Handle> = LazyLock::new(|| {
     svg::Handle::from_memory(action_icon_bytes!("square-split-vertical").as_slice())
 });
@@ -229,6 +235,18 @@ pub(super) fn search() -> svg::Handle {
 
 pub(super) fn chevron_down() -> svg::Handle {
     CHEVRON_DOWN.clone()
+}
+
+pub(super) fn chevron_right() -> svg::Handle {
+    CHEVRON_RIGHT.clone()
+}
+
+pub(super) fn expand_all() -> svg::Handle {
+    EXPAND_ALL.clone()
+}
+
+pub(super) fn collapse_all() -> svg::Handle {
+    COLLAPSE_ALL.clone()
 }
 
 pub(super) fn square_split_vertical() -> svg::Handle {

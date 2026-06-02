@@ -63,9 +63,7 @@ impl DesktopApp {
                     keyboard::Key::Named(keyboard::key::Named::PageDown) => {
                         Some(Message::MemoryAddressPageDown)
                     }
-                    keyboard::Key::Named(keyboard::key::Named::F1) => {
-                        Some(Message::ShowHelpComingSoon)
-                    }
+                    keyboard::Key::Named(keyboard::key::Named::F1) => Some(Message::OpenHelp),
                     keyboard::Key::Named(keyboard::key::Named::Enter) => {
                         Some(Message::EnterPressed)
                     }

@@ -14,10 +14,16 @@ impl DesktopApp {
         if let Some(task) = self.route_discard_modal_message(&message) {
             return task;
         }
+        if let Some(task) = self.route_help_dialog_message(&message) {
+            return task;
+        }
         if let Some(task) = self.route_settings_modal_message(&message) {
             return task;
         }
         if let Some(task) = self.dispatch_settings_message(message.clone()) {
+            return task;
+        }
+        if let Some(task) = self.dispatch_overlay_message(&message) {
             return task;
         }
 
@@ -302,22 +308,6 @@ impl DesktopApp {
                 let tasks = messages.into_iter().map(Task::done).collect::<Vec<_>>();
                 return Task::batch(tasks);
             }
-            Message::OpenAbout => {
-                self.open_menu = None;
-                self.about_dialog_open = true;
-            }
-            Message::CloseAbout => {
-                self.about_dialog_open = false;
-            }
-            Message::ShowHelpComingSoon => {
-                self.open_menu = None;
-                self.set_status_custom(self.lang.t(crate::i18n::Key::HelpComingSoon).to_owned());
-            }
-            Message::OpenUrl(url) => {
-                if let Err(error) = open_external_url(url) {
-                    tracing::warn!("failed to open url {url}: {error}");
-                }
-            }
             Message::SpeedTierChanged(tier) => {
                 self.apply_speed_tier(tier);
             }
@@ -368,63 +358,8 @@ impl DesktopApp {
                     return Task::done(Message::WindowClose);
                 }
             }
-            Message::OpenMonitor => {
-                self.open_menu = None;
-                self.hide_opcode_dropdown();
-                self.monitor_open = true;
-            }
-            Message::CloseMonitor => {
-                self.monitor_open = false;
-                self.monitor_hex_popup = false;
-            }
-            Message::ToggleMonitorSplit => {
-                self.monitor_split = !self.monitor_split;
-            }
-            Message::ToggleMonitorHexPopup => {
-                self.monitor_hex_popup = !self.monitor_hex_popup;
-                if self.monitor_hex_popup {
-                    self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
-                }
-            }
-            Message::CycleMonitorHexFilter => {
-                self.monitor_hex_filter = self.monitor_hex_filter.next();
-                self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
-            }
-            Message::MonitorHexScrolled => {
-                self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
-            }
-            Message::ClearMonitorBuffer => {
-                self.dispatch(k580_app::AppCommand::ClearMonitorBuffer);
-            }
-            Message::SaveMonitorImage => {
-                self.save_monitor_image();
-            }
             _ => {}
         }
         Task::none()
     }
-}
-
-#[cfg(target_os = "windows")]
-fn open_external_url(url: &str) -> std::io::Result<()> {
-    use std::os::windows::process::CommandExt;
-    use std::process::Command;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    Command::new("cmd")
-        .args(["/C", "start", "", url])
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()?;
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn open_external_url(url: &str) -> std::io::Result<()> {
-    std::process::Command::new("open").arg(url).spawn()?;
-    Ok(())
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn open_external_url(url: &str) -> std::io::Result<()> {
-    std::process::Command::new("xdg-open").arg(url).spawn()?;
-    Ok(())
 }

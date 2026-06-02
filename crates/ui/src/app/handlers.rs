@@ -100,6 +100,10 @@ impl DesktopApp {
 
     pub(crate) fn handle_esc(&mut self) -> Task<Message> {
         self.undo_stack.break_coalescing();
+        if self.help_dialog.is_some() {
+            self.help_dialog = None;
+            return Task::none();
+        }
         if self.settings_dialog.is_some() {
             self.settings_dialog = None;
             return Task::none();
@@ -209,7 +213,7 @@ pub(crate) fn ctrl_shortcut(
         ('y', false, false) => Some(Message::StepTact),
         ('r', true, false) => Some(Message::ResetRam),
         ('g', true, false) => Some(Message::ResetCpu),
-        ('h', false, false) => Some(Message::ShowHelpComingSoon),
+        ('h', false, false) => Some(Message::OpenHelp),
         ('h', true, false) => Some(Message::ClearHalt),
         ('z', false, false) => Some(Message::Undo),
         ('z', true, false) => Some(Message::Redo),

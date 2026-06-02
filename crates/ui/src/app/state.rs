@@ -4,6 +4,7 @@ use k580_core::RegisterName;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use super::help::HelpDialog;
 use super::messages::{MenuId, Message, RegisterInlineTarget, SpeedTier};
 use super::modal::DiscardModalButton;
 use super::settings_modal::SettingsDialog;
@@ -95,6 +96,7 @@ pub(crate) struct DesktopApp {
     pub(crate) monitor_open: bool,
     pub(crate) monitor_split: bool,
     pub(crate) monitor_hex_popup: bool,
+    pub(crate) help_dialog: Option<HelpDialog>,
     pub(crate) monitor_hex_filter: HexStreamFilter,
 }
 
@@ -185,6 +187,7 @@ impl DesktopApp {
             lang,
             default_speed,
             settings_dialog: None,
+            help_dialog: None,
             monitor_open: false,
             monitor_split: false,
             monitor_hex_popup: false,

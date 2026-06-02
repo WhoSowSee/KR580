@@ -5,6 +5,7 @@ mod chips;
 mod current_command;
 mod cycles;
 mod editors;
+mod help;
 mod icons;
 mod lamps;
 mod memory_list;
@@ -37,6 +38,7 @@ use settings_dialog::settings_modal_overlay;
 use styles::app_style;
 
 use about::about_modal_overlay;
+use help::help_modal_overlay;
 
 use crate::app::{DesktopApp, MenuId, Message};
 
@@ -153,6 +155,11 @@ impl DesktopApp {
                 .into()
         } else if self.about_dialog_open {
             stack![scrimmed, about_modal_overlay(self.lang)]
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+        } else if let Some(dialog) = self.help_dialog.as_ref() {
+            stack![scrimmed, help_modal_overlay(dialog, self.lang)]
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into()

@@ -1,27 +1,120 @@
-use super::keys::Key;
+use super::{help_en, keys::Key};
 
 pub(super) fn translate(key: Key) -> &'static str {
     match key {
-        // Top menu
         Key::MenuFile => "File",
         Key::MenuMp => "MP-System",
         Key::MenuView => "View",
         Key::MenuSettings => "Settings",
         Key::MenuHelp => "Help",
 
-        // Help dropdown
         Key::HelpShowDocs => "Show help",
         Key::HelpAbout => "About",
-        Key::HelpComingSoon => "Help will be available in a future version",
+        Key::HelpDialogTitle => "Help",
+        Key::HelpSearchPlaceholder => "Search help…",
+        Key::HnAbout => "About",
+        Key::HnAppearance => "Appearance",
+        Key::HnArchitecture => "CPU Architecture",
+        Key::HnArithmeticCommands => "Arithmetic",
+        Key::HnCommandPanel => "Command Panel",
+        Key::HnCommandReference => "Command Reference",
+        Key::HnCommandSummary => "Appendix: Command Summary",
+        Key::HnControlTransferCommands => "Control Transfer",
+        Key::HnCpuArchitecture => "KR580VM80 Processor",
+        Key::HnDataTransferCommands => "Data Transfer",
+        Key::HnDeviceWorkflow => "Working with Devices",
+        Key::HnExport => "Export Data",
+        Key::HnExternalDevices => "Peripheral Devices",
+        Key::HnFeatures => "Features",
+        Key::HnFileFormats => "File Formats",
+        Key::HnFilesExport => "Export & Files",
+        Key::HnFlagsRegister => "Flags Register",
+        Key::HnFloppy => "KR580 Floppy",
+        Key::HnGeneralPrinciples => "General Principles",
+        Key::HnGeneralSettings => "General",
+        Key::HnHdd => "KR580 Hard Disk",
+        Key::HnImport => "Import Subprograms",
+        Key::HnInstructionSet => "Instruction Set",
+        Key::HnIntroduction => "Introduction",
+        Key::HnIoCommands => "I/O",
+        Key::HnLogicalCommands => "Logical",
+        Key::HnMainMenu => "Main Menu",
+        Key::HnMainWindow => "Main Window",
+        Key::HnMemoryIoSpaces => "Memory & I/O Spaces",
+        Key::HnMemorySearch => "Memory Search",
+        Key::HnMenuFile => "File Menu",
+        Key::HnMenuHelp => "Help Menu",
+        Key::HnMenuMpSystem => "MP-System Menu",
+        Key::HnMonitor => "KR580 Monitor",
+        Key::HnNetwork => "KR580 Network Adapter",
+        Key::HnPrinter => "KR580 Printer",
+        Key::HnProcessorControlCommands => "Processor Control",
+        Key::HnProgramInterface => "Program Description",
+        Key::HnRamEditing => "RAM Editing Panel",
+        Key::HnRamTable => "RAM Table",
+        Key::HnRegisterEdit => "Register Editing",
+        Key::HnRegisterEditing => "Register Editing Panel",
+        Key::HnRegisters => "Registers",
+        Key::HnResetButtons => "Reset Buttons",
+        Key::HnRunButtons => "Run Buttons",
+        Key::HnSaveLoad => "Save & Load",
+        Key::HnSchematic => "Structural Diagram",
+        Key::HnSettings => "Settings",
+        Key::HnShortcuts => "Keyboard Shortcuts",
+        Key::HnStackCommands => "Stack",
+        Key::HnSystemComponents => "MPS Components",
+        Key::HnSystemComposition => "MP-System Composition",
+        Key::HnTopicShortcuts => "Shortcuts Table",
+        Key::HnWorkflow => "Working with the Program",
 
-        // About dialog
+        Key::HcAbout
+        | Key::HcFeatures
+        | Key::HcSystemComponents
+        | Key::HcArchitecture
+        | Key::HcRegisters
+        | Key::HcFlagsRegister
+        | Key::HcMemoryIoSpaces
+        | Key::HcDataTransferCommands
+        | Key::HcLogicalCommands
+        | Key::HcArithmeticCommands
+        | Key::HcControlTransferCommands
+        | Key::HcProcessorControlCommands
+        | Key::HcIoCommands
+        | Key::HcStackCommands
+        | Key::HcMainWindow
+        | Key::HcMenuFile
+        | Key::HcMenuMpSystem
+        | Key::HcMenuHelp
+        | Key::HcSchematic
+        | Key::HcRamTable
+        | Key::HcMonitor
+        | Key::HcFloppy
+        | Key::HcHdd
+        | Key::HcNetwork
+        | Key::HcPrinter
+        | Key::HcRamEditing
+        | Key::HcRegisterEditing
+        | Key::HcResetButtons
+        | Key::HcCommandPanel
+        | Key::HcRunButtons
+        | Key::HcSaveLoad
+        | Key::HcImport
+        | Key::HcExport
+        | Key::HcFileFormats
+        | Key::HcGeneralSettings
+        | Key::HcAppearance
+        | Key::HcGeneralPrinciples
+        | Key::HcMemorySearch
+        | Key::HcRegisterEdit
+        | Key::HcDeviceWorkflow
+        | Key::HcCommandSummary
+        | Key::HcShortcuts => help_en::translate(key),
         Key::AboutTitle => "About",
         Key::AppName => "KR580",
         Key::AboutDescription => "Microprocessor system emulator based on the KR580VM80 chip",
         Key::AboutVersion => "Version 1.0.0",
         Key::AboutGithubLabel => "GitHub",
 
-        // File menu
         Key::FileNew => "New file",
         Key::FileOpen => "Open",
         Key::FileSave => "Save",
@@ -30,7 +123,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FileExport => "Export",
         Key::LegacyFormatNote => "legacy format",
 
-        // MP-System menu
         Key::MpRunProgram => "Run program",
         Key::MpRunInstruction => "Run instruction",
         Key::MpRunTact => "Run tact",
@@ -38,7 +130,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MpResetCpu => "Clear registers",
         Key::MpClearHalt => "Clear HLT flag",
 
-        // Discard modal
         Key::DiscardCancel => "Cancel",
         Key::DiscardBody => "Unsaved changes will be lost.",
         Key::DiscardTitleOpen => "Open file",
@@ -50,7 +141,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DiscardConfirmImport => "Import",
         Key::DiscardConfirmClose => "Close",
 
-        // Status & notices
         Key::StatusReady => "Ready",
         Key::StatusNewFile => "New file",
         Key::StatusCpuHalted => "CPU halted",
@@ -66,11 +156,9 @@ pub(super) fn translate(key: Key) -> &'static str {
             "CPU halted by the HLT instruction\nReset registers or clear the HLT flag"
         }
 
-        // Speed panel
         Key::SpeedTitle => "Speed",
         Key::SpeedUnit => "instr/sec",
 
-        // Settings dialog
         Key::SettingsTitle => "Settings",
         Key::SettingsSearchPlaceholder => "Search settings",
         Key::SettingsCategoryGeneral => "General",
@@ -97,12 +185,10 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SpeedHigh => "Fast",
         Key::SpeedMax => "Max",
 
-        // Schematic header
         Key::HeaderStatus => "Status",
         Key::HltOn => "HLT ON",
         Key::HltOff => "HLT OFF",
 
-        // Schematic registers grid
         Key::RegistersAndOperands => "Registers and operands",
         Key::Accumulator => "Accumulator",
         Key::BufferRegister1 => "Buffer register 1",
@@ -116,7 +202,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FlagsRegister => "Flags register",
         Key::StatusRegister => "Status register",
 
-        // Mux panel
         Key::Multiplexer => "Multiplexer",
         Key::TempStorageRegisters => "Temporary storage registers",
         Key::GeneralPurposeRegisters => "General-purpose registers",
@@ -124,7 +209,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ProgramCounter => "Program counter (PC)",
         Key::IncDec => "Increment-decrement",
 
-        // Cycles / timings
         Key::CyclesAndTacts => "Cycle and tact",
         Key::CycleLabel => "Cycle",
         Key::TactLabel => "Tact",
@@ -142,13 +226,11 @@ pub(super) fn translate(key: Key) -> &'static str {
         }
         Key::PhaseTooltip => "Same as 'Instruction tact' but counts from zero.",
 
-        // Memory list
         Key::MemoryListTitle => "RAM contents",
         Key::ColumnAddress => "Address",
         Key::ColumnValue => "Value",
         Key::ColumnCommand => "Command",
 
-        // Editors panels
         Key::MemoryEditorTitle => "RAM cell and value",
         Key::RegisterEditorTitle => "Register and value",
         Key::ActionPause => "Pause",
@@ -161,7 +243,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ExecutionPanel => "Execution",
         Key::ResetPanel => "Reset",
 
-        // Quick access devices
         Key::QuickAccess => "Quick access",
         Key::DeviceMonitor => "Show monitor",
         Key::DeviceFloppy => "Show floppy buffer",
@@ -169,7 +250,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DeviceNetwork => "Show network buffer",
         Key::DevicePrinter => "Show printer buffer",
 
-        // Monitor window
         Key::MonitorUnifiedScreen => "KR580 screen",
         Key::MonitorTextLayer => "Text layer",
         Key::MonitorPixelLayer => "Graphics layer",
@@ -185,7 +265,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MonitorHexFilterGraphics => "Filter: graphics",
         Key::MonitorHexFilterText => "Filter: text",
 
-        // Current command columns
         Key::ColCmdCode => "Code",
         Key::ColCmdMnemonic => "Command",
         Key::ColCmdOperand => "Operand",
@@ -209,14 +288,11 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::CmdAddrIndirect => "indirect",
         Key::CmdAddrRegister => "register",
 
-        // Opcode dropdown
         Key::OpcodeSearchPlaceholder => "Search: hex or mnemonic",
 
-        // Status register tooltip
         Key::StatusByteHeader => "Status byte T1: what the CPU is doing on this tact.",
         Key::StatusPrefix => "Status:",
 
-        // Runtime status messages
         Key::StatusNoProgramAt => "No program at address",
         Key::StatusNothingToUndo => "Nothing to undo",
         Key::StatusNothingToRedo => "Nothing to redo",
@@ -225,7 +301,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusAtAddress => "at address",
         Key::StatusNoMatchesFor => "No addresses match",
 
-        // Humanize error
         Key::ErrFileCorruptedOrUnsupported => "File is corrupted or has an unsupported format",
         Key::ErrFileNewerVersion => {
             "File was saved by a newer version — please update the application"

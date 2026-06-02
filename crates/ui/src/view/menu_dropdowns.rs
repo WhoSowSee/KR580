@@ -16,7 +16,7 @@ pub(super) const FILE_DROPDOWN_WIDTH: f32 = 290.0;
 pub(super) const MP_DROPDOWN_WIDTH: f32 = 270.0;
 
 /// Width of the Help dropdown. Tuned for the longest Russian label.
-pub(super) const HELP_DROPDOWN_WIDTH: f32 = 220.0;
+pub(super) const HELP_DROPDOWN_WIDTH: f32 = 260.0;
 
 /// Edge length of the icon square that prefixes every dropdown row.
 pub(super) const MENU_ICON_SIZE: f32 = 16.0;
@@ -149,7 +149,7 @@ pub(super) fn help_dropdown(lang: Lang) -> Element<'static, Message> {
             lang.t(Key::HelpShowDocs),
             "Ctrl+H",
             icons::book_marked(),
-            Message::ShowHelpComingSoon,
+            Message::OpenHelp,
             true,
         ),
         menu_separator(),

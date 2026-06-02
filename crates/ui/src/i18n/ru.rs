@@ -1,19 +1,114 @@
-use super::keys::Key;
+use super::{help_ru, keys::Key};
 
 pub(super) fn translate(key: Key) -> &'static str {
     match key {
-        // Top menu
         Key::MenuFile => "Файл",
         Key::MenuMp => "МП-Система",
         Key::MenuView => "Вид",
         Key::MenuSettings => "Настройки",
         Key::MenuHelp => "Помощь",
 
-        // Help dropdown
         Key::HelpShowDocs => "Вызвать справку",
         Key::HelpAbout => "О программе",
-        Key::HelpComingSoon => "Справка появится в будущей версии",
-        // About dialog
+        Key::HelpDialogTitle => "Справка",
+        Key::HelpSearchPlaceholder => "Поиск по справке…",
+        Key::HnAbout => "О программе",
+        Key::HnAppearance => "Внешний вид",
+        Key::HnArchitecture => "Архитектура МП КР580ВМ80А",
+        Key::HnArithmeticCommands => "Арифметические команды",
+        Key::HnCommandPanel => "Панель системных команд",
+        Key::HnCommandReference => "Сводка команд КР580ВМ80А",
+        Key::HnCommandSummary => "Приложение: сводка команд",
+        Key::HnControlTransferCommands => "Команды передачи управления",
+        Key::HnCpuArchitecture => "Микропроцессор КР580ВМ80",
+        Key::HnDataTransferCommands => "Команды пересылок",
+        Key::HnDeviceWorkflow => "Работа с устройствами",
+        Key::HnExport => "Экспорт данных",
+        Key::HnExternalDevices => "Внешние устройства",
+        Key::HnFeatures => "Возможности эмулятора",
+        Key::HnFileFormats => "Форматы файлов",
+        Key::HnFilesExport => "Экспорт и загрузка данных",
+        Key::HnFlagsRegister => "Регистр флагов",
+        Key::HnFloppy => "Дисковод КР580",
+        Key::HnGeneralPrinciples => "Общие принципы работы",
+        Key::HnGeneralSettings => "Общие настройки",
+        Key::HnHdd => "Жёсткий диск КР580",
+        Key::HnImport => "Импорт подпрограмм",
+        Key::HnInstructionSet => "Система команд",
+        Key::HnIntroduction => "Введение",
+        Key::HnIoCommands => "Команды ввода-вывода",
+        Key::HnLogicalCommands => "Логические команды",
+        Key::HnMainMenu => "Главное меню",
+        Key::HnMainWindow => "Главное окно программы",
+        Key::HnMemoryIoSpaces => "Пространства памяти и ввода-вывода",
+        Key::HnMemorySearch => "Поиск в памяти",
+        Key::HnMenuFile => "Меню «Файл»",
+        Key::HnMenuHelp => "Меню «Справка»",
+        Key::HnMenuMpSystem => "Меню «МП-Система»",
+        Key::HnMonitor => "Монитор КР580",
+        Key::HnNetwork => "Сетевой адаптер КР580",
+        Key::HnPrinter => "Принтер КР580",
+        Key::HnProcessorControlCommands => "Команды управления процессором",
+        Key::HnProgramInterface => "Описание программы",
+        Key::HnRamEditing => "Панель редактирования ОЗУ",
+        Key::HnRamTable => "Таблица содержимого ОЗУ",
+        Key::HnRegisterEdit => "Редактирование регистров",
+        Key::HnRegisterEditing => "Панель редактирования регистров",
+        Key::HnRegisters => "Регистры МП",
+        Key::HnResetButtons => "Кнопки сброса",
+        Key::HnRunButtons => "Кнопки выполнения",
+        Key::HnSaveLoad => "Сохранение и загрузка состояния",
+        Key::HnSchematic => "Структурная схема МП-системы",
+        Key::HnSettings => "Настройки программы",
+        Key::HnShortcuts => "Горячие клавиши",
+        Key::HnStackCommands => "Стековые команды",
+        Key::HnSystemComponents => "Компоненты МПС на базе КР580",
+        Key::HnSystemComposition => "Состав МП-системы",
+        Key::HnTopicShortcuts => "Таблица горячих клавиш",
+        Key::HnWorkflow => "Работа с программой",
+
+        Key::HcAbout
+        | Key::HcFeatures
+        | Key::HcSystemComponents
+        | Key::HcArchitecture
+        | Key::HcRegisters
+        | Key::HcFlagsRegister
+        | Key::HcMemoryIoSpaces
+        | Key::HcDataTransferCommands
+        | Key::HcLogicalCommands
+        | Key::HcArithmeticCommands
+        | Key::HcControlTransferCommands
+        | Key::HcProcessorControlCommands
+        | Key::HcIoCommands
+        | Key::HcStackCommands
+        | Key::HcMainWindow
+        | Key::HcMenuFile
+        | Key::HcMenuMpSystem
+        | Key::HcMenuHelp
+        | Key::HcSchematic
+        | Key::HcRamTable
+        | Key::HcMonitor
+        | Key::HcFloppy
+        | Key::HcHdd
+        | Key::HcNetwork
+        | Key::HcPrinter
+        | Key::HcRamEditing
+        | Key::HcRegisterEditing
+        | Key::HcResetButtons
+        | Key::HcCommandPanel
+        | Key::HcRunButtons
+        | Key::HcSaveLoad
+        | Key::HcImport
+        | Key::HcExport
+        | Key::HcFileFormats
+        | Key::HcGeneralSettings
+        | Key::HcAppearance
+        | Key::HcGeneralPrinciples
+        | Key::HcMemorySearch
+        | Key::HcRegisterEdit
+        | Key::HcDeviceWorkflow
+        | Key::HcCommandSummary
+        | Key::HcShortcuts => help_ru::translate(key),
         Key::AboutTitle => "О программе",
         Key::AppName => "KR580",
         Key::AboutDescription => {
@@ -22,7 +117,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::AboutVersion => "Версия 1.0.0",
         Key::AboutGithubLabel => "GitHub",
 
-        // File menu
         Key::FileNew => "Новый файл",
         Key::FileOpen => "Открыть",
         Key::FileSave => "Сохранить",
@@ -31,7 +125,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FileExport => "Экспорт",
         Key::LegacyFormatNote => "старый формат",
 
-        // MP-System menu
         Key::MpRunProgram => "Выполнить программу",
         Key::MpRunInstruction => "Выполнить команду",
         Key::MpRunTact => "Выполнить такт",
@@ -39,7 +132,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MpResetCpu => "Очистить регистры",
         Key::MpClearHalt => "Сбросить флаг HLT",
 
-        // Discard modal
         Key::DiscardCancel => "Отменить",
         Key::DiscardBody => "Несохранённые изменения будут потеряны.",
         Key::DiscardTitleOpen => "Открыть файл",
@@ -51,7 +143,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DiscardConfirmImport => "Импортировать",
         Key::DiscardConfirmClose => "Закрыть",
 
-        // Status & notices
         Key::StatusReady => "Готов",
         Key::StatusNewFile => "Новый файл",
         Key::StatusCpuHalted => "ЦП остановлен",
@@ -65,11 +156,9 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::LegacyOpenedNotice => "Открыт старый формат файла",
         Key::HaltNotice => "Процессор остановлен командой HLT\nСбросьте регистры или флаг HLT",
 
-        // Speed panel
         Key::SpeedTitle => "Скорость",
         Key::SpeedUnit => "инстр/сек",
 
-        // Settings dialog
         Key::SettingsTitle => "Настройки",
         Key::SettingsSearchPlaceholder => "Поиск настроек",
         Key::SettingsCategoryGeneral => "Общие",
@@ -96,12 +185,10 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SpeedHigh => "Быстро",
         Key::SpeedMax => "Макс",
 
-        // Schematic header
         Key::HeaderStatus => "Статус",
         Key::HltOn => "HLT ВКЛ",
         Key::HltOff => "HLT ВЫКЛ",
 
-        // Schematic registers grid
         Key::RegistersAndOperands => "Регистры и операнды",
         Key::Accumulator => "Аккумулятор",
         Key::BufferRegister1 => "Буферный регистр 1",
@@ -115,7 +202,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FlagsRegister => "Регистр признаков",
         Key::StatusRegister => "Регистр состояния",
 
-        // Mux panel
         Key::Multiplexer => "Мультиплексор",
         Key::TempStorageRegisters => "Регистры временного хранения",
         Key::GeneralPurposeRegisters => "Регистры общего назначения (РОН)",
@@ -123,7 +209,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ProgramCounter => "Счётчик команд (СК)",
         Key::IncDec => "Инкремент-декремент",
 
-        // Cycles / timings
         Key::CyclesAndTacts => "Цикл и такт",
         Key::CycleLabel => "Цикл",
         Key::TactLabel => "Такт",
@@ -141,13 +226,11 @@ pub(super) fn translate(key: Key) -> &'static str {
         }
         Key::PhaseTooltip => "То же, что «Такт инструкции», но считается с нуля.",
 
-        // Memory list
         Key::MemoryListTitle => "Содержимое ячеек ОЗУ",
         Key::ColumnAddress => "Адрес",
         Key::ColumnValue => "Значение",
         Key::ColumnCommand => "Команда",
 
-        // Editors panels
         Key::MemoryEditorTitle => "Ячейка ОЗУ и ее значение",
         Key::RegisterEditorTitle => "Регистр и его значение",
         Key::ActionPause => "Пауза",
@@ -160,7 +243,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ExecutionPanel => "Выполнение",
         Key::ResetPanel => "Сброс",
 
-        // Quick access devices
         Key::QuickAccess => "Быстрый доступ",
         Key::DeviceMonitor => "Отобразить монитор",
         Key::DeviceFloppy => "Отобразить буфер дисковода",
@@ -168,7 +250,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DeviceNetwork => "Отобразить буфер сетевого адаптера",
         Key::DevicePrinter => "Отобразить буфер принтера",
 
-        // Monitor window
         Key::MonitorUnifiedScreen => "Экран КР580",
         Key::MonitorTextLayer => "Текстовый слой",
         Key::MonitorPixelLayer => "Графический слой",
@@ -184,7 +265,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MonitorHexFilterGraphics => "Фильтр: графика",
         Key::MonitorHexFilterText => "Фильтр: текст",
 
-        // Current command columns
         Key::ColCmdCode => "Код",
         Key::ColCmdMnemonic => "Команда",
         Key::ColCmdOperand => "Операнд",
@@ -208,14 +288,11 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::CmdAddrIndirect => "косвенная",
         Key::CmdAddrRegister => "регистровая",
 
-        // Opcode dropdown
         Key::OpcodeSearchPlaceholder => "Поиск: hex или мнемоника",
 
-        // Status register tooltip
         Key::StatusByteHeader => "Статусный байт T1: что процессор делает на текущем такте.",
         Key::StatusPrefix => "Статус:",
 
-        // Runtime status messages
         Key::StatusNoProgramAt => "Нет программы по адресу",
         Key::StatusNothingToUndo => "Нечего отменять",
         Key::StatusNothingToRedo => "Нечего вернуть",
@@ -224,7 +301,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusAtAddress => "по адресу",
         Key::StatusNoMatchesFor => "Нет адресов, соответствующих",
 
-        // Humanize error
         Key::ErrFileCorruptedOrUnsupported => "Файл повреждён или имеет неподдерживаемый формат",
         Key::ErrFileNewerVersion => "Файл сохранён в более новой версии — обновите программу",
         Key::ErrNotLegacyFormat => "Файл не похож на сохранение в старом формате",

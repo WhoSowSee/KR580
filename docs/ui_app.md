@@ -34,8 +34,8 @@ run CPU instructions directly, or store emulator state in widgets.
   - `app/constants.rs` — widget identifiers, register order, and name
     lookup helpers. Re-exported from `crate::app::*` so the rest of the
     crate keeps importing them by short path.
-  - `app/update.rs` — the `update()` message handler (one match arm per
-    `Message` variant).
+  - `app/update.rs` — the main `update()` message handler for runtime,
+    window, menu, focus, file, memory, register, and opcode messages.
   - `app/handlers.rs` — helper handlers shared with `update`/`subscription`:
     `handle_tick`, `handle_focus_reconciled`, `handle_esc`, plus the
     `tick_interval` and `ctrl_shortcut` resolvers.
@@ -104,9 +104,10 @@ panel border.
 
 The visible top-level categories are localized as `Файл`,
 `МП-Система`, `Вид`, `Настройки`, and `Справка`. `Файл` and
-`МП-Система` open dropdowns; the last three are still inactive
-placeholders, but they use the same Russian UI language as the rest of
-the menu bar.
+`МП-Система` open dropdowns; `Справка` opens a dropdown with
+«Вызвать справку» (Ctrl+H — opens the Help dialog) and «О программе»
+(opens the About dialog). `Вид` and `Настройки` use the same Russian
+UI language as the rest of the menu bar.
 
 Legacy `.580` rows in the file dropdown keep the primary action as the
 main label (`Открыть` / `Сохранить`) and render `старый формат` as a
@@ -1254,6 +1255,114 @@ worker also floors `slice` at 1 ms to mirror the `SetStepInterval`
 floor — out-of-range zero would degenerate the timer arm into a busy
 loop.
 
+## Overlay modals
+
+All overlay modals (discard confirmation, settings dialog, about
+window, help dialog, monitor window) layer on top of the main app
+via `stack![]` at the end of `DesktopApp::view()`. While a modal is
+open, the corresponding routing function (`route_discard_modal_message`,
+`route_settings_modal_message`, `route_help_dialog_message`) swallows
+all messages that would affect the underlying app state — `Tick`,
+keyboard shortcuts, menu actions — and only lets through modal-specific
+messages (Esc, Enter, Tab, button clicks) and read-only signals
+(`CursorMoved`, `FrameRendered`, etc.). Closing the modal restores full
+input routing.
+
+### Discard modal
+
+Appears when the user attempts an action that would lose unsaved changes
+(open/new/import/close) while `dirty` is true. Two buttons — Cancel
+(always focused by default) and Confirm (the destructive action).
+Clicking outside the dialog or pressing Esc equals Cancel. Tab cycles
+focus; Enter activates the focused button.
+
+**State:** `discard_modal_focus: DiscardModalButton`, `pending_action:
+Option<PendingAction>`.
+
+**View:** `view/modal.rs` — `discard_modal_overlay()`.
+
+### Settings dialog
+
+Opened via `Ctrl+,` or the menu bar. Three categories (General,
+Appearance, Shortcuts) with keyboard-navigable sidebar chips. Live-
+editing language/speed with Cancel/Reset/Save footer. Reset opens a
+sub-modal confirmation. Search filters settings rows across all
+categories.
+
+**State:** `settings_dialog: Option<SettingsDialog>`. `SettingsDialog`
+lives in `app/settings_modal/` and is a standalone draft — the live
+`lang` and `default_speed` fields on `DesktopApp` are kept in sync
+with the draft while editing, then rolled back to `original_*` on
+Cancel or committed on Save.
+
+**View:** `view/settings_dialog/` — `settings_modal_overlay()`.
+
+### About dialog
+
+A small centred card with app icon, name, version, description, and
+GitHub button. No keyboard navigation beyond Esc to close.
+
+**State:** `about_dialog_open: bool`.
+
+**View:** `view/about.rs` — `about_modal_overlay()`.
+
+### Help dialog
+
+Opened via `Ctrl+H`, `F1`, or the Help menu dropdown. The dialog
+(820×540 px) has a left sidebar with a search field, an expand/collapse
+tree, and a right content pane displaying static reference text in a
+scrollable container.
+
+Clicking a topic node switches the content. The regular article view is a
+read-only `text_editor`, so the user can select help text with the mouse
+and copy it with Ctrl+C without editing the source text. Inline help
+markdown in the form `**text**` is rendered as bold text and the marker
+characters are stripped before the article is shown or copied. Clicking
+the backdrop or pressing Esc closes the dialog. Help search filters the
+sidebar, keeps the expand/collapse-all button authoritative for visible
+branches, and renders matching topics in the content pane as clickable
+breadcrumbs with up to four preview lines instead of full articles.
+Clicking a breadcrumb result selects that topic, clears the search input,
+and opens the regular article view; the selected topic's parent category
+is expanded in the sidebar so the destination is visible. Hovering a
+breadcrumb only raises the text colour and does not paint its own
+background. Matching letters are rendered as rich-text spans with the same
+grey surface as the selected sidebar row; surrounding text keeps the
+normal help colour, inline bold formatting is preserved, and no textual
+marker characters are inserted. The search text input uses the same grey
+surface for its native selection colour. The text input writes directly to
+`HelpDialog::search`; a per-language search index precomputes lowercased
+topic content plus breadcrumb labels, and result rendering uses cached
+matching nodes and bounded preview snippets instead of rebuilding full
+article rich text on every keystroke.
+
+All text comes from the i18n system (`Key::Hn*` and `Key::Hc*`) and is
+localised for Russian and English. Long `Key::Hc*` article bodies are
+included from `crates/ui/src/i18n/help/{ru,en}/`.
+
+**State:** `help_dialog: Option<HelpDialog>`. `HelpDialog` holds the
+selected `HelpNode`, expanded tree nodes, search input, per-language
+search index, cached matching nodes, cached preview results, and
+read-only article editor content.
+
+**Routing:** `app/help_routing.rs` — `route_help_dialog_message()`.
+
+**View:** `view/help/` — `help_modal_overlay()` (orchestration),
+`sidebar.rs` (category chips), `content.rs` (selectable article pane),
+`consts.rs` / `styles.rs` (layout and style constants).
+
+### Monitor window
+
+Opened via `Ctrl+M` or the View menu. Renders the device monitor
+(text layer, pixel layer, byte stream) in a resizable overlay. Supports
+split/unified view toggling and PNG export.
+
+**State:** `monitor_open: bool`, `monitor_split: bool`,
+`monitor_hex_popup: bool`, `monitor_hex_filter: HexStreamFilter`,
+`monitor_hex_scroll_visible_ticks: u8`.
+
+**View:** `view/monitor/` — `monitor_window_overlay()`.
+
 ## Keyboard shortcuts
 
 The UI exposes the following shortcuts. Modifier names follow iced's
@@ -1418,16 +1527,21 @@ each file under the 400-line ceiling:
 - `app/update_settings.rs` — `dispatch_settings_message`, called from
   the main `update` loop before the big `match` so every
   `Message::Settings*` is handled in one focused module.
+- `app/update_overlays.rs` — `dispatch_overlay_message`, called from
+  the main `update` loop for About, Help, external URL, and monitor
+  overlay messages.
 - `app/status.rs` — `StatusKind` and its `render(lang)` so language
   changes re-render the status bar.
 - `view/settings_dialog/{mod,consts,header,sidebar,content,language,
   speed,theme_row,footer,setting_row,reset_confirm,styles}.rs` — the
   view layer split per zone. `mod.rs` composes the four-zone modal
   and stacks the reset-confirm overlay on top when armed.
-- `i18n/{mod,keys,ru,en}.rs` — translation registry split out of the
-  monolithic `i18n.rs`. `Lang::t(Key)` thin-wraps `ru::translate(key)`
-  / `en::translate(key)`; adding a string adds one variant in
-  `keys.rs` and one row in each of `ru.rs` / `en.rs`.
+- `i18n/{mod,keys,ru,en,help_ru,help_en}.rs` — translation registry
+  split out of the monolithic `i18n.rs`. `Lang::t(Key)` thin-wraps
+  `ru::translate(key)` / `en::translate(key)`; adding a short string
+  adds one variant in `keys.rs` and one row in each of `ru.rs` /
+  `en.rs`. Long `Key::Hc*` help articles live as included markdown under
+  `i18n/help/{ru,en}/`.
 
 ## Focus rings and styling
 

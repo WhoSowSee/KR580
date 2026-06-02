@@ -2,6 +2,7 @@ use super::register_inline::RegisterMove;
 use crate::i18n::Lang;
 use iced::Point;
 use iced::keyboard;
+use iced::widget::text_editor;
 use k580_core::RegisterName;
 use std::path::PathBuf;
 
@@ -20,6 +21,7 @@ pub(crate) enum SpeedTier {
     Max,
 }
 
+pub(crate) use super::help::HelpNode;
 pub(crate) use super::settings_modal::SettingsCategory;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -136,7 +138,13 @@ pub(crate) enum Message {
     SaveSettings,
     OpenAbout,
     CloseAbout,
-    ShowHelpComingSoon,
+    OpenHelp,
+    CloseHelp,
+    HelpNodeSelected(HelpNode),
+    HelpNodeToggled(HelpNode),
+    HelpSearchChanged(String),
+    HelpTextAction(text_editor::Action),
+    HelpToggleExpandAll,
     OpenUrl(&'static str),
     OpenMonitor,
     CloseMonitor,

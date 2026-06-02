@@ -1,28 +1,119 @@
-/// Identifier for a translatable string. Adding a new piece of UI text
-/// means adding a variant here and a row per language in `ru.rs` /
-/// `en.rs`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Key {
-    // Top menu
     MenuFile,
     MenuMp,
     MenuView,
     MenuSettings,
     MenuHelp,
 
-    // Help dropdown
     HelpShowDocs,
     HelpAbout,
-    HelpComingSoon,
 
-    // About dialog
+    HelpDialogTitle,
+    HelpSearchPlaceholder,
+    HnIntroduction,
+    HnAbout,
+    HnFeatures,
+    HnSystemComposition,
+    HnSystemComponents,
+    HnCpuArchitecture,
+    HnArchitecture,
+    HnRegisters,
+    HnFlagsRegister,
+    HnMemoryIoSpaces,
+    HnInstructionSet,
+    HnDataTransferCommands,
+    HnLogicalCommands,
+    HnArithmeticCommands,
+    HnControlTransferCommands,
+    HnProcessorControlCommands,
+    HnIoCommands,
+    HnStackCommands,
+    HnProgramInterface,
+    HnMainWindow,
+    HnMainMenu,
+    HnMenuFile,
+    HnMenuMpSystem,
+    HnMenuHelp,
+    HnSchematic,
+    HnRamTable,
+    HnExternalDevices,
+    HnMonitor,
+    HnFloppy,
+    HnHdd,
+    HnNetwork,
+    HnPrinter,
+    HnRamEditing,
+    HnRegisterEditing,
+    HnResetButtons,
+    HnCommandPanel,
+    HnRunButtons,
+    HnFilesExport,
+    HnSaveLoad,
+    HnImport,
+    HnExport,
+    HnFileFormats,
+    HnSettings,
+    HnGeneralSettings,
+    HnAppearance,
+    HnWorkflow,
+    HnGeneralPrinciples,
+    HnMemorySearch,
+    HnRegisterEdit,
+    HnDeviceWorkflow,
+    HnCommandReference,
+    HnCommandSummary,
+    HnShortcuts,
+    HnTopicShortcuts,
+    HcAbout,
+    HcFeatures,
+    HcSystemComponents,
+    HcArchitecture,
+    HcRegisters,
+    HcFlagsRegister,
+    HcMemoryIoSpaces,
+    HcDataTransferCommands,
+    HcLogicalCommands,
+    HcArithmeticCommands,
+    HcControlTransferCommands,
+    HcProcessorControlCommands,
+    HcIoCommands,
+    HcStackCommands,
+    HcMainWindow,
+    HcMenuFile,
+    HcMenuMpSystem,
+    HcMenuHelp,
+    HcSchematic,
+    HcRamTable,
+    HcMonitor,
+    HcFloppy,
+    HcHdd,
+    HcNetwork,
+    HcPrinter,
+    HcRamEditing,
+    HcRegisterEditing,
+    HcResetButtons,
+    HcCommandPanel,
+    HcRunButtons,
+    HcSaveLoad,
+    HcImport,
+    HcExport,
+    HcFileFormats,
+    HcGeneralSettings,
+    HcAppearance,
+    HcGeneralPrinciples,
+    HcMemorySearch,
+    HcRegisterEdit,
+    HcDeviceWorkflow,
+    HcCommandSummary,
+    HcShortcuts,
+
     AboutTitle,
     AppName,
     AboutDescription,
     AboutVersion,
     AboutGithubLabel,
 
-    // File dropdown
     FileNew,
     FileOpen,
     FileSave,
@@ -31,7 +122,6 @@ pub(crate) enum Key {
     FileExport,
     LegacyFormatNote,
 
-    // MP-System dropdown
     MpRunProgram,
     MpRunInstruction,
     MpRunTact,
@@ -39,7 +129,6 @@ pub(crate) enum Key {
     MpResetCpu,
     MpClearHalt,
 
-    // Discard modal
     DiscardCancel,
     DiscardBody,
     DiscardTitleOpen,
@@ -51,7 +140,6 @@ pub(crate) enum Key {
     DiscardConfirmImport,
     DiscardConfirmClose,
 
-    // Status / notices
     StatusReady,
     StatusNewFile,
     StatusCpuHalted,
@@ -65,11 +153,9 @@ pub(crate) enum Key {
     LegacyOpenedNotice,
     HaltNotice,
 
-    // Speed panel
     SpeedTitle,
     SpeedUnit,
 
-    // Settings dialog
     SettingsTitle,
     SettingsSearchPlaceholder,
     SettingsCategoryGeneral,
@@ -96,12 +182,10 @@ pub(crate) enum Key {
     SpeedHigh,
     SpeedMax,
 
-    // Schematic header
     HeaderStatus,
     HltOn,
     HltOff,
 
-    // Schematic registers grid
     RegistersAndOperands,
     Accumulator,
     BufferRegister1,
@@ -115,7 +199,6 @@ pub(crate) enum Key {
     FlagsRegister,
     StatusRegister,
 
-    // Mux panel
     Multiplexer,
     TempStorageRegisters,
     GeneralPurposeRegisters,
@@ -123,7 +206,6 @@ pub(crate) enum Key {
     ProgramCounter,
     IncDec,
 
-    // Cycles / timings
     CyclesAndTacts,
     CycleLabel,
     TactLabel,
@@ -137,13 +219,11 @@ pub(crate) enum Key {
     InstructionTactTooltip,
     PhaseTooltip,
 
-    // Memory list
     MemoryListTitle,
     ColumnAddress,
     ColumnValue,
     ColumnCommand,
 
-    // Editors
     MemoryEditorTitle,
     RegisterEditorTitle,
     ActionPause,
@@ -156,7 +236,6 @@ pub(crate) enum Key {
     ExecutionPanel,
     ResetPanel,
 
-    // Quick-access
     QuickAccess,
     DeviceMonitor,
     DeviceFloppy,
@@ -164,7 +243,6 @@ pub(crate) enum Key {
     DeviceNetwork,
     DevicePrinter,
 
-    // Monitor window
     MonitorUnifiedScreen,
     MonitorTextLayer,
     MonitorPixelLayer,
@@ -180,7 +258,6 @@ pub(crate) enum Key {
     MonitorHexFilterGraphics,
     MonitorHexFilterText,
 
-    // Current command columns
     ColCmdCode,
     ColCmdMnemonic,
     ColCmdOperand,
@@ -204,14 +281,11 @@ pub(crate) enum Key {
     CmdAddrIndirect,
     CmdAddrRegister,
 
-    // Opcode dropdown
     OpcodeSearchPlaceholder,
 
-    // Status register tooltip
     StatusByteHeader,
     StatusPrefix,
 
-    // Runtime status messages
     StatusNoProgramAt,
     StatusNothingToUndo,
     StatusNothingToRedo,
@@ -220,7 +294,6 @@ pub(crate) enum Key {
     StatusAtAddress,
     StatusNoMatchesFor,
 
-    // Humanize error
     ErrFileCorruptedOrUnsupported,
     ErrFileNewerVersion,
     ErrNotLegacyFormat,

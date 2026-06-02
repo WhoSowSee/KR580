@@ -5,9 +5,13 @@
 //! the codebase a single place to look up a swatch when the design tweaks.
 
 use iced::widget::{Text, text};
-use iced::{Color, Font};
+use iced::{Color, Font, font};
 
 pub(super) const UI_FONT: Font = Font::with_name("Segoe UI Variable");
+pub(super) const UI_BOLD_FONT: Font = Font {
+    weight: font::Weight::Bold,
+    ..UI_FONT
+};
 pub(super) const MONO_FONT: Font = Font::MONOSPACE;
 
 pub(super) const TOKYO_BOARD: Color = Color::from_rgb8(0x12, 0x13, 0x20);
