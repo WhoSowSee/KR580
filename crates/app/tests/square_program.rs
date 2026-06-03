@@ -1,15 +1,14 @@
 use k580_app::{AppCommand, Emulator};
-use std::path::PathBuf;
+use k580_core::Cpu8080State;
+use k580_persistence::Snapshot580Serializer;
+use std::{fs, path::PathBuf};
 
 #[test]
 fn square_program_paints_8x8_outline_into_pixel_layer() {
-    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.pop();
-    path.pop();
-    path.push("square.580");
-
     let mut emulator = Emulator::default();
+    let path = write_square_snapshot();
     let events = emulator.handle_command(AppCommand::LoadSnapshot(path));
+    let _ = fs::remove_file(square_snapshot_path());
     assert!(
         !events
             .iter()
@@ -53,4 +52,42 @@ fn square_program_paints_8x8_outline_into_pixel_layer() {
             assert!(!lit, "interior ({x},{y}) was lit");
         }
     }
+}
+
+fn write_square_snapshot() -> PathBuf {
+    let mut state = Cpu8080State::default();
+    let mut offset = 0usize;
+
+    for x in 0..8 {
+        write_pixel(&mut state, &mut offset, x, 0);
+    }
+    for x in 0..8 {
+        write_pixel(&mut state, &mut offset, x, 7);
+    }
+    for y in 1..7 {
+        write_pixel(&mut state, &mut offset, 0, y);
+        write_pixel(&mut state, &mut offset, 7, y);
+    }
+    state.memory.write(offset as u16, 0x76);
+
+    let path = square_snapshot_path();
+    fs::write(&path, Snapshot580Serializer::to_bytes(&state)).expect("write square snapshot");
+    path
+}
+
+fn write_pixel(state: &mut Cpu8080State, offset: &mut usize, x: u8, y: u8) {
+    for byte in [0xFF, x, y] {
+        write_monitor_byte(state, offset, byte);
+    }
+}
+
+fn write_monitor_byte(state: &mut Cpu8080State, offset: &mut usize, byte: u8) {
+    for opcode in [0x3E, byte, 0xD3, 0x00] {
+        state.memory.write(*offset as u16, opcode);
+        *offset += 1;
+    }
+}
+
+fn square_snapshot_path() -> PathBuf {
+    std::env::temp_dir().join(format!("k580-square-{}.580", std::process::id()))
 }

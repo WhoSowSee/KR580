@@ -33,7 +33,7 @@ UI messages become `AppCommand` values. The app actor owns `Cpu8080State` and `I
 
 ## Runtime shape
 
-`k580-ui` sends commands through a crossbeam channel to the emulator actor in `k580-app`. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. Disk/printer operations are queued to Tokio-backed workers where host I/O is needed, keeping the UI thread away from blocking device work.
+`k580-ui` sends commands through a crossbeam channel to the emulator actor in `k580-app`. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage workers, so `AppCommand::AttachFloppyImage` can attach a file-backed floppy image from the actor thread without making the UI own device internals. Disk/printer operations are queued to Tokio-backed workers where host I/O is needed, keeping the UI thread away from blocking device work.
 
 ## Actor pacing loop
 

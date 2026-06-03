@@ -8,7 +8,7 @@
 
 use iced::widget::{Space, column, container, mouse_area, row};
 use iced::{Element, Length, Padding, alignment};
-use k580_core::{Cpu8080State, RegisterName, decode_opcode};
+use k580_core::{RegisterName, decode_opcode};
 
 use super::chips::{
     FunctionalBlockState, device_chip, flag_strip, functional_block, schematic_mnemonic_readout,
@@ -23,8 +23,8 @@ use super::theme::{
     TOKYO_YELLOW, mono_text, ui_text,
 };
 use super::widgets::legend_panel_left;
-use crate::app::{DesktopApp, Message, RegisterInlineTarget, SpeedTier};
-use crate::i18n::{Key, Lang};
+use crate::app::{DesktopApp, Message, RegisterInlineTarget};
+use crate::i18n::Key;
 
 const MAIN_TO_BOTTOM_SPACING: f32 = 8.0;
 
@@ -242,7 +242,7 @@ impl DesktopApp {
                 TOKYO_GREEN,
             ),
             schematic_wide_readout(lang.t(Key::FlagsRegister), flag_bits, TOKYO_GREEN),
-            mux_panel(
+            super::mux::mux_panel(
                 cpu,
                 self.selected_register,
                 self.inline_register_target,
@@ -290,7 +290,7 @@ impl DesktopApp {
                 icons::device_floppy(),
                 TOKYO_CYAN,
                 lang.t(Key::DeviceFloppy),
-                None,
+                Some(Message::OpenFloppy),
             ),
             device_chip(
                 icons::device_hdd(),
@@ -325,7 +325,7 @@ impl DesktopApp {
         let bottom = row![
             quick_access,
             Space::new().width(Length::Fill),
-            speed_panel(self.speed_tier, self.lang),
+            super::speed::speed_panel(self.speed_tier, self.lang),
         ]
         .spacing(24)
         .align_y(alignment::Vertical::Bottom);
@@ -346,34 +346,6 @@ impl DesktopApp {
             .style(schematic_board_style)
             .into()
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn mux_panel<'a>(
-    cpu: &Cpu8080State,
-    selected: RegisterName,
-    inline_target: Option<RegisterInlineTarget>,
-    active_target: Option<RegisterInlineTarget>,
-    hovered_target: Option<RegisterInlineTarget>,
-    input_value: &'a str,
-    values: MuxRegisterValues,
-    lang: Lang,
-) -> Element<'a, Message> {
-    super::mux::mux_panel(
-        cpu,
-        selected,
-        inline_target,
-        active_target,
-        hovered_target,
-        input_value,
-        values,
-        lang,
-    )
-}
-
-/// Four-tier speed switch — implementation in `super::speed`.
-fn speed_panel(active: SpeedTier, lang: crate::i18n::Lang) -> Element<'static, Message> {
-    super::speed::speed_panel(active, lang)
 }
 
 fn split_legacy_status_note(status: &str, lang: crate::i18n::Lang) -> (&str, Option<&'static str>) {

@@ -45,6 +45,10 @@ pub enum AppCommand {
     ImportTxt(PathBuf),
     ImportXlsx(PathBuf),
     ClearMonitorBuffer,
+    ClearFloppyBuffer,
+    AttachFloppyImage(PathBuf),
+    DetachFloppyImage,
+    SetFloppyDebugBuffer(bool),
     Shutdown,
 }
 

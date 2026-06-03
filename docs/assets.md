@@ -74,7 +74,7 @@ Two SVG icon families live alongside the PNG set:
 
 | Directory | Purpose |
 |---|---|
-| `assets/icons/actions/` | Toolbar / menu / titlebar glyphs (`play`, `pause`, `step-forward`, `redo-dot`, `refresh-ccw`, `reset-ram`, `reset-registers`, `chevrons-right`, `cpu`, `clear-halt`, file/window/save/save-as/file-up/file-down, window caption buttons). Consumed by `crates/ui/src/view/icons.rs` through the `action_icon_bytes!` macro. |
+| `assets/icons/actions/` | Toolbar / menu / titlebar glyphs (`play`, `pause`, `step-forward`, `redo-dot`, `refresh-ccw`, `reset-ram`, `reset-registers`, `chevrons-right`, `cpu`, `clear-halt`, `binary`, `hard-drive-download`, `hard-drive-x`, `hard-drive-upload`, `bug`, `bug-off`, file/window/save/save-as/file-up/file-down, window caption buttons). Consumed by `crates/ui/src/view/icons.rs` through the `action_icon_bytes!` macro. |
 | `assets/icons/devices/` | Peripheral chips on the bottom row of the schematic plate: `monitor.svg`, `floppy.svg`, `hdd.svg`, `network.svg`, `printer.svg`. Consumed through the `device_icon_bytes!` macro and exposed as `icons::device_monitor()` / `device_floppy()` / `device_hdd()` / `device_network()` / `device_printer()` getters. The chips are rendered by `view::schematic::device_chip` inside the `schematic_block_style` chassis with a hover tooltip wired the same way the action-panel buttons wire theirs. |
 
 All SVGs are authored with `stroke="currentColor"` (or `fill="currentColor"`

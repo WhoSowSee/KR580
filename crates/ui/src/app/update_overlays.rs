@@ -60,6 +60,7 @@ impl DesktopApp {
             Message::OpenMonitor => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
+                self.floppy_open = false;
                 self.monitor_open = true;
             }
             Message::CloseMonitor => {
@@ -87,6 +88,49 @@ impl DesktopApp {
             }
             Message::SaveMonitorImage => {
                 self.save_monitor_image();
+            }
+            Message::OpenFloppy => {
+                self.open_menu = None;
+                self.hide_opcode_dropdown();
+                self.monitor_open = false;
+                self.monitor_hex_popup = false;
+                self.floppy_open = true;
+                if self.floppy_show_image_contents {
+                    self.refresh_floppy_image_contents();
+                }
+            }
+            Message::CloseFloppy => {
+                self.floppy_open = false;
+            }
+            Message::ToggleFloppyImageContents => {
+                self.floppy_show_image_contents = !self.floppy_show_image_contents;
+                if self.floppy_show_image_contents {
+                    self.refresh_floppy_image_contents();
+                }
+            }
+            Message::OpenFloppyImage => {
+                self.open_floppy_image();
+            }
+            Message::DetachFloppyImage => {
+                self.dispatch_sync(k580_app::AppCommand::DetachFloppyImage);
+                self.set_status_custom(
+                    self.lang
+                        .t(crate::i18n::Key::FloppyImageDetached)
+                        .to_owned(),
+                );
+                if self.floppy_show_image_contents {
+                    self.refresh_floppy_image_contents();
+                }
+            }
+            Message::SaveFloppyBuffer => {
+                self.save_floppy_buffer();
+            }
+            Message::ToggleFloppyDebugBuffer => {
+                let enabled = !self.snapshot.devices.floppy.debug_buffer;
+                self.dispatch_sync(k580_app::AppCommand::SetFloppyDebugBuffer(enabled));
+            }
+            Message::ClearFloppyBuffer => {
+                self.dispatch(k580_app::AppCommand::ClearFloppyBuffer);
             }
             _ => return None,
         }

@@ -14,21 +14,25 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
   modular executor families, flags, conditionals, stack, interrupts, I/O
   routing, and exact `RunForTStates` accounting.
 - `k580-devices`: port routing, invalid-port typed errors, monitor
-  framebuffer/attribute state, storage worker queueing, network no-data
-  handling, Tokio TCP worker roundtrip, and printer spool/export
+  framebuffer/attribute state, storage worker queueing, storage visible
+  buffer clearing, storage debug-buffer acceptance without an attached
+  file, network no-data handling, Tokio TCP worker roundtrip, and printer spool/export
   behavior.
 - `k580-persistence`: `.580` roundtrip/determinism/header validation,
   raw `.krs` behavior, settings JSON versioning, `.txt`/`.xlsx`
   direct exporters, and `.txt`/`.xlsx` importers (round-trip an
   `ExportModel` back into a `Cpu8080State`).
-- `k580-app`: command-mediated state mutation and actor event
-  publication. The `square_program` integration test loads the
-  pre-built `square.580` snapshot, runs it to HLT through the
+- `k580-app`: command-mediated state mutation, including floppy image
+  attachment, floppy debug-buffer mode, floppy-buffer clearing, and actor event
+  publication. The `square_program` integration test generates a
+  temporary `square.580` snapshot, loads it, runs it to HLT through the
   `Emulator`, and asserts the monitor pixel layer contains exactly
   the 28-pixel outline of an 8×8 square (corners included, interior
   untouched, every pixel at colour `0x7F`) — a smoke check that
   `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
   the documented 3-byte graphics command (`prompt/03_peripherals.md`).
+- `k580-ui`: pure view helpers, including CP866 terminal-text decoding
+  for the floppy-buffer modal.
 
 External Intel 8080 binary suites are not included in this workspace.
 When available, add them as an additional compatibility gate instead of
@@ -38,14 +42,11 @@ replacing the local semantic tests.
 
 - `counter_loop.580` — pre-existing demo snapshot.
 - `test_program.580` — pre-existing demo snapshot.
-- `square.580` — pre-existing demo snapshot. Runs an 8080 program
-  (~71 bytes at `0x0000`) that walks the four edges of an 8×8 square
-  at the origin of the graphics layer, emitting one 3-byte graphics
-  command per pixel. Command form is `[FF][X][Y]` (`FF` = bit7=1 for
-  graphics + max colour `0x7F`). After loading the snapshot and
-  pressing «Запустить» the «Отобразить монитор» window paints a
-  1-pixel hollow square outline in the upper-left of the 256×256
-  graphics layer (corners filled, interior 6×6 left dark).
+- `square_program` synthesizes its `.580` fixture during the test. The
+  encoded program walks the four edges of an 8×8 square at the origin
+  of the graphics layer, emitting one 3-byte graphics command per
+  pixel. Command form is `[FF][X][Y]` (`FF` = bit7=1 for graphics + max
+  colour `0x7F`).
 
 ## Asset prerequisites
 
@@ -77,3 +78,13 @@ worth eyeballing after touching `crates/ui`:
   and Shift+Tab walks back up;
 - focus the address spinner with the mouse and Tab through the panel:
   hover and focus rings should match the standalone byte-value field.
+- click the Дисковод quick-access chip, confirm the buffer modal opens,
+  Esc and backdrop-click close it, the open-image button attaches an
+  existing `.kpd`/`.img`/`.bin` file, the save button writes the visible
+  buffer to `.kpd`/`.img`/`.bin` through three separate export filters
+  with `.kpd` selected first, the detach-image button clears the file
+  path while leaving the visible buffer text intact, the binary button
+  switches the body to the image file contents, the debug button toggles
+  between `bug-off` and active blue `bug`, the empty buffer state has no
+  cursor glyph, and the clear button empties the visible buffer without
+  changing the device footer state.

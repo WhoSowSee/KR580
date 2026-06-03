@@ -9,6 +9,6 @@ pub use emulator::{DEFAULT_STEP_INTERVAL, Emulator};
 pub use error::AppError;
 pub use k580_devices::{
     DeviceSnapshot, DeviceStatus, GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorPhase, MonitorState,
-    TEXT_COLS, TEXT_ROWS, TextCell,
+    StorageState, TEXT_COLS, TEXT_ROWS, TextCell,
 };
 pub use k580_persistence::Snapshot580Flavour;

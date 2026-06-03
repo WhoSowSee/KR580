@@ -68,6 +68,9 @@ pub(super) fn humanize(raw: &str, lang: Lang) -> String {
     if lower.contains("undocumented opcode") {
         return lang.t(Key::ErrUndocumentedOpcode).to_owned();
     }
+    if lower.contains("device is not ready") {
+        return lang.t(Key::ErrFloppyImageNotAttached).to_owned();
+    }
 
     if lower.contains("worker stopped") {
         return lang.t(Key::ErrInternal).to_owned();
@@ -147,6 +150,18 @@ mod tests {
         assert_eq!(
             humanize("permission denied", Lang::En),
             "Permission denied for file"
+        );
+    }
+
+    #[test]
+    fn device_not_ready_points_to_missing_floppy_image() {
+        assert_eq!(
+            humanize("core error: device is not ready", Lang::Ru),
+            "Файл образа дисковода не подключён"
+        );
+        assert_eq!(
+            humanize("core error: device is not ready", Lang::En),
+            "Floppy image file is not attached"
         );
     }
 

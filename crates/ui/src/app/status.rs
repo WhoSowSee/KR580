@@ -48,6 +48,9 @@ pub(crate) enum StatusKind {
     MonitorImageSaved {
         display: String,
     },
+    FloppyImageAttached {
+        display: String,
+    },
     NothingToUndo,
     NothingToRedo,
     EnterHexPattern,
@@ -112,6 +115,9 @@ impl StatusKind {
             Self::ExportTo { display } => format!("{} {display}", lang.t(Key::StatusExportTo)),
             Self::MonitorImageSaved { display } => {
                 format!("{}: {display}", lang.t(Key::MonitorImageSaved))
+            }
+            Self::FloppyImageAttached { display } => {
+                format!("{}: {display}", lang.t(Key::FloppyImageAttached))
             }
             Self::NothingToUndo => lang.t(Key::StatusNothingToUndo).to_owned(),
             Self::NothingToRedo => lang.t(Key::StatusNothingToRedo).to_owned(),

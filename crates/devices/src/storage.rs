@@ -15,6 +15,7 @@ pub struct StorageState {
     pub tail_buffer: Vec<u8>,
     pub last_error: Option<String>,
     pub worker_alive: bool,
+    pub debug_buffer: bool,
 }
 
 #[derive(Debug)]
@@ -42,6 +43,7 @@ impl StorageDevice {
                 tail_buffer: Vec::new(),
                 last_error: None,
                 worker_alive: false,
+                debug_buffer: false,
             },
             tx: None,
         }
@@ -84,30 +86,62 @@ impl StorageDevice {
         self.state.status = DeviceStatus::Ready;
         self.state.last_error = None;
         self.state.worker_alive = true;
+        self.state.debug_buffer = false;
         self.tx = Some(tx);
     }
 
-    pub fn write_byte(&mut self, value: u8) -> Result<(), DeviceError> {
-        self.state.visible_buffer.push(value);
-        self.state.tail_buffer.push(value);
-        if self.state.tail_buffer.len() > 4096 {
-            let drop_count = self.state.tail_buffer.len() - 4096;
-            self.state.tail_buffer.drain(0..drop_count);
+    pub fn detach_file(&mut self) {
+        if let Some(tx) = self.tx.take() {
+            let _ = tx.send(StorageCommand::Close);
         }
-        let Some(tx) = self.tx.as_ref() else {
-            self.state.status = DeviceStatus::NotReady;
-            self.state.last_error = Some(DeviceError::NotReady.to_string());
-            return Err(DeviceError::NotReady);
+        self.state.path = None;
+        self.state.status = if self.state.debug_buffer {
+            DeviceStatus::Ready
+        } else {
+            DeviceStatus::NotReady
         };
-        tx.send(StorageCommand::Write(value)).map_err(|_| {
-            self.state.status = DeviceStatus::Disconnected;
-            self.state.worker_alive = false;
-            self.state.last_error = Some(DeviceError::Disconnected.to_string());
-            DeviceError::Disconnected
-        })?;
-        self.state.bytes_queued += 1;
         self.state.last_error = None;
-        Ok(())
+        self.state.worker_alive = false;
+    }
+
+    pub fn write_byte(&mut self, value: u8) -> Result<(), DeviceError> {
+        if let Some(tx) = self.tx.as_ref() {
+            tx.send(StorageCommand::Write(value)).map_err(|_| {
+                self.state.status = DeviceStatus::Disconnected;
+                self.state.worker_alive = false;
+                self.state.last_error = Some(DeviceError::Disconnected.to_string());
+                DeviceError::Disconnected
+            })?;
+            self.accept_visible_byte(value);
+            self.state.bytes_queued += 1;
+            self.state.last_error = None;
+            return Ok(());
+        }
+
+        if self.state.debug_buffer {
+            self.state.status = DeviceStatus::Ready;
+            self.accept_visible_byte(value);
+            self.state.last_error = None;
+            return Ok(());
+        }
+
+        self.state.status = DeviceStatus::NotReady;
+        self.state.last_error = Some(DeviceError::NotReady.to_string());
+        Err(DeviceError::NotReady)
+    }
+
+    pub fn set_debug_buffer(&mut self, enabled: bool) {
+        self.state.debug_buffer = enabled;
+        self.state.status = match (enabled, self.tx.is_some()) {
+            (true, _) | (false, true) => DeviceStatus::Ready,
+            (false, false) => DeviceStatus::NotReady,
+        };
+        self.state.last_error = None;
+    }
+
+    pub fn clear_visible_buffer(&mut self) {
+        self.state.visible_buffer.clear();
+        self.state.tail_buffer.clear();
     }
 
     pub fn flush(&mut self) -> Result<(), DeviceError> {
@@ -140,5 +174,14 @@ impl StorageDevice {
 
     pub fn state(&self) -> StorageState {
         self.state.clone()
+    }
+
+    fn accept_visible_byte(&mut self, value: u8) {
+        self.state.visible_buffer.push(value);
+        self.state.tail_buffer.push(value);
+        if self.state.tail_buffer.len() > 4096 {
+            let drop_count = self.state.tail_buffer.len() - 4096;
+            self.state.tail_buffer.drain(0..drop_count);
+        }
     }
 }

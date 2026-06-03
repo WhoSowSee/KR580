@@ -23,6 +23,7 @@ mod schematic;
 mod settings_dialog;
 mod speed;
 mod status_register;
+mod storage;
 mod styles;
 mod theme;
 mod utils;
@@ -35,6 +36,7 @@ use modal::discard_modal_overlay;
 use monitor::monitor_window_overlay;
 use notices::{error_notice_overlay, halt_notice_overlay, info_notice_overlay};
 use settings_dialog::settings_modal_overlay;
+use storage::floppy_window_overlay;
 use styles::app_style;
 
 use about::about_modal_overlay;
@@ -172,6 +174,20 @@ impl DesktopApp {
                     self.monitor_hex_popup,
                     self.monitor_hex_filter,
                     self.monitor_hex_scroll_visible_ticks > 0,
+                    self.lang
+                )
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+        } else if self.floppy_open {
+            stack![
+                scrimmed,
+                floppy_window_overlay(
+                    &self.snapshot.devices.floppy,
+                    self.floppy_show_image_contents,
+                    &self.floppy_image_contents,
+                    self.floppy_image_error.as_deref(),
                     self.lang
                 )
             ]

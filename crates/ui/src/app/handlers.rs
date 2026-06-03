@@ -120,6 +120,10 @@ impl DesktopApp {
             }
             return Task::none();
         }
+        if self.floppy_open {
+            self.floppy_open = false;
+            return Task::none();
+        }
         if self.error_notice.is_some() {
             self.clear_error_notice();
             return Task::none();

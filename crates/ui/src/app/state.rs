@@ -96,6 +96,10 @@ pub(crate) struct DesktopApp {
     pub(crate) monitor_open: bool,
     pub(crate) monitor_split: bool,
     pub(crate) monitor_hex_popup: bool,
+    pub(crate) floppy_open: bool,
+    pub(crate) floppy_show_image_contents: bool,
+    pub(crate) floppy_image_contents: Vec<u8>,
+    pub(crate) floppy_image_error: Option<String>,
     pub(crate) help_dialog: Option<HelpDialog>,
     pub(crate) monitor_hex_filter: HexStreamFilter,
 }
@@ -191,6 +195,10 @@ impl DesktopApp {
             monitor_open: false,
             monitor_split: false,
             monitor_hex_popup: false,
+            floppy_open: false,
+            floppy_show_image_contents: false,
+            floppy_image_contents: Vec::new(),
+            floppy_image_error: None,
             monitor_hex_filter: HexStreamFilter::default(),
         };
         app.apply_speed_tier(default_speed);

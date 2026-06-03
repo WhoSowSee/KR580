@@ -13,7 +13,7 @@
 Device operations return typed status or errors. They do not mutate CPU state behind the core API.
 
 - Monitor keeps a 39×20 text-cell framebuffer (`ch` + 7-bit `color`), a sparse 256×256 graphics layer (`Vec<(x, y, intensity)>`), a phase tracker for the in-flight 2/3-byte command, last command byte, and the raw byte stream (`hex_buffer`).
-- Storage devices append to visible buffers, maintain a bounded tail buffer, count queued bytes, expose last enqueue error, and can attach async file-backed workers.
+- Storage devices append accepted bytes to visible buffers, maintain a bounded tail buffer, count queued file-backed bytes, expose last enqueue error, and can attach async file-backed workers. A `NotReady`/`Disconnected` enqueue failure reports an error but does not add the rejected byte to the visible buffers. `debug_buffer` is an explicit buffer-only mode for manual program checks: with no attached file it makes `OUT 01h` accept bytes into `visible_buffer`/`tail_buffer`, report `Ready`, and leave `bytes_queued` unchanged.
 - Network exposes explicit mode, connection state, RX buffer, TX buffer, byte counters, last error, and an optional Tokio-backed TCP worker. No-data reads are non-fatal.
 - Printer accumulates bytes in a spool first, tracks buffered byte count and last enqueue error, and exports/prints through a separate queued action.
 
@@ -51,3 +51,34 @@ The window has two visual modes, toggled from the header button:
 - **split** — separate graphics and text blocks, each 1:1 with its source buffer. Useful when debugging a program that mixes layers and you need to see exactly which command wrote what.
 
 Both modes share the meta strip (phase, text cursor, pixel count, last command) and the raw byte stream (`hex_buffer`). The window never writes back to the device — it is strictly a debug surface, matching `prompt/03_peripherals.md`'s rule that the hex buffer is a debug surface, not the primary state. See `docs/ui_app.md` for the rendering details.
+
+## Storage inspection windows
+
+`StorageState` is re-exported from `k580-app` for UI rendering. The
+Дисковод quick-access chip opens a modal over
+`AppSnapshot.devices.floppy`; it renders accepted `visible_buffer`
+bytes as terminal text and displays the configured file path, status,
+queued-byte count, and last error. Rejected writes such as `NotReady`
+leave the visible buffer unchanged.
+
+`AppCommand::AttachFloppyImage(path)` attaches the floppy to a
+file-backed worker and stores future `OUT 01h` bytes in that image.
+Attaching a file disables `debug_buffer`, matching the normal
+file-backed device path.
+
+`AppCommand::DetachFloppyImage` disconnects the file-backed worker and
+clears the attached image path. It leaves `visible_buffer`,
+`tail_buffer`, and `bytes_queued` intact, so the inspection window keeps
+showing bytes that were accepted before the image was detached. Future
+writes are rejected as `NotReady` unless `debug_buffer` is enabled.
+
+`AppCommand::SetFloppyDebugBuffer(true)` switches the floppy into
+buffer-only debug mode. This is deliberately not original-emulator
+storage behavior: it is a local inspection aid for testing programs
+without choosing an image file.
+
+`AppCommand::ClearFloppyBuffer` calls
+`StorageDevice::clear_visible_buffer()`. That clears `visible_buffer`
+and `tail_buffer` only. It deliberately leaves the worker, attached
+path, status, queued-byte counter, and already-written file contents
+untouched.

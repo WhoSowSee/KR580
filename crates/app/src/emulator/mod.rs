@@ -16,6 +16,7 @@ pub(super) const MAX_INSTRUCTIONS_PER_RUN: u64 = 100_000;
 pub struct Emulator {
     pub(super) cpu: Cpu8080State,
     pub(super) bus: IoBus,
+    pub(super) io_runtime: tokio::runtime::Runtime,
     pub(super) running: bool,
     /// Reset on every `Run`/`Stop`/`ResetCpu` so the budget is per-session.
     pub(super) instructions_since_run: u64,
@@ -28,6 +29,7 @@ impl Default for Emulator {
         Self {
             cpu: Cpu8080State::default(),
             bus: IoBus::default(),
+            io_runtime: tokio::runtime::Runtime::new().expect("storage I/O runtime"),
             running: false,
             instructions_since_run: 0,
             step_interval: DEFAULT_STEP_INTERVAL,
@@ -41,6 +43,7 @@ impl Emulator {
         Self {
             cpu,
             bus,
+            io_runtime: tokio::runtime::Runtime::new().expect("storage I/O runtime"),
             running: false,
             instructions_since_run: 0,
             step_interval: DEFAULT_STEP_INTERVAL,
@@ -243,6 +246,18 @@ impl Emulator {
             }
             AppCommand::ClearMonitorBuffer => {
                 self.bus.monitor.clear();
+            }
+            AppCommand::ClearFloppyBuffer => {
+                self.bus.floppy.clear_visible_buffer();
+            }
+            AppCommand::AttachFloppyImage(path) => {
+                self.bus.floppy.attach_file(path, self.io_runtime.handle());
+            }
+            AppCommand::DetachFloppyImage => {
+                self.bus.floppy.detach_file();
+            }
+            AppCommand::SetFloppyDebugBuffer(enabled) => {
+                self.bus.floppy.set_debug_buffer(enabled);
             }
             AppCommand::Shutdown => {
                 self.running = false;

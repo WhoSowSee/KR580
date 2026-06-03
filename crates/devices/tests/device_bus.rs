@@ -49,16 +49,33 @@ fn invalid_ports_return_typed_error() {
 }
 
 #[test]
-fn storage_not_ready_is_explicit_but_visible_buffer_is_updated() {
+fn storage_not_ready_does_not_update_visible_buffers() {
     let mut bus = IoBus::default();
     assert!(matches!(
         bus.output(IoBus::FLOPPY_PORT, 0xAA),
         Err(PortError::NotReady)
     ));
     let floppy = bus.snapshot().floppy;
-    assert_eq!(floppy.visible_buffer, vec![0xAA]);
-    assert_eq!(floppy.tail_buffer, vec![0xAA]);
+    assert!(floppy.visible_buffer.is_empty());
+    assert!(floppy.tail_buffer.is_empty());
     assert_eq!(floppy.last_error, Some("device is not ready".to_owned()));
+}
+
+#[test]
+fn storage_debug_buffer_accepts_bytes_without_attached_file() {
+    let mut bus = IoBus::default();
+    bus.floppy.set_debug_buffer(true);
+
+    bus.output(IoBus::FLOPPY_PORT, b'D').unwrap();
+
+    let floppy = bus.snapshot().floppy;
+    assert_eq!(floppy.visible_buffer, vec![b'D']);
+    assert_eq!(floppy.tail_buffer, vec![b'D']);
+    assert_eq!(floppy.status, DeviceStatus::Ready);
+    assert!(floppy.debug_buffer);
+    assert_eq!(floppy.bytes_queued, 0);
+    assert_eq!(floppy.last_error, None);
+    assert_eq!(bus.input(IoBus::FLOPPY_PORT).unwrap(), 0);
 }
 
 #[test]
@@ -74,6 +91,25 @@ fn storage_worker_writes_to_configured_file() {
     let floppy = bus.snapshot().floppy;
     assert_eq!(floppy.bytes_queued, 1);
     assert!(floppy.worker_alive);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn storage_visible_buffer_can_be_cleared_without_resetting_file_state() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let path = unique_temp_path("floppy-clear.kpd");
+    let mut bus = IoBus::default();
+    bus.floppy.attach_file(&path, runtime.handle());
+    bus.output(IoBus::FLOPPY_PORT, b'A').unwrap();
+
+    bus.floppy.clear_visible_buffer();
+
+    let floppy = bus.snapshot().floppy;
+    assert!(floppy.visible_buffer.is_empty());
+    assert!(floppy.tail_buffer.is_empty());
+    assert_eq!(floppy.bytes_queued, 1);
+    assert_eq!(floppy.path, Some(path.clone()));
+    assert_eq!(floppy.status, DeviceStatus::Ready);
     std::fs::remove_file(path).ok();
 }
 
