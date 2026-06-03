@@ -9,5 +9,6 @@ Enter in address field jumps to that cell and moves focus to value field.
 
 Opcode picker:
 - Search by hex code (e.g., '3E') or mnemonic ('MVI A')
-- Selecting a command writes its opcode to the current cell
+- Arrow keys and Tab/Shift+Tab move the highlighted filtered command
+- Enter writes the highlighted opcode to the current cell
 - Columns: code, mnemonic, operand, length, kind, addressing

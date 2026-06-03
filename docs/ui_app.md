@@ -1176,7 +1176,13 @@ same `CancelDiscard` / `ConfirmDiscard` messages.
 The opcode/mnemonic picker uses `opcode_dropdown_style` with a 7 px
 radius on all four corners. The popup floats over the memory rows, so
 the top edge keeps the same rounding as the bottom edge instead of
-looking clipped against the search field.
+looking clipped against the search field. The search field filters the
+same documented opcode list by hexadecimal byte or mnemonic text. When
+the filtered list is non-empty, the first row is highlighted; changing
+the search text resets the highlight to that first match. ArrowDown and
+Tab advance the highlight through filtered matches, ArrowUp and
+Shift+Tab move it backward, both directions wrap, and Enter writes the
+highlighted opcode into the selected memory cell.
 
 ## Speed switch (left schematic panel)
 
@@ -1475,24 +1481,31 @@ The schematic register chips mirror the memory-row editing contract:
 single-click on the numeric value of `A`, `B`, `C`, `D`, `E`, `H`, or
 `L` opens the inline hex editor; single-click on the rest of the chip
 only selects that register in the right-side editor. Double-click
-anywhere inside the same chip opens the inline editor. Enter commits
-through the same `SetRegister` path as the right-side «Регистр и его
-значение» panel, then advances to the next inline target in the same
-visual group (`A → B → C` for the schematic buffer row and
-`B → C → D → E → H → L` for the mux grid). Shift+Enter commits and
-walks the same group backward. At either edge, Enter/Shift+Enter closes
-only the inline editor and leaves the register cell selected. Esc
-discards the pending byte, closes only the inline editor, and also keeps
-the register cell selected. When a register cell is selected but not
-editing, Enter opens the inline editor. ArrowUp/ArrowDown inside the
-inline field bumps the buffered byte without committing it; outside edit
-mode, arrows move only inside the active visual group. The schematic
-buffer row responds only to Left/Right (`A/B/C`); the mux grid responds
-to Left/Right between columns and Up/Down between rows (`B/C`, `D/E`,
-`H/L`). While the inline register input owns the caret, Ctrl+Arrow uses
-the same cell navigation instead of moving the text cursor inside the
-two hex digits; the target cell remains in inline edit mode. All
-readouts for the active register share the same pending
+anywhere inside the same chip opens the inline editor. The `A/B/C`
+schematic chips reserve the same fixed value slot for both the 24 px
+readout and the inline `text_input`; the input also uses a small
+top-padding compensation because iced renders text-input glyphs higher
+than plain `Text` at the same font size. Entering edit mode therefore
+does not move the value upward inside «Аккумулятор», «Буферный регистр
+1», or «Буферный регистр 2». Enter commits through the same
+`SetRegister` path as the right-side «Регистр и его значение» panel,
+then advances to the next inline target in the same visual group
+(`A → B → C` for the schematic buffer row and `B → C → D → E → H → L`
+for the mux grid).
+Shift+Enter commits and walks the same group backward. At either edge,
+Enter/Shift+Enter closes only the inline editor and leaves the register
+cell selected. Esc discards the pending byte, closes only the inline
+editor, and also keeps the register cell selected. When a register cell
+is selected but not editing, Enter opens the inline editor.
+ArrowUp/ArrowDown inside the inline field bumps the buffered byte
+without committing it; outside edit mode, arrows move only inside the
+active visual group. The schematic buffer row responds only to
+Left/Right (`A/B/C`); the mux grid responds to Left/Right between
+columns and Up/Down between rows (`B/C`, `D/E`, `H/L`). While the inline
+register input owns the caret, Ctrl+Arrow uses the same cell navigation
+instead of moving the text cursor inside the two hex digits; the target
+cell remains in inline edit mode. All readouts for the active register
+share the same pending
 `register_value_input`: typing `B=7F` in the right-side editor updates
 the top «Буферный регистр 1» and the mux `B` cell immediately, and
 typing inside either schematic copy updates the right-side editor and
@@ -1513,6 +1526,15 @@ than continuing to move the register highlight.
 | ArrowUp / ArrowDown (inline editor focused) | Bump the byte in the inline editor by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to memory until Enter. |
 | ArrowUp / ArrowDown (no editor focused) | Move the highlighted address by one. |
 | PageUp / PageDown | Move the highlighted address by 16. |
+
+### Opcode/mnemonic picker
+
+| Shortcut | Effect |
+|---|---|
+| ArrowDown / Tab | Move the highlighted opcode to the next filtered command, wrapping at the end. |
+| ArrowUp / Shift+Tab | Move the highlighted opcode to the previous filtered command, wrapping at the start. |
+| Enter | Write the highlighted opcode byte to the selected memory cell and close the picker. |
+| Esc | Close the picker without changing memory. |
 
 ### Global
 

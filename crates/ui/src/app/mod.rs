@@ -5,6 +5,7 @@ mod help_routing;
 mod keymap;
 pub(crate) mod messages;
 mod modal;
+mod opcode_picker;
 mod register_inline;
 pub(crate) mod settings_modal;
 mod speed;
@@ -29,6 +30,7 @@ pub(crate) use help::{
 };
 pub(crate) use messages::{MenuId, Message, RegisterInlineTarget, SettingsCategory, SpeedTier};
 pub(crate) use modal::DiscardModalButton;
+pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};
 pub(crate) use register_inline::RegisterMove;
 pub(crate) use settings_modal::{
     ContentFocus, FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection,

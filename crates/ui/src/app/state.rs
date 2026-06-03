@@ -44,6 +44,7 @@ pub(crate) struct DesktopApp {
     pub(crate) memory_inline_value_input: String,
     pub(crate) opcode_dropdown_address: Option<u16>,
     pub(crate) opcode_search_input: String,
+    pub(crate) opcode_highlight_index: usize,
     /// Stored separately because every successful match overwrites
     /// `memory_address_input` with the matched 4-digit address.
     pub(crate) memory_search_pattern: Option<String>,
@@ -158,6 +159,7 @@ impl DesktopApp {
             memory_inline_value_input: String::new(),
             opcode_dropdown_address: None,
             opcode_search_input: String::new(),
+            opcode_highlight_index: 0,
             memory_search_pattern: None,
             keyboard_modifiers: keyboard::Modifiers::default(),
             focused_input: None,

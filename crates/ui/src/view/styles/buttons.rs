@@ -133,8 +133,8 @@ pub(crate) fn step_button_style(status: button::Status) -> button::Style {
     }
 }
 
-pub(crate) fn opcode_option_style(status: button::Status) -> button::Style {
-    let background = if is_button_active(status) {
+pub(crate) fn opcode_option_style(status: button::Status, highlighted: bool) -> button::Style {
+    let background = if highlighted || is_button_active(status) {
         TOKYO_SURFACE_3
     } else {
         Color::TRANSPARENT

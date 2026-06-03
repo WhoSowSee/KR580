@@ -10,4 +10,4 @@ Color highlights:
 - Brown - SP (stack pointer)
 - Yellow - all cells with address >= SP (stack area)
 
-Select a row (mouse or arrows) to edit that cell. The '...' button opens the opcode picker with all 244 instructions.
+Select a row (mouse or arrows) to edit that cell. The '...' button opens the opcode picker with all 244 instructions. Search by hex code or mnemonic, move the highlighted result with arrow keys or Tab/Shift+Tab, then press Enter to write that opcode to the selected cell.

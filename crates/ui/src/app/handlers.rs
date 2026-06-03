@@ -2,7 +2,7 @@ use iced::{Task, keyboard};
 use std::time::{Duration, Instant};
 
 use super::constants::{
-    MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID,
+    MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID,
     REGISTER_INLINE_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
 };
 use super::messages::{Message, SpeedTier};
@@ -46,13 +46,14 @@ impl DesktopApp {
         &mut self,
         hit: Option<iced::widget::Id>,
     ) -> Task<Message> {
-        const TRACKED: [&str; 6] = [
+        const TRACKED: [&str; 7] = [
             MEMORY_ADDRESS_INPUT_ID,
             MEMORY_VALUE_INPUT_ID,
             REGISTER_NAME_INPUT_ID,
             REGISTER_VALUE_INPUT_ID,
             REGISTER_INLINE_INPUT_ID,
             MEMORY_INLINE_INPUT_ID,
+            OPCODE_SEARCH_INPUT_ID,
         ];
 
         self.undo_stack.break_coalescing();

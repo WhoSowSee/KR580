@@ -76,6 +76,13 @@ worth eyeballing after touching `crates/ui`:
   and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`;
 - in the inline memory list, confirm Tab walks down through addresses
   and Shift+Tab walks back up;
+- in the opcode picker, type part of an opcode or mnemonic, confirm
+  ArrowDown/Tab and ArrowUp/Shift+Tab move the highlighted filtered row
+  with wrapping, and Enter writes the highlighted opcode to the selected
+  memory cell;
+- on the schematic, enter inline editing for «Буферный регистр 1» and
+  «Буферный регистр 2» and confirm the hex value stays vertically stable
+  instead of jumping upward;
 - focus the address spinner with the mouse and Tab through the panel:
   hover and focus rings should match the standalone byte-value field.
 - click the Дисковод quick-access chip, confirm the buffer modal opens,

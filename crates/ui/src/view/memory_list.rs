@@ -80,6 +80,7 @@ impl DesktopApp {
                 opcode_dropdown_overlay(
                     address,
                     &self.opcode_search_input,
+                    self.opcode_highlight_index,
                     self.opcode_scroll_visible_ticks > 0,
                     top,
                     self.lang,

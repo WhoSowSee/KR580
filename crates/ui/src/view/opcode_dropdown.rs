@@ -6,19 +6,19 @@
 
 use iced::widget::{Column, Space, button, column, container, opaque, row, scrollable, text_input};
 use iced::{Element, Length, alignment};
-use k580_core::decode_opcode;
 
 use super::styles::{
     input_borderless_style, opcode_dropdown_style, opcode_option_style, scrollable_style,
 };
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text};
 use super::utils::row_separator;
-use crate::app::{Message, OPCODE_SEARCH_INPUT_ID};
+use crate::app::{Message, OPCODE_SEARCH_INPUT_ID, OpcodeChoice, filtered_opcode_choices};
 use crate::i18n::{Key, Lang};
 
 pub(super) fn opcode_dropdown_overlay<'a>(
     address: u16,
     search: &'a str,
+    highlighted: usize,
     reveal: bool,
     top: f32,
     lang: Lang,
@@ -27,7 +27,7 @@ pub(super) fn opcode_dropdown_overlay<'a>(
         Space::new().height(Length::Fixed(top)),
         row![
             Space::new().width(Length::Fill),
-            opaque(opcode_dropdown(address, search, reveal, lang)),
+            opaque(opcode_dropdown(address, search, highlighted, reveal, lang)),
             Space::new().width(Length::Fixed(24.0)),
         ]
         .width(Length::Fill),
@@ -40,13 +40,14 @@ pub(super) fn opcode_dropdown_overlay<'a>(
 fn opcode_dropdown<'a>(
     address: u16,
     search: &'a str,
+    highlighted: usize,
     reveal: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     let mut options = Column::new().spacing(0);
 
-    for choice in filtered_opcode_choices(search) {
-        options = options.push(opcode_option(address, choice));
+    for (index, choice) in filtered_opcode_choices(search).into_iter().enumerate() {
+        options = options.push(opcode_option(address, choice, index == highlighted));
     }
 
     let content = column![
@@ -73,7 +74,11 @@ fn opcode_dropdown<'a>(
         .into()
 }
 
-fn opcode_option(address: u16, choice: OpcodeChoice) -> Element<'static, Message> {
+fn opcode_option(
+    address: u16,
+    choice: OpcodeChoice,
+    highlighted: bool,
+) -> Element<'static, Message> {
     button(
         row![
             mono_text(format!("{:02X}", choice.value), 13, TOKYO_GREEN).width(Length::Fixed(34.0)),
@@ -85,38 +90,6 @@ fn opcode_option(address: u16, choice: OpcodeChoice) -> Element<'static, Message
     .on_press(Message::OpcodeSelected(address, choice.value))
     .padding(5)
     .width(Length::Fill)
-    .style(move |_theme, status| opcode_option_style(status))
+    .style(move |_theme, status| opcode_option_style(status, highlighted))
     .into()
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct OpcodeChoice {
-    value: u8,
-    mnemonic: String,
-}
-
-impl OpcodeChoice {
-    /// Build an `OpcodeChoice` from a raw byte, or `None` if the byte
-    /// does not decode to a documented 8080 instruction. Undocumented
-    /// bytes are dropped from the picker entirely (rather than listed
-    /// as `UNDOC`) — the core refuses to execute them, and the label
-    /// matched literal "UNDOC" searches as if it were a real mnemonic.
-    fn new(value: u8) -> Option<Self> {
-        let mnemonic = decode_opcode(value).ok()?.mnemonic;
-        Some(Self { value, mnemonic })
-    }
-}
-
-fn filtered_opcode_choices(search: &str) -> Vec<OpcodeChoice> {
-    let search = search.trim().to_ascii_uppercase();
-
-    (0..=u8::MAX)
-        .filter_map(OpcodeChoice::new)
-        .filter(|choice| {
-            search.is_empty()
-                || format!("{:02X} {}", choice.value, choice.mnemonic)
-                    .to_ascii_uppercase()
-                    .contains(&search)
-        })
-        .collect()
 }

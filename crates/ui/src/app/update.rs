@@ -206,7 +206,7 @@ impl DesktopApp {
                 return step.chain(iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID));
             }
             Message::OpcodeDropdownToggled(address) => self.toggle_opcode_dropdown(address),
-            Message::OpcodeSearchChanged(value) => self.opcode_search_input = value,
+            Message::OpcodeSearchChanged(value) => self.change_opcode_search(value),
             Message::OpcodeSelected(address, value) => self.select_opcode(address, value),
             Message::OpcodeScrolled => {
                 self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
@@ -217,6 +217,10 @@ impl DesktopApp {
             Message::DismissInfoNotice => self.clear_info_notice(),
             Message::EscPressed => return self.handle_esc(),
             Message::EnterPressed => {
+                if self.opcode_dropdown_address.is_some() {
+                    self.apply_highlighted_opcode();
+                    return Task::none();
+                }
                 if let Some(target) = self.active_register_target {
                     return Task::done(Message::RegisterEnter(target));
                 }
@@ -255,6 +259,11 @@ impl DesktopApp {
                 self.keyboard_modifiers = modifiers;
             }
             Message::FocusCycle { backward } => {
+                if self.opcode_dropdown_address.is_some() {
+                    self.step_opcode_highlight(if backward { -1 } else { 1 });
+                    self.focused_input = Some(OPCODE_SEARCH_INPUT_ID);
+                    return iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID);
+                }
                 use iced::advanced::widget::operation::focusable::find_focused;
                 return iced::advanced::widget::operate(find_focused())
                     .map(move |focused| Message::FocusResolved { focused, backward });

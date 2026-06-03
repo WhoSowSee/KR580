@@ -20,6 +20,15 @@ use super::theme::{
 };
 use crate::app::{Message, REGISTER_INLINE_INPUT_ID, RegisterInlineTarget};
 
+const FUNCTIONAL_BLOCK_VALUE_WIDTH: f32 = 54.0;
+const FUNCTIONAL_BLOCK_VALUE_HEIGHT: f32 = 28.0;
+const FUNCTIONAL_BLOCK_INPUT_PADDING: Padding = Padding {
+    top: 4.0,
+    right: 0.0,
+    bottom: 0.0,
+    left: 0.0,
+};
+
 #[derive(Clone, Copy)]
 pub(super) struct FunctionalBlockState {
     pub(super) selected: bool,
@@ -197,19 +206,23 @@ pub(super) fn functional_block<'a>(
                 .on_submit(Message::ApplyInlineRegisterValue(target))
                 .font(MONO_FONT)
                 .size(24)
-                .padding(0)
+                .padding(FUNCTIONAL_BLOCK_INPUT_PADDING)
                 .align_x(alignment::Horizontal::Center)
                 .width(Length::Fill)
                 .style(inline_value_input_style),
         )
-        .width(Length::Fixed(54.0))
+        .width(Length::Fixed(FUNCTIONAL_BLOCK_VALUE_WIDTH))
+        .height(Length::Fixed(FUNCTIONAL_BLOCK_VALUE_HEIGHT))
         .align_x(alignment::Horizontal::Center)
+        .align_y(alignment::Vertical::Center)
         .into()
     } else {
         mouse_area(
             container(mono_text(value, 24, accent).align_x(alignment::Horizontal::Center))
-                .width(Length::Fixed(54.0))
-                .align_x(alignment::Horizontal::Center),
+                .width(Length::Fixed(FUNCTIONAL_BLOCK_VALUE_WIDTH))
+                .height(Length::Fixed(FUNCTIONAL_BLOCK_VALUE_HEIGHT))
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center),
         )
         .on_press(Message::RegisterEnter(target))
         .on_double_click(Message::RegisterEnter(target))
@@ -255,4 +268,19 @@ fn functional_block_style(theme: &Theme, selected: bool, active: bool) -> contai
         style.background = Some(Background::Color(TOKYO_SURFACE));
     }
     style
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        FUNCTIONAL_BLOCK_INPUT_PADDING, FUNCTIONAL_BLOCK_VALUE_HEIGHT, FUNCTIONAL_BLOCK_VALUE_WIDTH,
+    };
+
+    #[test]
+    fn functional_block_value_slot_keeps_edit_and_readout_metrics_stable() {
+        assert!((FUNCTIONAL_BLOCK_VALUE_WIDTH - 54.0).abs() < f32::EPSILON);
+        assert!((FUNCTIONAL_BLOCK_VALUE_HEIGHT - 28.0).abs() < f32::EPSILON);
+        assert!((FUNCTIONAL_BLOCK_INPUT_PADDING.top - 4.0).abs() < f32::EPSILON);
+        assert_eq!(FUNCTIONAL_BLOCK_INPUT_PADDING.bottom, 0.0);
+    }
 }
