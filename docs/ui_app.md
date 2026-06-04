@@ -201,7 +201,10 @@ The second (step / restart) button is `step-forward` at rest and
 `Message::StepInstruction`, which dispatches a single
 `AppCommand::StepInstruction` and then jumps the memory list / address
 spinner to the new program counter so the highlighted cell follows the
-CPU as the user steps through code. While running it sends
+CPU as the user steps through code. If that instruction is `HLT`, the
+CPU snapshot still has `PC = hlt_address + 1`, but
+`follow_pc_after_execution_boundary` immediately selects the HLT row so
+the UI never flashes the following memory cell. While running it sends
 `Message::RestartProgram`, which dispatches `AppCommand::ResetCpu`
 followed by `AppCommand::Run`: the registers and flags are wiped, the
 program counter goes back to `0x0000`, the run state stays armed, and
@@ -1013,6 +1016,9 @@ the CPU has actually halted.
   `pc.wrapping_sub(1)` — PC sits one byte past the HLT opcode after
   the halt, but the user expects the highlight on the HLT row itself,
   which is what then gets the red row chrome.
+- Single-step and tact-step use the same halted target immediately after
+  the instruction boundary and clear `pending_follow_pc` themselves, so
+  the next `Tick` has no second chance to bounce the row.
 
 ### Halted-row highlight
 
@@ -1078,7 +1084,9 @@ ends up at.
 (reads `cpu.halted`, dispatches `AppCommand::ClearHalt` for the
 halted→running leg and the new `AppCommand::SetHalted(true)` verb
 for the running→halted leg), then routes both legs through
-`dispatch_with_undo` so a press is reversible. The worker's
+`dispatch_with_undo` so a press is reversible. Both manual legs clear
+`pending_follow_pc` after the worker round-trip; clicking the HLT chip
+changes only the halt flag and status, not the selected RAM row. The worker's
 `SetHalted` handler is the symmetric counterpart to `ClearHalt`:
 it disarms the run loop the same way, treats the supplied value as
 authoritative, and only emits `HaltStateChanged` when the bit

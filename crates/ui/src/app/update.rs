@@ -63,6 +63,7 @@ impl DesktopApp {
                 }
                 self.run_blocked_after_halt = false;
                 self.dispatch_with_undo(k580_app::AppCommand::ClearHalt);
+                self.pending_follow_pc = false;
             }
             Message::ToggleHalt => {
                 if self.snapshot.cpu.halted {
@@ -71,6 +72,7 @@ impl DesktopApp {
                 } else {
                     self.dispatch_with_undo(k580_app::AppCommand::SetHalted(true));
                 }
+                self.pending_follow_pc = false;
             }
             Message::OpenSnapshot => {
                 if self.dirty {

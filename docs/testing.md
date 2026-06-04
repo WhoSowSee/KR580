@@ -86,6 +86,10 @@ worth eyeballing after touching `crates/ui`:
 - on the schematic, enter inline editing for «Буферный регистр 1» and
   «Буферный регистр 2» and confirm the hex value stays vertically stable
   instead of jumping upward;
+- click the status-strip `HLT` indicator on and off and confirm the
+  selected RAM row does not move; then execute a `76` byte and confirm
+  the highlight stays on that HLT row without briefly flashing the next
+  address;
 - focus the address spinner with the mouse and Tab through the panel:
   hover and focus rings should match the standalone byte-value field.
 - click the Дисковод quick-access chip, confirm the buffer modal opens,

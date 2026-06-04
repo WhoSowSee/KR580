@@ -15,7 +15,7 @@ impl DesktopApp {
             return Task::none();
         }
         self.dispatch_sync(AppCommand::StepInstruction);
-        self.follow_pc_into_memory_list()
+        self.follow_pc_after_execution_boundary()
     }
 
     /// PC mutates on the first tact, so before/after PC comparison
@@ -36,7 +36,16 @@ impl DesktopApp {
             return Task::none();
         }
         self.last_tact_was_boundary = false;
-        self.follow_pc_into_memory_list()
+        self.follow_pc_after_execution_boundary()
+    }
+
+    fn follow_pc_after_execution_boundary(&mut self) -> Task<Message> {
+        if self.snapshot.cpu.halted {
+            self.pending_follow_pc = false;
+            self.follow_pc_during_run()
+        } else {
+            self.follow_pc_into_memory_list()
+        }
     }
 
     pub(crate) fn follow_pc_into_memory_list(&mut self) -> Task<Message> {
@@ -96,5 +105,81 @@ impl DesktopApp {
         self.scroll_memory(target_offset);
         self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
         scroll_memory_to(target_offset)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DesktopApp;
+    use crate::app::Message;
+    use std::thread;
+    use std::time::Duration;
+
+    fn app_with_clean_startup() -> DesktopApp {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        for _ in 0..4 {
+            thread::sleep(Duration::from_millis(5));
+            app.pull_events();
+        }
+        app
+    }
+
+    #[test]
+    fn manual_halt_toggle_does_not_move_memory_selection() {
+        let mut app = app_with_clean_startup();
+        app.select_memory(0x0010);
+
+        let _ = app.update(Message::ToggleHalt);
+
+        assert!(app.snapshot.cpu.halted);
+        assert_eq!(app.snapshot.cpu.pc, 0x0010);
+        assert_eq!(app.memory_address_input, "0010");
+
+        let _ = app.update(Message::Tick);
+
+        assert_eq!(app.memory_address_input, "0010");
+
+        let _ = app.update(Message::ToggleHalt);
+        let _ = app.update(Message::Tick);
+
+        assert!(!app.snapshot.cpu.halted);
+        assert_eq!(app.snapshot.cpu.pc, 0x0010);
+        assert_eq!(app.memory_address_input, "0010");
+    }
+
+    #[test]
+    fn step_instruction_keeps_halt_opcode_selected() {
+        let mut app = app_with_clean_startup();
+        app.select_memory(0x0010);
+        app.select_opcode(0x0010, 0x76);
+
+        let _ = app.update(Message::StepInstruction);
+
+        assert!(app.snapshot.cpu.halted);
+        assert_eq!(app.snapshot.cpu.pc, 0x0011);
+        assert_eq!(app.memory_address_input, "0010");
+
+        let _ = app.update(Message::Tick);
+
+        assert_eq!(app.memory_address_input, "0010");
+    }
+
+    #[test]
+    fn step_tact_keeps_halt_opcode_selected() {
+        let mut app = app_with_clean_startup();
+        app.select_memory(0x0010);
+        app.select_opcode(0x0010, 0x76);
+
+        for _ in 0..7 {
+            let _ = app.update(Message::StepTact);
+        }
+
+        assert!(app.snapshot.cpu.halted);
+        assert_eq!(app.snapshot.cpu.pc, 0x0011);
+        assert_eq!(app.memory_address_input, "0010");
+
+        let _ = app.update(Message::Tick);
+
+        assert_eq!(app.memory_address_input, "0010");
     }
 }
