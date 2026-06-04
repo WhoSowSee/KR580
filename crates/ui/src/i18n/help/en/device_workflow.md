@@ -2,7 +2,7 @@ Working with external devices:
 
 - Quick Access panel (left, bottom) has buttons for all devices:
 Monitor icon - open monitor (Ctrl+M)
-Floppy icon - open floppy buffer
+Floppy icon - open floppy buffer (Ctrl+F)
 HDD icon - open HDD buffer
 Network icon - open network adapter
 Printer icon - open printer buffer

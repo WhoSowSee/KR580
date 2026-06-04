@@ -9,4 +9,4 @@ Displayed elements:
 - Cycle/tact counter - step and tact within instruction
 - Micro-operation indicators - current tact actions
 
-Bottom panels: Quick Access (device buttons) and Speed (execution tempo).
+Bottom panels: Quick Access (Monitor Ctrl+M, Floppy Ctrl+F, other device buttons) and Speed (execution tempo).

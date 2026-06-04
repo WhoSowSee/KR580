@@ -10,6 +10,7 @@ use iced::{Element, Length, Padding, alignment};
 use super::icons;
 use super::styles::{input_borderless_style, input_shell_style};
 use super::theme::{MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_RED, TOKYO_YELLOW};
+use super::tooltips::shortcut_hint;
 use super::widgets::{enter_button, icon_action_button, legend_panel, spinner_text_input};
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message, REGISTER_NAME_INPUT_ID,
@@ -170,15 +171,33 @@ impl DesktopApp {
         // `apply_snapshot` clears it on the first non-halted snapshot.
         let blocked = self.run_blocked_after_halt;
         let gate = |msg: Message| if blocked { None } else { Some(msg) };
+        let step_shortcut = if self.running {
+            None
+        } else {
+            shortcut_hint(&Message::StepInstruction)
+        };
 
         let execution_strip = row![
-            icon_action_button(run_icon, gate(Message::ToggleRun), run_accent, run_tooltip),
-            icon_action_button(step_icon, gate(step_message), TOKYO_BLUE, step_tooltip),
+            icon_action_button(
+                run_icon,
+                gate(Message::ToggleRun),
+                run_accent,
+                run_tooltip,
+                shortcut_hint(&Message::ToggleRun),
+            ),
+            icon_action_button(
+                step_icon,
+                gate(step_message),
+                TOKYO_BLUE,
+                step_tooltip,
+                step_shortcut,
+            ),
             icon_action_button(
                 icons::redo_dot(),
                 gate(Message::StepTact),
                 TOKYO_YELLOW,
                 self.lang.t(Key::ActionStepTact),
+                shortcut_hint(&Message::StepTact),
             ),
         ]
         .spacing(CHIP_SPACING)
@@ -190,12 +209,14 @@ impl DesktopApp {
                 Some(Message::ResetRam),
                 TOKYO_RED,
                 self.lang.t(Key::ActionResetRam),
+                shortcut_hint(&Message::ResetRam),
             ),
             icon_action_button(
                 icons::reset_registers(),
                 Some(Message::ResetCpu),
                 TOKYO_MAGENTA,
                 self.lang.t(Key::ActionResetCpu),
+                shortcut_hint(&Message::ResetCpu),
             ),
         ]
         .spacing(CHIP_SPACING)

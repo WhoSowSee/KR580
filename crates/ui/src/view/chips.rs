@@ -7,17 +7,18 @@
 //! - `device_chip` — peripheral chip on the bottom strip.
 //! - `functional_block` — clickable register chip.
 
-use iced::widget::{Space, button, column, container, mouse_area, row, svg, text_input, tooltip};
+use iced::widget::{Space, button, column, container, mouse_area, row, svg, text_input};
 use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
 use k580_core::Cpu8080State;
 use std::time::Duration;
 
 use super::styles::inline_value_input_style;
-use super::styles::{action_button_style, inset_style, schematic_block_style};
+use super::styles::{action_button_style, schematic_block_style};
 use super::theme::{
     MONO_FONT, TOKYO_MUTED, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE, TOKYO_TEXT, mono_text,
     ui_text,
 };
+use super::tooltips::hover_tooltip;
 use crate::app::{Message, REGISTER_INLINE_INPUT_ID, RegisterInlineTarget};
 
 const FUNCTIONAL_BLOCK_VALUE_WIDTH: f32 = 54.0;
@@ -147,6 +148,7 @@ pub(super) fn device_chip(
     accent: Color,
     hint: &'static str,
     on_press: Option<Message>,
+    shortcut: Option<&'static str>,
 ) -> Element<'static, Message> {
     const CHIP_WIDTH: f32 = 38.0;
     const CHIP_HEIGHT: f32 = 38.0;
@@ -173,21 +175,13 @@ pub(super) fn device_chip(
     .height(Length::Fixed(CHIP_HEIGHT))
     .style(|_theme, status| action_button_style(status));
 
-    let body = container(ui_text(hint, 12, TOKYO_TEXT))
-        .padding(Padding {
-            top: 4.0,
-            right: 8.0,
-            bottom: 4.0,
-            left: 8.0,
-        })
-        .style(inset_style);
-
-    tooltip(face, body, tooltip::Position::Top)
-        .gap(4.0)
-        .padding(0.0)
-        .delay(Duration::from_millis(650))
-        .snap_within_viewport(true)
-        .into()
+    hover_tooltip(
+        face.into(),
+        hint,
+        shortcut,
+        iced::widget::tooltip::Position::Top,
+        Duration::from_millis(650),
+    )
 }
 
 pub(super) fn functional_block<'a>(

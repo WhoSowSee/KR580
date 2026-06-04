@@ -4,15 +4,16 @@
 //! reusable button shape, …). Panel-level composition lives in the panel
 //! modules themselves so this file does not turn into another monolith.
 
-use iced::widget::{Space, button, column, container, row, stack, svg, text_input, tooltip};
+use iced::widget::{Space, button, column, container, row, stack, svg, text_input};
 use iced::{Color, Element, Length, Padding, alignment};
 use std::time::Duration;
 
 use super::styles::{
     action_button_style, enter_button_style, input_borderless_style, input_shell_style,
-    inset_style, legend_label_style, panel_style, schematic_block_style, step_button_style,
+    legend_label_style, panel_style, schematic_block_style, step_button_style,
 };
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
+use super::tooltips::hover_tooltip;
 use crate::app::Message;
 
 /// Frames `content` with a border that has a centred title cut into it.
@@ -206,6 +207,7 @@ pub(super) fn icon_action_button(
     message: Option<Message>,
     accent: Color,
     hint: &'static str,
+    shortcut: Option<&'static str>,
 ) -> Element<'static, Message> {
     const BUTTON_SIZE: f32 = 38.0;
     const GLYPH_SIZE: f32 = 20.0;
@@ -244,19 +246,11 @@ pub(super) fn icon_action_button(
         face = face.on_press(action);
     }
 
-    let body = container(ui_text(hint, 12, TOKYO_TEXT))
-        .padding(Padding {
-            top: 4.0,
-            right: 8.0,
-            bottom: 4.0,
-            left: 8.0,
-        })
-        .style(inset_style);
-
-    tooltip(face, body, tooltip::Position::Top)
-        .gap(4.0)
-        .padding(0.0)
-        .delay(Duration::from_millis(650))
-        .snap_within_viewport(true)
-        .into()
+    hover_tooltip(
+        face.into(),
+        hint,
+        shortcut,
+        iced::widget::tooltip::Position::Top,
+        Duration::from_millis(650),
+    )
 }

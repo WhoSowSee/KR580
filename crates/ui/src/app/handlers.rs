@@ -211,6 +211,7 @@ pub(crate) fn ctrl_shortcut(
         ('s', true, false) => Some(Message::SaveSnapshotAs),
         ('i', false, false) => Some(Message::Import),
         ('e', false, false) => Some(Message::Export),
+        ('f', false, false) => Some(Message::OpenFloppy),
         ('s', false, true) => Some(Message::SaveLegacySnapshot),
         ('o', false, true) => Some(Message::OpenLegacySnapshot),
         ('r', false, false) => Some(Message::ToggleRun),
@@ -308,6 +309,7 @@ mod tests {
             ("е", Code::KeyT, Message::StepInstruction),
             ("н", Code::KeyY, Message::StepTact),
             ("р", Code::KeyH, Message::OpenHelp),
+            ("а", Code::KeyF, Message::OpenFloppy),
             ("я", Code::KeyZ, Message::Undo),
             ("ь", Code::KeyM, Message::OpenMonitor),
         ] {

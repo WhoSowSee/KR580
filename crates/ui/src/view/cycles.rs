@@ -12,6 +12,7 @@ use k580_core::{
 
 use super::styles::inset_style;
 use super::theme::{TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
+use super::tooltips::{SNAPPED_TOOLTIP_GAP, VIEWPORT_PADDING};
 use super::widgets::legend_panel_left;
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
@@ -82,8 +83,8 @@ fn labeled_row_with_tooltip(
         .style(inset_style);
 
     tooltip(face_container, body, tooltip::Position::Top)
-        .gap(4.0)
-        .padding(0.0)
+        .gap(SNAPPED_TOOLTIP_GAP)
+        .padding(VIEWPORT_PADDING)
         .delay(Duration::from_millis(600))
         .snap_within_viewport(true)
         .into()

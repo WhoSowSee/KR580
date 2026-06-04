@@ -7,17 +7,15 @@ mod styles;
 
 use std::time::Duration;
 
-use iced::widget::{
-    Space, button, column, container, mouse_area, opaque, row, stack, svg, tooltip,
-};
-use iced::{Element, Length, Padding};
+use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack, svg};
+use iced::{Element, Length};
 use k580_app::MonitorState;
 
 use crate::app::{HexStreamFilter, Message};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
-use crate::view::styles::inset_style;
-use crate::view::theme::{TOKYO_TEXT, ui_text};
+use crate::view::theme::TOKYO_TEXT;
+use crate::view::tooltips::{hover_tooltip, shortcut_hint};
 
 use hex_popup::hex_popup_overlay;
 use sections::{pixel_layer_section, text_layer_section, unified_screen_section};
@@ -123,30 +121,35 @@ fn monitor_header<'a>(split: bool, lang: Lang) -> Element<'a, Message> {
             toggle_icon,
             Message::ToggleMonitorSplit,
             lang.t(toggle_tooltip),
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
             icons::binary(),
             Message::ToggleMonitorHexPopup,
             lang.t(Key::MonitorHexBuffer),
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
             icons::brush_cleaning(),
             Message::ClearMonitorBuffer,
             lang.t(Key::MonitorClearBuffer),
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
             icons::image(),
             Message::SaveMonitorImage,
             lang.t(Key::MonitorSaveImage),
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
             icons::window_close(),
             Message::CloseMonitor,
             lang.t(Key::MonitorClose),
+            shortcut_hint(&Message::CloseMonitor),
         ),
     ]
     .align_y(iced::alignment::Vertical::Center)
@@ -154,7 +157,12 @@ fn monitor_header<'a>(split: bool, lang: Lang) -> Element<'a, Message> {
     .into()
 }
 
-fn icon_button<'a>(handle: svg::Handle, on_press: Message, hint: &'a str) -> Element<'a, Message> {
+fn icon_button(
+    handle: svg::Handle,
+    on_press: Message,
+    hint: &'static str,
+    shortcut: Option<&'static str>,
+) -> Element<'static, Message> {
     let glyph = svg(handle)
         .width(Length::Fixed(ICON_GLYPH_SIZE))
         .height(Length::Fixed(ICON_GLYPH_SIZE))
@@ -176,19 +184,11 @@ fn icon_button<'a>(handle: svg::Handle, on_press: Message, hint: &'a str) -> Ele
     .height(Length::Fixed(ICON_BUTTON_SIZE))
     .style(|_theme, status| icon_button_style(status));
 
-    let body = container(ui_text(hint.to_owned(), 12, TOKYO_TEXT))
-        .padding(Padding {
-            top: 4.0,
-            right: 8.0,
-            bottom: 4.0,
-            left: 8.0,
-        })
-        .style(inset_style);
-
-    tooltip(face, body, tooltip::Position::Bottom)
-        .gap(4.0)
-        .padding(0.0)
-        .delay(Duration::from_millis(450))
-        .snap_within_viewport(true)
-        .into()
+    hover_tooltip(
+        face.into(),
+        hint,
+        shortcut,
+        iced::widget::tooltip::Position::Bottom,
+        Duration::from_millis(450),
+    )
 }

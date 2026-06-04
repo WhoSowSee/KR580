@@ -141,13 +141,13 @@ on the left, then a thin vertical divider, then the memory-state
 (reset) group on the right (the divider colour matches the surrounding
 panel border so it reads as a piece of the frame):
 
-| Group | Icon | Message | Accent | Tooltip |
-|---|---|---|---|---|
-| run  | `play.svg` / `pause.svg` | `Message::ToggleRun`       | green / red | Выполнить программу / Пауза |
-| run  | `step-forward.svg` / `refresh-ccw.svg` | `Message::StepInstruction` / `Message::RestartProgram` | blue | Выполнить команду / Перезапустить программу |
-| run  | `redo-dot.svg`        | `Message::StepTact`        | yellow  | Выполнить такт |
-| reset | `reset-ram.svg`       | `Message::ResetRam`        | red     | Сброс ОЗУ |
-| reset | `reset-registers.svg` | `Message::ResetCpu`        | magenta | Сброс регистров |
+| Group | Icon | Message | Accent | Tooltip | Shortcut |
+|---|---|---|---|---|---|
+| run  | `play.svg` / `pause.svg` | `Message::ToggleRun`       | green / red | Выполнить программу / Пауза | `Ctrl+R` |
+| run  | `step-forward.svg` / `refresh-ccw.svg` | `Message::StepInstruction` / `Message::RestartProgram` | blue | Выполнить команду / Перезапустить программу | `Ctrl+T` at rest |
+| run  | `redo-dot.svg`        | `Message::StepTact`        | yellow  | Выполнить такт | `Ctrl+Y` |
+| reset | `reset-ram.svg`       | `Message::ResetRam`        | red     | Сброс ОЗУ | `Ctrl+Shift+R` |
+| reset | `reset-registers.svg` | `Message::ResetCpu`        | magenta | Сброс регистров | `Ctrl+Shift+G` |
 
 The first two buttons are tumblers driven by `DesktopApp::running`.
 
@@ -230,6 +230,11 @@ the editor `↵` button and input shells; hover uses the darker
 reading as a raised light card. Tooltip bodies use
 `inset_style`; it shares the same darker `TOKYO_BOARD` fill as the
 `Регистр состояния` tooltip, so all hover tips now use one surface tone.
+When a button has a keyboard shortcut, `view::tooltips::hover_tooltip`
+adds a same-line `TOKYO_MUTED` shortcut suffix after the action label.
+Snapped hover tips keep `12px` of viewport padding so wide tooltips near
+the left/right edge do not sit flush against the window border while the
+visible gap to the trigger stays at `6px`.
 The same actions
 remain available from the top menu bar — this panel is a discoverable
 in-context surface for the same commands; no new `AppCommand` or
@@ -242,13 +247,13 @@ The bottom strip of the schematic plate now carries a legend-framed
 **«Быстрый доступ»** panel with five peripheral chips in this fixed
 left-to-right order:
 
-| Slot | Glyph | Accent | Tooltip |
-|---|---|---|---|
-| Монитор | `device_monitor` (`assets/icons/devices/monitor.svg`) | green | Отобразить монитор |
-| Дисковод | `device_floppy` (`devices/floppy.svg`) | cyan | Отобразить буфер дисковода |
-| Диск | `device_hdd` (`devices/hdd.svg`) | blue | Отобразить буфер жёсткого диска |
-| Адаптер | `device_network` (`devices/network.svg`) | yellow | Отобразить буфер сетевого адаптера |
-| Принтер | `device_printer` (`devices/printer.svg`) | magenta | Отобразить буфер принтера |
+| Slot | Glyph | Accent | Tooltip | Shortcut |
+|---|---|---|---|---|
+| Монитор | `device_monitor` (`assets/icons/devices/monitor.svg`) | green | Отобразить монитор | `Ctrl+M` |
+| Дисковод | `device_floppy` (`devices/floppy.svg`) | cyan | Отобразить буфер дисковода | `Ctrl+F` |
+| Диск | `device_hdd` (`devices/hdd.svg`) | blue | Отобразить буфер жёсткого диска | - |
+| Адаптер | `device_network` (`devices/network.svg`) | yellow | Отобразить буфер сетевого адаптера | - |
+| Принтер | `device_printer` (`devices/printer.svg`) | magenta | Отобразить буфер принтера | - |
 
 Each chip is rendered by `view::chips::device_chip`: a tinted SVG
 glyph centred inside the same neutral button chrome as the action
@@ -1559,6 +1564,7 @@ than continuing to move the register highlight.
 | PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
 | E / У | Open the opcode/mnemonic picker for the selected memory cell. |
 | Ctrl+M / Ctrl+Ь | Open the monitor window. |
+| Ctrl+F / Ctrl+А | Open the floppy-buffer window. |
 | Ctrl+, | Open the Settings dialog. Implemented as a punctuation-aware branch in `app::handlers::ctrl_shortcut` so the shortcut survives keyboard layouts where `,` is not at QWERTY position. |
 
 ### Settings dialog (sectioned keyboard navigation)

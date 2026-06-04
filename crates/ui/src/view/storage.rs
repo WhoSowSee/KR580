@@ -1,16 +1,17 @@
 use iced::widget::{
-    Space, button, column, container, mouse_area, opaque, row, scrollable, stack, svg, tooltip,
+    Space, button, column, container, mouse_area, opaque, row, scrollable, stack, svg,
 };
 use iced::{Background, Border, Color, Element, Length, Padding, Theme, alignment};
 use k580_app::{DeviceStatus, StorageState};
 use std::time::Duration;
 
 use super::icons;
-use super::styles::{inset_style, scrollable_style};
+use super::styles::scrollable_style;
 use super::theme::{
     MONO_FONT, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_SELECTION_BLUE,
     TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT, ui_text,
 };
+use super::tooltips::{hover_tooltip, shortcut_hint};
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
 
@@ -96,6 +97,7 @@ fn header<'a>(
             Message::OpenFloppyImage,
             lang.t(Key::FloppyOpenImage),
             false,
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -103,6 +105,7 @@ fn header<'a>(
             Message::SaveFloppyBuffer,
             lang.t(Key::FloppySaveBuffer),
             false,
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -110,6 +113,7 @@ fn header<'a>(
             Message::DetachFloppyImage,
             lang.t(Key::FloppyDetachImage),
             false,
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -117,6 +121,7 @@ fn header<'a>(
             Message::ToggleFloppyImageContents,
             lang.t(Key::FloppyShowImageContents),
             show_image_contents,
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -124,6 +129,7 @@ fn header<'a>(
             Message::ToggleFloppyDebugBuffer,
             lang.t(Key::FloppyDebugBuffer),
             state.debug_buffer,
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -131,6 +137,7 @@ fn header<'a>(
             Message::ClearFloppyBuffer,
             lang.t(Key::FloppyClearBuffer),
             false,
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -138,6 +145,7 @@ fn header<'a>(
             Message::CloseFloppy,
             lang.t(Key::MonitorClose),
             false,
+            shortcut_hint(&Message::CloseFloppy),
         ),
     ]
     .align_y(alignment::Vertical::Center)
@@ -258,6 +266,7 @@ fn icon_button(
     on_press: Message,
     hint: &'static str,
     active: bool,
+    shortcut: Option<&'static str>,
 ) -> Element<'static, Message> {
     let glyph_color = if active { TOKYO_BLUE } else { TOKYO_TEXT };
     let glyph = svg(handle)
@@ -280,20 +289,13 @@ fn icon_button(
     .height(Length::Fixed(ICON_BUTTON_SIZE))
     .style(move |_theme, status| icon_button_style(status, active));
 
-    tooltip_body(face.into(), hint)
-}
-
-fn tooltip_body(face: Element<'static, Message>, hint: &'static str) -> Element<'static, Message> {
-    let body = container(ui_text(hint.to_owned(), 12, TOKYO_TEXT))
-        .padding([4, 8])
-        .style(inset_style);
-
-    tooltip(face, body, tooltip::Position::Bottom)
-        .gap(4.0)
-        .padding(0.0)
-        .delay(Duration::from_millis(450))
-        .snap_within_viewport(true)
-        .into()
+    hover_tooltip(
+        face.into(),
+        hint,
+        shortcut,
+        iced::widget::tooltip::Position::Bottom,
+        Duration::from_millis(450),
+    )
 }
 
 fn status_label(status: &DeviceStatus, lang: Lang) -> String {

@@ -26,6 +26,7 @@ mod status_register;
 mod storage;
 mod styles;
 mod theme;
+mod tooltips;
 mod utils;
 mod widgets;
 

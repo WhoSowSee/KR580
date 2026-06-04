@@ -66,12 +66,14 @@ pub(super) fn hex_popup_overlay<'a>(
             filter_icon,
             Message::CycleMonitorHexFilter,
             lang.t(filter_hint),
+            None,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
             icons::window_close(),
             Message::ToggleMonitorHexPopup,
             lang.t(Key::MonitorClose),
+            Some("Esc"),
         ),
     ]
     .align_y(iced::alignment::Vertical::Center);

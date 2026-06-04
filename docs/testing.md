@@ -82,7 +82,14 @@ worth eyeballing after touching `crates/ui`:
   memory cell;
 - switch to the Russian layout and confirm the same physical shortcuts
   still resolve: `У` opens the opcode picker, `Ctrl+Ы` saves, `Ctrl+У`
-  exports, and `Ctrl+Ь` opens the monitor;
+  exports, `Ctrl+Ь` opens the monitor, and `Ctrl+А` opens the floppy
+  buffer;
+- hover the execution buttons and Quick Access chips and confirm
+  shortcuts render as muted same-line tooltip text (`Ctrl+R`, `Ctrl+T`,
+  `Ctrl+Y`, `Ctrl+M`, `Ctrl+F`) where the action actually has one, and
+  tooltips near window edges keep visible breathing room instead of
+  snapping flush to the border without moving farther away from the
+  hovered button;
 - on the schematic, enter inline editing for «Буферный регистр 1» and
   «Буферный регистр 2» and confirm the hex value stays vertically stable
   instead of jumping upward;

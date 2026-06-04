@@ -22,6 +22,7 @@ use super::theme::{
     TOKYO_BLUE, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT,
     TOKYO_YELLOW, mono_text, ui_text,
 };
+use super::tooltips::shortcut_hint;
 use super::widgets::legend_panel_left;
 use crate::app::{DesktopApp, Message, RegisterInlineTarget};
 use crate::i18n::Key;
@@ -285,17 +286,20 @@ impl DesktopApp {
                 TOKYO_GREEN,
                 lang.t(Key::DeviceMonitor),
                 Some(Message::OpenMonitor),
+                shortcut_hint(&Message::OpenMonitor),
             ),
             device_chip(
                 icons::device_floppy(),
                 TOKYO_CYAN,
                 lang.t(Key::DeviceFloppy),
                 Some(Message::OpenFloppy),
+                shortcut_hint(&Message::OpenFloppy),
             ),
             device_chip(
                 icons::device_hdd(),
                 TOKYO_BLUE,
                 lang.t(Key::DeviceHdd),
+                None,
                 None,
             ),
             device_chip(
@@ -303,11 +307,13 @@ impl DesktopApp {
                 TOKYO_YELLOW,
                 lang.t(Key::DeviceNetwork),
                 None,
+                None,
             ),
             device_chip(
                 icons::device_printer(),
                 TOKYO_MAGENTA,
                 lang.t(Key::DevicePrinter),
+                None,
                 None,
             ),
         ]
