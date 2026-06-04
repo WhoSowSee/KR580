@@ -38,7 +38,7 @@ run CPU instructions directly, or store emulator state in widgets.
     window, menu, focus, file, memory, register, and opcode messages.
   - `app/handlers.rs` — helper handlers shared with `update`/`subscription`:
     `handle_tick`, `handle_focus_reconciled`, `handle_esc`, plus the
-    `tick_interval` and `ctrl_shortcut` resolvers.
+    `tick_interval`, `ctrl_shortcut`, and `plain_shortcut` resolvers.
   - `app/subscription.rs` — global keyboard / mouse / window listener
     that drives the `Message` stream.
   - `app/keymap.rs` — arrow-key dispatch (`handle_arrow_key`,
@@ -1455,6 +1455,10 @@ buffer.
 
 The UI exposes the following shortcuts. Modifier names follow iced's
 `Modifiers::command()` convention: Ctrl on Windows/Linux, ⌘ on macOS.
+Letter shortcuts are resolved through `Key::to_latin(physical_key)`, so
+the English and Russian layouts use the same physical QWERTY keys:
+`E` and `У` both open the opcode picker, `Ctrl+S` and `Ctrl+Ы` both
+save, and the same rule applies to the rest of the letter shortcuts.
 
 ### Memory cell editor (address + value pair)
 
@@ -1545,6 +1549,8 @@ than continuing to move the register highlight.
 | Enter | Normal submit / inline-edit recovery; while the unsaved-changes modal is open, activates the focused modal button. |
 | ArrowUp / ArrowDown | Routed by `DesktopApp::handle_arrow_key` to the editor that currently owns focus (see the panel-specific tables above). With nothing tracked focused they fall back to memory list navigation. |
 | PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
+| E / У | Open the opcode/mnemonic picker for the selected memory cell. |
+| Ctrl+M / Ctrl+Ь | Open the monitor window. |
 | Ctrl+, | Open the Settings dialog. Implemented as a punctuation-aware branch in `app::handlers::ctrl_shortcut` so the shortcut survives keyboard layouts where `,` is not at QWERTY position. |
 
 ### Settings dialog (sectioned keyboard navigation)

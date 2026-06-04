@@ -1,6 +1,6 @@
 use iced::{Subscription, event, keyboard, mouse, time};
 
-use super::handlers::{ctrl_shortcut, tick_interval};
+use super::handlers::{ctrl_shortcut, plain_shortcut, tick_interval};
 use super::messages::Message;
 use super::state::DesktopApp;
 
@@ -42,7 +42,12 @@ impl DesktopApp {
                     backward: modifiers.shift(),
                 }),
                 (
-                    iced::Event::Keyboard(keyboard::Event::KeyPressed { key, .. }),
+                    iced::Event::Keyboard(keyboard::Event::KeyPressed {
+                        key,
+                        physical_key,
+                        modifiers,
+                        ..
+                    }),
                     iced::event::Status::Ignored,
                 ) => match key {
                     keyboard::Key::Named(keyboard::key::Named::ArrowUp) => {
@@ -67,10 +72,7 @@ impl DesktopApp {
                     keyboard::Key::Named(keyboard::key::Named::Enter) => {
                         Some(Message::EnterPressed)
                     }
-                    keyboard::Key::Character(ref c) if c.eq_ignore_ascii_case("e") => {
-                        Some(Message::OpenOpcodePicker)
-                    }
-                    _ => None,
+                    _ => plain_shortcut(&key, physical_key, modifiers),
                 },
                 (iced::Event::Mouse(mouse::Event::CursorMoved { position }), _) => {
                     Some(Message::CursorMoved(position))

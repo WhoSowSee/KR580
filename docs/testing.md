@@ -80,6 +80,9 @@ worth eyeballing after touching `crates/ui`:
   ArrowDown/Tab and ArrowUp/Shift+Tab move the highlighted filtered row
   with wrapping, and Enter writes the highlighted opcode to the selected
   memory cell;
+- switch to the Russian layout and confirm the same physical shortcuts
+  still resolve: `У` opens the opcode picker, `Ctrl+Ы` saves, `Ctrl+У`
+  exports, and `Ctrl+Ь` opens the monitor;
 - on the schematic, enter inline editing for «Буферный регистр 1» and
   «Буферный регистр 2» and confirm the hex value stays vertically stable
   instead of jumping upward;
