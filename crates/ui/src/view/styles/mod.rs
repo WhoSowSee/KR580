@@ -15,11 +15,10 @@ pub(super) use buttons::{
     menu_button_disabled_style, menu_button_style, opcode_option_style, step_button_style,
 };
 pub(super) use containers::{
-    app_style, error_inset_style, info_inset_style, input_shell_style, inset_style,
-    legend_label_style, memory_row_container_style, menu_bar_divider_style, menu_bar_style,
-    mux_chip_style, mux_header_style, mux_panel_style, opcode_dropdown_style, panel_style,
-    schematic_block_style, schematic_board_style, solid_style, status_tooltip_style,
-    transparent_style,
+    app_style, error_inset_style, input_shell_style, inset_style, legend_label_style,
+    memory_row_container_style, menu_bar_divider_style, menu_bar_style, mux_chip_style,
+    mux_header_style, mux_panel_style, opcode_dropdown_style, panel_style, schematic_block_style,
+    schematic_board_style, solid_style, status_tooltip_style, transparent_style,
 };
 pub(super) use inputs::{inline_value_input_style, input_borderless_style};
 pub(super) use scrollable::scrollable_style;

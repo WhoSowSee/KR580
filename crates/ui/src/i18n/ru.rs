@@ -123,7 +123,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FileSaveAs => "Сохранить как",
         Key::FileImport => "Импорт",
         Key::FileExport => "Экспорт",
-        Key::LegacyFormatNote => "старый формат",
         Key::ExportFormatXlsx => "MS Excel",
         Key::ExportFormatText => "Текстовый файл",
         Key::ExportPageLabel => "На странице",
@@ -187,7 +186,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusExportTo => "Экспорт в",
         Key::StatusImportFrom => "Импорт из",
         Key::ErrorPrefix => "Ошибка",
-        Key::LegacyOpenedNotice => "Открыт старый формат файла",
         Key::HaltNotice => "Процессор остановлен командой HLT\nСбросьте регистры или флаг HLT",
 
         Key::SpeedTitle => "Скорость",
@@ -358,12 +356,10 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusAtAddress => "по адресу",
         Key::StatusNoMatchesFor => "Нет адресов, соответствующих",
 
-        Key::ErrFileCorruptedOrUnsupported => "Файл повреждён или имеет неподдерживаемый формат",
-        Key::ErrFileNewerVersion => "Файл сохранён в более новой версии – обновите программу",
-        Key::ErrNotLegacyFormat => "Файл не похож на сохранение в старом формате",
-        Key::ErrLegacyTrailerCorrupt => {
-            "Конец файла повреждён – это не сохранение в старом формате"
-        }
+        Key::ErrNotA580File => "Не .580 файл – поддерживается только расширение .580",
+        Key::ErrFileEmpty => "Файл пуст",
+        Key::ErrWrong580Size => "Не похоже на .580 файл (должно быть ровно 65549 байт)",
+        Key::ErrLegacyTrailerCorrupt => "Конец файла повреждён – это не .580 файл",
         Key::ErrSettingsNewerVersion => {
             "Настройки сохранены в более новой версии – обновите программу"
         }

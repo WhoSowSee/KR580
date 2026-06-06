@@ -65,21 +65,6 @@ pub(super) fn file_dropdown(lang: Lang) -> Element<'static, Message> {
             Message::Export,
             true,
         ),
-        menu_separator(),
-        legacy_menu_item(
-            lang.t(Key::FileOpen),
-            lang.t(Key::LegacyFormatNote),
-            "Ctrl+Alt+O",
-            icons::folder_open(),
-            Message::OpenLegacySnapshot,
-        ),
-        legacy_menu_item(
-            lang.t(Key::FileSave),
-            lang.t(Key::LegacyFormatNote),
-            "Ctrl+Alt+S",
-            icons::save(),
-            Message::SaveLegacySnapshot,
-        ),
     ];
 
     container(column(items).spacing(0))
@@ -169,16 +154,6 @@ pub(super) fn help_dropdown(lang: Lang) -> Element<'static, Message> {
         .into()
 }
 
-fn legacy_menu_item(
-    label: &'static str,
-    note: &'static str,
-    shortcut: &'static str,
-    icon: svg::Handle,
-    action: Message,
-) -> Element<'static, Message> {
-    menu_item_with_note(label, Some(note), shortcut, icon, action, true)
-}
-
 fn menu_item(
     label: &'static str,
     shortcut: &'static str,
@@ -260,15 +235,4 @@ fn menu_separator() -> Element<'static, Message> {
     .padding([4, 8])
     .width(Length::Fill)
     .into()
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::i18n::{Key, Lang};
-
-    #[test]
-    fn legacy_format_note_translates_per_language() {
-        assert_eq!(Lang::Ru.t(Key::LegacyFormatNote), "старый формат");
-        assert_eq!(Lang::En.t(Key::LegacyFormatNote), "legacy format");
-    }
 }

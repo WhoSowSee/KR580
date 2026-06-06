@@ -36,11 +36,9 @@ pub(crate) enum StatusKind {
     },
     Opened {
         display: String,
-        legacy: bool,
     },
     SavedTo {
         display: String,
-        legacy: bool,
     },
     ExportTo {
         display: String,
@@ -93,27 +91,11 @@ impl StatusKind {
             Self::NoProgramAt { pc } => {
                 format!("{} {pc:04X}", lang.t(Key::StatusNoProgramAt))
             }
-            Self::Opened { display, legacy } => {
-                if *legacy {
-                    format!(
-                        "{} {display} ({})",
-                        lang.t(Key::StatusOpened),
-                        lang.t(Key::LegacyFormatNote)
-                    )
-                } else {
-                    format!("{} {display}", lang.t(Key::StatusOpened))
-                }
+            Self::Opened { display } => {
+                format!("{} {display}", lang.t(Key::StatusOpened))
             }
-            Self::SavedTo { display, legacy } => {
-                if *legacy {
-                    format!(
-                        "{} {display} ({})",
-                        lang.t(Key::StatusSavedTo),
-                        lang.t(Key::LegacyFormatNote)
-                    )
-                } else {
-                    format!("{} {display}", lang.t(Key::StatusSavedTo))
-                }
+            Self::SavedTo { display } => {
+                format!("{} {display}", lang.t(Key::StatusSavedTo))
             }
             Self::ExportTo { display } => format!("{} {display}", lang.t(Key::StatusExportTo)),
             Self::ImportFrom { display } => format!("{} {display}", lang.t(Key::StatusImportFrom)),

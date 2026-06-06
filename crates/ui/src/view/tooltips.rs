@@ -19,8 +19,6 @@ pub(super) fn shortcut_hint(message: &Message) -> Option<&'static str> {
         Message::Import => Some("Ctrl+I"),
         Message::Export => Some("Ctrl+E"),
         Message::OpenFloppy => Some("Ctrl+F"),
-        Message::OpenLegacySnapshot => Some("Ctrl+Alt+O"),
-        Message::SaveLegacySnapshot => Some("Ctrl+Alt+S"),
         Message::ToggleRun => Some("Ctrl+R"),
         Message::StepInstruction => Some("Ctrl+T"),
         Message::StepTact => Some("Ctrl+Y"),

@@ -1,7 +1,7 @@
 use iced::widget::{Space, column, container, mouse_area, opaque, row};
 use iced::{Element, Length, alignment};
 
-use super::styles::{error_inset_style, info_inset_style};
+use super::styles::error_inset_style;
 use super::theme::{TOKYO_TEXT, ui_text};
 use crate::app::Message;
 
@@ -22,15 +22,6 @@ pub(super) fn error_notice_overlay(notice: &str) -> Element<'_, Message> {
         NOTICE_TOP,
         error_inset_style,
         Message::DismissErrorNotice,
-    )
-}
-
-pub(super) fn info_notice_overlay(notice: &str) -> Element<'_, Message> {
-    notice_overlay(
-        notice,
-        NOTICE_TOP,
-        info_inset_style,
-        Message::DismissInfoNotice,
     )
 }
 

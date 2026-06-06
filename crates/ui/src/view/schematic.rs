@@ -200,26 +200,11 @@ impl DesktopApp {
             1,
             u8::from(cpu.flags.carry),
         );
-        let (status_text, status_note) = split_legacy_status_note(&self.status, self.lang);
-        let note_reservation_px = match status_note {
-            Some(note) => 12.0 + (note.chars().count() + 2) as f32 * 7.5,
-            None => 0.0,
-        };
-        let status_budget_px = (self.window_width - note_reservation_px).max(0.0);
-        let shortened_status = crate::app::shorten_status_for_width(status_text, status_budget_px);
-        let status_value: Element<'_, Message> = match status_note {
-            Some(note) => row![
-                mono_text(shortened_status, 13, TOKYO_TEXT)
-                    .wrapping(iced::widget::text::Wrapping::None),
-                ui_text(note, 12, TOKYO_MUTED).wrapping(iced::widget::text::Wrapping::None),
-            ]
-            .spacing(10)
-            .align_y(alignment::Vertical::Center)
-            .into(),
-            None => mono_text(shortened_status, 13, TOKYO_TEXT)
-                .wrapping(iced::widget::text::Wrapping::None)
-                .into(),
-        };
+        let shortened_status =
+            crate::app::shorten_status_for_width(&self.status, self.window_width);
+        let status_value: Element<'_, Message> = mono_text(shortened_status, 13, TOKYO_TEXT)
+            .wrapping(iced::widget::text::Wrapping::None)
+            .into();
         let status_chip = row![
             ui_text(lang.t(Key::HeaderStatus), 12, TOKYO_MUTED),
             status_value,
@@ -351,38 +336,5 @@ impl DesktopApp {
             .height(Length::Fill)
             .style(schematic_board_style)
             .into()
-    }
-}
-
-fn split_legacy_status_note(status: &str, lang: crate::i18n::Lang) -> (&str, Option<&'static str>) {
-    let note = lang.t(crate::i18n::Key::LegacyFormatNote);
-    let suffix = format!(" ({note})");
-    match status.strip_suffix(&suffix) {
-        Some(base) => (base, Some(note)),
-        None => (status, None),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::split_legacy_status_note;
-    use crate::i18n::Lang;
-
-    #[test]
-    fn legacy_status_suffix_renders_as_note_without_parentheses() {
-        assert_eq!(
-            split_legacy_status_note("Открыто C:\\test.580 (старый формат)", Lang::Ru),
-            ("Открыто C:\\test.580", Some("старый формат"))
-        );
-        assert_eq!(
-            split_legacy_status_note("Opened C:\\test.580 (legacy format)", Lang::En),
-            ("Opened C:\\test.580", Some("legacy format"))
-        );
-    }
-
-    #[test]
-    fn regular_status_has_no_format_note() {
-        assert_eq!(split_legacy_status_note("Готов", Lang::Ru), ("Готов", None));
-        assert_eq!(split_legacy_status_note("Ready", Lang::En), ("Ready", None));
     }
 }

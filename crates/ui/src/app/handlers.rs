@@ -29,11 +29,6 @@ impl DesktopApp {
         {
             self.clear_halt_notice();
         }
-        if let Some(deadline) = self.info_notice_dismiss_at
-            && now >= deadline
-        {
-            self.clear_info_notice();
-        }
         // `pending_follow_pc` covers a fast run that auto-paused
         // inside one tick: by the time we read `running` here it's
         // already false.
@@ -135,10 +130,6 @@ impl DesktopApp {
             self.clear_halt_notice();
             return Task::none();
         }
-        if self.info_notice.is_some() {
-            self.clear_info_notice();
-            return Task::none();
-        }
         if self.open_menu.is_some() {
             self.open_menu = None;
             return Task::none();
@@ -214,8 +205,6 @@ pub(crate) fn ctrl_shortcut(
         ('i', false, false) => Some(Message::Import),
         ('e', false, false) => Some(Message::Export),
         ('f', false, false) => Some(Message::OpenFloppy),
-        ('s', false, true) => Some(Message::SaveLegacySnapshot),
-        ('o', false, true) => Some(Message::OpenLegacySnapshot),
         ('r', false, false) => Some(Message::ToggleRun),
         ('t', false, false) => Some(Message::StepInstruction),
         ('y', false, false) => Some(Message::StepTact),
@@ -331,22 +320,6 @@ mod tests {
                 keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT,
             ),
             Message::SaveSnapshotAs,
-        );
-        assert_message(
-            ctrl_shortcut(
-                &char_key("ы"),
-                physical(Code::KeyS),
-                keyboard::Modifiers::COMMAND | keyboard::Modifiers::ALT,
-            ),
-            Message::SaveLegacySnapshot,
-        );
-        assert_message(
-            ctrl_shortcut(
-                &char_key("щ"),
-                physical(Code::KeyO),
-                keyboard::Modifiers::COMMAND | keyboard::Modifiers::ALT,
-            ),
-            Message::OpenLegacySnapshot,
         );
         assert_message(
             ctrl_shortcut(

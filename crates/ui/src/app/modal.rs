@@ -89,7 +89,6 @@ impl DesktopApp {
             PendingAction::OpenSnapshot => Task::done(Message::OpenSnapshot),
             PendingAction::NewFile => Task::done(Message::NewFile),
             PendingAction::Import => Task::done(Message::Import),
-            PendingAction::OpenLegacySnapshot => Task::done(Message::OpenLegacySnapshot),
             PendingAction::CloseWindow => Task::done(Message::WindowClose),
         }
     }

@@ -120,7 +120,6 @@ pub(crate) enum Key {
     FileSaveAs,
     FileImport,
     FileExport,
-    LegacyFormatNote,
     ExportFormatXlsx,
     ExportFormatText,
     ExportPageLabel,
@@ -184,7 +183,6 @@ pub(crate) enum Key {
     StatusExportTo,
     StatusImportFrom,
     ErrorPrefix,
-    LegacyOpenedNotice,
     HaltNotice,
 
     SpeedTitle,
@@ -351,9 +349,9 @@ pub(crate) enum Key {
     StatusAtAddress,
     StatusNoMatchesFor,
 
-    ErrFileCorruptedOrUnsupported,
-    ErrFileNewerVersion,
-    ErrNotLegacyFormat,
+    ErrNotA580File,
+    ErrFileEmpty,
+    ErrWrong580Size,
     ErrLegacyTrailerCorrupt,
     ErrSettingsNewerVersion,
     ErrSettingsCorrupt,

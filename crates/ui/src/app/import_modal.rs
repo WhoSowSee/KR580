@@ -169,7 +169,6 @@ impl DesktopApp {
             return Task::none();
         }
         self.undo_stack.clear();
-        self.current_legacy_snapshot_path = None;
         self.dirty = false;
         self.set_status(StatusKind::ImportFrom { display });
         Task::none()

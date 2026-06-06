@@ -24,8 +24,8 @@ impl From<k580_persistence::PersistenceError> for AppError {
     }
 }
 
-impl From<k580_persistence::SnapshotError> for AppError {
-    fn from(value: k580_persistence::SnapshotError) -> Self {
+impl From<k580_persistence::ProgramError> for AppError {
+    fn from(value: k580_persistence::ProgramError) -> Self {
         Self::Persistence(value.to_string())
     }
 }

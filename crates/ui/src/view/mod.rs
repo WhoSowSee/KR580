@@ -37,7 +37,7 @@ use iced::{Element, Length};
 
 use modal::discard_modal_overlay;
 use monitor::monitor_window_overlay;
-use notices::{error_notice_overlay, halt_notice_overlay, info_notice_overlay};
+use notices::{error_notice_overlay, halt_notice_overlay};
 use settings_dialog::settings_modal_overlay;
 use storage::floppy_window_overlay;
 use styles::app_style;
@@ -115,16 +115,6 @@ impl DesktopApp {
         let app_with_overlays: Element<'_, Message> =
             if let Some(notice) = self.error_notice.as_deref() {
                 stack![app_with_overlays, error_notice_overlay(notice)]
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .into()
-            } else {
-                app_with_overlays
-            };
-
-        let app_with_overlays: Element<'_, Message> =
-            if let Some(notice) = self.info_notice.as_deref() {
-                stack![app_with_overlays, info_notice_overlay(notice)]
                     .width(Length::Fill)
                     .height(Length::Fill)
                     .into()

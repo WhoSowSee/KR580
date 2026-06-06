@@ -1,19 +1,17 @@
 pub mod error;
 pub mod export;
 pub mod import;
+pub mod program;
 pub mod settings;
-pub mod snapshot;
-pub mod subprogram;
 
-pub use error::{ExportError, ImportError, PersistenceError, SettingsError, SnapshotError};
+pub use error::{ExportError, ImportError, PersistenceError, SettingsError};
 pub use export::{
     ExportFlagKind, ExportModel, ExportOptions, ExportRegisterKind, ExportTextSection,
     ExportXlsxPage, Exporters,
 };
 pub use import::Importers;
+pub use program::{LEGACY_LENGTH, ProgramError, ProgramSerializer};
 pub use settings::{
     ExportSettings, GeneralSettings, Language, NetworkMode, NetworkSettings, Settings,
     SettingsStore, SpeedPreset, StorageSettings, UiSettings,
 };
-pub use snapshot::{Snapshot580Flavour, Snapshot580Serializer};
-pub use subprogram::{Subprogram, SubprogramSerializer};

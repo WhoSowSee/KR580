@@ -117,14 +117,13 @@ fn discard_modal_title_keys(action: &PendingAction) -> (Key, Option<Key>) {
         PendingAction::OpenSnapshot => (Key::DiscardTitleOpen, None),
         PendingAction::NewFile => (Key::DiscardTitleNew, None),
         PendingAction::Import => (Key::DiscardTitleImport, None),
-        PendingAction::OpenLegacySnapshot => (Key::DiscardTitleOpen, Some(Key::LegacyFormatNote)),
         PendingAction::CloseWindow => (Key::DiscardTitleClose, None),
     }
 }
 
 fn discard_confirm_label_key(action: &PendingAction) -> Key {
     match action {
-        PendingAction::OpenSnapshot | PendingAction::OpenLegacySnapshot => Key::DiscardConfirmOpen,
+        PendingAction::OpenSnapshot => Key::DiscardConfirmOpen,
         PendingAction::NewFile => Key::DiscardConfirmNew,
         PendingAction::Import => Key::DiscardConfirmImport,
         PendingAction::CloseWindow => Key::DiscardConfirmClose,
@@ -197,9 +196,9 @@ fn modal_button_style(
 
 #[cfg(test)]
 mod tests {
-    use super::{discard_confirm_label_key, discard_modal_title_keys, modal_button_style};
+    use super::{discard_confirm_label_key, modal_button_style};
     use crate::app::PendingAction;
-    use crate::i18n::{Key, Lang};
+    use crate::i18n::Key;
     use crate::view::theme::{TOKYO_BORDER, TOKYO_SURFACE};
     use iced::widget::button;
     use iced::{Background, Theme};
@@ -213,23 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_open_modal_uses_muted_format_note_without_parentheses() {
-        let (title_key, note_key) = discard_modal_title_keys(&PendingAction::OpenLegacySnapshot);
-
-        assert_eq!(title_key, Key::DiscardTitleOpen);
-        assert_eq!(note_key, Some(Key::LegacyFormatNote));
-
-        let note = Lang::Ru.t(Key::LegacyFormatNote);
-        assert!(!note.contains('('));
-        assert!(!note.contains(')'));
-    }
-
-    #[test]
     fn discard_confirm_label_matches_pending_action() {
-        assert_eq!(
-            discard_confirm_label_key(&PendingAction::OpenLegacySnapshot),
-            Key::DiscardConfirmOpen
-        );
         assert_eq!(
             discard_confirm_label_key(&PendingAction::OpenSnapshot),
             Key::DiscardConfirmOpen

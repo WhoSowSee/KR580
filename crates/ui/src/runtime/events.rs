@@ -39,9 +39,6 @@ impl DesktopApp {
             AppEvent::PortWritten { port, value } => {
                 self.set_status(StatusKind::PortWrite { port, value });
             }
-            AppEvent::SnapshotFlavourLoaded(flavour) => {
-                self.pending_snapshot_flavour = Some(flavour);
-            }
             AppEvent::HaltStateChanged(halted) => {
                 self.running = false;
                 self.pending_follow_pc = true;

@@ -3,20 +3,14 @@ use crate::i18n::{Key, Lang};
 pub(crate) fn humanize(raw: &str, lang: Lang) -> String {
     let lower = raw.to_lowercase();
 
-    if lower.contains("invalid .580 magic")
-        || lower.contains("snapshot data is truncated")
-        || lower.contains("payload length does not match")
-        || lower.contains("unsupported snapshot tlv tag")
-        || lower.contains("invalid length")
-        || lower.contains("required snapshot tag")
-    {
-        return lang.t(Key::ErrFileCorruptedOrUnsupported).to_owned();
+    if lower.contains("not a .580 file") {
+        return lang.t(Key::ErrNotA580File).to_owned();
     }
-    if lower.contains("unsupported .580 version") {
-        return lang.t(Key::ErrFileNewerVersion).to_owned();
+    if lower.contains("file is empty") {
+        return lang.t(Key::ErrFileEmpty).to_owned();
     }
-    if lower.contains("legacy .580 file must be exactly") {
-        return lang.t(Key::ErrNotLegacyFormat).to_owned();
+    if lower.contains("expected ") && lower.contains(" bytes, got ") {
+        return lang.t(Key::ErrWrong580Size).to_owned();
     }
     if lower.contains("legacy .580 trailer") {
         return lang.t(Key::ErrLegacyTrailerCorrupt).to_owned();
@@ -87,46 +81,15 @@ mod tests {
     use crate::i18n::Lang;
 
     #[test]
-    fn snapshot_format_diagnostics_are_localized() {
-        for raw in [
-            "invalid .580 magic header",
-            "snapshot data is truncated",
-            "payload length does not match the header",
-            "unsupported snapshot TLV tag 0x09",
-            "invalid length 5 for tag 0x01",
-            "required snapshot tag 0x01 is missing",
-        ] {
-            let humanized = humanize(raw, Lang::Ru);
-            assert!(
-                humanized.contains("повреждён") || humanized.contains("неподдерживаемый формат"),
-                "{raw} did not localize: {humanized}"
-            );
-        }
+    fn program_diagnostics_are_localized() {
+        assert!(humanize("not a .580 file", Lang::Ru).contains(".580"));
+        assert!(humanize("file is empty", Lang::Ru).contains("пуст"));
+        assert!(humanize("expected 65549 bytes, got 70000", Lang::Ru).contains("65549"));
     }
 
     #[test]
     fn version_skew_has_its_own_message() {
-        assert!(humanize("unsupported .580 version 2", Lang::Ru).contains("новой версии"));
         assert!(humanize("unsupported settings version 2", Lang::Ru).contains("новой версии"));
-        assert!(humanize("unsupported .580 version 2", Lang::En).contains("newer version"));
-    }
-
-    #[test]
-    fn legacy_diagnostics_are_distinct() {
-        assert!(
-            humanize(
-                "legacy .580 file must be exactly 65549 bytes, got 1024",
-                Lang::Ru
-            )
-            .contains("в старом формате")
-        );
-        assert!(
-            humanize(
-                "legacy .580 trailer is missing the FF FF end marker",
-                Lang::Ru
-            )
-            .contains("Конец")
-        );
     }
 
     #[test]

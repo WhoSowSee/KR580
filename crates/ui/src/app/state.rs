@@ -1,5 +1,5 @@
 use iced::{Point, Task, Theme, keyboard};
-use k580_app::{AppSnapshot, EmulatorHandle, Snapshot580Flavour, initial_snapshot, spawn_emulator};
+use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use k580_core::RegisterName;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -22,7 +22,6 @@ pub(crate) enum PendingAction {
     OpenSnapshot,
     NewFile,
     Import,
-    OpenLegacySnapshot,
     CloseWindow,
 }
 
@@ -71,12 +70,6 @@ pub(crate) struct DesktopApp {
     pub(crate) open_menu: Option<MenuId>,
     pub(crate) about_dialog_open: bool,
     pub(crate) current_snapshot_path: Option<PathBuf>,
-    /// Separate from `current_snapshot_path` so Ctrl+S (v1) and Ctrl+Alt+S
-    /// (legacy) each remember their own path.
-    pub(crate) current_legacy_snapshot_path: Option<PathBuf>,
-    /// Scratch slot the runtime uses to communicate the result of an
-    /// auto-detect `LoadAnySnapshot` dispatch back to its caller.
-    pub(crate) pending_snapshot_flavour: Option<Snapshot580Flavour>,
     pub(crate) speed_tier: SpeedTier,
     pub(crate) halt_notice: Option<String>,
     pub(crate) halt_notice_dismiss_at: Option<Instant>,
@@ -86,8 +79,7 @@ pub(crate) struct DesktopApp {
     pub(crate) run_blocked_after_halt: bool,
     pub(crate) error_notice: Option<String>,
     pub(crate) error_notice_dismiss_at: Option<Instant>,
-    pub(crate) info_notice: Option<String>,
-    pub(crate) info_notice_dismiss_at: Option<Instant>,
+
     pub(crate) window_id: Option<iced::window::Id>,
     pub(crate) window_maximized: bool,
     pub(crate) menu_categories_visible: bool,
@@ -204,16 +196,12 @@ impl DesktopApp {
             open_menu: None,
             about_dialog_open: false,
             current_snapshot_path: None,
-            current_legacy_snapshot_path: None,
-            pending_snapshot_flavour: None,
             speed_tier: default_speed,
             halt_notice: None,
             halt_notice_dismiss_at: None,
             run_blocked_after_halt: false,
             error_notice: None,
             error_notice_dismiss_at: None,
-            info_notice: None,
-            info_notice_dismiss_at: None,
             window_id: None,
             window_maximized: false,
             menu_categories_visible: true,
@@ -297,16 +285,6 @@ impl DesktopApp {
         self.halt_notice_dismiss_at = None;
     }
 
-    pub(crate) fn clear_info_notice(&mut self) {
-        self.info_notice = None;
-        self.info_notice_dismiss_at = None;
-    }
-
-    pub(crate) fn raise_info_notice(&mut self, text: String) {
-        self.info_notice = Some(text);
-        self.info_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(5));
-    }
-
     /// Single chokepoint for halt-block sites – both the notice and
     /// the run-block latch are armed here so callers can't forget
     /// one half.
@@ -321,7 +299,6 @@ impl DesktopApp {
         self.dispatch(k580_app::AppCommand::ResetCpu);
         self.running = false;
         self.current_snapshot_path = None;
-        self.current_legacy_snapshot_path = None;
         self.undo_stack.clear();
         self.dirty = false;
         self.speed_tier = self.default_speed;

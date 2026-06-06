@@ -3,9 +3,7 @@ mod tick;
 use crate::{AppCommand, AppError, AppEvent, AppSnapshot, RunMode};
 use k580_core::{Cpu8080State, PortBus};
 use k580_devices::IoBus;
-use k580_persistence::{
-    ExportModel, ExportOptions, Exporters, Importers, Snapshot580Serializer, SubprogramSerializer,
-};
+use k580_persistence::{ExportModel, ExportOptions, Exporters, Importers, ProgramSerializer};
 use std::time::Duration;
 
 pub const DEFAULT_STEP_INTERVAL: Duration = Duration::from_millis(100);
@@ -18,7 +16,6 @@ pub struct Emulator {
     pub(super) bus: IoBus,
     pub(super) io_runtime: tokio::runtime::Runtime,
     pub(super) running: bool,
-    /// Reset on every `Run`/`Stop`/`ResetCpu` so the budget is per-session.
     pub(super) instructions_since_run: u64,
     pub(super) step_interval: Duration,
     pub(super) run_mode: RunMode,
@@ -95,10 +92,6 @@ impl Emulator {
     fn apply(&mut self, command: AppCommand) -> Result<Vec<AppEvent>, AppError> {
         let mut events = Vec::new();
         match command {
-            // Reset/halt commands all share the same hygiene: stop the run
-            // loop, lift the halt flip-flop, and emit `Stopped` /
-            // `HaltStateChanged` only on actual transitions so the UI's
-            // play/pause and halt notice stay in sync with the worker.
             AppCommand::ResetCpu => {
                 let was_running = self.running;
                 let was_halted_before = self.cpu.halted;
@@ -212,27 +205,11 @@ impl Emulator {
                 self.bus.output(port, value)?;
                 events.push(AppEvent::PortWritten { port, value });
             }
-            AppCommand::SaveSnapshot(path) => {
-                std::fs::write(path, Snapshot580Serializer::to_bytes(&self.cpu))?
+            AppCommand::SaveProgram(path) => {
+                ProgramSerializer::save_file(path, &self.cpu)?;
             }
-            AppCommand::LoadSnapshot(path) => {
-                self.cpu = Snapshot580Serializer::from_bytes(&std::fs::read(path)?)?;
-            }
-            AppCommand::LoadAnySnapshot(path) => {
-                let bytes = std::fs::read(path)?;
-                let (cpu, flavour) = Snapshot580Serializer::from_any_bytes(&bytes)?;
-                self.cpu = cpu;
-                events.push(AppEvent::SnapshotFlavourLoaded(flavour));
-            }
-            AppCommand::SaveLegacySnapshot(path) => {
-                std::fs::write(path, Snapshot580Serializer::to_legacy_bytes(&self.cpu))?
-            }
-            AppCommand::LoadLegacySnapshot(path) => {
-                self.cpu = Snapshot580Serializer::from_legacy_bytes(&std::fs::read(path)?)?;
-            }
-            AppCommand::LoadSubprogram { path, base_address } => {
-                let subprogram = SubprogramSerializer::load_file(path, base_address)?;
-                SubprogramSerializer::load_into_state(&mut self.cpu, &subprogram)?;
+            AppCommand::LoadProgram(path) => {
+                self.cpu = ProgramSerializer::load_file(path)?;
             }
             AppCommand::ExportTxt(path) => Exporters::write_txt(path, &self.export_model())?,
             AppCommand::ExportXlsx(path) => Exporters::write_xlsx(path, &self.export_model())?,

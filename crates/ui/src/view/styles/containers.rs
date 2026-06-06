@@ -7,7 +7,6 @@ use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
     TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_TEXT,
-    TOKYO_YELLOW,
 };
 
 pub(crate) fn app_style(_theme: &Theme) -> container::Style {
@@ -63,14 +62,6 @@ pub(crate) fn status_tooltip_style(_theme: &Theme) -> container::Style {
 /// the red 1.5 px border alone carries the "this is an error" signal.
 pub(crate) fn error_inset_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_RED)
-}
-
-/// `error_inset_style` for the passive "info" notice shown when a
-/// legacy-format `.580` is opened. Same plate-on-plate chrome but
-/// `TOKYO_YELLOW` border instead of `TOKYO_RED` – "heads up, not an
-/// error".
-pub(crate) fn info_inset_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_YELLOW)
 }
 
 pub(crate) fn schematic_block_style(_theme: &Theme) -> container::Style {

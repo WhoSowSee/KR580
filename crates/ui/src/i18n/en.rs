@@ -121,7 +121,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FileSaveAs => "Save as",
         Key::FileImport => "Import",
         Key::FileExport => "Export",
-        Key::LegacyFormatNote => "legacy format",
         Key::ExportFormatXlsx => "MS Excel",
         Key::ExportFormatText => "Text file",
         Key::ExportPageLabel => "On page",
@@ -185,7 +184,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusExportTo => "Exported to",
         Key::StatusImportFrom => "Imported from",
         Key::ErrorPrefix => "Error",
-        Key::LegacyOpenedNotice => "Opened a legacy-format file",
         Key::HaltNotice => {
             "CPU halted by the HLT instruction\nReset registers or clear the HLT flag"
         }
@@ -358,14 +356,10 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusAtAddress => "at address",
         Key::StatusNoMatchesFor => "No addresses match",
 
-        Key::ErrFileCorruptedOrUnsupported => "File is corrupted or has an unsupported format",
-        Key::ErrFileNewerVersion => {
-            "File was saved by a newer version – please update the application"
-        }
-        Key::ErrNotLegacyFormat => "File does not look like a legacy-format save",
-        Key::ErrLegacyTrailerCorrupt => {
-            "File trailer is corrupted – this is not a legacy-format save"
-        }
+        Key::ErrNotA580File => "Not a .580 file – only .580 extension is supported",
+        Key::ErrFileEmpty => "File is empty",
+        Key::ErrWrong580Size => "Not a valid .580 file (must be exactly 65549 bytes)",
+        Key::ErrLegacyTrailerCorrupt => "File trailer is corrupted – this is not a valid .580 file",
         Key::ErrSettingsNewerVersion => {
             "Settings file was saved by a newer version – please update the application"
         }

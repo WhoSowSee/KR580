@@ -84,20 +84,12 @@ impl DesktopApp {
                 if self.dirty {
                     self.open_discard_modal(PendingAction::OpenSnapshot);
                 } else {
-                    self.open_snapshot();
+                    self.open_program();
                 }
             }
-            Message::LoadSnapshotFromPath(path) => self.load_snapshot_from_path(path),
-            Message::SaveSnapshot => self.save_snapshot(),
-            Message::SaveSnapshotAs => self.save_snapshot_as(),
-            Message::SaveLegacySnapshot => self.save_legacy_snapshot(),
-            Message::OpenLegacySnapshot => {
-                if self.dirty {
-                    self.open_discard_modal(PendingAction::OpenLegacySnapshot);
-                } else {
-                    self.open_legacy_snapshot();
-                }
-            }
+            Message::LoadSnapshotFromPath(path) => self.load_program_from_path(path),
+            Message::SaveSnapshot => self.save_program(),
+            Message::SaveSnapshotAs => self.save_program_as(),
             Message::NewFile => {
                 if self.dirty {
                     self.open_discard_modal(PendingAction::NewFile);
@@ -222,7 +214,6 @@ impl DesktopApp {
             Message::HideOpcodeDropdown => self.hide_opcode_dropdown(),
             Message::DismissErrorNotice => self.clear_error_notice(),
             Message::DismissHaltNotice => self.clear_halt_notice(),
-            Message::DismissInfoNotice => self.clear_info_notice(),
             Message::EscPressed => return self.handle_esc(),
             Message::EnterPressed => {
                 if self.opcode_dropdown_address.is_some() {

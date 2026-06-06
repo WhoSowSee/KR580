@@ -2,70 +2,38 @@ use std::path::PathBuf;
 
 use crate::app::{DesktopApp, ExportTab, StatusKind};
 use crate::i18n::Key;
-use k580_app::{AppCommand, Snapshot580Flavour};
+use k580_app::AppCommand;
 
 use super::parse::parse_hex_u16;
 
 impl DesktopApp {
-    pub(crate) fn open_snapshot(&mut self) {
+    pub(crate) fn open_program(&mut self) {
         if let Some(path) = rfd::FileDialog::new()
             .add_filter("KR580 file", &["580"])
             .pick_file()
         {
-            self.load_snapshot_from_path(path);
+            self.load_program_from_path(path);
         }
     }
 
-    /// Both `.580` flavours share the extension, so we dispatch
-    /// `LoadAnySnapshot` and route the resolved flavour into the
-    /// matching "current path" slot.
-    pub(crate) fn load_snapshot_from_path(&mut self, path: PathBuf) {
+    pub(crate) fn load_program_from_path(&mut self, path: PathBuf) {
         self.clear_error_notice();
-        self.clear_info_notice();
         let display = path.display().to_string();
         self.running = false;
-        self.pending_snapshot_flavour = None;
-        self.dispatch_sync(AppCommand::LoadAnySnapshot(path.clone()));
+        self.dispatch_sync(AppCommand::LoadProgram(path.clone()));
         if self.error_notice.is_some() {
             return;
         }
-        match self.pending_snapshot_flavour.take() {
-            Some(Snapshot580Flavour::Modern) => {
-                self.current_snapshot_path = Some(path);
-                self.current_legacy_snapshot_path = None;
-                self.set_status(StatusKind::Opened {
-                    display: display.clone(),
-                    legacy: false,
-                });
-            }
-            Some(Snapshot580Flavour::Legacy) => {
-                self.current_snapshot_path = None;
-                self.current_legacy_snapshot_path = Some(path);
-                self.set_status(StatusKind::Opened {
-                    display: display.clone(),
-                    legacy: true,
-                });
-                self.raise_info_notice(self.lang.t(Key::LegacyOpenedNotice).to_owned());
-            }
-            None => {
-                // Worker accepted the load but failed to publish a
-                // flavour – fall back to v1 so Ctrl+S still works.
-                self.current_snapshot_path = Some(path);
-                self.current_legacy_snapshot_path = None;
-                self.set_status(StatusKind::Opened {
-                    display: display.clone(),
-                    legacy: false,
-                });
-            }
-        }
+        self.current_snapshot_path = Some(path);
         self.undo_stack.clear();
         self.dirty = false;
         self.speed_tier = self.default_speed;
         let pc = self.snapshot.cpu.pc;
         self.set_memory_address(pc);
+        self.set_status(StatusKind::Opened { display });
     }
 
-    pub(crate) fn save_snapshot(&mut self) {
+    pub(crate) fn save_program(&mut self) {
         self.commit_pending_inline_edit();
         self.clear_error_notice();
         let path = match &self.current_snapshot_path {
@@ -82,19 +50,15 @@ impl DesktopApp {
             }
         };
         let display = path.display().to_string();
-        self.dispatch_sync(AppCommand::SaveSnapshot(path));
+        self.dispatch_sync(AppCommand::SaveProgram(path));
         if self.error_notice.is_some() {
             return;
         }
-        self.current_legacy_snapshot_path = None;
         self.dirty = false;
-        self.set_status(StatusKind::SavedTo {
-            display,
-            legacy: false,
-        });
+        self.set_status(StatusKind::SavedTo { display });
     }
 
-    pub(crate) fn save_snapshot_as(&mut self) {
+    pub(crate) fn save_program_as(&mut self) {
         self.commit_pending_inline_edit();
         let mut dialog = rfd::FileDialog::new().add_filter("KR580 file", &["580"]);
         if let Some(current) = &self.current_snapshot_path {
@@ -110,82 +74,15 @@ impl DesktopApp {
         };
         self.clear_error_notice();
         let display = path.display().to_string();
-        self.dispatch_sync(AppCommand::SaveSnapshot(path.clone()));
+        self.dispatch_sync(AppCommand::SaveProgram(path.clone()));
         if self.error_notice.is_some() {
             return;
         }
         self.current_snapshot_path = Some(path);
-        self.current_legacy_snapshot_path = None;
         self.dirty = false;
-        self.set_status(StatusKind::SavedTo {
-            display,
-            legacy: false,
-        });
+        self.set_status(StatusKind::SavedTo { display });
     }
 
-    /// v1 and legacy share the `.580` extension but not the wire
-    /// format, so the two paths must stay separate.
-    pub(crate) fn save_legacy_snapshot(&mut self) {
-        self.commit_pending_inline_edit();
-        let (path, picked_now) = match &self.current_legacy_snapshot_path {
-            Some(path) => (path.clone(), false),
-            None => {
-                let mut dialog = rfd::FileDialog::new().add_filter("KR580 legacy file", &["580"]);
-                if let Some(current) = &self.current_snapshot_path
-                    && let Some(parent) = current.parent()
-                {
-                    dialog = dialog.set_directory(parent);
-                }
-                let Some(path) = dialog.save_file() else {
-                    return;
-                };
-                (path, true)
-            }
-        };
-        self.clear_error_notice();
-        let display = path.display().to_string();
-        self.dispatch_sync(AppCommand::SaveLegacySnapshot(path.clone()));
-        if self.error_notice.is_some() {
-            return;
-        }
-        if picked_now {
-            self.current_legacy_snapshot_path = Some(path);
-        }
-        self.dirty = false;
-        self.set_status(StatusKind::SavedTo {
-            display,
-            legacy: true,
-        });
-    }
-
-    pub(crate) fn open_legacy_snapshot(&mut self) {
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("KR580 legacy file", &["580"])
-            .pick_file()
-        else {
-            return;
-        };
-        self.clear_error_notice();
-        let display = path.display().to_string();
-        self.running = false;
-        self.dispatch_sync(AppCommand::LoadLegacySnapshot(path.clone()));
-        if self.error_notice.is_some() {
-            return;
-        }
-        self.undo_stack.clear();
-        self.current_snapshot_path = None;
-        self.current_legacy_snapshot_path = Some(path);
-        self.dirty = false;
-        self.speed_tier = self.default_speed;
-        let pc = self.snapshot.cpu.pc;
-        self.set_memory_address(pc);
-        self.set_status(StatusKind::Opened {
-            display,
-            legacy: true,
-        });
-    }
-
-    /// Push any uncommitted inline byte to the worker before saving.
     fn commit_pending_inline_edit(&mut self) {
         let Ok(address) = parse_hex_u16(&self.memory_address_input) else {
             return;
