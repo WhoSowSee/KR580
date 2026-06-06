@@ -55,12 +55,10 @@ impl DesktopApp {
                 self.running = false;
                 self.pending_follow_pc = true;
                 let raw = error.to_string();
-                self.set_status_custom(raw.clone());
-                self.error_notice = Some(format!(
-                    "{}: {}",
-                    self.lang.t(Key::ErrorPrefix),
-                    humanize_error::humanize(&raw, self.lang)
-                ));
+                let humanized = humanize_error::humanize(&raw, self.lang);
+                self.set_status_custom(humanized.clone());
+                self.error_notice =
+                    Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), humanized));
                 self.error_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
             }
             AppEvent::Stopped => {

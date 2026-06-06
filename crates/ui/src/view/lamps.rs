@@ -3,7 +3,7 @@
 //! Idle (`tact_phase == None`) mirrors the reference KR-580 emulator's
 //! at-rest silhouette: F2 / SYNC / READY / INTE / WR lit. Pins flip to
 //! phase-driven values only during a `step_tact` walk. HOLD / HLDA /
-//! DBIN stay dark — we don't model the machine-cycle pins.
+//! DBIN stay dark – we don't model the machine-cycle pins.
 
 use iced::widget::{Row, column};
 use iced::{Element, Length, alignment};

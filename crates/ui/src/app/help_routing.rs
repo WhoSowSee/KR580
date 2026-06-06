@@ -16,7 +16,8 @@ impl DesktopApp {
             | Message::WindowMaximizedChanged(_)
             | Message::FocusReconciled(_)
             | Message::ResolveFocusedTracker(_)
-            | Message::MousePressed => None,
+            | Message::MousePressed
+            | Message::MousePressedIgnored => None,
             Message::CloseHelp
             | Message::MenuBatch(_)
             | Message::HelpNodeSelected(_)

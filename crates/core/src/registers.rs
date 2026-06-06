@@ -12,7 +12,7 @@ pub enum RegisterName {
 }
 
 /// Programmer-visible registers plus the internal `W`/`Z` scratch pair.
-/// `W`/`Z` are not in `RegisterName` — no 8080 instruction addresses
+/// `W`/`Z` are not in `RegisterName` – no 8080 instruction addresses
 /// them directly. They sit on `Registers` only so the UI can show the
 /// address residue the microcode parks there. Treated as write-only
 /// from the core's perspective.

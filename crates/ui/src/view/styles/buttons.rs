@@ -21,7 +21,7 @@ fn is_button_active(status: button::Status) -> bool {
 /// `Disabled` is a separate visual branch: surface stays at the
 /// resting `TOKYO_BOARD` tone but the border drops to a low-alpha
 /// tint and text fades to `TOKYO_MUTED`. The glyph itself is greyed
-/// out separately by the chip widget when `message` is `None` —
+/// out separately by the chip widget when `message` is `None` –
 /// border + text fade here is what tells the *frame* that the chip
 /// is locked.
 pub(crate) fn action_button_style(status: button::Status) -> button::Style {
@@ -114,7 +114,7 @@ pub(crate) fn menu_button_disabled_style(_status: button::Status) -> button::Sty
 
 pub(crate) fn step_button_style(status: button::Status) -> button::Style {
     // Inline glyphs: transparent at rest, faint surface tint on
-    // hover/press — no border so they don't read as detached chips.
+    // hover/press – no border so they don't read as detached chips.
     let background = if is_button_active(status) {
         Color::from_rgba8(0x36, 0x3B, 0x59, 0.45)
     } else {
@@ -176,7 +176,7 @@ pub(crate) fn caption_button_style(status: button::Status) -> button::Style {
 /// `caption_button_style`, except the hover/press surface flares red
 /// so the destructive action lands with the same affordance as the
 /// native window manager's close glyph. We do not recolour the SVG
-/// stroke itself — the red surface already reads "warning", and the
+/// stroke itself – the red surface already reads "warning", and the
 /// glyph stays legible against it.
 pub(crate) fn close_caption_button_style(status: button::Status) -> button::Style {
     let background = match status {

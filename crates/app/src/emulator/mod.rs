@@ -4,7 +4,7 @@ use crate::{AppCommand, AppError, AppEvent, AppSnapshot, RunMode};
 use k580_core::{Cpu8080State, PortBus};
 use k580_devices::IoBus;
 use k580_persistence::{
-    ExportModel, Exporters, Importers, Snapshot580Serializer, SubprogramSerializer,
+    ExportModel, ExportOptions, Exporters, Importers, Snapshot580Serializer, SubprogramSerializer,
 };
 use std::time::Duration;
 
@@ -236,12 +236,38 @@ impl Emulator {
             }
             AppCommand::ExportTxt(path) => Exporters::write_txt(path, &self.export_model())?,
             AppCommand::ExportXlsx(path) => Exporters::write_xlsx(path, &self.export_model())?,
+            AppCommand::ExportTxtWithOptions(path, options) => {
+                if options.text_sections.is_empty() {
+                    Exporters::write_txt(path, &self.export_model_with_options(&options))?
+                } else {
+                    Exporters::write_txt_sections(path, &self.export_text_models(&options))?
+                }
+            }
+            AppCommand::ExportXlsxWithOptions(path, options) => {
+                if options.xlsx_pages.is_empty() {
+                    Exporters::write_xlsx_with_options(
+                        path,
+                        &self.export_model_with_options(&options),
+                        &options,
+                    )?
+                } else {
+                    Exporters::write_xlsx_pages(path, &self.export_xlsx_models(&options))?
+                }
+            }
             AppCommand::ImportTxt(path) => {
                 let model = Importers::read_txt(path)?;
                 model.apply_to(&mut self.cpu)?;
             }
             AppCommand::ImportXlsx(path) => {
                 let model = Importers::read_xlsx(path)?;
+                model.apply_to(&mut self.cpu)?;
+            }
+            AppCommand::ImportTxtSection(path, section) => {
+                let model = Importers::read_txt_section(path, &section)?;
+                model.apply_to(&mut self.cpu)?;
+            }
+            AppCommand::ImportXlsxSheet(path, sheet) => {
+                let model = Importers::read_xlsx_sheet(path, &sheet)?;
                 model.apply_to(&mut self.cpu)?;
             }
             AppCommand::ClearMonitorBuffer => {
@@ -272,5 +298,40 @@ impl Emulator {
 
     fn export_model(&self) -> ExportModel {
         ExportModel::from_cpu(&self.cpu)
+    }
+
+    fn export_model_with_options(&self, options: &ExportOptions) -> ExportModel {
+        ExportModel::from_cpu_with_options(&self.cpu, options)
+    }
+
+    fn export_text_models(&self, options: &ExportOptions) -> Vec<(String, ExportModel)> {
+        options
+            .text_sections
+            .iter()
+            .map(|section| {
+                (
+                    section.name.clone(),
+                    ExportModel::from_cpu_with_options(&self.cpu, &section.to_options()),
+                )
+            })
+            .collect()
+    }
+
+    fn export_xlsx_models(
+        &self,
+        options: &ExportOptions,
+    ) -> Vec<(String, ExportModel, ExportOptions)> {
+        options
+            .xlsx_pages
+            .iter()
+            .map(|page| {
+                let page_options = page.to_options();
+                (
+                    page.name.clone(),
+                    ExportModel::from_cpu_with_options(&self.cpu, &page_options),
+                    page_options,
+                )
+            })
+            .collect()
     }
 }

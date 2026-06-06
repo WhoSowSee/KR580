@@ -101,7 +101,7 @@ fn depth_limit_drops_oldest() {
     assert_eq!(stack.undo.len(), UNDO_DEPTH_LIMIT);
 }
 
-/// `break_coalescing` is what every "logical edit ended" gesture calls —
+/// `break_coalescing` is what every "logical edit ended" gesture calls –
 /// focus change, Esc, Enter, snapshot load. Without it Esc would silently
 /// glue post-Esc typing onto the pre-Esc run.
 #[test]
@@ -128,7 +128,7 @@ fn clear_wipes_both_stacks_and_coalesce_marker() {
 }
 
 /// Bug guard: type "0A", Ctrl+Z (entry moves to redo, top of undo is now an
-/// older entry), type "B" — without resetting the coalesce marker, "B" would
+/// older entry), type "B" – without resetting the coalesce marker, "B" would
 /// extend the older entry's `after` and silently corrupt that edit.
 #[test]
 fn pop_undo_resets_coalesce_marker() {

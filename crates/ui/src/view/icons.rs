@@ -116,7 +116,7 @@ static INFO: LazyLock<svg::Handle> =
 static GITHUB: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("github").as_slice()));
 
-/// 128px PNG variant of the application icon — large enough that the
+/// 128px PNG variant of the application icon – large enough that the
 /// About-dialog plate (64×64 px logical) downscales without visible
 /// pixelation on HiDPI displays.
 static APP_ICON: LazyLock<iced_image::Handle> = LazyLock::new(|| {
@@ -141,7 +141,7 @@ pub(super) fn redo_dot() -> svg::Handle {
     REDO_DOT.clone()
 }
 
-/// Counter-clockwise circular arrow — the running-state replacement
+/// Counter-clockwise circular arrow – the running-state replacement
 /// for `step_forward()`. While a program runs, the second action button
 /// becomes a "restart" affordance that resets registers and re-runs
 /// from `0x0000`.
@@ -209,7 +209,7 @@ pub(super) fn cpu() -> svg::Handle {
     CPU.clone()
 }
 
-/// Octagonal stop sign with a counter-clockwise reset arc — used next
+/// Octagonal stop sign with a counter-clockwise reset arc – used next
 /// to the clear-HLT-flag menu entry. The arc shape matches `reset_registers`
 /// to signal "reset", the stop sign carries the "HLT was raised" half.
 pub(super) fn clear_halt() -> svg::Handle {

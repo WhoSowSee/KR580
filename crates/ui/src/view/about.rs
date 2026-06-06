@@ -21,7 +21,7 @@ const DIALOG_PADDING: u16 = 24;
 const APP_ICON_PLATE_SIZE: f32 = 64.0;
 const APP_ICON_GLYPH_SIZE: f32 = 64.0;
 const GITHUB_ICON_SIZE: f32 = 17.0;
-/// Polar opposite of "rectangular" — large radius collapses container
+/// Polar opposite of "rectangular" – large radius collapses container
 /// corners to a perfect pill shape regardless of inner content size.
 const PILL_RADIUS: f32 = 999.0;
 

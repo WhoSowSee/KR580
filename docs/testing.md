@@ -28,7 +28,7 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
   temporary `square.580` snapshot, loads it, runs it to HLT through the
   `Emulator`, and asserts the monitor pixel layer contains exactly
   the 28-pixel outline of an 8×8 square (corners included, interior
-  untouched, every pixel at colour `0x7F`) — a smoke check that
+  untouched, every pixel at colour `0x7F`) – a smoke check that
   `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
   the documented 3-byte graphics command (`prompt/03_peripherals.md`).
 - `k580-ui`: pure view helpers, including CP866 terminal-text decoding
@@ -40,8 +40,8 @@ replacing the local semantic tests.
 
 ## Sample programs
 
-- `counter_loop.580` — pre-existing demo snapshot.
-- `test_program.580` — pre-existing demo snapshot.
+- `counter_loop.580` – pre-existing demo snapshot.
+- `test_program.580` – pre-existing demo snapshot.
 - `square_program` synthesizes its `.580` fixture during the test. The
   encoded program walks the four edges of an 8×8 square at the origin
   of the graphics layer, emitting one 3-byte graphics command per
@@ -59,7 +59,7 @@ sync with the source artwork:
 - Windows: `powershell -File scripts/generate_icons.ps1`
 - Unix/macOS: `./scripts/generate_icons.sh` (requires ImageMagick)
 
-The Windows build script does not regenerate `icon.ico` automatically —
+The Windows build script does not regenerate `icon.ico` automatically –
 it only embeds it. A stale `icon.ico` will be silently shipped if you
 forget to rerun the generator.
 

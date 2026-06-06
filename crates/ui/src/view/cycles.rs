@@ -21,7 +21,7 @@ const CYCLE_BLOCK_WIDTH: f32 = 200.0;
 const TIMING_BLOCK_WIDTH: f32 = 200.0;
 const CYCLE_BLOCK_BALANCE_SPACER_HEIGHT: f32 = 6.0;
 
-/// HLT layout (M-cycle view) is `[4]` — only the visible M1; the
+/// HLT layout (M-cycle view) is `[4]` – only the visible M1; the
 /// datasheet view glues M1+M2 into `[7]` so the linear T-phase counts
 /// halt-ack too.
 fn full_duration_layout(opcode: u8) -> MachineCycleLayout {

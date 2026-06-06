@@ -77,10 +77,14 @@ impl DesktopApp {
                 (iced::Event::Mouse(mouse::Event::CursorMoved { position }), _) => {
                     Some(Message::CursorMoved(position))
                 }
-                // Captured presses must reach us — the focus
+                // Captured presses must reach us – the focus
                 // reconciler walks the tree from outside to clear
                 // stale focus that `text_input::update` missed
                 // across stacked panels.
+                (
+                    iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                    iced::event::Status::Ignored,
+                ) => Some(Message::MousePressedIgnored),
                 (iced::Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)), _) => {
                     Some(Message::MousePressed)
                 }

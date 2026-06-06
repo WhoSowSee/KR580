@@ -15,11 +15,11 @@
 //! 0x0F + 0x37 = 0x46. Low nibble overflows (F + 7 = 0x16) so AC is
 //! set; the result has three set bits (0100 0110b), so parity is odd
 //! and P stays clear. CY/S/Z all clear. AC alone is enough to show
-//! that flag updates are wired up — and the user can then single-step
+//! that flag updates are wired up – and the user can then single-step
 //! to see Z/CY light up on other bytes.
 //!
 //! A non-zero "canary" byte is preloaded at 0x2000 (the STA target)
-//! so the user can see the byte change after running the program —
+//! so the user can see the byte change after running the program –
 //! distinguishing "STA wrote here" from "this address happened to be
 //! zero anyway".
 //!

@@ -1,4 +1,4 @@
-//! Settings dialog overlay — entry point.
+//! Settings dialog overlay – entry point.
 //!
 //! Composes the four-zone modal (header / sidebar / content / footer)
 //! plus the reset-confirm sub-modal. Layout primitives, styles, and

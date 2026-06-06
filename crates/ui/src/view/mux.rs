@@ -1,4 +1,4 @@
-//! Multiplexer panel — the right column of the schematic plate.
+//! Multiplexer panel – the right column of the schematic plate.
 //!
 //! Carries the W/Z scratch pair, the general-purpose register grid
 //! (B/C, D/E, H/L), and the SP/PC footer. Split out of `schematic.rs`
@@ -247,7 +247,7 @@ fn mux_register_cell(
     let editing = edit_state.inline_target == Some(target);
     let hovered = edit_state.hovered_target == Some(target);
 
-    // Selected register name uses TOKYO_BLUE, idle uses TOKYO_MUTED —
+    // Selected register name uses TOKYO_BLUE, idle uses TOKYO_MUTED –
     // matches the memory-row address column. Byte stays TOKYO_GREEN.
     let label_color = if is_selected { TOKYO_BLUE } else { TOKYO_MUTED };
 

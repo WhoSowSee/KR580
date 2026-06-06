@@ -82,7 +82,7 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
     loop {
         // `never()` parks the timer when paused; otherwise the deadline
         // is `step_interval` (Paced) or `slice` (Burst). The slice also
-        // bounds `Stop` responsiveness — a press lands within one slice.
+        // bounds `Stop` responsiveness – a press lands within one slice.
         let tick: Receiver<std::time::Instant> = if emulator.is_running() {
             let deadline = match emulator.run_mode() {
                 RunMode::Paced => emulator.step_interval(),

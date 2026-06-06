@@ -17,6 +17,7 @@ impl DesktopApp {
     /// Without this, handlers that read `self.snapshot` right after
     /// dispatch race the channel and the user clicks twice.
     pub(crate) fn dispatch_sync(&mut self, command: AppCommand) {
+        self.pull_events();
         if let Err(error) = self.handle.send(command) {
             self.set_status_custom(error.to_string());
             return;
@@ -27,7 +28,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn toggle_run(&mut self) {
-        // Pause wins first — otherwise once PC walks off the loaded
+        // Pause wins first – otherwise once PC walks off the loaded
         // program into NOP territory the gates below refuse the press.
         if self.running {
             self.running = false;
@@ -67,6 +68,7 @@ impl DesktopApp {
     /// Sync dispatch is non-negotiable: an async version captured
     /// `after == before` and `push_cpu` silently dropped every entry.
     pub(crate) fn dispatch_with_undo(&mut self, command: AppCommand) {
+        self.pull_events();
         let before = self.snapshot.cpu.clone();
         self.dispatch_sync(command);
         let after = self.snapshot.cpu.clone();

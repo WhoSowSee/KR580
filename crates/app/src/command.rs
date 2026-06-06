@@ -1,7 +1,7 @@
 use crate::AppError;
 use k580_core::{Cpu8080State, InstructionOutcome, RegisterName, TactOutcome};
 use k580_devices::DeviceSnapshot;
-use k580_persistence::Snapshot580Flavour;
+use k580_persistence::{ExportOptions, Snapshot580Flavour};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -42,8 +42,12 @@ pub enum AppCommand {
     ApplyCpuState(Box<Cpu8080State>),
     ExportTxt(PathBuf),
     ExportXlsx(PathBuf),
+    ExportTxtWithOptions(PathBuf, ExportOptions),
+    ExportXlsxWithOptions(PathBuf, ExportOptions),
     ImportTxt(PathBuf),
     ImportXlsx(PathBuf),
+    ImportTxtSection(PathBuf, String),
+    ImportXlsxSheet(PathBuf, String),
     ClearMonitorBuffer,
     ClearFloppyBuffer,
     AttachFloppyImage(PathBuf),

@@ -7,12 +7,12 @@ use crate::i18n::{Key, Lang};
 
 /// Renders the "unsaved changes" confirmation modal as three layers:
 ///
-/// 1. **Backdrop** — full-window 70%-alpha dark fill in `mouse_area` + `opaque`.
+/// 1. **Backdrop** – full-window 70%-alpha dark fill in `mouse_area` + `opaque`.
 ///    The `mouse_area` catches every click that misses the dialog and routes it
 ///    to `CancelDiscard` (click-outside = cancel); `opaque` blocks those clicks
 ///    from reaching the app behind. Together they enforce that nothing behind
 ///    the modal is clickable.
-/// 2. **Centred dialog** — title, body paragraph, two action buttons. A second
+/// 2. **Centred dialog** – title, body paragraph, two action buttons. A second
 ///    `opaque` keeps clicks inside the dialog from bubbling back to the
 ///    backdrop's `mouse_area`. Focused button reuses the hover fill; keyboard
 ///    routing lives in `app::modal`.
@@ -105,7 +105,7 @@ pub(super) fn discard_modal_overlay(
     .height(Length::Fill);
 
     // Backdrop spans the whole window; the dialog only takes its
-    // content size — both stacked together.
+    // content size – both stacked together.
     stack![opaque(backdrop), centred]
         .width(Length::Fill)
         .height(Length::Fill)

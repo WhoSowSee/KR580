@@ -5,8 +5,10 @@ mod chips;
 mod current_command;
 mod cycles;
 mod editors;
+mod export_modal;
 mod help;
 mod icons;
+mod import_modal;
 mod lamps;
 mod memory_list;
 mod menu;
@@ -41,7 +43,9 @@ use storage::floppy_window_overlay;
 use styles::app_style;
 
 use about::about_modal_overlay;
+use export_modal::{ExportModalViewState, export_modal_overlay};
 use help::help_modal_overlay;
+use import_modal::{ImportModalViewState, import_modal_overlay};
 
 use crate::app::{DesktopApp, MenuId, Message};
 
@@ -147,6 +151,44 @@ impl DesktopApp {
             stack![
                 scrimmed,
                 discard_modal_overlay(action, self.discard_modal_focus, self.lang)
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+        } else if self.export_modal_open {
+            stack![
+                scrimmed,
+                export_modal_overlay(ExportModalViewState {
+                    tab: self.export_tab,
+                    target_input: self.export_target_input(),
+                    target_options: self.export_target_options(),
+                    target_dropdown_open: self.export_target_dropdown_open,
+                    target_highlight: self.export_target_highlight,
+                    memory_start: &self.export_memory_start_input,
+                    memory_end: &self.export_memory_end_input,
+                    columns: self.export_memory_columns,
+                    registers: self.export_registers,
+                    flags: self.export_flags,
+                    lang: self.lang,
+                })
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+        } else if self.import_modal_open {
+            stack![
+                scrimmed,
+                import_modal_overlay(ImportModalViewState {
+                    file_display: &self.import_file_display,
+                    format: self.import_file_format,
+                    target_input: &self.import_target_input,
+                    target_options: &self.import_target_options,
+                    target_dropdown_open: self.import_target_dropdown_open,
+                    target_highlight: self.import_target_highlight,
+                    target_scroll_reveal: self.import_target_scroll_visible_ticks > 0,
+                    error: self.import_error.as_deref(),
+                    lang: self.lang,
+                })
             ]
             .width(Length::Fill)
             .height(Length::Fill)

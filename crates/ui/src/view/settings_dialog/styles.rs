@@ -54,7 +54,7 @@ pub(super) fn header_close_button_style(status: button::Status) -> button::Style
     }
 }
 
-/// Sidebar category — fill change only, optional 1-px border ring
+/// Sidebar category – fill change only, optional 1-px border ring
 /// when keyboard-focused so Ctrl+Tab → arrow keys is observable.
 pub(super) fn sidebar_chip_style(
     status: button::Status,

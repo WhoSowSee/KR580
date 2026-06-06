@@ -51,7 +51,7 @@ fn run_bug_test(filename: &str, expected_a: u8) {
     );
 }
 
-// Group A — Rcc by Z, CY, P (test1..test12).
+// Group A – Rcc by Z, CY, P (test1..test12).
 
 #[test]
 fn bug_test1_rz_z1_must_return() {
@@ -102,7 +102,7 @@ fn bug_test12_rpo_p1_must_not_return() {
     run_bug_test("test12_RPO_P1_must_NOT_return.580", 0xFF);
 }
 
-// Group B — Ccc by S: CP/CM (test13..test16).
+// Group B – Ccc by S: CP/CM (test13..test16).
 // Original `KP580.exe` FAILS these (BUG-09: read_flag for S is constant 0).
 
 #[test]

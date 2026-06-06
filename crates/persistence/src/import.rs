@@ -17,17 +17,58 @@ impl Importers {
         let mut workbook = open_workbook_auto(path.as_ref())
             .map_err(|e| ImportError::Spreadsheet(e.to_string()))?;
 
-        // Header rows (`Field/Value`, `Flag/Set`, `Address/Value`)
-        // mirror the TXT `[Section]` markers.
         let sheet_name = workbook
             .sheet_names()
             .first()
             .cloned()
             .ok_or_else(|| ImportError::Spreadsheet("workbook has no sheets".to_owned()))?;
-        let sheet = workbook
-            .worksheet_range(&sheet_name)
-            .map_err(|e| ImportError::Spreadsheet(e.to_string()))?;
+        Self::read_xlsx_sheet_from_workbook(&mut workbook, &sheet_name)
+    }
 
+    pub fn read_xlsx_sheet(
+        path: impl AsRef<Path>,
+        sheet_name: &str,
+    ) -> Result<ExportModel, ImportError> {
+        let mut workbook = open_workbook_auto(path.as_ref())
+            .map_err(|e| ImportError::Spreadsheet(e.to_string()))?;
+        Self::read_xlsx_sheet_from_workbook(&mut workbook, sheet_name)
+    }
+
+    pub fn xlsx_sheet_names(path: impl AsRef<Path>) -> Result<Vec<String>, ImportError> {
+        let workbook = open_workbook_auto(path.as_ref())
+            .map_err(|e| ImportError::Spreadsheet(e.to_string()))?;
+        Ok(workbook.sheet_names().to_vec())
+    }
+
+    pub fn txt_section_names(path: impl AsRef<Path>) -> Result<Vec<String>, ImportError> {
+        let raw = fs::read_to_string(path)?;
+        Ok(text_sections(&raw)
+            .into_iter()
+            .map(|section| section.name)
+            .collect())
+    }
+
+    pub fn read_txt_section(
+        path: impl AsRef<Path>,
+        section_name: &str,
+    ) -> Result<ExportModel, ImportError> {
+        let raw = fs::read_to_string(path)?;
+        let section = text_sections(&raw)
+            .into_iter()
+            .find(|section| section.name == section_name)
+            .ok_or_else(|| {
+                ImportError::Malformed(format!("unknown text section `{section_name}`"))
+            })?;
+        Self::parse_txt(&section.body)
+    }
+
+    fn read_xlsx_sheet_from_workbook<R: std::io::Read + std::io::Seek>(
+        workbook: &mut calamine::Sheets<R>,
+        sheet_name: &str,
+    ) -> Result<ExportModel, ImportError> {
+        let sheet = workbook
+            .worksheet_range(sheet_name)
+            .map_err(|e| ImportError::Spreadsheet(e.to_string()))?;
         let mut registers: Vec<(String, String)> = Vec::new();
         let mut flags: Vec<(String, bool)> = Vec::new();
         let mut memory: Vec<(u16, u8)> = Vec::new();
@@ -109,6 +150,10 @@ impl Importers {
                 }
                 _ => {}
             }
+            if line.starts_with('[') && line.ends_with(']') {
+                section = None;
+                continue;
+            }
             let Some((key, value)) = line.split_once('=') else {
                 return Err(ImportError::Malformed(format!(
                     "expected `key=value` line, got `{line}`"
@@ -149,12 +194,61 @@ impl Importers {
     }
 }
 
+struct TextSection {
+    name: String,
+    body: String,
+}
+
+fn text_sections(text: &str) -> Vec<TextSection> {
+    let mut sections = Vec::new();
+    let mut current: Option<TextSection> = None;
+
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if let Some(name) = named_text_section(line) {
+            if let Some(section) = current.take() {
+                sections.push(section);
+            }
+            current = Some(TextSection {
+                name: name.to_owned(),
+                body: String::new(),
+            });
+            continue;
+        }
+        if let Some(section) = current.as_mut() {
+            section.body.push_str(raw_line);
+            section.body.push('\n');
+        }
+    }
+
+    if let Some(section) = current {
+        sections.push(section);
+    }
+    sections
+}
+
+fn named_text_section(line: &str) -> Option<&str> {
+    if !line.starts_with('[') || !line.ends_with(']') {
+        return None;
+    }
+    match line {
+        "[Registers]" | "[Flags]" | "[Memory]" => None,
+        _ => Some(&line[1..line.len() - 1]),
+    }
+}
+
 impl ExportModel {
     pub fn apply_to(&self, state: &mut Cpu8080State) -> Result<(), ImportError> {
         for (name, value) in &self.registers {
             match name.as_str() {
                 "A" => {
                     state.registers.a = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
+                }
+                "W" => {
+                    state.registers.w = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
+                }
+                "Z" => {
+                    state.registers.z = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
                 }
                 "B" => {
                     state.registers.b = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
@@ -191,7 +285,7 @@ impl ExportModel {
                 "Z" => state.flags.zero = *set,
                 "AC" => state.flags.auxiliary_carry = *set,
                 "P" => state.flags.parity = *set,
-                "CY" => state.flags.carry = *set,
+                "C" | "CY" => state.flags.carry = *set,
                 _ => {
                     return Err(ImportError::Malformed(format!("unknown flag `{name}`")));
                 }

@@ -23,7 +23,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HnCpuArchitecture => "KR580VM80 Processor",
         Key::HnDataTransferCommands => "Data Transfer",
         Key::HnDeviceWorkflow => "Working with Devices",
-        Key::HnExport => "Export Data",
+        Key::HnExport => "Export",
         Key::HnExternalDevices => "Peripheral Devices",
         Key::HnFeatures => "Features",
         Key::HnFileFormats => "File Formats",
@@ -33,7 +33,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HnGeneralPrinciples => "General Principles",
         Key::HnGeneralSettings => "General",
         Key::HnHdd => "KR580 Hard Disk",
-        Key::HnImport => "Import Subprograms",
+        Key::HnImport => "Import",
         Key::HnInstructionSet => "Instruction Set",
         Key::HnIntroduction => "Introduction",
         Key::HnIoCommands => "I/O",
@@ -122,6 +122,39 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FileImport => "Import",
         Key::FileExport => "Export",
         Key::LegacyFormatNote => "legacy format",
+        Key::ExportFormatXlsx => "MS Excel",
+        Key::ExportFormatText => "Text file",
+        Key::ExportPageLabel => "On page",
+        Key::ExportPageDefault => "Subprogram 1",
+        Key::ExportPageNameBase => "Subprogram",
+        Key::ExportSectionLabel => "In section",
+        Key::ExportSectionDefault => "Section 1",
+        Key::ExportSectionNameBase => "Section",
+        Key::ExportAddPageTooltip => "Add page",
+        Key::ExportAddSectionTooltip => "Add section",
+        Key::ExportDeletePageTooltip => "Delete page",
+        Key::ExportDeleteSectionTooltip => "Delete section",
+        Key::ExportMemoryGroup => "RAM contents",
+        Key::ExportRegistersGroup => "Register values",
+        Key::ExportFlagsGroup => "Flag values",
+        Key::ExportRangeFrom => "Cells from",
+        Key::ExportRangeTo => "to",
+        Key::ExportColumnAddress => "Include \"RAM cell #\" column",
+        Key::ExportColumnValue => "Include \"RAM cell value\" column",
+        Key::ExportColumnCommand => "Include \"Command\" column",
+        Key::ExportColumnComment => "Add empty comments column",
+        Key::ExportRegisterAccumulator => "Accumulator",
+        Key::ExportRegisterStackPointer => "Stack pointer",
+        Key::ExportRegisterProgramCounter => "Program counter",
+        Key::ExportRegisterCycles => "Tact counter",
+        Key::ImportSourceGroup => "Import source",
+        Key::ImportFileLabel => "File",
+        Key::ImportNoFile => "No file selected",
+        Key::ImportNoTargets => "The file has no separate sheets or sections",
+        Key::ImportSheetLabel => "On sheet",
+        Key::ImportSectionLabel => "In section",
+        Key::ImportBrowseTooltip => "Choose file",
+        Key::ImportChooseFileRequired => "Choose a file to import",
 
         Key::MpRunProgram => "Run program",
         Key::MpRunInstruction => "Run instruction",
@@ -150,6 +183,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusOpened => "Opened",
         Key::StatusSavedTo => "Saved to",
         Key::StatusExportTo => "Exported to",
+        Key::StatusImportFrom => "Imported from",
         Key::ErrorPrefix => "Error",
         Key::LegacyOpenedNotice => "Opened a legacy-format file",
         Key::HaltNotice => {
@@ -326,17 +360,17 @@ pub(super) fn translate(key: Key) -> &'static str {
 
         Key::ErrFileCorruptedOrUnsupported => "File is corrupted or has an unsupported format",
         Key::ErrFileNewerVersion => {
-            "File was saved by a newer version — please update the application"
+            "File was saved by a newer version – please update the application"
         }
         Key::ErrNotLegacyFormat => "File does not look like a legacy-format save",
         Key::ErrLegacyTrailerCorrupt => {
-            "File trailer is corrupted — this is not a legacy-format save"
+            "File trailer is corrupted – this is not a legacy-format save"
         }
         Key::ErrSettingsNewerVersion => {
-            "Settings file was saved by a newer version — please update the application"
+            "Settings file was saved by a newer version – please update the application"
         }
         Key::ErrSettingsCorrupt => "Settings file is corrupted",
-        Key::ErrCannotReadFileFormat => "Failed to read the file — check the format",
+        Key::ErrCannotReadFileFormat => "Failed to read the file – check the format",
         Key::ErrCannotReadFile => "Failed to read the file",
         Key::ErrCannotWriteTable => "Failed to write the table",
         Key::ErrCannotWriteFile => "Failed to write the file",

@@ -66,7 +66,7 @@ fn sta_records_written_byte_and_target_address() {
 }
 
 /// After `HLT` (opcode `0x76`) PC advances one byte, but the next M1
-/// will not happen until an interrupt or reset arrives — so the IR
+/// will not happen until an interrupt or reset arrives – so the IR
 /// must keep `0x76`. The old readout used `memory.read(pc)` and
 /// showed `0x00` (NOP from blank RAM at the new PC).
 #[test]
@@ -113,7 +113,7 @@ fn mov_register_to_register_does_not_touch_bus_beyond_m1() {
     assert_eq!(cpu.last_data_bus_byte, 0x78);
 }
 
-/// `MOV A, (HL)` — indirect read. HL goes onto the address buffer
+/// `MOV A, (HL)` – indirect read. HL goes onto the address buffer
 /// and the fetched byte goes onto the data buffer; latches must
 /// reflect that, not the M1 fetch.
 #[test]

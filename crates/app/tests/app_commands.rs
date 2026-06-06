@@ -1,5 +1,7 @@
 use k580_app::{AppCommand, AppEvent, Emulator, spawn_emulator};
 use k580_core::{Cpu8080State, RegisterName};
+use k580_persistence::{ExportOptions, ExportTextSection, ExportXlsxPage};
+use std::path::PathBuf;
 use std::time::Duration;
 
 #[test]
@@ -32,7 +34,7 @@ fn actor_publishes_state_changes() {
 /// Regression for "program keeps running after a register reset":
 /// clicking ResetCpu while the actor is in `Run` must flip `running` to false *and* publish `Stopped` so the UI's
 /// play/pause toggle returns to its idle state. Same contract for
-/// ResetRam — wiping code under a running worker would otherwise
+/// ResetRam – wiping code under a running worker would otherwise
 /// keep stepping into zero bytes (NOPs) until the per-session budget
 /// hit. We hit the path directly through `Emulator` rather than the
 /// actor so the test stays deterministic and doesn't depend on
@@ -79,7 +81,7 @@ fn reset_ram_during_run_emits_stopped() {
 }
 
 /// Counter-case: ResetCpu while the worker is *idle* must not
-/// fabricate a `Stopped` event — the UI consumes `Stopped` to flip
+/// fabricate a `Stopped` event – the UI consumes `Stopped` to flip
 /// the play/pause toggle, and a spurious one would briefly flash
 /// the "stopped" status in a session that was never running.
 #[test]
@@ -101,7 +103,7 @@ fn reset_cpu_while_idle_does_not_emit_stopped() {
 /// this command. Two contracts to verify here.
 ///
 /// 1. **Replace, not merge.** Every observable field on the CPU must
-///    match the snapshot byte-for-byte after the command — registers,
+///    match the snapshot byte-for-byte after the command – registers,
 ///    PC, the full 64 KiB of RAM, halt bit, the lot. A partial swap
 ///    would leak post-mutation state into the rewound view, which is
 ///    exactly the kind of "Ctrl+Z half-worked" surprise the timeline
@@ -187,4 +189,171 @@ fn apply_cpu_state_unhalts_emits_halt_event() {
         "ApplyCpuState rewinding past HLT must emit HaltStateChanged(false), got {events:?}"
     );
     assert!(!emulator.cpu().halted);
+}
+
+#[test]
+fn export_txt_with_options_writes_all_text_sections() {
+    let mut emulator = Emulator::default();
+    emulator.handle_command(AppCommand::SetMemory(0x0100, 0xAA));
+    emulator.handle_command(AppCommand::SetMemory(0x0200, 0xBB));
+    let path = unique_temp_file("k580-text-sections.txt");
+    let options = ExportOptions {
+        text_sections: vec![
+            text_section("Подпрограмма 1", 0x0100, 0x0100),
+            text_section("Подпрограмма 2", 0x0200, 0x0200),
+        ],
+        ..ExportOptions::default()
+    };
+
+    let events = emulator.handle_command(AppCommand::ExportTxtWithOptions(path.clone(), options));
+    let text = std::fs::read_to_string(&path).unwrap();
+
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, AppEvent::ErrorRaised(_)))
+    );
+    assert!(text.contains("[Подпрограмма 1]\n[Registers]\n\n[Flags]\n\n[Memory]\n0100=AA\n"));
+    assert!(text.contains("[Подпрограмма 2]\n[Registers]\n\n[Flags]\n\n[Memory]\n0200=BB\n"));
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn export_xlsx_with_options_accepts_all_excel_pages() {
+    let mut emulator = Emulator::default();
+    emulator.handle_command(AppCommand::SetMemory(0x0100, 0xAA));
+    emulator.handle_command(AppCommand::SetMemory(0x0200, 0xBB));
+    let path = unique_temp_file("k580-excel-pages.xlsx");
+    let options = ExportOptions {
+        xlsx_pages: vec![
+            xlsx_page("Подпрограмма 1", 0x0100, 0x0100),
+            xlsx_page("Подпрограмма 2", 0x0200, 0x0200),
+        ],
+        ..ExportOptions::default()
+    };
+
+    let events = emulator.handle_command(AppCommand::ExportXlsxWithOptions(path.clone(), options));
+
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, AppEvent::ErrorRaised(_)))
+    );
+    assert!(std::fs::metadata(&path).unwrap().len() > 0);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn import_xlsx_sheet_applies_only_selected_sheet() {
+    let first = k580_persistence::ExportModel {
+        registers: Vec::new(),
+        flags: Vec::new(),
+        memory: vec![(0x0100, 0xAA)],
+    };
+    let second = k580_persistence::ExportModel {
+        registers: Vec::new(),
+        flags: Vec::new(),
+        memory: vec![(0x0200, 0xBB)],
+    };
+    let path = unique_temp_file("k580-import-pages.xlsx");
+    k580_persistence::Exporters::write_xlsx_pages(
+        &path,
+        &[
+            ("Подпрограмма 1".to_owned(), first, ExportOptions::default()),
+            (
+                "Подпрограмма 2".to_owned(),
+                second,
+                ExportOptions::default(),
+            ),
+        ],
+    )
+    .unwrap();
+    let mut emulator = Emulator::default();
+
+    let events = emulator.handle_command(AppCommand::ImportXlsxSheet(
+        path.clone(),
+        "Подпрограмма 2".to_owned(),
+    ));
+
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, AppEvent::ErrorRaised(_)))
+    );
+    assert_eq!(emulator.cpu().memory.read(0x0100), 0x00);
+    assert_eq!(emulator.cpu().memory.read(0x0200), 0xBB);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn import_txt_section_applies_only_selected_section() {
+    let first = k580_persistence::ExportModel {
+        registers: Vec::new(),
+        flags: Vec::new(),
+        memory: vec![(0x0100, 0xAA)],
+    };
+    let second = k580_persistence::ExportModel {
+        registers: Vec::new(),
+        flags: Vec::new(),
+        memory: vec![(0x0200, 0xBB)],
+    };
+    let path = unique_temp_file("k580-import-sections.txt");
+    std::fs::write(
+        &path,
+        k580_persistence::Exporters::to_text_sections(&[
+            ("Раздел 1".to_owned(), first),
+            ("Раздел 2".to_owned(), second),
+        ]),
+    )
+    .unwrap();
+    let mut emulator = Emulator::default();
+
+    let events = emulator.handle_command(AppCommand::ImportTxtSection(
+        path.clone(),
+        "Раздел 2".to_owned(),
+    ));
+
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, AppEvent::ErrorRaised(_)))
+    );
+    assert_eq!(emulator.cpu().memory.read(0x0100), 0x00);
+    assert_eq!(emulator.cpu().memory.read(0x0200), 0xBB);
+    std::fs::remove_file(path).ok();
+}
+
+fn text_section(name: &str, memory_start: u16, memory_end: u16) -> ExportTextSection {
+    ExportTextSection {
+        name: name.to_owned(),
+        memory_start,
+        memory_end,
+        include_memory_address: true,
+        include_memory_value: true,
+        include_memory_command: false,
+        registers: Vec::new(),
+        flags: Vec::new(),
+    }
+}
+
+fn xlsx_page(name: &str, memory_start: u16, memory_end: u16) -> ExportXlsxPage {
+    ExportXlsxPage {
+        name: name.to_owned(),
+        memory_start,
+        memory_end,
+        include_memory_address: true,
+        include_memory_value: true,
+        include_memory_command: false,
+        include_comment_column: false,
+        registers: Vec::new(),
+        flags: Vec::new(),
+    }
+}
+
+fn unique_temp_file(name: &str) -> PathBuf {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    std::env::temp_dir().join(format!("{nanos}-{name}"))
 }

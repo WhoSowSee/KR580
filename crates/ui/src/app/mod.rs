@@ -1,7 +1,16 @@
 mod constants;
+mod export_modal;
+mod export_modal_state;
+mod export_modal_targets;
+#[cfg(test)]
+mod export_modal_tests;
 mod handlers;
 mod help;
 mod help_routing;
+mod import_modal;
+mod import_modal_state;
+#[cfg(test)]
+mod import_modal_tests;
 mod keymap;
 pub(crate) mod messages;
 mod modal;
@@ -24,11 +33,19 @@ pub(crate) use constants::{
     REGISTER_NAME_INPUT_ID, REGISTER_ORDER, REGISTER_VALUE_INPUT_ID, SETTINGS_SEARCH_INPUT_ID,
     parse_register_name, register_name,
 };
+pub(crate) use export_modal_state::{
+    ExportFlagSelection, ExportMemoryColumns, ExportModalFocus, ExportRegisterSelection,
+    ExportTargetSettings,
+};
 pub(crate) use help::{
     HelpDialog, HelpMarkdownHighlight, HelpMarkdownHighlighter, HelpMarkdownLine, HelpNode,
     parse_help_markdown_line,
 };
-pub(crate) use messages::{MenuId, Message, RegisterInlineTarget, SettingsCategory, SpeedTier};
+pub(crate) use import_modal_state::{ImportFileFormat, ImportModalFocus};
+pub(crate) use messages::{
+    ExportFlag, ExportMemoryColumn, ExportRegister, ExportTab, MenuId, Message,
+    RegisterInlineTarget, SettingsCategory, SpeedTier,
+};
 pub(crate) use modal::DiscardModalButton;
 pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};
 pub(crate) use register_inline::RegisterMove;

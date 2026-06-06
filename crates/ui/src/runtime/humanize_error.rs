@@ -1,6 +1,6 @@
 use crate::i18n::{Key, Lang};
 
-pub(super) fn humanize(raw: &str, lang: Lang) -> String {
+pub(crate) fn humanize(raw: &str, lang: Lang) -> String {
     let lower = raw.to_lowercase();
 
     if lower.contains("invalid .580 magic")

@@ -5,7 +5,7 @@ pub(super) const HEADER_HEIGHT: f32 = 52.0;
 pub(super) const FOOTER_HEIGHT: f32 = 56.0;
 pub(super) const SEARCH_ICON_SIZE: f32 = 13.0;
 pub(super) const DROPDOWN_CHEVRON_SIZE: f32 = 14.0;
-/// Width of the language anchor + dropdown panel — tight fit around
+/// Width of the language anchor + dropdown panel – tight fit around
 /// the longest translated name ("Английский" / "English") plus the
 /// chevron and a touch of breath.
 pub(super) const LANGUAGE_PICKER_WIDTH: f32 = 104.0;

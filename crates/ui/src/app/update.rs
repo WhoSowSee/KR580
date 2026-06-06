@@ -14,6 +14,12 @@ impl DesktopApp {
         if let Some(task) = self.route_discard_modal_message(&message) {
             return task;
         }
+        if let Some(task) = self.route_import_modal_message(&message) {
+            return task;
+        }
+        if let Some(task) = self.route_export_modal_message(&message) {
+            return task;
+        }
         if let Some(task) = self.route_help_dialog_message(&message) {
             return task;
         }
@@ -32,7 +38,7 @@ impl DesktopApp {
             Message::CursorMoved(point) => {
                 self.latest_cursor_position = point;
             }
-            Message::MousePressed => {
+            Message::MousePressed | Message::MousePressedIgnored => {
                 return iced::advanced::widget::operate(crate::runtime::find_focusable_at(
                     self.latest_cursor_position,
                 ))
@@ -99,12 +105,12 @@ impl DesktopApp {
                     self.run_new_file();
                 }
             }
-            Message::Export => self.export_file(),
+            Message::Export => self.open_export_modal(),
             Message::Import => {
                 if self.dirty {
                     self.open_discard_modal(PendingAction::Import);
                 } else {
-                    self.import_file();
+                    self.open_import_modal();
                 }
             }
             Message::RegisterNameChanged(value) => {
@@ -154,7 +160,7 @@ impl DesktopApp {
             Message::RegisterHoverEnded(_) => {}
             Message::MemorySelected(address) => self.select_memory(address),
             Message::MemoryEnter(address) => {
-                // Defer focus — `MousePressed` reconcile would clear
+                // Defer focus – `MousePressed` reconcile would clear
                 // focus on widgets whose bounds miss the click point.
                 self.select_memory(address);
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);

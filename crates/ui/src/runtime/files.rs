@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::app::{DesktopApp, StatusKind};
+use crate::app::{DesktopApp, ExportTab, StatusKind};
 use crate::i18n::Key;
 use k580_app::{AppCommand, Snapshot580Flavour};
 
@@ -49,7 +49,7 @@ impl DesktopApp {
             }
             None => {
                 // Worker accepted the load but failed to publish a
-                // flavour — fall back to v1 so Ctrl+S still works.
+                // flavour – fall back to v1 so Ctrl+S still works.
                 self.current_snapshot_path = Some(path);
                 self.current_legacy_snapshot_path = None;
                 self.set_status(StatusKind::Opened {
@@ -200,73 +200,47 @@ impl DesktopApp {
         self.dispatch_with_undo(AppCommand::SetMemory(address, value));
     }
 
-    pub(crate) fn export_file(&mut self) {
+    pub(crate) fn export_selected_file(
+        &mut self,
+        format: ExportTab,
+        options: k580_persistence::ExportOptions,
+    ) {
         self.commit_pending_inline_edit();
+        let filter = match format {
+            ExportTab::Xlsx => "KR580 spreadsheet export",
+            ExportTab::Text => "KR580 text export",
+        };
         let Some(path) = rfd::FileDialog::new()
-            .add_filter("KR580 text export", &["txt"])
-            .add_filter("KR580 spreadsheet export", &["xlsx"])
+            .add_filter(filter, &[format.extension()])
+            .set_file_name(format.default_file_name())
             .save_file()
         else {
             return;
         };
-        // Routing is by extension on disk; anything not `.xlsx` is `.txt`.
-        let path = normalise_export_path(path);
+        let path = normalise_export_path_for_format(path, format);
         self.clear_error_notice();
         let display = path.display().to_string();
-        let extension = path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext.to_ascii_lowercase());
-        match extension.as_deref() {
-            Some("xlsx") => self.dispatch_sync(AppCommand::ExportXlsx(path)),
-            _ => self.dispatch_sync(AppCommand::ExportTxt(path)),
+        match format {
+            ExportTab::Xlsx => self.dispatch_sync(AppCommand::ExportXlsxWithOptions(path, options)),
+            ExportTab::Text => self.dispatch_sync(AppCommand::ExportTxtWithOptions(path, options)),
         }
         if self.error_notice.is_some() {
             return;
         }
         self.set_status(StatusKind::ExportTo { display });
     }
-
-    pub(crate) fn import_file(&mut self) {
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("KR580 file", &["txt", "xlsx"])
-            .add_filter("KR580 txt file", &["txt"])
-            .add_filter("KR580 spreadsheet file", &["xlsx"])
-            .pick_file()
-        else {
-            return;
-        };
-        self.clear_error_notice();
-        self.running = false;
-        let extension = path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext.to_ascii_lowercase());
-        match extension.as_deref() {
-            Some("xlsx") => self.dispatch_sync(AppCommand::ImportXlsx(path)),
-            _ => self.dispatch_sync(AppCommand::ImportTxt(path)),
-        }
-        if self.error_notice.is_some() {
-            return;
-        }
-        self.undo_stack.clear();
-        self.current_legacy_snapshot_path = None;
-        self.dirty = false;
-    }
 }
 
-/// Appends `.txt` rather than replacing the existing extension so the
-/// user's typed name stays visible (`mysnap.foo` → `mysnap.foo.txt`).
-pub(super) fn normalise_export_path(path: PathBuf) -> PathBuf {
+pub(super) fn normalise_export_path_for_format(path: PathBuf, format: ExportTab) -> PathBuf {
     let extension = path
         .extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.to_ascii_lowercase());
     match extension.as_deref() {
-        Some("txt") | Some("xlsx") => path,
+        Some(ext) if ext == format.extension() => path,
         _ => {
             let mut as_string = path.into_os_string();
-            as_string.push(".txt");
+            as_string.push(format!(".{}", format.extension()));
             PathBuf::from(as_string)
         }
     }
@@ -320,14 +294,21 @@ impl DesktopApp {
 
 #[cfg(test)]
 mod tests {
-    use super::normalise_export_path;
+    use super::normalise_export_path_for_format;
+    use crate::app::ExportTab;
     use std::path::PathBuf;
 
     #[test]
-    fn keeps_supported_extensions_intact() {
-        for already_ok in ["a.txt", "a.xlsx", "a.TXT", "a.XLSX", "deep/path/file.txt"] {
+    fn keeps_selected_extensions_intact() {
+        for (already_ok, format) in [
+            ("a.txt", ExportTab::Text),
+            ("a.TXT", ExportTab::Text),
+            ("a.xlsx", ExportTab::Xlsx),
+            ("a.XLSX", ExportTab::Xlsx),
+            ("deep/path/file.txt", ExportTab::Text),
+        ] {
             assert_eq!(
-                normalise_export_path(PathBuf::from(already_ok)),
+                normalise_export_path_for_format(PathBuf::from(already_ok), format),
                 PathBuf::from(already_ok),
             );
         }
@@ -336,11 +317,11 @@ mod tests {
     #[test]
     fn appends_txt_to_unknown_extension() {
         assert_eq!(
-            normalise_export_path(PathBuf::from("mysnap.foo")),
+            normalise_export_path_for_format(PathBuf::from("mysnap.foo"), ExportTab::Text),
             PathBuf::from("mysnap.foo.txt"),
         );
         assert_eq!(
-            normalise_export_path(PathBuf::from("dump.png")),
+            normalise_export_path_for_format(PathBuf::from("dump.png"), ExportTab::Text),
             PathBuf::from("dump.png.txt"),
         );
     }
@@ -348,8 +329,16 @@ mod tests {
     #[test]
     fn appends_txt_when_no_extension() {
         assert_eq!(
-            normalise_export_path(PathBuf::from("plain")),
+            normalise_export_path_for_format(PathBuf::from("plain"), ExportTab::Text),
             PathBuf::from("plain.txt"),
+        );
+    }
+
+    #[test]
+    fn appends_selected_export_extension_when_no_extension() {
+        assert_eq!(
+            normalise_export_path_for_format(PathBuf::from("plain"), ExportTab::Xlsx),
+            PathBuf::from("plain.xlsx"),
         );
     }
 
@@ -358,7 +347,7 @@ mod tests {
     #[test]
     fn dotfiles_get_txt_appended() {
         assert_eq!(
-            normalise_export_path(PathBuf::from(".bashrc")),
+            normalise_export_path_for_format(PathBuf::from(".bashrc"), ExportTab::Text),
             PathBuf::from(".bashrc.txt"),
         );
     }

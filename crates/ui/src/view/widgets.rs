@@ -104,7 +104,7 @@ pub(super) fn legend_panel_left<'a>(
 
 /// `<text_input> + ▲▼` shell. Arrows are stacked over the input
 /// rather than placed in a row so the input keeps the full inner
-/// width — otherwise the focus glow gets clipped on the right edge.
+/// width – otherwise the focus glow gets clipped on the right edge.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn spinner_text_input<'a>(
     placeholder: &'static str,
@@ -200,7 +200,7 @@ pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
 
 /// Square icon-only action button with hover tooltip. The SVG is
 /// tinted with `accent`; passing `None` for `message` renders a
-/// disabled chip (no `on_press`, faded glyph) — used by the post-HLT
+/// disabled chip (no `on_press`, faded glyph) – used by the post-HLT
 /// latch to grey out execution chips while keeping resets clickable.
 pub(super) fn icon_action_button(
     handle: svg::Handle,

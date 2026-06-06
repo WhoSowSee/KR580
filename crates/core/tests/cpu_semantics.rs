@@ -424,7 +424,7 @@ fn run_for_t_states_advances_exact_quantum() {
 
 /// Cold start: before any `step_*` no T-phase has run, so
 /// `last_completed_tact_phase == None`. The UI shows `-` in the tact
-/// row — distinct from `Some(_)`, which means "an instruction
+/// row – distinct from `Some(_)`, which means "an instruction
 /// ran, and here is its last completed T".
 #[test]
 fn last_completed_tact_phase_is_none_on_cold_start() {
@@ -440,7 +440,7 @@ fn last_completed_tact_phase_is_none_on_cold_start() {
 }
 
 /// Atomic `step_instruction` path with no preceding walking: after a
-/// NOP (4 T-states) `last_completed_tact_phase` must be `Some(3)` —
+/// NOP (4 T-states) `last_completed_tact_phase` must be `Some(3)` –
 /// the linear phase `total - 1`. That is the "last lit T" the
 /// reference panel freezes on once the instruction completes.
 #[test]
@@ -472,7 +472,7 @@ fn last_completed_tact_phase_walks_with_step_tact() {
 }
 
 /// HLT + `run_until_halt`: once halted, the last completed phase
-/// must match the reference — `total - 1` of the HLT instruction
+/// must match the reference – `total - 1` of the HLT instruction
 /// (7 T-states → `Some(6)`). The UI used to fall to `-`/`1` after
 /// HLT; now it freezes on the right slot.
 #[test]

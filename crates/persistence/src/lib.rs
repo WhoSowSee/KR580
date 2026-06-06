@@ -6,7 +6,10 @@ pub mod snapshot;
 pub mod subprogram;
 
 pub use error::{ExportError, ImportError, PersistenceError, SettingsError, SnapshotError};
-pub use export::{ExportModel, Exporters};
+pub use export::{
+    ExportFlagKind, ExportModel, ExportOptions, ExportRegisterKind, ExportTextSection,
+    ExportXlsxPage, Exporters,
+};
 pub use import::Importers;
 pub use settings::{
     ExportSettings, GeneralSettings, Language, NetworkMode, NetworkSettings, Settings,

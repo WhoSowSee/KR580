@@ -18,7 +18,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) language_dropdown_open: bool,
     /// Keyboard highlight inside the open language dropdown. `None`
     /// when the dropdown is closed; while open, ArrowUp / ArrowDown
-    /// move the highlight here without committing — the draft only
+    /// move the highlight here without committing – the draft only
     /// changes once the user presses Enter or clicks an option.
     pub(crate) dropdown_highlight: Option<Lang>,
     pub(crate) original_lang: Lang,

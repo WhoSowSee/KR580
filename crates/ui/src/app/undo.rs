@@ -1,5 +1,5 @@
 //! Undo/redo stack: text edits and CPU snapshot pairs share one timeline.
-//! Consecutive `Text` entries on the same field collapse — the chain
+//! Consecutive `Text` entries on the same field collapse – the chain
 //! breaks on focus change, Enter, Esc, or any CPU push.
 
 use k580_core::{Cpu8080State, RegisterName};
@@ -18,7 +18,7 @@ pub(crate) enum UndoEntry {
         after: String,
     },
     /// `register_selection` rewinds the register editor's active
-    /// cell on Ctrl+Z — without it, undo of "edit A → Enter → step
+    /// cell on Ctrl+Z – without it, undo of "edit A → Enter → step
     /// to B" puts the byte back into A while the visible name field
     /// still shows B.
     Cpu {

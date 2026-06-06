@@ -27,11 +27,25 @@ Settings are UTF-8 JSON with `settingsVersion: 1` and top-level `network`, `stor
 
 Exporters use direct generators and never scrape UI widgets:
 
-- `.txt`: stable plain-text sections;
-- `.xlsx`: `rust_xlsxwriter` workbook with stable `CPU` and `Memory` sheets.
+- `.txt`: stable plain-text blocks; a single export keeps the
+  `[Registers]`, `[Flags]`, and `[Memory]` sections, while text exports
+  with several UI sections write one named block per section;
+- `.xlsx`: a `rust_xlsxwriter` workbook whose worksheets contain the
+  register table, flag table, and memory table for each selected page.
+
+`ExportOptions` lets the UI pass a worksheet name, memory address range,
+memory-table column toggles, register selection, flag selection, and
+optional XLSX pages or text-export named sections. The memory
+range, register selection, and flag selection are applied while building
+`ExportModel`, so both TXT and XLSX exports use them. XLSX additionally
+uses the page name and optional comment column and, when page entries
+are present, writes each entry as a worksheet in one workbook. TXT
+ignores the comment column and, when section entries are present, writes
+each entry as `[Section name]` followed by its own `[Registers]`,
+`[Flags]`, and `[Memory]` block.
 
 The UI exposes both export actions, and `k580-app` routes them through the same `ExportModel` built from core state.
 
 ## Imports
 
-`k580-persistence::Importers` round-trips the same two formats back into an `ExportModel`, and `ExportModel::apply_to(&mut Cpu8080State)` writes the parsed registers, flags, and memory cells into a CPU state. The XLSX reader uses `calamine`; the TXT reader parses the same `[Registers]/[Flags]/[Memory]` sections that the exporter emits, so a file written by `Exporters::write_txt` reloads byte-for-byte.
+`k580-persistence::Importers` round-trips the same two formats back into an `ExportModel`, and `ExportModel::apply_to(&mut Cpu8080State)` writes the parsed registers, flags, and memory cells into a CPU state. The XLSX reader uses `calamine`; by default it imports the first worksheet, while `xlsx_sheet_names()` and `read_xlsx_sheet()` let the UI present and import a specific worksheet from a multi-page export. The TXT reader parses the same `[Registers]`, `[Flags]`, and `[Memory]` sections that the exporter emits. Plain TXT files still import as one model; multi-section text exports expose their named blocks through `txt_section_names()` and `read_txt_section()`.

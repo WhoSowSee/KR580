@@ -1,6 +1,6 @@
 //! Minimal 5×7 bitmap font for the unified monitor canvas.
 //!
-//! Covers printable ASCII (`0x20..=0x7E`) — enough to render the text
+//! Covers printable ASCII (`0x20..=0x7E`) – enough to render the text
 //! layer over the pixel layer when the monitor is in "unified" view.
 //! Each glyph is 5 columns × 7 rows. The glyph rows are MSB-aligned in
 //! the lower 5 bits of each byte (bit 4 = leftmost pixel, bit 0 =

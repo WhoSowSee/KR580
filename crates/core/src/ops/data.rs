@@ -78,7 +78,7 @@ impl Cpu8080State {
         }
 
         match opcode {
-            // STAX/LDAX (BC|DE) intentionally skip WZ — the address
+            // STAX/LDAX (BC|DE) intentionally skip WZ – the address
             // is already on the latches, no microcode parks it.
             0x02 => self.bus_write(self.registers.bc(), self.registers.a),
             0x0A => self.registers.a = self.bus_read(self.registers.bc()),

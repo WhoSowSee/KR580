@@ -3,11 +3,11 @@
 //!
 //! Two responsibilities live here, kept narrow on purpose:
 //!
-//! 1. **Path resolution** — picks a fixed location next to the executable
+//! 1. **Path resolution** – picks a fixed location next to the executable
 //!    so users do not have to hunt for the config file. Falls back to the
 //!    current working directory if `current_exe()` is unavailable
 //!    (sandboxed environments, broken installs).
-//! 2. **Type translation** — `SpeedPreset` ↔ `SpeedTier`, `Language` ↔
+//! 2. **Type translation** – `SpeedPreset` ↔ `SpeedTier`, `Language` ↔
 //!    `Lang`. Persistence has no concept of `SpeedTier` (UI-only) and the
 //!    UI does not pull in serde, so the mapping is centralized here.
 //!
@@ -25,7 +25,7 @@ const SETTINGS_FILENAME: &str = "settings.json";
 ///
 /// The executable directory is preferred so the settings travel with a
 /// portable build. We accept the lossy assumption that `current_exe()`
-/// can be canonicalised — on Windows that resolves the long path and on
+/// can be canonicalised – on Windows that resolves the long path and on
 /// Linux it follows symlinks, which is the right behaviour for a
 /// portable install.
 pub(crate) fn settings_path() -> PathBuf {
@@ -39,13 +39,13 @@ pub(crate) fn settings_path() -> PathBuf {
 
 /// Loads settings without panicking. A missing or unreadable file returns
 /// `Settings::default()`; a malformed file is logged and replaced with
-/// defaults too — the user keeps a working app instead of a hard error.
+/// defaults too – the user keeps a working app instead of a hard error.
 pub(crate) fn load_settings() -> Settings {
     let path = settings_path();
     match SettingsStore::load(&path) {
         Ok(settings) => settings,
         Err(error) => {
-            // `tracing::warn!` is enough — the UI shows defaults and the
+            // `tracing::warn!` is enough – the UI shows defaults and the
             // log explains why if anyone digs in.
             tracing::warn!(?path, %error, "settings load failed; using defaults");
             Settings::default()
@@ -54,7 +54,7 @@ pub(crate) fn load_settings() -> Settings {
 }
 
 /// Saves settings best-effort. Errors are logged but not surfaced to the
-/// user — losing a single settings write is recoverable (defaults next
+/// user – losing a single settings write is recoverable (defaults next
 /// time) and we do not want a popup for IO hiccups.
 pub(crate) fn save_settings(settings: &Settings) {
     let path = settings_path();

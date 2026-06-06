@@ -14,7 +14,7 @@
 //! example overwrites it deterministically. As a built-in smoke test
 //! the generator also round-trips the bytes through
 //! `Snapshot580Serializer::from_bytes` and runs the program through
-//! `step_instruction` (with a `NullBus` — the program does no I/O)
+//! `step_instruction` (with a `NullBus` – the program does no I/O)
 //! until `HLT`, then asserts the final state matches the math the
 //! program describes. Anything wrong with the bytes, the opcodes, or
 //! the loop arithmetic surfaces here instead of inside the UI.

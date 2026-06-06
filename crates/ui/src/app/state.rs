@@ -5,11 +5,15 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use super::help::HelpDialog;
-use super::messages::{MenuId, Message, RegisterInlineTarget, SpeedTier};
+use super::messages::{ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier};
 use super::modal::DiscardModalButton;
 use super::settings_modal::SettingsDialog;
 use super::status::StatusKind;
 use super::undo::UndoStack;
+use super::{
+    ExportFlagSelection, ExportMemoryColumns, ExportModalFocus, ExportRegisterSelection,
+    ExportTargetSettings, ImportFileFormat, ImportModalFocus,
+};
 use crate::i18n::{Key, Lang};
 use crate::settings_storage::{lang_from_language, load_settings, speed_tier_from_preset};
 
@@ -49,9 +53,9 @@ pub(crate) struct DesktopApp {
     /// `memory_address_input` with the matched 4-digit address.
     pub(crate) memory_search_pattern: Option<String>,
     pub(crate) keyboard_modifiers: keyboard::Modifiers,
-    /// Cosmetic focus marker — iced 0.14 has no on_focus / on_blur.
+    /// Cosmetic focus marker – iced 0.14 has no on_focus / on_blur.
     pub(crate) focused_input: Option<&'static str>,
-    /// Cached for `MousePressed` — `ButtonPressed` carries identity
+    /// Cached for `MousePressed` – `ButtonPressed` carries identity
     /// only, not coordinates.
     pub(crate) latest_cursor_position: Point,
     pub(crate) running: bool,
@@ -77,7 +81,7 @@ pub(crate) struct DesktopApp {
     pub(crate) halt_notice: Option<String>,
     pub(crate) halt_notice_dismiss_at: Option<Instant>,
     /// Disables every execution-side button until reset. Outlives the
-    /// halt notice's 8-second fade — the contract is "until reset",
+    /// halt notice's 8-second fade – the contract is "until reset",
     /// not "until the message disappears".
     pub(crate) run_blocked_after_halt: bool,
     pub(crate) error_notice: Option<String>,
@@ -91,6 +95,33 @@ pub(crate) struct DesktopApp {
     pub(crate) dirty: bool,
     pub(crate) discard_modal_focus: DiscardModalButton,
     pub(crate) pending_action: Option<PendingAction>,
+    pub(crate) export_modal_open: bool,
+    pub(crate) export_tab: ExportTab,
+    pub(crate) export_modal_focus: ExportModalFocus,
+    pub(crate) export_xlsx_page_input: String,
+    pub(crate) export_text_section_input: String,
+    pub(crate) export_xlsx_pages: Vec<String>,
+    pub(crate) export_text_sections: Vec<String>,
+    pub(crate) export_xlsx_page_settings: Vec<ExportTargetSettings>,
+    pub(crate) export_text_section_settings: Vec<ExportTargetSettings>,
+    pub(crate) export_target_dropdown_open: bool,
+    pub(crate) export_target_highlight: Option<usize>,
+    pub(crate) export_memory_start_input: String,
+    pub(crate) export_memory_end_input: String,
+    pub(crate) export_memory_columns: ExportMemoryColumns,
+    pub(crate) export_registers: ExportRegisterSelection,
+    pub(crate) export_flags: ExportFlagSelection,
+    pub(crate) import_modal_open: bool,
+    pub(crate) import_modal_focus: ImportModalFocus,
+    pub(crate) import_file_path: Option<PathBuf>,
+    pub(crate) import_file_display: String,
+    pub(crate) import_file_format: Option<ImportFileFormat>,
+    pub(crate) import_target_options: Vec<String>,
+    pub(crate) import_target_input: String,
+    pub(crate) import_target_dropdown_open: bool,
+    pub(crate) import_target_highlight: Option<usize>,
+    pub(crate) import_target_scroll_visible_ticks: u8,
+    pub(crate) import_error: Option<String>,
     pub(crate) lang: Lang,
     pub(crate) default_speed: SpeedTier,
     pub(crate) settings_dialog: Option<SettingsDialog>,
@@ -190,6 +221,33 @@ impl DesktopApp {
             dirty: false,
             discard_modal_focus: DiscardModalButton::Cancel,
             pending_action: None,
+            export_modal_open: false,
+            export_tab: ExportTab::Xlsx,
+            export_modal_focus: ExportModalFocus::TabXlsx,
+            export_xlsx_page_input: lang.t(Key::ExportPageDefault).to_owned(),
+            export_text_section_input: lang.t(Key::ExportSectionDefault).to_owned(),
+            export_xlsx_pages: vec![lang.t(Key::ExportPageDefault).to_owned()],
+            export_text_sections: vec![lang.t(Key::ExportSectionDefault).to_owned()],
+            export_xlsx_page_settings: vec![ExportTargetSettings::default()],
+            export_text_section_settings: vec![ExportTargetSettings::default()],
+            export_target_dropdown_open: false,
+            export_target_highlight: None,
+            export_memory_start_input: "0000".to_owned(),
+            export_memory_end_input: "FFFF".to_owned(),
+            export_memory_columns: ExportMemoryColumns::default(),
+            export_registers: ExportRegisterSelection::default(),
+            export_flags: ExportFlagSelection::default(),
+            import_modal_open: false,
+            import_modal_focus: ImportModalFocus::Browse,
+            import_file_path: None,
+            import_file_display: String::new(),
+            import_file_format: None,
+            import_target_options: Vec::new(),
+            import_target_input: String::new(),
+            import_target_dropdown_open: false,
+            import_target_highlight: None,
+            import_target_scroll_visible_ticks: 0,
+            import_error: None,
             lang,
             default_speed,
             settings_dialog: None,
@@ -249,7 +307,7 @@ impl DesktopApp {
         self.info_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(5));
     }
 
-    /// Single chokepoint for halt-block sites — both the notice and
+    /// Single chokepoint for halt-block sites – both the notice and
     /// the run-block latch are armed here so callers can't forget
     /// one half.
     pub(crate) fn raise_halt_notice(&mut self) {

@@ -111,7 +111,7 @@ impl DesktopApp {
                 cycle_section(dialog, backward);
                 let target = dialog.section;
                 // iced has no global "blur" operation, so when we
-                // leave Search we focus a dummy id no widget owns —
+                // leave Search we focus a dummy id no widget owns –
                 // the focused text_input clears its caret on the
                 // next pass and Tab/Enter no longer route to it.
                 Some(match target {

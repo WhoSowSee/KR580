@@ -36,7 +36,7 @@ graphics command (3 bytes): [1 ccccccc] [x] [y]
 
 - Text commands write `(ch, color)` into the next text cell (cursor wraps at `39 * 20`).
 - Graphics commands write `(x, y, intensity)` into the pixel layer; rewriting the same coordinate replaces the previous intensity rather than appending.
-- The two layers coexist independently — a graphics command never touches the text buffer and vice versa.
+- The two layers coexist independently – a graphics command never touches the text buffer and vice versa.
 - `IN 00h` returns the device status byte (`Ready` → 0).
 
 `MonitorPhase` (`Idle | AwaitingTextChar | AwaitingGraphicsX | AwaitingGraphicsY`) is part of `MonitorState` so the inspection window can show whether the device is mid-command.
@@ -47,10 +47,10 @@ graphics command (3 bytes): [1 ccccccc] [x] [y]
 
 The window has two visual modes, toggled from the header button:
 
-- **unified** (default) — one 256×256 canvas with the pixel layer and the rasterised text layer composited on top, mirroring the original KP580 emulator's single-display behaviour. The text glyphs come from a bundled 5×7 ASCII font (`view::monitor_font`).
-- **split** — separate graphics and text blocks, each 1:1 with its source buffer. Useful when debugging a program that mixes layers and you need to see exactly which command wrote what.
+- **unified** (default) – one 256×256 canvas with the pixel layer and the rasterised text layer composited on top, mirroring the original KP580 emulator's single-display behaviour. The text glyphs come from a bundled 5×7 ASCII font (`view::monitor_font`).
+- **split** – separate graphics and text blocks, each 1:1 with its source buffer. Useful when debugging a program that mixes layers and you need to see exactly which command wrote what.
 
-Both modes share the meta strip (phase, text cursor, pixel count, last command) and the raw byte stream (`hex_buffer`). The window never writes back to the device — it is strictly a debug surface, matching `prompt/03_peripherals.md`'s rule that the hex buffer is a debug surface, not the primary state. See `docs/ui_app.md` for the rendering details.
+Both modes share the meta strip (phase, text cursor, pixel count, last command) and the raw byte stream (`hex_buffer`). The window never writes back to the device – it is strictly a debug surface, matching `prompt/03_peripherals.md`'s rule that the hex buffer is a debug surface, not the primary state. See `docs/ui_app.md` for the rendering details.
 
 ## Storage inspection windows
 

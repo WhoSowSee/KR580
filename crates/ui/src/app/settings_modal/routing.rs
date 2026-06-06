@@ -9,7 +9,7 @@ use crate::i18n::Lang;
 
 impl DesktopApp {
     /// Mirrors `route_discard_modal_message`: while the settings modal
-    /// is open, only messages that drive its own state pass through —
+    /// is open, only messages that drive its own state pass through –
     /// everything else (CtrlS, Tick, ArrowKey, ...) is swallowed so the
     /// rest of the app stays inert.
     pub(crate) fn route_settings_modal_message(
@@ -70,7 +70,7 @@ impl DesktopApp {
             Message::HorizontalArrowKey(direction) => {
                 Some(self.handle_settings_horizontal_arrow(*direction))
             }
-            Message::MousePressed => None,
+            Message::MousePressed | Message::MousePressedIgnored => None,
             _ => Some(Task::none()),
         }
     }
@@ -177,7 +177,7 @@ impl DesktopApp {
             return Task::none();
         }
         if dialog.language_dropdown_open {
-            // ArrowKey carries +1 for Up, -1 for Down — flip so a
+            // ArrowKey carries +1 for Up, -1 for Down – flip so a
             // visual Down moves to the next list item. Stop at the
             // ends instead of wrapping so the highlight doesn't
             // unexpectedly jump to the opposite edge.

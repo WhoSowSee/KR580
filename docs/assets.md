@@ -28,7 +28,7 @@ script handles both the application icon and the `.580` file-type icon).
 powershell -File scripts/generate_icons.ps1
 ```
 
-Uses `System.Drawing` (built into .NET on Windows) — no external
+Uses `System.Drawing` (built into .NET on Windows) – no external
 dependency required.
 
 ### Bash (Linux/macOS/WSL)
@@ -79,7 +79,7 @@ Two SVG icon families live alongside the PNG set:
 
 All SVGs are authored with `stroke="currentColor"` (or `fill="currentColor"`
 for the solid HDD glyph) so iced's `svg::Style { color: Some(...) }`
-callback can tint a single source file at any accent at runtime — no
+callback can tint a single source file at any accent at runtime – no
 per-colour duplicates. Files are embedded with `include_bytes!` at build
 time via the two macros in `icons.rs`; replacing a glyph is a recompile,
 not a runtime asset reload.

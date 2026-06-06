@@ -29,7 +29,7 @@ pub(crate) fn schematic_board_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
 }
 
-/// Divider slot under the menu bar — paints in the plate colour so it
+/// Divider slot under the menu bar – paints in the plate colour so it
 /// disappears visually while keeping the 1-px layout slot dropdowns
 /// position against.
 pub(crate) fn menu_bar_divider_style(_theme: &Theme) -> container::Style {
@@ -67,7 +67,7 @@ pub(crate) fn error_inset_style(_theme: &Theme) -> container::Style {
 
 /// `error_inset_style` for the passive "info" notice shown when a
 /// legacy-format `.580` is opened. Same plate-on-plate chrome but
-/// `TOKYO_YELLOW` border instead of `TOKYO_RED` — "heads up, not an
+/// `TOKYO_YELLOW` border instead of `TOKYO_RED` – "heads up, not an
 /// error".
 pub(crate) fn info_inset_style(_theme: &Theme) -> container::Style {
     surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_YELLOW)
@@ -106,7 +106,7 @@ pub(crate) fn mux_panel_style(_theme: &Theme) -> container::Style {
 }
 
 /// Outline-only chrome for individual chips inside the multiplexer
-/// (W/Z scratch pair, SP/PC inline readouts) — matches `mux_panel_style`
+/// (W/Z scratch pair, SP/PC inline readouts) – matches `mux_panel_style`
 /// at a smaller scale.
 pub(crate) fn mux_chip_style(_theme: &Theme) -> container::Style {
     surface_style(None, 6.0, 1.0, TOKYO_BORDER)
@@ -132,7 +132,7 @@ pub(crate) fn input_shell_style(_theme: &Theme, focused: bool) -> container::Sty
 
 /// Floating opcode picker. Matches the surrounding board panels so
 /// it reads as part of the same surface, not a darker pop-up. All
-/// four corners get the same radius — the picker floats over the
+/// four corners get the same radius – the picker floats over the
 /// memory list, so a square top edge would look clipped.
 pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
     container::Style {

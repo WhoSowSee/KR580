@@ -33,7 +33,7 @@ impl DesktopApp {
         scroll_memory_to(target_offset)
     }
 
-    /// Skips `SetPc` dispatch — sync round-trips were eating focus
+    /// Skips `SetPc` dispatch – sync round-trips were eating focus
     /// on the inline editor every ArrowUp/Down keystroke.
     pub(crate) fn step_memory_address_browse(&mut self, delta: i32) -> Task<Message> {
         let address = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
@@ -90,7 +90,7 @@ impl DesktopApp {
         self.sync_pc_to_cursor(address);
     }
 
-    /// Skipped when halted — PC sits past the halt opcode, and the
+    /// Skipped when halted – PC sits past the halt opcode, and the
     /// `SetPc` round-trip would race with the halt snapshot and bump
     /// the visible address forward on every click.
     pub(super) fn sync_pc_to_cursor(&mut self, address: u16) {

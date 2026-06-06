@@ -3,7 +3,7 @@ mod events;
 mod files;
 mod focus;
 mod focus_ops;
-mod humanize_error;
+pub(crate) mod humanize_error;
 mod memory;
 mod parse;
 mod register;

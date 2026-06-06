@@ -42,7 +42,7 @@ impl DesktopApp {
     }
 
     /// The pattern is cached on the first call so subsequent presses
-    /// iterate matches — every match overwrites the address input
+    /// iterate matches – every match overwrites the address input
     /// with a full hex code that would otherwise become the next
     /// pattern.
     pub(crate) fn find_next_memory_address_in_direction(

@@ -5,7 +5,7 @@ pub fn kind_at(opcode: u8, m_cycle_idx: usize, branch_taken: bool) -> Option<Mac
     kinds_for(opcode, branch_taken).get(m_cycle_idx).copied()
 }
 
-/// `HaltAck` / `InterruptAck` are not in this table — they depend on
+/// `HaltAck` / `InterruptAck` are not in this table – they depend on
 /// runtime state, the UI raises them via `derive_status_kind`.
 pub(crate) fn kinds_for(opcode: u8, branch_taken: bool) -> MachineCycleKinds {
     use MachineCycleKind::{
@@ -76,7 +76,7 @@ pub(crate) fn kinds_for(opcode: u8, branch_taken: bool) -> MachineCycleKinds {
         };
     }
     if opcode & 0xC7 == 0xC2 {
-        return &[M1Fetch, MemoryRead, MemoryRead]; // Jcond — operand always read
+        return &[M1Fetch, MemoryRead, MemoryRead]; // Jcond – operand always read
     }
     if opcode & 0xC7 == 0xC4 {
         return if branch_taken {
@@ -206,7 +206,7 @@ pub fn layout_for(opcode: u8) -> MachineCycleLayout {
         0x32 => MachineCycleLayout::fixed(&[4, 3, 3, 3]),  // STA
         0x3A => MachineCycleLayout::fixed(&[4, 3, 3, 3]),  // LDA
         // HLT layout is intentionally `[4]` (school convention) while
-        // `decode.rs` keeps the datasheet 7T total — guarded by a test.
+        // `decode.rs` keeps the datasheet 7T total – guarded by a test.
         0x76 => MachineCycleLayout::fixed(&[4]),
         0xC3 => MachineCycleLayout::fixed(&[4, 3, 3]), // JMP
         0xC6 | 0xCE | 0xD6 | 0xDE | 0xE6 | 0xEE | 0xF6 | 0xFE => MachineCycleLayout::fixed(&[4, 3]),

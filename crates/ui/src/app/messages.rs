@@ -21,6 +21,61 @@ pub(crate) enum SpeedTier {
     Max,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExportTab {
+    Xlsx,
+    Text,
+}
+
+impl ExportTab {
+    pub(crate) fn extension(self) -> &'static str {
+        match self {
+            Self::Xlsx => "xlsx",
+            Self::Text => "txt",
+        }
+    }
+
+    pub(crate) fn default_file_name(self) -> &'static str {
+        match self {
+            Self::Xlsx => "kr580_export.xlsx",
+            Self::Text => "kr580_export.txt",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExportMemoryColumn {
+    Address,
+    Value,
+    Command,
+    Comment,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExportRegister {
+    Accumulator,
+    W,
+    Z,
+    B,
+    C,
+    D,
+    E,
+    H,
+    L,
+    StackPointer,
+    ProgramCounter,
+    Cycles,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExportFlag {
+    Sign,
+    Zero,
+    AuxiliaryCarry,
+    Parity,
+    Carry,
+}
+
 pub(crate) use super::help::HelpNode;
 pub(crate) use super::settings_modal::SettingsCategory;
 
@@ -56,7 +111,26 @@ pub(crate) enum Message {
     OpenLegacySnapshot,
     NewFile,
     Export,
+    ExportTabSelected(ExportTab),
+    ToggleExportMemoryColumn(ExportMemoryColumn),
+    ToggleExportRegister(ExportRegister),
+    ToggleExportFlag(ExportFlag),
+    ExportMemoryStartChanged(String),
+    ExportMemoryEndChanged(String),
+    ExportTargetChanged(String),
+    ExportTargetDropdownToggled,
+    ExportTargetSelected(String),
+    ExportTargetAdd,
+    ExportTargetDelete,
+    ConfirmExport,
+    CancelExport,
     Import,
+    ImportFileBrowse,
+    ImportTargetDropdownToggled,
+    ImportTargetSelected(String),
+    ImportTargetScrolled,
+    ConfirmImport,
+    CancelImport,
     RegisterNameChanged(String),
     RegisterPrevious,
     RegisterNext,
@@ -111,6 +185,7 @@ pub(crate) enum Message {
     },
     CursorMoved(Point),
     MousePressed,
+    MousePressedIgnored,
     FocusReconciled(Option<iced::widget::Id>),
     ResolveFocusedTracker(Option<iced::widget::Id>),
     WindowOpened(iced::window::Id),

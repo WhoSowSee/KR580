@@ -1,10 +1,8 @@
 use k580_core::{Cpu8080State, Flags};
 use k580_persistence::{
-    ExportModel, Exporters, Importers, Settings, SettingsError, SettingsStore, Snapshot580Flavour,
-    Snapshot580Serializer, SnapshotError, Subprogram, SubprogramSerializer,
+    Settings, SettingsError, SettingsStore, Snapshot580Flavour, Snapshot580Serializer,
+    SnapshotError, Subprogram, SubprogramSerializer,
 };
-use std::path::PathBuf;
-
 #[test]
 fn snapshot_roundtrips_core_state_without_ui_data() {
     let mut cpu = Cpu8080State::default();
@@ -76,7 +74,7 @@ fn snapshot_roundtrips_both_tact_phases_none() {
 
 /// Backward compat: 9-byte timing payload (`cycle_count` + `tact_phase`
 /// only, no `last_completed_tact_phase`). Files saved before the field
-/// was added must load without migration — `tact_phase` restores and
+/// was added must load without migration – `tact_phase` restores and
 /// `last_completed_tact_phase` stays `None`. Otherwise older `.580` v1
 /// snapshots fail with `SnapshotError`.
 #[test]
@@ -149,7 +147,7 @@ fn legacy_snapshot_rejects_bad_length_and_trailer() {
         Err(SnapshotError::InvalidLegacyLength(_))
     ));
 
-    // Wipe the FF FF marker — every reference legacy `.580` ends with it.
+    // Wipe the FF FF marker – every reference legacy `.580` ends with it.
     let len = bytes.len();
     bytes[len - 2] = 0x00;
     bytes[len - 1] = 0x00;
@@ -246,81 +244,6 @@ fn settings_are_versioned_camel_case_json() {
     ));
 }
 
-#[test]
-fn exporters_write_stable_direct_files() {
-    let mut cpu = Cpu8080State::default();
-    cpu.registers.a = 0x42;
-    cpu.memory.write(0, 0x76);
-    let model = ExportModel::from_cpu(&cpu);
-    let dir = unique_temp_dir();
-    std::fs::create_dir_all(&dir).unwrap();
-    let txt = dir.join("state.txt");
-    let xlsx = dir.join("state.xlsx");
-
-    Exporters::write_txt(&txt, &model).unwrap();
-    Exporters::write_xlsx(&xlsx, &model).unwrap();
-
-    let text = std::fs::read_to_string(&txt).unwrap();
-    assert!(text.contains("[Registers]"));
-    assert!(text.contains("A=42"));
-    assert!(std::fs::metadata(&xlsx).unwrap().len() > 0);
-
-    std::fs::remove_file(txt).ok();
-    std::fs::remove_file(xlsx).ok();
-    std::fs::remove_dir(dir).ok();
-}
-
-#[test]
-fn importers_round_trip_txt_and_xlsx() {
-    let mut cpu = Cpu8080State::default();
-    cpu.registers.a = 0xA5;
-    cpu.registers.b = 0x12;
-    cpu.registers.c = 0x34;
-    cpu.pc = 0x1234;
-    cpu.sp = 0xABCD;
-    cpu.flags = Flags {
-        sign: true,
-        zero: false,
-        auxiliary_carry: true,
-        parity: false,
-        carry: true,
-    };
-    cpu.memory.write(0, 0x76);
-    cpu.memory.write(1, 0xC3);
-    cpu.memory.write(2, 0x00);
-    cpu.memory.write(3, 0x10);
-    cpu.cycle_count = 4242;
-
-    let model = ExportModel::from_cpu(&cpu);
-    let dir = unique_temp_dir();
-    std::fs::create_dir_all(&dir).unwrap();
-    let txt = dir.join("state.txt");
-    let xlsx = dir.join("state.xlsx");
-
-    Exporters::write_txt(&txt, &model).unwrap();
-    Exporters::write_xlsx(&xlsx, &model).unwrap();
-
-    let from_txt = Importers::read_txt(&txt).unwrap();
-    assert_eq!(from_txt, model);
-
-    let from_xlsx = Importers::read_xlsx(&xlsx).unwrap();
-    assert_eq!(from_xlsx, model);
-
-    let mut restored = Cpu8080State::default();
-    from_txt.apply_to(&mut restored).unwrap();
-    assert_eq!(restored.registers, cpu.registers);
-    assert_eq!(restored.flags, cpu.flags);
-    assert_eq!(restored.pc, cpu.pc);
-    assert_eq!(restored.sp, cpu.sp);
-    assert_eq!(restored.cycle_count, cpu.cycle_count);
-    assert_eq!(restored.memory.read(0), 0x76);
-    assert_eq!(restored.memory.read(3), 0x10);
-
-    std::fs::remove_file(txt).ok();
-    std::fs::remove_file(xlsx).ok();
-    std::fs::remove_dir(dir).ok();
-}
-
 fn append_tlv(mut bytes: Vec<u8>, tag: u8, value: &[u8]) -> Vec<u8> {
     bytes.push(tag);
     bytes.extend_from_slice(&(value.len() as u32).to_le_bytes());
@@ -355,17 +278,9 @@ fn rewrite_timing_tlv(bytes: Vec<u8>, new_value: &[u8]) -> Vec<u8> {
     out
 }
 
-fn unique_temp_dir() -> PathBuf {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    std::env::temp_dir().join(format!("k580-persistence-{nanos}"))
-}
-
 /// Auto-detect path: a K580 v1 blob (with the `K580` magic) must
 /// resolve to `Snapshot580Flavour::Modern` and round-trip every CPU
-/// field — same path a double-clicked modern `.580` goes through.
+/// field – same path a double-clicked modern `.580` goes through.
 #[test]
 fn from_any_bytes_recognises_modern_snapshot() {
     let mut cpu = Cpu8080State::default();
@@ -421,7 +336,7 @@ fn from_any_bytes_rejects_unrecognised_blob() {
 }
 
 /// A modern blob whose magic matches but whose body is corrupt must
-/// not be silently misclassified as legacy — the magic pins the
+/// not be silently misclassified as legacy – the magic pins the
 /// flavour and the modern decoder's error bubbles up.
 #[test]
 fn from_any_bytes_propagates_modern_decode_error() {

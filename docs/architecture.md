@@ -41,20 +41,20 @@ The worker thread in `k580-app::actor::run_worker` does not block on
 `recv()`. Instead it uses `crossbeam_channel::select!` to wait
 simultaneously on the command channel and a timer:
 
-- **Paused (`!emulator.is_running()`)** — the timer arm is wired to
+- **Paused (`!emulator.is_running()`)** – the timer arm is wired to
   `crossbeam_channel::never()`, so the `select!` degenerates to a plain
   command-channel `recv()`. The worker is fully idle until the UI sends
   the next command.
-- **Running (`emulator.is_running()`)** — the timer arm is wired to
+- **Running (`emulator.is_running()`)** – the timer arm is wired to
   `crossbeam_channel::after(deadline)`, where `deadline` depends on
   the active `RunMode`:
-  - `RunMode::Paced` (Slow / Medium / High speed tiers in the UI) —
+  - `RunMode::Paced` (Slow / Medium / High speed tiers in the UI) –
     the deadline is `emulator.step_interval()`. Each timer fire calls
     `emulator.tick()`, which advances exactly one instruction and
     emits `InstructionBoundaryReached`, `HaltStateChanged` (on halt),
     `Stopped` (on budget exhaustion or error), and a fresh
     `StateChanged`. The UI sees every step.
-  - `RunMode::Burst { slice }` (Max speed tier in the UI) — the
+  - `RunMode::Burst { slice }` (Max speed tier in the UI) – the
     deadline is `slice` (16 ms by default). Each timer fire calls
     `emulator.tick()`, which now runs an inner loop that keeps
     stepping the CPU until `slice` wall-time elapses, the per-session
@@ -83,12 +83,12 @@ This decoupling is what makes the UI animation visible at the paced
 tiers: the previous `Run` implementation called
 `cpu.run_until_halt(&mut bus, 100_000)` synchronously inside the
 worker, which produced exactly one `StateChanged` after the whole
-burst — the user only ever saw the final state. With the selector
+burst – the user only ever saw the final state. With the selector
 loop and `RunMode::Paced` the UI receives one snapshot per
 instruction, so the highlighted cell, registers, and PC step through
 the program live. `RunMode::Burst` is the explicit opt-out: the user
 asks for "доведи программу до конца", and the worker collapses
-thousands of instructions into a single snapshot per slice — *fewer*
+thousands of instructions into a single snapshot per slice – *fewer*
 snapshots than Paced, but each one is *farther apart* in program
 state, which is what makes Burst measurably faster than the highest
 paced tier even though both use a 1 ms-class deadline.

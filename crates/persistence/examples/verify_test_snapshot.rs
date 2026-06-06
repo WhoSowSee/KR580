@@ -1,7 +1,7 @@
 //! Loads `test_program.580` written by `make_test_snapshot` and runs the
 //! program through the core, asserting the post-HLT state matches the
 //! values promised in `make_test_snapshot.rs`. Pure smoke test for the
-//! generated snapshot — not part of the workspace test target because
+//! generated snapshot – not part of the workspace test target because
 //! the file is generated on demand.
 
 use std::path::PathBuf;

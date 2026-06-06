@@ -1,11 +1,11 @@
 //! Reusable chip helpers for the left schematic plate.
 //!
-//! - `schematic_readout` — fixed-footprint label + 20 px hex value.
-//! - `schematic_wide_readout` — same idea, full-width.
-//! - `schematic_mnemonic_readout` — 16 px value for full mnemonics.
-//! - `flag_strip` / `flag_dot` — Z/S/P/C/AC dot row.
-//! - `device_chip` — peripheral chip on the bottom strip.
-//! - `functional_block` — clickable register chip.
+//! - `schematic_readout` – fixed-footprint label + 20 px hex value.
+//! - `schematic_wide_readout` – same idea, full-width.
+//! - `schematic_mnemonic_readout` – 16 px value for full mnemonics.
+//! - `flag_strip` / `flag_dot` – Z/S/P/C/AC dot row.
+//! - `device_chip` – peripheral chip on the bottom strip.
+//! - `functional_block` – clickable register chip.
 
 use iced::widget::{Space, button, column, container, mouse_area, row, svg, text_input};
 use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
@@ -141,7 +141,7 @@ fn flag_dot(label: &'static str, active: bool) -> Element<'static, Message> {
 }
 
 /// `on_press` is `None` for chips whose target window is not wired up
-/// yet — the chip stays interactive (hover/tooltip) but its click is a
+/// yet – the chip stays interactive (hover/tooltip) but its click is a
 /// no-op so half-finished slots don't dispatch stale messages.
 pub(super) fn device_chip(
     handle: svg::Handle,

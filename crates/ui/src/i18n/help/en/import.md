@@ -1,8 +1,5 @@
-Import Subprogram (Ctrl+I) loads file contents into the current session without resetting memory or registers.
+Import (Ctrl+I) loads data from a TXT or XLSX file into the current session without fully resetting state.
 
-- File dialog opens
-- After selecting a file, you're prompted for the target address
-- File contents are written to RAM starting at the specified address
-- The rest of RAM and registers remain unchanged
-- Allows composing a program from multiple parts (e.g., main program + library)
-- Undoable (Ctrl+Z)
+Choose the file in the import window first. XLSX files expose a sheet selector when the workbook has sheets. TXT files expose a section selector when the file was saved as several named blocks. If a TXT file has no separate sections, the whole file is imported.
+
+After confirmation, imported registers, flags, and RAM cells overwrite the current values. Other memory cells stay unchanged.

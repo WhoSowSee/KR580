@@ -1,13 +1,13 @@
 Key features:
 
-- Step-by-step execution (tact / instruction)
-- Automatic execution with configurable speed (1 to 1000+ instr/sec)
+- Step-by-step execution by tact or full instruction
+- Automatic execution with configurable speed
 - Live register and RAM editing, including inline editing on the schematic
-- Full state save/load (.kr580 binary format: memory, registers, flags, devices)
-- Legacy .sav format support from the original emulator
-- Subprogram import and memory block export
-- External devices: monitor (text + graphics), floppy, HDD, network, printer
-- Undo/Redo with 100-step history
+- Full state save/load in `.580`
+- Legacy `.580` compatibility with the original emulator
+- TXT/XLSX import by sheets and sections, plus memory block export
+- External devices: monitor, floppy, HDD, network, printer
+- Undo/Redo with 256 history entries
 - UI localization: Russian and English
 - Configurable default execution speed
-- Opcode picker dropdown with search (all 244 instructions)
+- Opcode picker dropdown with search across all 244 documented instructions
