@@ -244,6 +244,7 @@ impl DesktopApp {
                     l: self.display_register_value(RegisterName::L),
                 },
                 lang,
+                !self.register_name_input.is_empty(),
             ),
             status_register_block,
         ]

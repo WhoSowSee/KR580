@@ -61,6 +61,9 @@ impl DesktopApp {
             self.selected_register = register;
             self.register_value_input =
                 format!("{:02X}", self.snapshot.cpu.registers.get(register));
+            self.active_register_target = Some(RegisterInlineTarget::for_register(register));
+        } else {
+            self.register_value_input.clear();
         }
     }
 
@@ -174,7 +177,7 @@ impl DesktopApp {
         let index = register_index(self.selected_register);
         let len = REGISTER_ORDER.len() as i32;
         let next = (index as i32 + delta).rem_euclid(len) as usize;
-        self.select_register(REGISTER_ORDER[next]);
+        self.select_register_target(RegisterInlineTarget::for_register(REGISTER_ORDER[next]));
     }
 
     /// Tags the undo entry with `(before, after)` so Ctrl+Z restores
@@ -188,6 +191,9 @@ impl DesktopApp {
     /// Inlines the dispatch instead of going through `dispatch_with_undo`
     /// so the undo entry can carry the optional register selection.
     fn apply_register_inner(&mut self, register_selection: Option<(RegisterName, RegisterName)>) {
+        if self.register_name_input.is_empty() {
+            return;
+        }
         if let Some(register) = parse_register_name(&self.register_name_input) {
             self.selected_register = register;
         } else {
@@ -217,6 +223,9 @@ impl DesktopApp {
     }
 
     pub(crate) fn apply_register_and_step(&mut self, backward: bool) -> Task<Message> {
+        if self.register_name_input.is_empty() {
+            return Task::none();
+        }
         let stay_on_value = self.focused_input == Some(REGISTER_VALUE_INPUT_ID);
         let delta = if backward { -1 } else { 1 };
         let register_before = self.selected_register;

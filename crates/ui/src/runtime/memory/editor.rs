@@ -23,6 +23,8 @@ impl DesktopApp {
         if let Ok(address) = parse_hex_u16(&self.memory_address_input) {
             self.refresh_memory_value(address);
             self.sync_pc_to_cursor(address);
+        } else {
+            self.memory_value_input.clear();
         }
     }
 

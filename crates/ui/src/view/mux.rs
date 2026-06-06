@@ -29,6 +29,7 @@ struct MuxEditState<'a> {
     active_target: Option<RegisterInlineTarget>,
     hovered_target: Option<RegisterInlineTarget>,
     input_value: &'a str,
+    has_selection: bool,
 }
 
 pub(super) struct MuxRegisterValues {
@@ -53,6 +54,7 @@ pub(super) fn mux_panel<'a>(
     input_value: &'a str,
     values: MuxRegisterValues,
     lang: Lang,
+    has_register_selection: bool,
 ) -> Element<'a, Message> {
     let edit_state = MuxEditState {
         selected,
@@ -60,6 +62,7 @@ pub(super) fn mux_panel<'a>(
         active_target,
         hovered_target,
         input_value,
+        has_selection: has_register_selection,
     };
 
     let scratch_group = container(
@@ -241,8 +244,10 @@ fn mux_register_cell(
     let target = RegisterInlineTarget::Mux(register);
     let is_selected = if edit_state.active_target.is_some() {
         edit_state.active_target == Some(target)
-    } else {
+    } else if edit_state.has_selection {
         register == edit_state.selected
+    } else {
+        false
     };
     let editing = edit_state.inline_target == Some(target);
     let hovered = edit_state.hovered_target == Some(target);

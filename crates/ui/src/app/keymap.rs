@@ -4,7 +4,7 @@ use super::constants::{
     MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, REGISTER_INLINE_INPUT_ID,
     REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
 };
-use super::messages::Message;
+use super::messages::{Message, RegisterInlineTarget};
 use super::register_inline::RegisterMove;
 use super::state::DesktopApp;
 
@@ -18,16 +18,35 @@ impl DesktopApp {
 
         match self.focused_input {
             Some(REGISTER_NAME_INPUT_ID) => {
-                self.step_register(-direction);
+                if self.register_name_input.is_empty() {
+                    self.select_register_target(RegisterInlineTarget::for_register(
+                        k580_core::RegisterName::A,
+                    ));
+                } else {
+                    self.step_register(-direction);
+                }
                 Task::none()
             }
             Some(REGISTER_VALUE_INPUT_ID) => {
-                self.step_register_value_input(direction);
+                if self.register_name_input.is_empty() {
+                    self.select_register_target(RegisterInlineTarget::for_register(
+                        k580_core::RegisterName::A,
+                    ));
+                } else {
+                    self.step_register_value_input(direction);
+                }
                 Task::none()
             }
             Some(REGISTER_INLINE_INPUT_ID) => {
-                self.step_register_value_input(direction);
-                iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID)
+                if self.register_name_input.is_empty() {
+                    self.select_register_target(RegisterInlineTarget::for_register(
+                        k580_core::RegisterName::A,
+                    ));
+                    Task::none()
+                } else {
+                    self.step_register_value_input(direction);
+                    iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID)
+                }
             }
             Some(MEMORY_VALUE_INPUT_ID) => {
                 self.step_memory_value_input(direction);
@@ -42,15 +61,19 @@ impl DesktopApp {
                 scroll.chain(Task::done(Message::RefocusInline))
             }
             None if self.active_register_target.is_some() => {
-                let movement = if direction > 0 {
-                    RegisterMove::Up
-                } else {
-                    RegisterMove::Down
-                };
-                self.navigate_active_register_target(movement);
+                self.step_register(-direction);
                 Task::none()
             }
-            _ => self.step_memory_address(-direction),
+            _ => {
+                if self.register_name_input.is_empty() && self.memory_address_input.is_empty() {
+                    self.select_register_target(RegisterInlineTarget::for_register(
+                        k580_core::RegisterName::A,
+                    ));
+                    Task::none()
+                } else {
+                    self.step_memory_address(-direction)
+                }
+            }
         }
     }
 

@@ -91,6 +91,13 @@ impl RegisterInlineTarget {
             Self::Schematic(register) | Self::Mux(register) => register,
         }
     }
+
+    pub(crate) fn for_register(register: RegisterName) -> Self {
+        match register {
+            RegisterName::A => Self::Schematic(register),
+            _ => Self::Mux(register),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

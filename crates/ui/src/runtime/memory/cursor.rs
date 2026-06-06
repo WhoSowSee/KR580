@@ -18,6 +18,10 @@ impl DesktopApp {
     }
 
     pub(crate) fn step_memory_address(&mut self, delta: i32) -> Task<Message> {
+        if self.memory_address_input.is_empty() {
+            self.select_memory(0x0000);
+            return Task::none();
+        }
         let address = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
         let next = step_address(address, delta);
         self.select_memory(next);
@@ -36,6 +40,12 @@ impl DesktopApp {
     /// Skips `SetPc` dispatch – sync round-trips were eating focus
     /// on the inline editor every ArrowUp/Down keystroke.
     pub(crate) fn step_memory_address_browse(&mut self, delta: i32) -> Task<Message> {
+        if self.memory_address_input.is_empty() {
+            self.memory_address_input = "0000".to_owned();
+            self.refresh_memory_value(0x0000);
+            self.memory_search_pattern = None;
+            return Task::none();
+        }
         let address = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
         let next = step_address(address, delta);
 

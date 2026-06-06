@@ -41,13 +41,20 @@ pub(super) fn bounded_hex_input(input: &str, max_len: usize) -> Option<String> {
     Some(input.to_ascii_uppercase())
 }
 
+const VALID_REGISTER_CHARS: [char; 7] = ['A', 'B', 'C', 'D', 'E', 'H', 'L'];
+
 pub(super) fn bounded_register_input(input: &str) -> Option<String> {
     let input = input.trim();
     if input.len() > 1 {
         return None;
     }
 
-    Some(input.to_ascii_uppercase())
+    let upper = input.to_ascii_uppercase();
+    if upper.is_empty() || upper.chars().all(|c| VALID_REGISTER_CHARS.contains(&c)) {
+        Some(upper)
+    } else {
+        None
+    }
 }
 
 pub(super) fn register_index(register: RegisterName) -> usize {

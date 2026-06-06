@@ -145,13 +145,8 @@ impl DesktopApp {
         if self.active_register_target.is_some() {
             self.active_register_target = None;
             self.inline_register_target = None;
-            self.selected_register = k580_core::RegisterName::A;
-            self.register_name_input =
-                crate::app::register_name(k580_core::RegisterName::A).to_owned();
-            self.register_value_input = format!(
-                "{:02X}",
-                self.snapshot.cpu.registers.get(k580_core::RegisterName::A)
-            );
+            self.register_name_input.clear();
+            self.register_value_input.clear();
             return resolve;
         }
         if self.selected_memory_address().is_some() {

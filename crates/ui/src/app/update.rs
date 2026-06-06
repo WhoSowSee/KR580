@@ -5,7 +5,7 @@ use super::constants::{
     MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID, REGISTER_INLINE_INPUT_ID,
     REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
 };
-use super::messages::Message;
+use super::messages::{Message, RegisterInlineTarget};
 use super::state::{DesktopApp, PendingAction};
 use crate::platform;
 
@@ -106,13 +106,29 @@ impl DesktopApp {
                 }
             }
             Message::RegisterNameChanged(value) => {
-                self.change_register_name(value);
                 self.active_register_target = None;
                 self.inline_register_target = None;
+                self.change_register_name(value);
                 self.focused_input = Some(REGISTER_NAME_INPUT_ID);
             }
-            Message::RegisterPrevious => self.step_register(-1),
-            Message::RegisterNext => self.step_register(1),
+            Message::RegisterPrevious => {
+                if self.register_name_input.is_empty() {
+                    self.select_register_target(RegisterInlineTarget::for_register(
+                        k580_core::RegisterName::A,
+                    ));
+                } else {
+                    self.step_register(-1);
+                }
+            }
+            Message::RegisterNext => {
+                if self.register_name_input.is_empty() {
+                    self.select_register_target(RegisterInlineTarget::for_register(
+                        k580_core::RegisterName::A,
+                    ));
+                } else {
+                    self.step_register(1);
+                }
+            },
             Message::RegisterValueChanged(value) => {
                 // No focus op: queued ops race later clicks and steal focus.
                 self.change_register_value(value);
