@@ -32,11 +32,18 @@ fn intensity_to_rgb(intensity: u8) -> [u8; 3] {
     [r, g, b]
 }
 
+const FRAMEBUFFER_PADDING: usize = 4;
+
 fn render_rgb_buffer(state: &MonitorState) -> (Vec<u8>, usize, usize) {
     let text_w = TEXT_COLS as usize * CELL_WIDTH;
     let text_h = TEXT_ROWS as usize * CELL_HEIGHT;
-    let width = (GRAPHICS_WIDTH as usize).max(text_w);
-    let height = (GRAPHICS_HEIGHT as usize).max(text_h);
+    let content_w = (GRAPHICS_WIDTH as usize).max(text_w);
+    let content_h = (GRAPHICS_HEIGHT as usize).max(text_h);
+    let width = content_w + FRAMEBUFFER_PADDING * 2;
+    let height = content_h + FRAMEBUFFER_PADDING * 2;
+
+    let off_x = FRAMEBUFFER_PADDING;
+    let off_y = FRAMEBUFFER_PADDING;
 
     let mut buf = vec![0u8; width * height * 3];
 
@@ -44,8 +51,8 @@ fn render_rgb_buffer(state: &MonitorState) -> (Vec<u8>, usize, usize) {
         if intensity == 0 {
             continue;
         }
-        let px = x as usize;
-        let py = y as usize;
+        let px = off_x + x as usize;
+        let py = off_y + y as usize;
         if px >= width || py >= height {
             continue;
         }
@@ -68,8 +75,8 @@ fn render_rgb_buffer(state: &MonitorState) -> (Vec<u8>, usize, usize) {
                 continue;
             }
             let rgb = intensity_to_rgb(cell.color);
-            let origin_x = c * CELL_WIDTH;
-            let origin_y = r * CELL_HEIGHT;
+            let origin_x = off_x + c * CELL_WIDTH;
+            let origin_y = off_y + r * CELL_HEIGHT;
             for gy in 0..GLYPH_HEIGHT {
                 for gx in 0..GLYPH_WIDTH {
                     if !pixel_lit(cell.ch, gx, gy) {
