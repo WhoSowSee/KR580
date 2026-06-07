@@ -2091,6 +2091,7 @@ name = "k580-ui"
 version = "0.1.0"
 dependencies = [
  "iced",
+ "image",
  "k580-app",
  "k580-core",
  "k580-persistence",

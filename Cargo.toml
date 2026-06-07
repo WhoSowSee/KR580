@@ -25,5 +25,6 @@ crossbeam-channel = "0.5"
 iced = { version = "0.14.0", features = ["tokio"] }
 rfd = "0.15"
 png = "0.17"
+image = "0.25"
 rust_xlsxwriter = "0.92"
 calamine = "0.35"

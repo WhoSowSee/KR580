@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::app::{DesktopApp, ExportTab, StatusKind};
 use crate::i18n::Key;
+use crate::view::monitor_image::MonitorImageFormat;
 use k580_app::AppCommand;
 
 use super::parse::parse_hex_u16;
@@ -145,18 +146,11 @@ pub(super) fn normalise_export_path_for_format(path: PathBuf, format: ExportTab)
 
 impl DesktopApp {
     pub(crate) fn save_monitor_image(&mut self) {
-        let bytes =
-            match crate::view::monitor_image::render_monitor_png(&self.snapshot.devices.monitor) {
-                Ok(b) => b,
-                Err(err) => {
-                    tracing::error!("save monitor image: render: {err}");
-                    self.set_status_custom(self.lang.t(Key::MonitorImageSaveFailed).to_owned());
-                    return;
-                }
-            };
-
         let mut dialog = rfd::FileDialog::new()
             .add_filter("PNG image", &["png"])
+            .add_filter("JPEG image", &["jpg", "jpeg"])
+            .add_filter("WebP image", &["webp"])
+            .add_filter("BMP image", &["bmp"])
             .set_file_name("monitor.png");
         if let Some(current) = &self.current_snapshot_path
             && let Some(parent) = current.parent()
@@ -168,12 +162,29 @@ impl DesktopApp {
             return;
         };
 
-        let path = match path.extension().and_then(|s| s.to_str()) {
-            Some(ext) if ext.eq_ignore_ascii_case("png") => path,
-            _ => {
-                let mut s = path.into_os_string();
-                s.push(".png");
-                PathBuf::from(s)
+        let format = match path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|e| e.to_ascii_lowercase())
+            .as_deref()
+        {
+            Some("jpg") | Some("jpeg") => MonitorImageFormat::Jpeg,
+            Some("webp") => MonitorImageFormat::WebP,
+            Some("bmp") => MonitorImageFormat::Bmp,
+            _ => MonitorImageFormat::Png,
+        };
+
+        let path = normalise_image_path(path, format);
+
+        let bytes = match crate::view::monitor_image::render_monitor_image(
+            &self.snapshot.devices.monitor,
+            format,
+        ) {
+            Ok(b) => b,
+            Err(err) => {
+                tracing::error!("save monitor image: render: {err}");
+                self.set_status_custom(self.lang.t(Key::MonitorImageSaveFailed).to_owned());
+                return;
             }
         };
 
@@ -186,6 +197,19 @@ impl DesktopApp {
         self.set_status(StatusKind::MonitorImageSaved {
             display: path.display().to_string(),
         });
+    }
+}
+
+fn normalise_image_path(path: PathBuf, format: MonitorImageFormat) -> PathBuf {
+    let ext = format.extension();
+    match path.extension().and_then(|s| s.to_str()) {
+        Some(e) if e.eq_ignore_ascii_case(ext) => path,
+        _ => {
+            let mut s = path.into_os_string();
+            s.push(".");
+            s.push(ext);
+            PathBuf::from(s)
+        }
     }
 }
 

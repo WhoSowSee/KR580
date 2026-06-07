@@ -13,6 +13,7 @@ k580-persistence = { path = "../persistence" }
 iced = { workspace = true, features = ["image", "svg", "canvas", "advanced"] }
 rfd.workspace = true
 png.workspace = true
+image.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 
