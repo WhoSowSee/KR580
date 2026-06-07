@@ -72,7 +72,7 @@ pub(crate) enum HelpNode {
 }
 
 impl HelpNode {
-    pub(crate) const ROOTS: [Self; 17] = [
+    pub(crate) const ROOTS: [Self; 12] = [
         Self::CatIntroduction,
         Self::CatSystemComposition,
         Self::CatCpuArchitecture,
@@ -85,11 +85,6 @@ impl HelpNode {
         Self::CatWorkflow,
         Self::CatCommandReference,
         Self::CatShortcuts,
-        Self::TopicArchitecture,
-        Self::TopicRegisters,
-        Self::TopicFlagsRegister,
-        Self::TopicMemoryIoSpaces,
-        Self::TopicIoCommands,
     ];
 
     pub(crate) fn children(self) -> &'static [Self] {
