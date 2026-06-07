@@ -73,7 +73,7 @@ impl DesktopApp {
         self.dispatch_sync(command);
         let after = self.snapshot.cpu.clone();
         if before != after {
-            self.dirty = true;
+            self.recompute_dirty();
         }
         self.undo_stack.push_cpu(before, after);
     }

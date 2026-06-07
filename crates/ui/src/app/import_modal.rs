@@ -169,7 +169,7 @@ impl DesktopApp {
             return Task::none();
         }
         self.undo_stack.clear();
-        self.dirty = false;
+        self.mark_saved();
         self.set_status(StatusKind::ImportFrom { display });
         Task::none()
     }

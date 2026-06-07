@@ -84,7 +84,7 @@ impl DesktopApp {
             return Task::none();
         };
         self.discard_modal_focus = DiscardModalButton::Cancel;
-        self.dirty = false;
+        self.mark_saved();
         match action {
             PendingAction::OpenSnapshot => Task::done(Message::OpenSnapshot),
             PendingAction::NewFile => Task::done(Message::NewFile),

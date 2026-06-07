@@ -27,7 +27,7 @@ impl DesktopApp {
         }
         self.current_snapshot_path = Some(path);
         self.undo_stack.clear();
-        self.dirty = false;
+        self.mark_saved();
         self.speed_tier = self.default_speed;
         let pc = self.snapshot.cpu.pc;
         self.set_memory_address(pc);
@@ -55,7 +55,7 @@ impl DesktopApp {
         if self.error_notice.is_some() {
             return;
         }
-        self.dirty = false;
+        self.mark_saved();
         self.set_status(StatusKind::SavedTo { display });
     }
 
@@ -80,7 +80,7 @@ impl DesktopApp {
             return;
         }
         self.current_snapshot_path = Some(path);
-        self.dirty = false;
+        self.mark_saved();
         self.set_status(StatusKind::SavedTo { display });
     }
 

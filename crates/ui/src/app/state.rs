@@ -85,6 +85,7 @@ pub(crate) struct DesktopApp {
     pub(crate) menu_categories_visible: bool,
     pub(crate) undo_stack: UndoStack,
     pub(crate) dirty: bool,
+    pub(crate) saved_cpu: k580_core::Cpu8080State,
     pub(crate) discard_modal_focus: DiscardModalButton,
     pub(crate) pending_action: Option<PendingAction>,
     pub(crate) export_modal_open: bool,
@@ -207,6 +208,7 @@ impl DesktopApp {
             menu_categories_visible: true,
             undo_stack: UndoStack::default(),
             dirty: false,
+            saved_cpu: k580_core::Cpu8080State::default(),
             discard_modal_focus: DiscardModalButton::Cancel,
             pending_action: None,
             export_modal_open: false,
@@ -300,9 +302,18 @@ impl DesktopApp {
         self.running = false;
         self.current_snapshot_path = None;
         self.undo_stack.clear();
-        self.dirty = false;
+        self.mark_saved();
         self.speed_tier = self.default_speed;
         self.set_status(StatusKind::NewFile);
+    }
+
+    pub(crate) fn mark_saved(&mut self) {
+        self.dirty = false;
+        self.saved_cpu = self.snapshot.cpu.clone();
+    }
+
+    pub(crate) fn recompute_dirty(&mut self) {
+        self.dirty = self.snapshot.cpu != self.saved_cpu;
     }
 
     pub(crate) fn apply_speed_tier(&mut self, tier: SpeedTier) {

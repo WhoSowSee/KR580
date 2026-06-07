@@ -207,7 +207,7 @@ impl DesktopApp {
                 self.dispatch_sync(AppCommand::SetRegister(self.selected_register, value));
                 let after = self.snapshot.cpu.clone();
                 if before != after {
-                    self.dirty = true;
+                    self.recompute_dirty();
                 }
                 match register_selection {
                     Some(selection) => self.undo_stack.push_cpu_with_register_selection(

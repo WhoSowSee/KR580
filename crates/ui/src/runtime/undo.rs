@@ -71,6 +71,7 @@ impl DesktopApp {
     ) -> Task<Message> {
         self.running = false;
         self.dispatch_sync(AppCommand::ApplyCpuState(Box::new(state)));
+        self.recompute_dirty();
         let memory_task = self.follow_pc_into_memory_list();
         if let Some(register) = register_selection {
             self.select_register(register);
