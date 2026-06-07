@@ -18,4 +18,4 @@ pub(super) const CONTENT_PADDING: f32 = 20.0;
 /// language dropdown overlay re-uses this value to position itself
 /// directly under the anchor without re-measuring the row.
 pub(super) const SETTING_ROW_HEIGHT: f32 = 44.0;
-pub(super) const SPEED_SEGMENT_WIDTH: f32 = 68.0;
+pub(super) const SPEED_SEGMENT_WIDTH: f32 = 80.0;

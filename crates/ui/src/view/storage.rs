@@ -84,11 +84,7 @@ fn header<'a>(
     show_image_contents: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let debug_icon = if state.debug_buffer {
-        icons::bug()
-    } else {
-        icons::bug_off()
-    };
+    let debug_icon = icons::bug();
 
     row![
         Space::new().width(Length::Fill),

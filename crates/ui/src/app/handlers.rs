@@ -33,8 +33,15 @@ impl DesktopApp {
         // inside one tick: by the time we read `running` here it's
         // already false.
         if self.running || self.pending_follow_pc {
+            let was_pending = self.pending_follow_pc;
             self.pending_follow_pc = false;
-            return self.follow_pc_during_run();
+            if was_pending {
+                return self.follow_pc_during_run();
+            }
+            if self.follow_pc {
+                return self.follow_pc_during_run();
+            }
+            self.track_pc_in_place();
         }
         Task::none()
     }

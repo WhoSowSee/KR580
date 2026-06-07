@@ -245,6 +245,7 @@ impl DesktopApp {
                 },
                 lang,
                 !self.register_name_input.is_empty(),
+                self.running,
             ),
             status_register_block,
         ]

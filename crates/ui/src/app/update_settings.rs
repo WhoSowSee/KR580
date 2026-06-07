@@ -22,7 +22,11 @@ impl DesktopApp {
             Message::OpenSettings => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                self.settings_dialog = Some(SettingsDialog::new(self.lang, self.default_speed));
+                self.settings_dialog = Some(SettingsDialog::new(
+                    self.lang,
+                    self.default_speed,
+                    self.follow_pc,
+                ));
                 Some(Task::none())
             }
             Message::CloseSettings => {
@@ -32,6 +36,7 @@ impl DesktopApp {
                     let speed_changed = self.default_speed != dialog.original_speed
                         || self.speed_tier != dialog.original_speed;
                     self.default_speed = dialog.original_speed;
+                    self.follow_pc = dialog.original_follow_pc;
                     if speed_changed {
                         self.apply_speed_tier(dialog.original_speed);
                     }
@@ -52,6 +57,9 @@ impl DesktopApp {
                 let mut settings = load_settings();
                 settings.general.language = language_from_lang(self.lang);
                 settings.general.default_speed = preset_from_speed_tier(self.default_speed);
+                if let Some(dialog) = self.settings_dialog.as_ref() {
+                    settings.general.follow_pc = dialog.draft_follow_pc;
+                }
                 save_settings(&settings);
                 Some(Task::none())
             }
@@ -88,6 +96,13 @@ impl DesktopApp {
                 }
                 self.default_speed = tier;
                 self.apply_speed_tier(tier);
+                Some(Task::none())
+            }
+            Message::SettingsDraftFollowPcSet(value) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_follow_pc = value;
+                }
+                self.follow_pc = value;
                 Some(Task::none())
             }
             Message::SettingsLanguageDropdownToggled => {

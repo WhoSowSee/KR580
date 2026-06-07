@@ -200,6 +200,11 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsLanguageHint => "Application interface language",
         Key::SettingsSpeedLabel => "Speed",
         Key::SettingsSpeedHint => "Default speed for all files",
+        Key::SettingsFollowPcLabel => "Follow PC",
+        Key::SettingsFollowPcHint => "Move highlight with program counter during execution",
+        Key::SettingsToggleOn => "On",
+        Key::SettingsToggleOff => "Off",
+
         Key::SettingsThemeLabel => "Theme",
         Key::SettingsThemeHint => "Interface theme",
         Key::SettingsThemePlaceholder => "Coming soon",

@@ -20,5 +20,7 @@ pub(super) use containers::{
     mux_header_style, mux_panel_style, opcode_dropdown_style, panel_style, schematic_block_style,
     schematic_board_style, solid_style, status_tooltip_style, transparent_style,
 };
-pub(super) use inputs::{inline_value_input_style, input_borderless_style};
+pub(super) use inputs::{
+    disabled_input_borderless_style, inline_value_input_style, input_borderless_style,
+};
 pub(super) use scrollable::scrollable_style;

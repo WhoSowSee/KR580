@@ -2,12 +2,13 @@ use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
 
 use super::super::theme::{TOKYO_MUTED, ui_text};
+use super::setting_row::setting_row;
 use super::consts::{CONTENT_PADDING, SETTING_ROW_HEIGHT};
 use super::language::{language_dropdown_list, language_setting_row};
 use super::shortcuts_row::shortcuts_setting_row;
 use super::speed::speed_setting_row;
 use super::theme_row::theme_setting_row;
-use crate::app::{Message, SettingsCategory, SettingsDialog};
+use crate::app::{ContentFocus, Message, SettingsCategory, SettingsDialog, SettingsSection};
 use crate::i18n::{Key, Lang};
 
 pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
@@ -130,6 +131,13 @@ fn collect_category_rows<'a>(
             ) {
                 out.push(speed_setting_row(dialog, lang));
             }
+            if matches_query(
+                &[Key::SettingsFollowPcLabel, Key::SettingsFollowPcHint],
+                lang,
+                lower_query,
+            ) {
+                out.push(follow_pc_toggle_row(dialog, lang));
+            }
         }
         SettingsCategory::Appearance => {
             if matches_query(
@@ -154,6 +162,38 @@ fn collect_category_rows<'a>(
 
 fn group_header(label: &'static str) -> Element<'static, Message> {
     ui_text(label, 11, TOKYO_MUTED).into()
+}
+
+fn follow_pc_toggle_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
+    use super::speed::segmented_button;
+
+    let kb_focus = (dialog.section == SettingsSection::Content)
+        .then_some(dialog.content_focus)
+        .flatten();
+
+    let kb_focused = kb_focus == Some(ContentFocus::FollowPc);
+
+    let segments = row![
+        segmented_button(
+            lang.t(Key::SettingsToggleOn),
+            dialog.draft_follow_pc,
+            kb_focused,
+            Message::SettingsDraftFollowPcSet(true),
+        ),
+        segmented_button(
+            lang.t(Key::SettingsToggleOff),
+            !dialog.draft_follow_pc,
+            false,
+            Message::SettingsDraftFollowPcSet(false),
+        ),
+    ]
+    .spacing(6);
+
+    setting_row(
+        lang.t(Key::SettingsFollowPcLabel),
+        lang.t(Key::SettingsFollowPcHint),
+        segments.into(),
+    )
 }
 
 pub(super) fn matches_query(keys: &[Key], lang: Lang, lower_query: &str) -> bool {

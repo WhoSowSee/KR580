@@ -35,6 +35,7 @@ impl DesktopApp {
             | Message::SettingsSearchChanged(_)
             | Message::SettingsDraftLanguageChanged(_)
             | Message::SettingsDraftSpeedChanged(_)
+            | Message::SettingsDraftFollowPcSet(_)
             | Message::SettingsLanguageDropdownToggled
             | Message::SettingsResetRequested
             | Message::SettingsResetConfirmed
@@ -111,6 +112,10 @@ impl DesktopApp {
             }
             ContentFocus::SpeedMax => {
                 Task::done(Message::SettingsDraftSpeedChanged(SpeedTier::Max))
+            }
+            ContentFocus::FollowPc => {
+                let current = dialog.draft_follow_pc;
+                Task::done(Message::SettingsDraftFollowPcSet(!current))
             }
             ContentFocus::Theme => Task::none(),
             ContentFocus::Shortcuts => Task::none(),

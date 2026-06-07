@@ -21,7 +21,7 @@ pub(super) fn parse_hex_u8(input: &str) -> Result<u8, String> {
     u8::from_str_radix(hex_digits(input), 16).map_err(|_| format!("Invalid byte hex: {input}"))
 }
 
-pub(super) fn parse_hex_u16(input: &str) -> Result<u16, String> {
+pub(crate) fn parse_hex_u16(input: &str) -> Result<u16, String> {
     u16::from_str_radix(hex_digits(input), 16).map_err(|_| format!("Invalid address hex: {input}"))
 }
 

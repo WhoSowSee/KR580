@@ -82,6 +82,7 @@ pub(crate) struct DesktopApp {
 
     pub(crate) window_id: Option<iced::window::Id>,
     pub(crate) window_maximized: bool,
+    pub(crate) follow_pc: bool,
     pub(crate) menu_categories_visible: bool,
     pub(crate) undo_stack: UndoStack,
     pub(crate) dirty: bool,
@@ -157,6 +158,7 @@ impl DesktopApp {
         let settings = load_settings();
         let lang = lang_from_language(settings.general.language);
         let default_speed = speed_tier_from_preset(settings.general.default_speed);
+        let follow_pc = settings.general.follow_pc;
         let initial_status_kind = StatusKind::Ready;
         let initial_status = initial_status_kind
             .render(lang)
@@ -206,6 +208,7 @@ impl DesktopApp {
             window_id: None,
             window_maximized: false,
             menu_categories_visible: true,
+            follow_pc,
             undo_stack: UndoStack::default(),
             dirty: false,
             saved_cpu: k580_core::Cpu8080State::default(),

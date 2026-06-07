@@ -8,10 +8,12 @@ use iced::widget::{column, container, row, text_input};
 use iced::{Element, Length, Padding, alignment};
 
 use super::icons;
-use super::styles::{input_borderless_style, input_shell_style};
+use super::styles::{
+    disabled_input_borderless_style, input_borderless_style, input_shell_style,
+};
 use super::theme::{MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_RED, TOKYO_YELLOW};
 use super::tooltips::shortcut_hint;
-use super::widgets::{enter_button, icon_action_button, legend_panel, spinner_text_input};
+use super::widgets::{enter_button, enter_button_disabled, icon_action_button, legend_panel, spinner_text_input};
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message, REGISTER_NAME_INPUT_ID,
     REGISTER_VALUE_INPUT_ID,
@@ -34,26 +36,30 @@ impl DesktopApp {
 
     fn memory_editor_panel(&self) -> Element<'_, Message> {
         let value_focused = self.focused_input == Some(MEMORY_VALUE_INPUT_ID);
-        let value_input: Element<'_, Message> = container(
-            text_input("00", &self.memory_value_input)
-                .id(MEMORY_VALUE_INPUT_ID)
+        let mut value_text = text_input("00", &self.memory_value_input)
+            .id(MEMORY_VALUE_INPUT_ID)
+            .font(MONO_FONT)
+            .size(16)
+            .padding(Padding {
+                top: 6.0,
+                right: 0.0,
+                bottom: 6.0,
+                left: 0.0,
+            })
+            .align_x(alignment::Horizontal::Center)
+            .width(Length::Fill)
+            .style(input_borderless_style);
+        if !self.running {
+            value_text = value_text
                 .on_input(Message::MemoryValueChanged)
-                .on_submit(Message::ApplyMemory)
-                .font(MONO_FONT)
-                .size(16)
-                .padding(Padding {
-                    top: 6.0,
-                    right: 0.0,
-                    bottom: 6.0,
-                    left: 0.0,
-                })
-                .align_x(alignment::Horizontal::Center)
-                .width(Length::Fill)
-                .style(input_borderless_style),
-        )
-        .width(Length::Fixed(58.0))
-        .style(move |theme| input_shell_style(theme, value_focused))
-        .into();
+                .on_submit(Message::ApplyMemory);
+        } else {
+            value_text = value_text.style(disabled_input_borderless_style);
+        }
+        let value_input: Element<'_, Message> = container(value_text)
+            .width(Length::Fixed(58.0))
+            .style(move |theme| input_shell_style(theme, value_focused && !self.running))
+            .into();
 
         let controls = row![
             spinner_text_input(
@@ -66,9 +72,14 @@ impl DesktopApp {
                 Message::JumpMemoryAddress,
                 MEMORY_ADDRESS_INPUT_ID,
                 self.focused_input == Some(MEMORY_ADDRESS_INPUT_ID),
+                self.running,
             ),
             value_input,
-            enter_button(Message::ApplyMemory),
+            if self.running {
+                enter_button_disabled()
+            } else {
+                enter_button(Message::ApplyMemory)
+            },
         ]
         .spacing(6)
         .align_y(alignment::Vertical::Center);
@@ -82,25 +93,30 @@ impl DesktopApp {
 
     fn register_editor_panel(&self) -> Element<'_, Message> {
         let value_focused = self.focused_input == Some(REGISTER_VALUE_INPUT_ID);
-        let value_input: Element<'_, Message> = container(
-            text_input("00", &self.register_value_input)
-                .id(REGISTER_VALUE_INPUT_ID)
+        let mut value_text = text_input("00", &self.register_value_input)
+            .id(REGISTER_VALUE_INPUT_ID)
+            .font(MONO_FONT)
+            .size(16)
+            .padding(Padding {
+                top: 6.0,
+                right: 0.0,
+                bottom: 6.0,
+                left: 0.0,
+            })
+            .align_x(alignment::Horizontal::Center)
+            .width(Length::Fill);
+        if !self.running {
+            value_text = value_text
                 .on_input(Message::RegisterValueChanged)
-                .on_submit(Message::ApplyRegister)
-                .font(MONO_FONT)
-                .size(16)
-                .padding(Padding {
-                    top: 6.0,
-                    right: 0.0,
-                    bottom: 6.0,
-                    left: 0.0,
-                })
-                .align_x(alignment::Horizontal::Center)
-                .width(Length::Fill)
-                .style(input_borderless_style),
+                .on_submit(Message::ApplyRegister);
+        } else {
+            value_text = value_text.style(disabled_input_borderless_style);
+        }
+        let value_input: Element<'_, Message> = container(
+            value_text.style(input_borderless_style),
         )
         .width(Length::Fixed(58.0))
-        .style(move |theme| input_shell_style(theme, value_focused))
+        .style(move |theme| input_shell_style(theme, value_focused && !self.running))
         .into();
 
         let editor = row![
@@ -114,9 +130,14 @@ impl DesktopApp {
                 Message::ApplyRegister,
                 REGISTER_NAME_INPUT_ID,
                 self.focused_input == Some(REGISTER_NAME_INPUT_ID),
+                self.running,
             ),
             value_input,
-            enter_button(Message::ApplyRegister),
+            if self.running {
+                enter_button_disabled()
+            } else {
+                enter_button(Message::ApplyRegister)
+            },
         ]
         .spacing(6)
         .align_y(alignment::Vertical::Center);

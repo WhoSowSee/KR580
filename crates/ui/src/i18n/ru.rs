@@ -200,6 +200,11 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsLanguageHint => "Язык интерфейса приложения",
         Key::SettingsSpeedLabel => "Скорость",
         Key::SettingsSpeedHint => "Скорость по умолчанию для всех файлов",
+        Key::SettingsFollowPcLabel => "Следовать за PC",
+        Key::SettingsFollowPcHint => "Перемещать подсветку за счётчиком команд во время выполнения",
+        Key::SettingsToggleOn => "Включено",
+        Key::SettingsToggleOff => "Выключено",
+
         Key::SettingsThemeLabel => "Тема",
         Key::SettingsThemeHint => "Тема оформления интерфейса",
         Key::SettingsThemePlaceholder => "Скоро",

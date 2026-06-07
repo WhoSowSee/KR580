@@ -105,13 +105,13 @@ impl DesktopApp {
                     self.open_import_modal();
                 }
             }
-            Message::RegisterNameChanged(value) => {
+            Message::RegisterNameChanged(value) if !self.running => {
                 self.active_register_target = None;
                 self.inline_register_target = None;
                 self.change_register_name(value);
                 self.focused_input = Some(REGISTER_NAME_INPUT_ID);
             }
-            Message::RegisterPrevious => {
+            Message::RegisterPrevious if !self.running => {
                 if self.register_name_input.is_empty() {
                     self.select_register_target(RegisterInlineTarget::for_register(
                         k580_core::RegisterName::A,
@@ -120,7 +120,7 @@ impl DesktopApp {
                     self.step_register(-1);
                 }
             }
-            Message::RegisterNext => {
+            Message::RegisterNext if !self.running => {
                 if self.register_name_input.is_empty() {
                     self.select_register_target(RegisterInlineTarget::for_register(
                         k580_core::RegisterName::A,
@@ -129,34 +129,30 @@ impl DesktopApp {
                     self.step_register(1);
                 }
             },
-            Message::RegisterValueChanged(value) => {
-                // No focus op: queued ops race later clicks and steal focus.
+            Message::RegisterValueChanged(value) if !self.running => {
                 self.change_register_value(value);
                 self.active_register_target = None;
                 self.inline_register_target = None;
                 self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
             }
-            Message::ApplyRegister => {
+            Message::ApplyRegister if !self.running => {
                 if self.keyboard_modifiers.command() {
                     return self
                         .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
                 }
                 return self.apply_register_and_step(self.keyboard_modifiers.shift());
             }
-            Message::RegisterSelected(target) => self.select_register_target(target),
-            Message::RegisterEnter(target) => {
+            Message::RegisterSelected(target) if !self.running => self.select_register_target(target),
+            Message::RegisterEnter(target) if !self.running => {
                 self.enter_inline_register(target);
                 self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
                 return Task::done(Message::RefocusInlineRegister);
             }
-            Message::RefocusInlineRegister => {
-                return iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID);
-            }
-            Message::InlineRegisterValueChanged(target, value) => {
+            Message::InlineRegisterValueChanged(target, value) if !self.running => {
                 self.change_inline_register_value(target, value);
                 self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
             }
-            Message::ApplyInlineRegisterValue(target) => {
+            Message::ApplyInlineRegisterValue(target) if !self.running => {
                 return self.apply_inline_register_value(target, self.keyboard_modifiers.shift());
             }
             Message::RegisterHoverStarted(target) => {
@@ -166,10 +162,8 @@ impl DesktopApp {
                 self.hovered_register_target = None;
             }
             Message::RegisterHoverEnded(_) => {}
-            Message::MemorySelected(address) => self.select_memory(address),
-            Message::MemoryEnter(address) => {
-                // Defer focus – `MousePressed` reconcile would clear
-                // focus on widgets whose bounds miss the click point.
+            Message::MemorySelected(address) if !self.running => self.select_memory(address),
+            Message::MemoryEnter(address) if !self.running => {
                 self.select_memory(address);
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
                 return Task::done(Message::RefocusInline);
@@ -177,10 +171,10 @@ impl DesktopApp {
             Message::RefocusInline => {
                 return iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID);
             }
-            Message::MemoryAddressPrevious => return self.step_memory_address(-1),
-            Message::MemoryAddressNext => return self.step_memory_address(1),
-            Message::MemoryAddressPageUp => return self.step_memory_address(-16),
-            Message::MemoryAddressPageDown => return self.step_memory_address(16),
+            Message::MemoryAddressPrevious if !self.running => return self.step_memory_address(-1),
+            Message::MemoryAddressNext if !self.running => return self.step_memory_address(1),
+            Message::MemoryAddressPageUp if !self.running => return self.step_memory_address(-16),
+            Message::MemoryAddressPageDown if !self.running => return self.step_memory_address(16),
             Message::ArrowKey(direction) => return self.handle_arrow_key(direction),
             Message::HorizontalArrowKey(direction) => {
                 return self.handle_horizontal_arrow_key(direction);
@@ -193,7 +187,7 @@ impl DesktopApp {
                 self.scroll_memory(offset);
                 self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }
-            Message::JumpMemoryAddress => {
+            Message::JumpMemoryAddress if !self.running => {
                 if self.keyboard_modifiers.command() {
                     return self
                         .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
@@ -203,27 +197,27 @@ impl DesktopApp {
                 }
                 return self.advance_memory_address(self.keyboard_modifiers.shift());
             }
-            Message::MemoryAddressChanged(value) => {
+            Message::MemoryAddressChanged(value) if !self.running => {
                 self.change_memory_address(value);
                 self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
             }
-            Message::MemoryValueChanged(value) => {
+            Message::MemoryValueChanged(value) if !self.running => {
                 self.change_memory_value(value);
                 self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
             }
-            Message::InlineMemoryValueChanged(address, value) => {
+            Message::InlineMemoryValueChanged(address, value) if !self.running => {
                 self.change_inline_memory_value(address, value);
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
             }
-            Message::ApplyInlineMemoryValue(address) => {
+            Message::ApplyInlineMemoryValue(address) if !self.running => {
                 let backward = self.keyboard_modifiers.shift();
                 self.apply_inline_memory_value(address);
                 let step = self.step_memory_address(if backward { -1 } else { 1 });
                 return step.chain(iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID));
             }
-            Message::OpcodeDropdownToggled(address) => self.toggle_opcode_dropdown(address),
-            Message::OpcodeSearchChanged(value) => self.change_opcode_search(value),
-            Message::OpcodeSelected(address, value) => self.select_opcode(address, value),
+            Message::OpcodeDropdownToggled(address) if !self.running => self.toggle_opcode_dropdown(address),
+            Message::OpcodeSearchChanged(value) if !self.running => self.change_opcode_search(value),
+            Message::OpcodeSelected(address, value) if !self.running => self.select_opcode(address, value),
             Message::OpcodeScrolled => {
                 self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }
@@ -232,6 +226,9 @@ impl DesktopApp {
             Message::DismissHaltNotice => self.clear_halt_notice(),
             Message::EscPressed => return self.handle_esc(),
             Message::EnterPressed => {
+                if self.running {
+                    return Task::none();
+                }
                 if self.opcode_dropdown_address.is_some() {
                     self.apply_highlighted_opcode();
                     return Task::none();
@@ -244,7 +241,7 @@ impl DesktopApp {
                 };
                 return Task::done(Message::MemoryEnter(address));
             }
-            Message::OpenOpcodePicker => {
+            Message::OpenOpcodePicker if !self.running => {
                 let Some(address) = self.selected_memory_address() else {
                     return Task::none();
                 };
@@ -255,7 +252,7 @@ impl DesktopApp {
                 self.focused_input = Some(OPCODE_SEARCH_INPUT_ID);
                 return iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID);
             }
-            Message::ApplyMemory => {
+            Message::ApplyMemory if !self.running => {
                 if self.keyboard_modifiers.command() {
                     return self
                         .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());

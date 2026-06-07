@@ -30,6 +30,7 @@ struct MuxEditState<'a> {
     hovered_target: Option<RegisterInlineTarget>,
     input_value: &'a str,
     has_selection: bool,
+    running: bool,
 }
 
 pub(super) struct MuxRegisterValues {
@@ -55,6 +56,7 @@ pub(super) fn mux_panel<'a>(
     values: MuxRegisterValues,
     lang: Lang,
     has_register_selection: bool,
+    running: bool,
 ) -> Element<'a, Message> {
     let edit_state = MuxEditState {
         selected,
@@ -63,6 +65,7 @@ pub(super) fn mux_panel<'a>(
         hovered_target,
         input_value,
         has_selection: has_register_selection,
+        running,
     };
 
     let scratch_group = container(
@@ -256,7 +259,7 @@ fn mux_register_cell(
     // matches the memory-row address column. Byte stays TOKYO_GREEN.
     let label_color = if is_selected { TOKYO_BLUE } else { TOKYO_MUTED };
 
-    let value: Element<'_, Message> = if editing {
+    let value: Element<'_, Message> = if editing && !edit_state.running {
         text_input("00", edit_state.input_value)
             .id(REGISTER_INLINE_INPUT_ID)
             .on_input(move |value| Message::InlineRegisterValueChanged(target, value))

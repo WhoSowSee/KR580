@@ -107,8 +107,6 @@ static HARD_DRIVE_UPLOAD: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("hard-drive-upload").as_slice()));
 static BUG: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("bug").as_slice()));
-static BUG_OFF: LazyLock<svg::Handle> =
-    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("bug-off").as_slice()));
 static BOOK_MARKED: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("book-marked").as_slice()));
 static INFO: LazyLock<svg::Handle> =
@@ -302,10 +300,6 @@ pub(super) fn hard_drive_upload() -> svg::Handle {
 
 pub(super) fn bug() -> svg::Handle {
     BUG.clone()
-}
-
-pub(super) fn bug_off() -> svg::Handle {
-    BUG_OFF.clone()
 }
 
 pub(super) fn book_marked() -> svg::Handle {

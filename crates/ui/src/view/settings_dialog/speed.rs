@@ -52,7 +52,7 @@ pub(super) fn speed_setting_row<'a>(
     )
 }
 
-fn segmented_button(
+pub(super) fn segmented_button(
     label: &'static str,
     active: bool,
     keyboard_focused: bool,

@@ -244,6 +244,7 @@ pub(crate) enum Message {
     SettingsSearchChanged(String),
     SettingsDraftLanguageChanged(Lang),
     SettingsDraftSpeedChanged(SpeedTier),
+    SettingsDraftFollowPcSet(bool),
     SettingsLanguageDropdownToggled,
     SettingsResetRequested,
     SettingsResetConfirmed,

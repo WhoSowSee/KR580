@@ -113,7 +113,7 @@ impl DesktopApp {
         self.dispatch_sync(AppCommand::SetPc(address));
     }
 
-    pub(super) fn refresh_memory_value(&mut self, address: u16) {
+    pub(crate) fn refresh_memory_value(&mut self, address: u16) {
         self.memory_value_input = format!("{:02X}", self.snapshot.cpu.memory.read(address));
         self.memory_inline_value_input = self.memory_value_input.clone();
     }

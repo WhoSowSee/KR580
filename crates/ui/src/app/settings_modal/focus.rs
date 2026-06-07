@@ -100,6 +100,7 @@ pub(crate) enum ContentFocus {
     SpeedMedium,
     SpeedFast,
     SpeedMax,
+    FollowPc,
     Theme,
     Shortcuts,
 }

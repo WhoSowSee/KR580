@@ -20,6 +20,7 @@ pub struct Settings {
 pub struct GeneralSettings {
     pub language: Language,
     pub default_speed: SpeedPreset,
+    pub follow_pc: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -97,6 +98,7 @@ impl Default for GeneralSettings {
         Self {
             language: Language::Ru,
             default_speed: SpeedPreset::Medium,
+            follow_pc: true,
         }
     }
 }

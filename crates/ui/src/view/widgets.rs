@@ -9,8 +9,8 @@ use iced::{Color, Element, Length, Padding, alignment};
 use std::time::Duration;
 
 use super::styles::{
-    action_button_style, enter_button_style, input_borderless_style, input_shell_style,
-    legend_label_style, panel_style, schematic_block_style, step_button_style,
+    action_button_style, input_borderless_style, input_shell_style, legend_label_style,
+    panel_style, schematic_block_style, step_button_style,
 };
 use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
 use super::tooltips::hover_tooltip;
@@ -116,53 +116,64 @@ pub(super) fn spinner_text_input<'a>(
     on_submit: Message,
     id: &'static str,
     focused: bool,
+    disabled: bool,
 ) -> Element<'a, Message> {
-    // Reserved for the right-side arrow stack; mirrored as left
-    // padding so the typed text stays centred.
     const ARROW_RESERVED: f32 = 18.0;
+    let padding_right = if disabled { 0.0 } else { ARROW_RESERVED };
 
-    let input: Element<'a, Message> = text_input(placeholder, value)
+    let input_style = if disabled {
+        super::styles::disabled_input_borderless_style as fn(&iced::Theme, iced::widget::text_input::Status) -> iced::widget::text_input::Style
+    } else {
+        input_borderless_style
+    };
+
+    let mut input = text_input(placeholder, value)
         .id(id)
-        .on_input(on_input)
-        .on_submit(on_submit)
         .font(MONO_FONT)
         .size(16)
         .padding(Padding {
             top: 6.0,
-            right: ARROW_RESERVED,
+            right: padding_right,
             bottom: 6.0,
-            left: ARROW_RESERVED,
+            left: padding_right,
         })
         .align_x(alignment::Horizontal::Center)
         .width(Length::Fill)
-        .style(input_borderless_style)
-        .into();
+        .style(input_style);
 
-    let arrows: Element<'a, Message> =
-        container(column![step_button("▲", up), step_button("▼", down)].spacing(0))
+    if !disabled {
+        input = input.on_input(on_input).on_submit(on_submit);
+    }
+
+    let input: Element<'a, Message> = input.into();
+
+    let layered: Element<'a, Message> = if disabled {
+        input
+    } else {
+        let arrows: Element<'a, Message> =
+            container(column![step_button("▲", up), step_button("▼", down)].spacing(0))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .padding(Padding {
+                    top: 0.0,
+                    right: 4.0,
+                    bottom: 0.0,
+                    left: 0.0,
+                })
+                .align_x(alignment::Horizontal::Right)
+                .align_y(alignment::Vertical::Center)
+                .into();
+
+        stack(vec![input, arrows])
             .width(Length::Fill)
-            .height(Length::Fill)
-            .padding(Padding {
-                top: 0.0,
-                right: 4.0,
-                bottom: 0.0,
-                left: 0.0,
-            })
-            .align_x(alignment::Horizontal::Right)
-            .align_y(alignment::Vertical::Center)
-            .into();
+            .height(Length::Shrink)
+            .into()
+    };
 
-    let layered: Element<'a, Message> = stack(vec![input, arrows])
-        .width(Length::Fill)
-        .height(Length::Shrink)
-        .into();
-
-    let shell: Element<'a, Message> = container(layered)
+    container(layered)
         .width(width)
-        .style(move |theme| input_shell_style(theme, focused))
-        .into();
-
-    shell
+        .style(move |theme| input_shell_style(theme, focused && !disabled))
+        .into()
 }
 
 pub(super) fn step_button(label: &'static str, message: Message) -> Element<'static, Message> {
@@ -192,9 +203,31 @@ pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
     )
     .on_press(message)
     .padding(0)
-    .width(Length::Fixed(28.0))
-    .height(Length::Fixed(28.0))
-    .style(move |_theme, status| enter_button_style(status))
+    .width(Length::Fixed(34.0))
+    .height(Length::Fixed(34.0))
+    .style(move |_theme, status| super::styles::enter_button_style(status))
+    .into()
+}
+
+pub(super) fn enter_button_disabled() -> Element<'static, Message> {
+    const GLYPH_SIZE: f32 = 18.0;
+    let glyph = svg(super::icons::chevrons_right())
+        .width(Length::Fixed(GLYPH_SIZE))
+        .height(Length::Fixed(GLYPH_SIZE))
+        .style(|_theme, _status| svg::Style {
+            color: Some(TOKYO_MUTED),
+        });
+    button(
+        container(glyph)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+    )
+    .padding(0)
+    .width(Length::Fixed(34.0))
+    .height(Length::Fixed(34.0))
+    .style(move |_theme, status| super::styles::enter_button_style(status))
     .into()
 }
 

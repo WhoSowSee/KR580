@@ -5,7 +5,7 @@ mod focus;
 mod focus_ops;
 pub(crate) mod humanize_error;
 mod memory;
-mod parse;
+pub(crate) mod parse;
 mod register;
 mod storage_files;
 mod undo;

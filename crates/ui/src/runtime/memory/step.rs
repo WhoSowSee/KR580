@@ -106,6 +106,17 @@ impl DesktopApp {
         self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
         scroll_memory_to(target_offset)
     }
+
+    pub(crate) fn track_pc_in_place(&mut self) {
+        let target = if self.snapshot.cpu.halted && self.snapshot.cpu.pc > 0 {
+            self.snapshot.cpu.pc.wrapping_sub(1)
+        } else {
+            self.snapshot.cpu.pc
+        };
+        self.memory_address_input = format!("{target:04X}");
+        self.memory_value_input = format!("{:02X}", self.snapshot.cpu.memory.read(target));
+        self.memory_inline_value_input = self.memory_value_input.clone();
+    }
 }
 
 #[cfg(test)]

@@ -38,6 +38,24 @@ pub(crate) fn input_borderless_style(
     }
 }
 
+pub(crate) fn disabled_input_borderless_style(
+    _theme: &Theme,
+    _status: text_input::Status,
+) -> text_input::Style {
+    text_input::Style {
+        background: Background::Color(Color::TRANSPARENT),
+        border: Border {
+            radius: 0.0.into(),
+            width: 0.0,
+            color: Color::TRANSPARENT,
+        },
+        icon: TOKYO_MUTED,
+        placeholder: TOKYO_MUTED,
+        value: TOKYO_MUTED,
+        selection: Color::TRANSPARENT,
+    }
+}
+
 pub(crate) fn inline_value_input_style(
     _theme: &Theme,
     _status: text_input::Status,
