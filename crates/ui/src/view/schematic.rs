@@ -286,8 +286,8 @@ impl DesktopApp {
                 icons::device_hdd(),
                 TOKYO_BLUE,
                 lang.t(Key::DeviceHdd),
-                None,
-                None,
+                Some(Message::OpenHdd),
+                shortcut_hint(&Message::OpenHdd),
             ),
             device_chip(
                 icons::device_network(),

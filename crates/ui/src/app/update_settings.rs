@@ -3,10 +3,10 @@ use iced::Task;
 use super::constants::SETTINGS_SEARCH_INPUT_ID;
 use super::messages::{Message, SpeedTier};
 use super::settings_modal::{
-    ContentFocus, FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection,
+    FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection,
 };
 use super::state::DesktopApp;
-use crate::i18n::Lang;
+use crate::i18n::{Key, Lang};
 use crate::settings_storage::{
     language_from_lang, load_settings, preset_from_speed_tier, save_settings,
 };
@@ -22,10 +22,12 @@ impl DesktopApp {
             Message::OpenSettings => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
+                let settings = load_settings();
                 self.settings_dialog = Some(SettingsDialog::new(
                     self.lang,
                     self.default_speed,
                     self.follow_pc,
+                    settings.general.hdd_directory,
                 ));
                 Some(Task::none())
             }
@@ -47,6 +49,11 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SaveSettings => {
+                if let Some(dialog) = self.settings_dialog.as_ref() {
+                    let mut settings = load_settings();
+                    settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
+                    save_settings(&settings);
+                }
                 if self.settings_dialog.take().is_some() {
                     Some(Task::done(Message::PersistSettings))
                 } else {
@@ -59,6 +66,7 @@ impl DesktopApp {
                 settings.general.default_speed = preset_from_speed_tier(self.default_speed);
                 if let Some(dialog) = self.settings_dialog.as_ref() {
                     settings.general.follow_pc = dialog.draft_follow_pc;
+                    settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
                 }
                 save_settings(&settings);
                 Some(Task::none())
@@ -103,6 +111,45 @@ impl DesktopApp {
                     dialog.draft_follow_pc = value;
                 }
                 self.follow_pc = value;
+                Some(Task::none())
+            }
+            Message::SettingsHddDirectoryBrowse => {
+                if self.settings_dialog.is_none() {
+                    return Some(Task::none());
+                }
+                let preferred = self
+                    .settings_dialog
+                    .as_ref()
+                    .and_then(|d| d.draft_hdd_directory.clone())
+                    .unwrap_or_else(|| {
+                        std::env::var("HOME")
+                            .or_else(|_| std::env::var("USERPROFILE"))
+                            .map(std::path::PathBuf::from)
+                            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+                    });
+                let mut dialog = rfd::FileDialog::new();
+                if preferred.exists() && preferred.is_dir() {
+                    dialog = dialog.set_directory(&preferred);
+                } else if let Some(parent) = preferred.parent() {
+                    dialog = dialog.set_directory(parent);
+                }
+                if let Some(folder) = dialog.pick_folder() {
+                    if !is_directory_writable(&folder) {
+                        self.error_notice = Some(
+                            self.lang.t(Key::ErrHddDirectoryNotWritable).to_owned(),
+                        );
+                        self.error_notice_dismiss_at =
+                            Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
+                        return Some(Task::none());
+                    }
+                    return Some(Task::done(Message::SettingsDraftHddDirectorySet(folder)));
+                }
+                Some(Task::none())
+            }
+            Message::SettingsDraftHddDirectorySet(path) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_hdd_directory = Some(path);
+                }
                 Some(Task::none())
             }
             Message::SettingsLanguageDropdownToggled => {
@@ -157,8 +204,10 @@ impl DesktopApp {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_lang = default_lang;
                     dialog.draft_speed = default_speed;
+                    dialog.draft_hdd_directory = None;
                     dialog.original_lang = default_lang;
                     dialog.original_speed = default_speed;
+                    dialog.original_hdd_directory = None;
                     dialog.reset_confirm_open = false;
                 }
                 let lang_changed = self.lang != default_lang;
@@ -173,6 +222,31 @@ impl DesktopApp {
             _ => None,
         }
     }
+}
+
+#[cfg(unix)]
+fn is_directory_writable(path: &std::path::Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let mut buf = path.as_os_str().as_bytes().to_vec();
+    buf.push(0);
+    unsafe { libc::access(buf.as_ptr() as *const libc::c_char, libc::W_OK) == 0 }
+}
+
+#[cfg(windows)]
+fn is_directory_writable(path: &std::path::Path) -> bool {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let test_file = path.join(format!(".kr580_{stamp:x}"));
+    let ok = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&test_file)
+        .is_ok();
+    let _ = std::fs::remove_file(&test_file);
+    ok
 }
 
 fn cycle_section(dialog: &mut SettingsDialog, backward: bool) {
@@ -201,7 +275,4 @@ fn cycle_section(dialog: &mut SettingsDialog, backward: bool) {
             };
         }
     }
-    // SPEEDS reference keeps the import live for tests that walk
-    // the speed-segment cycle directly.
-    let _ = ContentFocus::SPEEDS;
 }

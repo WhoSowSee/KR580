@@ -82,3 +82,33 @@ without choosing an image file.
 and `tail_buffer` only. It deliberately leaves the worker, attached
 path, status, queued-byte counter, and already-written file contents
 untouched.
+
+## HDD storage
+
+HDD is on port `02h`. It shares the `StorageDevice` implementation
+with the floppy (same buffer, worker, and debug-buffer semantics).
+
+`AppCommand::AttachHddFile(path)` attaches the HDD to a file-backed
+worker. The default path on startup is `<home>/hdd.kpd`; the
+default directory can be changed in Settings → General → HDD
+directory. The path opens with `.create(true).append(true)` so the
+file is created if it does not exist.
+
+`AppCommand::SetHddDebugBuffer(true)` switches the HDD into
+buffer-only debug mode — writes go to `visible_buffer` without
+touching the file.
+
+`AppCommand::DetachHddFile` disconnects the file-backed worker.
+`AppCommand::ClearHddBuffer` clears only the visible and tail
+buffers, leaving the file contents intact.
+
+The HDD window header includes:
+- Choose directory — opens a folder picker; constructs `<folder>/hdd.kpd` and attaches it (session-only, not persisted)
+- Show file contents — toggles between the write buffer and the on-disk file contents (disabled when no file exists)
+- Debug buffer mode — routes writes to the visible buffer without a file
+- Clear buffer — clears only the visible/tail buffers
+- Delete file — shows a confirmation dialog, then deletes `hdd.kpd` from disk and detaches
+- Create file — attaches/creates `hdd.kpd` in the current or default directory
+
+When debug buffer is enabled, the footer shows "debug mode" instead
+of the file path, for both floppy and HDD windows.

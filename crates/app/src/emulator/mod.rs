@@ -259,6 +259,18 @@ impl Emulator {
             AppCommand::DetachFloppyImage => {
                 self.bus.floppy.detach_file();
             }
+            AppCommand::AttachHddFile(path) => {
+                self.bus.hdd.attach_file(path, self.io_runtime.handle());
+            }
+            AppCommand::SetHddDebugBuffer(enabled) => {
+                self.bus.hdd.set_debug_buffer(enabled);
+            }
+            AppCommand::DetachHddFile => {
+                self.bus.hdd.detach_file();
+            }
+            AppCommand::ClearHddBuffer => {
+                self.bus.hdd.clear_visible_buffer();
+            }
             AppCommand::SetFloppyDebugBuffer(enabled) => {
                 self.bus.floppy.set_debug_buffer(enabled);
             }

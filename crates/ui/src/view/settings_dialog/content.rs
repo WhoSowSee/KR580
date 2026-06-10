@@ -1,10 +1,10 @@
-use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
+use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
 
-use super::super::theme::{TOKYO_MUTED, ui_text};
-use super::setting_row::setting_row;
+use super::super::theme::{TOKYO_MUTED, TOKYO_TEXT, TOKYO_SURFACE, TOKYO_BORDER, ui_text};
 use super::consts::{CONTENT_PADDING, SETTING_ROW_HEIGHT};
 use super::language::{language_dropdown_list, language_setting_row};
+use super::setting_row::setting_row;
 use super::shortcuts_row::shortcuts_setting_row;
 use super::speed::speed_setting_row;
 use super::theme_row::theme_setting_row;
@@ -138,6 +138,16 @@ fn collect_category_rows<'a>(
             ) {
                 out.push(follow_pc_toggle_row(dialog, lang));
             }
+            if matches_query(
+                &[
+                    Key::SettingsHddDirectoryLabel,
+                    Key::SettingsHddDirectoryHint,
+                ],
+                lang,
+                lower_query,
+            ) {
+                out.push(hdd_directory_row(dialog, lang));
+            }
         }
         SettingsCategory::Appearance => {
             if matches_query(
@@ -165,7 +175,8 @@ fn group_header(label: &'static str) -> Element<'static, Message> {
 }
 
 fn follow_pc_toggle_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
-    use super::speed::segmented_button;
+    use super::consts::TOGGLE_SEGMENT_WIDTH;
+    use super::speed::segmented_button_width;
 
     let kb_focus = (dialog.section == SettingsSection::Content)
         .then_some(dialog.content_focus)
@@ -174,17 +185,19 @@ fn follow_pc_toggle_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'
     let kb_focused = kb_focus == Some(ContentFocus::FollowPc);
 
     let segments = row![
-        segmented_button(
+        segmented_button_width(
             lang.t(Key::SettingsToggleOn),
             dialog.draft_follow_pc,
             kb_focused,
             Message::SettingsDraftFollowPcSet(true),
+            TOGGLE_SEGMENT_WIDTH,
         ),
-        segmented_button(
+        segmented_button_width(
             lang.t(Key::SettingsToggleOff),
             !dialog.draft_follow_pc,
             false,
             Message::SettingsDraftFollowPcSet(false),
+            TOGGLE_SEGMENT_WIDTH,
         ),
     ]
     .spacing(6);
@@ -194,6 +207,96 @@ fn follow_pc_toggle_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'
         lang.t(Key::SettingsFollowPcHint),
         segments.into(),
     )
+}
+
+fn hdd_directory_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
+    use iced::{Background, Border, Color};
+
+    let kb_focus = (dialog.section == SettingsSection::Content)
+        .then_some(dialog.content_focus)
+        .flatten();
+    let kb_focused = kb_focus == Some(ContentFocus::HddDirectory);
+
+    let raw_path = dialog
+        .draft_hdd_directory
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| {
+            std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_owned())
+        });
+    let display = truncate_path(&raw_path, 36);
+
+    let browse_btn = button(
+        container(ui_text(lang.t(Key::SettingsHddDirectoryBrowse), 12, TOKYO_TEXT))
+            .padding([2, 8]),
+    )
+    .on_press(Message::SettingsHddDirectoryBrowse)
+    .style(move |_theme, status| {
+        use iced::widget::button;
+        let bg = match status {
+            button::Status::Pressed => TOKYO_BORDER,
+            button::Status::Hovered => TOKYO_SURFACE,
+            _ if kb_focused => TOKYO_SURFACE,
+            _ => Color::TRANSPARENT,
+        };
+        button::Style {
+            background: Some(Background::Color(bg)),
+            text_color: TOKYO_TEXT,
+            border: Border {
+                radius: 6.0.into(),
+                width: 1.0,
+                color: TOKYO_BORDER,
+            },
+            ..button::Style::default()
+        }
+    });
+
+    let control = row![
+        Space::new().width(Length::Fill),
+        ui_text(display, 13, TOKYO_MUTED),
+        Space::new().width(Length::Fixed(8.0)),
+        browse_btn,
+    ]
+    .align_y(iced::alignment::Vertical::Center);
+
+    setting_row(
+        lang.t(Key::SettingsHddDirectoryLabel),
+        lang.t(Key::SettingsHddDirectoryHint),
+        control.into(),
+    )
+}
+
+fn truncate_path(path: &str, max: usize) -> String {
+    let chars: Vec<char> = path.chars().collect();
+    if chars.len() <= max {
+        return path.to_owned();
+    }
+    let sep = if path.contains('\\') { '\\' } else { '/' };
+    let segments: Vec<&str> = path.split(sep).collect();
+    if segments.len() < 3 {
+        let head: String = chars.iter().take(max / 2).collect();
+        let tail: String = chars.iter().skip(chars.len() - max / 2).collect();
+        return format!("{head}…{tail}");
+    }
+    let first = segments[0];
+    let last = segments[segments.len() - 1];
+    let mut budget = max.saturating_sub(first.chars().count() + last.chars().count() + 3);
+    let mut middle = String::new();
+    for seg in segments[1..segments.len() - 1].iter().rev() {
+        let cost = seg.chars().count() + 1;
+        if cost > budget {
+            break;
+        }
+        middle = format!("{sep}{seg}{middle}");
+        budget -= cost;
+    }
+    if middle.is_empty() {
+        format!("{first}{sep}…{sep}{last}")
+    } else {
+        format!("{first}{sep}…{middle}{sep}{last}")
+    }
 }
 
 pub(super) fn matches_query(keys: &[Key], lang: Lang, lower_query: &str) -> bool {

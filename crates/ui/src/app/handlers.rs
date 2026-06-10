@@ -125,6 +125,10 @@ impl DesktopApp {
             }
             return Task::none();
         }
+        if self.hdd_open {
+            self.hdd_open = false;
+            return Task::none();
+        }
         if self.floppy_open {
             self.floppy_open = false;
             return Task::none();
@@ -206,6 +210,7 @@ pub(crate) fn ctrl_shortcut(
         ('s', true, false) => Some(Message::SaveSnapshotAs),
         ('i', false, false) => Some(Message::Import),
         ('e', false, false) => Some(Message::Export),
+        ('d', false, false) => Some(Message::OpenHdd),
         ('f', false, false) => Some(Message::OpenFloppy),
         ('r', false, false) => Some(Message::ToggleRun),
         ('t', false, false) => Some(Message::StepInstruction),
@@ -302,6 +307,7 @@ mod tests {
             ("е", Code::KeyT, Message::StepInstruction),
             ("н", Code::KeyY, Message::StepTact),
             ("р", Code::KeyH, Message::OpenHelp),
+            ("в", Code::KeyD, Message::OpenHdd),
             ("а", Code::KeyF, Message::OpenFloppy),
             ("я", Code::KeyZ, Message::Undo),
             ("ь", Code::KeyM, Message::OpenMonitor),

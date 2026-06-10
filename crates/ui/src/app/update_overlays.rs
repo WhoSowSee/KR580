@@ -3,7 +3,7 @@ use iced::Task;
 use super::constants::MEMORY_SCROLL_VISIBLE_TICKS;
 use super::help::HelpDialog;
 use super::messages::Message;
-use super::state::DesktopApp;
+use super::state::{DesktopApp, PendingAction};
 
 impl DesktopApp {
     pub(crate) fn dispatch_overlay_message(&mut self, message: &Message) -> Option<Task<Message>> {
@@ -128,6 +128,42 @@ impl DesktopApp {
             Message::ToggleFloppyDebugBuffer => {
                 let enabled = !self.snapshot.devices.floppy.debug_buffer;
                 self.dispatch_sync(k580_app::AppCommand::SetFloppyDebugBuffer(enabled));
+            }
+            Message::OpenHdd => {
+                self.open_menu = None;
+                self.hide_opcode_dropdown();
+                self.monitor_open = false;
+                self.monitor_hex_popup = false;
+                self.hdd_open = true;
+                self.refresh_hdd_file_exists();
+                if self.hdd_show_image_contents {
+                    self.refresh_hdd_image_contents();
+                }
+            }
+            Message::CloseHdd => {
+                self.hdd_open = false;
+            }
+            Message::ChooseHddDirectory => {
+                self.choose_hdd_directory();
+            }
+            Message::ToggleHddDebugBuffer => {
+                let enabled = !self.snapshot.devices.hdd.debug_buffer;
+                self.dispatch_sync(k580_app::AppCommand::SetHddDebugBuffer(enabled));
+            }
+            Message::CreateHddFile => {
+                self.create_hdd_file();
+            }
+            Message::ToggleHddImageContents => {
+                self.hdd_show_image_contents = !self.hdd_show_image_contents;
+                if self.hdd_show_image_contents {
+                    self.refresh_hdd_image_contents();
+                }
+            }
+            Message::DeleteHddFile => {
+                self.open_discard_modal(PendingAction::DeleteHdd);
+            }
+            Message::ClearHddBuffer => {
+                self.dispatch(k580_app::AppCommand::ClearHddBuffer);
             }
             Message::ClearFloppyBuffer => {
                 self.dispatch(k580_app::AppCommand::ClearFloppyBuffer);

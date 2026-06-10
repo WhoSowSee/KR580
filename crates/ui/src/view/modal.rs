@@ -26,7 +26,7 @@ pub(super) fn discard_modal_overlay(
     focused: DiscardModalButton,
     lang: Lang,
 ) -> Element<'_, Message> {
-    let (title_key, title_note_key) = discard_modal_title_keys(action);
+    let (title_key, title_note_key, body_key) = discard_modal_keys(action);
     let title = lang.t(title_key);
     let title_note = title_note_key.map(|k| lang.t(k));
 
@@ -80,7 +80,7 @@ pub(super) fn discard_modal_overlay(
         column![
             title_row,
             Space::new().height(Length::Fixed(8.0)),
-            ui_text(lang.t(Key::DiscardBody), 13, TOKYO_TEXT,),
+            ui_text(lang.t(body_key), 13, TOKYO_TEXT,),
             Space::new().height(Length::Fixed(16.0)),
             buttons,
         ]
@@ -112,12 +112,13 @@ pub(super) fn discard_modal_overlay(
         .into()
 }
 
-fn discard_modal_title_keys(action: &PendingAction) -> (Key, Option<Key>) {
+fn discard_modal_keys(action: &PendingAction) -> (Key, Option<Key>, Key) {
     match action {
-        PendingAction::OpenSnapshot => (Key::DiscardTitleOpen, None),
-        PendingAction::NewFile => (Key::DiscardTitleNew, None),
-        PendingAction::Import => (Key::DiscardTitleImport, None),
-        PendingAction::CloseWindow => (Key::DiscardTitleClose, None),
+        PendingAction::OpenSnapshot => (Key::DiscardTitleOpen, None, Key::DiscardBody),
+        PendingAction::NewFile => (Key::DiscardTitleNew, None, Key::DiscardBody),
+        PendingAction::Import => (Key::DiscardTitleImport, None, Key::DiscardBody),
+        PendingAction::CloseWindow => (Key::DiscardTitleClose, None, Key::DiscardBody),
+        PendingAction::DeleteHdd => (Key::DiscardTitleDeleteHdd, None, Key::DiscardBodyDeleteHdd),
     }
 }
 
@@ -127,6 +128,7 @@ fn discard_confirm_label_key(action: &PendingAction) -> Key {
         PendingAction::NewFile => Key::DiscardConfirmNew,
         PendingAction::Import => Key::DiscardConfirmImport,
         PendingAction::CloseWindow => Key::DiscardConfirmClose,
+        PendingAction::DeleteHdd => Key::DiscardConfirmDeleteHdd,
     }
 }
 

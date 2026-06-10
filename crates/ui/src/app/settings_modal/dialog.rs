@@ -16,6 +16,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) draft_lang: Lang,
     pub(crate) draft_speed: SpeedTier,
     pub(crate) draft_follow_pc: bool,
+    pub(crate) draft_hdd_directory: Option<std::path::PathBuf>,
     pub(crate) language_dropdown_open: bool,
     /// Keyboard highlight inside the open language dropdown. `None`
     /// when the dropdown is closed; while open, ArrowUp / ArrowDown
@@ -25,6 +26,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) original_lang: Lang,
     pub(crate) original_speed: SpeedTier,
     pub(crate) original_follow_pc: bool,
+    pub(crate) original_hdd_directory: Option<std::path::PathBuf>,
     pub(crate) footer_focus: FooterFocus,
     pub(crate) reset_confirm_open: bool,
     pub(crate) reset_confirm_focus: ResetConfirmFocus,
@@ -33,22 +35,20 @@ pub(crate) struct SettingsDialog {
 }
 
 impl SettingsDialog {
-    pub(crate) fn new(
-        lang: Lang,
-        speed: SpeedTier,
-        follow_pc: bool,
-    ) -> Self {
+    pub(crate) fn new(lang: Lang, speed: SpeedTier, follow_pc: bool, hdd_directory: Option<std::path::PathBuf>) -> Self {
         Self {
             category: SettingsCategory::General,
             search: String::new(),
             draft_lang: lang,
             draft_speed: speed,
             draft_follow_pc: follow_pc,
+            draft_hdd_directory: hdd_directory.clone(),
             language_dropdown_open: false,
             dropdown_highlight: None,
             original_lang: lang,
             original_speed: speed,
             original_follow_pc: follow_pc,
+            original_hdd_directory: hdd_directory,
             footer_focus: FooterFocus::Cancel,
             reset_confirm_open: false,
             reset_confirm_focus: ResetConfirmFocus::Cancel,
@@ -71,7 +71,7 @@ impl SettingsDialog {
 
     pub(crate) fn last_content_focus(&self) -> ContentFocus {
         match self.category {
-            SettingsCategory::General => ContentFocus::FollowPc,
+            SettingsCategory::General => ContentFocus::HddDirectory,
             SettingsCategory::Appearance => ContentFocus::Theme,
             SettingsCategory::Shortcuts => ContentFocus::Shortcuts,
         }
@@ -85,7 +85,8 @@ impl SettingsDialog {
                 ContentFocus::SpeedMedium => Some(ContentFocus::SpeedFast),
                 ContentFocus::SpeedFast => Some(ContentFocus::SpeedMax),
                 ContentFocus::SpeedMax => Some(ContentFocus::FollowPc),
-                ContentFocus::FollowPc => None,
+                ContentFocus::FollowPc => Some(ContentFocus::HddDirectory),
+                ContentFocus::HddDirectory => None,
                 _ => Some(self.first_content_focus()),
             },
             SettingsCategory::Appearance => match current {
@@ -108,6 +109,7 @@ impl SettingsDialog {
                 ContentFocus::SpeedFast => Some(ContentFocus::SpeedMedium),
                 ContentFocus::SpeedMax => Some(ContentFocus::SpeedFast),
                 ContentFocus::FollowPc => Some(ContentFocus::SpeedMax),
+                ContentFocus::HddDirectory => Some(ContentFocus::FollowPc),
                 _ => Some(self.last_content_focus()),
             },
             SettingsCategory::Appearance => match current {

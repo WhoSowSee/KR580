@@ -40,6 +40,7 @@ impl DesktopApp {
         let mut settings = settings;
         settings.storage.floppy_path = path.clone();
         save_settings(&settings);
+        self.refresh_hdd_file_exists();
         self.set_status(StatusKind::FloppyImageAttached {
             display: path.display().to_string(),
         });
@@ -125,6 +126,20 @@ fn save_floppy_buffer_file(path: &Path, bytes: &[u8]) -> std::io::Result<PathBuf
     Ok(path)
 }
 
+pub(crate) fn hdd_default_path() -> PathBuf {
+    let settings = load_settings();
+    let dir = settings
+        .general
+        .hdd_directory
+        .unwrap_or_else(|| {
+            std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from("."))
+        });
+    dir.join("hdd.kpd")
+}
+
 fn floppy_buffer_save_path(path: &Path) -> PathBuf {
     match path
         .extension()
@@ -137,6 +152,108 @@ fn floppy_buffer_save_path(path: &Path) -> PathBuf {
             let mut raw = path.as_os_str().to_os_string();
             raw.push(".kpd");
             PathBuf::from(raw)
+        }
+    }
+}
+impl DesktopApp {
+    pub(crate) fn choose_hdd_directory(&mut self) {
+        let mut dialog = rfd::FileDialog::new();
+
+        let preferred = self
+            .snapshot
+            .devices
+            .hdd
+            .path
+            .as_ref()
+            .cloned()
+            .unwrap_or_else(hdd_default_path);
+        if let Some(parent) = preferred
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            dialog = dialog.set_directory(parent);
+        }
+
+        let Some(folder) = dialog.pick_folder() else {
+            return;
+        };
+
+        self.clear_error_notice();
+        let hdd_path = folder.join("hdd.kpd");
+        self.hdd_file_exists = true;
+        self.dispatch_sync(k580_app::AppCommand::AttachHddFile(hdd_path.clone()));
+        if self.error_notice.is_some() {
+            self.hdd_file_exists = false;
+            return;
+        }
+
+        self.set_status_custom(format!("HDD: {}", hdd_path.display()));
+    }
+    pub(crate) fn delete_hdd_file(&mut self) {
+        let Some(path) = self.snapshot.devices.hdd.path.clone() else {
+            return;
+        };
+        if !path.exists() {
+            self.hdd_file_exists = false;
+            return;
+        }
+        if let Err(error) = std::fs::remove_file(&path) {
+            tracing::error!("failed to delete HDD file {}: {error}", path.display());
+            self.set_status_custom(self.lang.t(Key::ErrCannotWriteFile).to_owned());
+            return;
+        }
+        self.hdd_file_exists = false;
+        self.dispatch_sync(k580_app::AppCommand::DetachHddFile);
+        self.set_status_custom(format!(
+            "{}: {}",
+            self.lang.t(Key::HddFileDeleted),
+            path.display()
+        ));
+    }
+
+    pub(crate) fn create_hdd_file(&mut self) {
+        let path = self
+            .snapshot
+            .devices
+            .hdd
+            .path
+            .clone()
+            .unwrap_or_else(hdd_default_path);
+        self.dispatch_sync(k580_app::AppCommand::AttachHddFile(path.clone()));
+        if self.error_notice.is_some() {
+            return;
+        }
+        self.hdd_file_exists = true;
+        self.set_status_custom(format!("HDD: {}", path.display()));
+    }
+
+    pub(crate) fn refresh_hdd_file_exists(&mut self) {
+        self.hdd_file_exists = self
+            .snapshot
+            .devices
+            .hdd
+            .path
+            .as_ref()
+            .is_some_and(|p| p.exists());
+    }
+
+    pub(crate) fn refresh_hdd_image_contents(&mut self) {
+        let Some(path) = self.snapshot.devices.hdd.path.as_ref() else {
+            self.hdd_image_contents.clear();
+            self.hdd_image_error = Some(self.lang.t(Key::HddPathMissing).into());
+            return;
+        };
+
+        match std::fs::read(path) {
+            Ok(bytes) => {
+                self.hdd_image_contents = bytes;
+                self.hdd_image_error = None;
+            }
+            Err(error) => {
+                self.hdd_image_contents.clear();
+                self.hdd_image_error =
+                    Some(format!("{}: {error}", self.lang.t(Key::ErrCannotReadFile)));
+            }
         }
     }
 }

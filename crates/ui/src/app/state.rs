@@ -23,6 +23,7 @@ pub(crate) enum PendingAction {
     NewFile,
     Import,
     CloseWindow,
+    DeleteHdd,
 }
 
 pub(crate) struct DesktopApp {
@@ -123,6 +124,11 @@ pub(crate) struct DesktopApp {
     pub(crate) monitor_split: bool,
     pub(crate) monitor_hex_popup: bool,
     pub(crate) floppy_open: bool,
+    pub(crate) hdd_open: bool,
+    pub(crate) hdd_file_exists: bool,
+    pub(crate) hdd_show_image_contents: bool,
+    pub(crate) hdd_image_contents: Vec<u8>,
+    pub(crate) hdd_image_error: Option<String>,
     pub(crate) floppy_show_image_contents: bool,
     pub(crate) floppy_image_contents: Vec<u8>,
     pub(crate) floppy_image_error: Option<String>,
@@ -157,6 +163,9 @@ impl DesktopApp {
         };
         let settings = load_settings();
         let lang = lang_from_language(settings.general.language);
+        let _ = handle.send(k580_app::AppCommand::AttachHddFile(
+            crate::runtime::storage_files::hdd_default_path(),
+        ));
         let default_speed = speed_tier_from_preset(settings.general.default_speed);
         let follow_pc = settings.general.follow_pc;
         let initial_status_kind = StatusKind::Ready;
@@ -249,6 +258,11 @@ impl DesktopApp {
             monitor_split: false,
             monitor_hex_popup: false,
             floppy_open: false,
+            hdd_open: false,
+            hdd_file_exists: true,
+            hdd_show_image_contents: false,
+            hdd_image_contents: Vec::new(),
+            hdd_image_error: None,
             floppy_show_image_contents: false,
             floppy_image_contents: Vec::new(),
             floppy_image_error: None,

@@ -21,6 +21,7 @@ pub struct GeneralSettings {
     pub language: Language,
     pub default_speed: SpeedPreset,
     pub follow_pc: bool,
+    pub hdd_directory: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -99,6 +100,7 @@ impl Default for GeneralSettings {
             language: Language::Ru,
             default_speed: SpeedPreset::Medium,
             follow_pc: true,
+            hdd_directory: None,
         }
     }
 }

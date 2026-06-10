@@ -122,7 +122,8 @@ pub(super) fn spinner_text_input<'a>(
     let padding_right = if disabled { 0.0 } else { ARROW_RESERVED };
 
     let input_style = if disabled {
-        super::styles::disabled_input_borderless_style as fn(&iced::Theme, iced::widget::text_input::Status) -> iced::widget::text_input::Style
+        super::styles::disabled_input_borderless_style
+            as fn(&iced::Theme, iced::widget::text_input::Status) -> iced::widget::text_input::Style
     } else {
         input_borderless_style
     };

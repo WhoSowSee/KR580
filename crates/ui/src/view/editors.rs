@@ -8,12 +8,12 @@ use iced::widget::{column, container, row, text_input};
 use iced::{Element, Length, Padding, alignment};
 
 use super::icons;
-use super::styles::{
-    disabled_input_borderless_style, input_borderless_style, input_shell_style,
-};
+use super::styles::{disabled_input_borderless_style, input_borderless_style, input_shell_style};
 use super::theme::{MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_RED, TOKYO_YELLOW};
 use super::tooltips::shortcut_hint;
-use super::widgets::{enter_button, enter_button_disabled, icon_action_button, legend_panel, spinner_text_input};
+use super::widgets::{
+    enter_button, enter_button_disabled, icon_action_button, legend_panel, spinner_text_input,
+};
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message, REGISTER_NAME_INPUT_ID,
     REGISTER_VALUE_INPUT_ID,
@@ -112,12 +112,10 @@ impl DesktopApp {
         } else {
             value_text = value_text.style(disabled_input_borderless_style);
         }
-        let value_input: Element<'_, Message> = container(
-            value_text.style(input_borderless_style),
-        )
-        .width(Length::Fixed(58.0))
-        .style(move |theme| input_shell_style(theme, value_focused && !self.running))
-        .into();
+        let value_input: Element<'_, Message> = container(value_text.style(input_borderless_style))
+            .width(Length::Fixed(58.0))
+            .style(move |theme| input_shell_style(theme, value_focused && !self.running))
+            .into();
 
         let editor = row![
             spinner_text_input(

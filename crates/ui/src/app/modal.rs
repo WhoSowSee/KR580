@@ -84,12 +84,27 @@ impl DesktopApp {
             return Task::none();
         };
         self.discard_modal_focus = DiscardModalButton::Cancel;
-        self.mark_saved();
         match action {
-            PendingAction::OpenSnapshot => Task::done(Message::OpenSnapshot),
-            PendingAction::NewFile => Task::done(Message::NewFile),
-            PendingAction::Import => Task::done(Message::Import),
-            PendingAction::CloseWindow => Task::done(Message::WindowClose),
+            PendingAction::OpenSnapshot => {
+                self.mark_saved();
+                Task::done(Message::OpenSnapshot)
+            }
+            PendingAction::NewFile => {
+                self.mark_saved();
+                Task::done(Message::NewFile)
+            }
+            PendingAction::Import => {
+                self.mark_saved();
+                Task::done(Message::Import)
+            }
+            PendingAction::CloseWindow => {
+                self.mark_saved();
+                Task::done(Message::WindowClose)
+            }
+            PendingAction::DeleteHdd => {
+                self.delete_hdd_file();
+                Task::none()
+            }
         }
     }
 

@@ -1,9 +1,6 @@
 use super::messages::SpeedTier;
 use crate::platform;
 
-#[allow(dead_code)]
-pub(crate) const DEFAULT_SPEED_TIER: SpeedTier = SpeedTier::Medium;
-
 pub(crate) const SLOW_TIER_HZ: u32 = 5;
 pub(crate) const MEDIUM_TIER_HZ: u32 = 20;
 pub(crate) const HIGH_TIER_FALLBACK_HZ: u32 = 60;

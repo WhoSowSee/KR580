@@ -36,6 +36,8 @@ impl DesktopApp {
             | Message::SettingsDraftLanguageChanged(_)
             | Message::SettingsDraftSpeedChanged(_)
             | Message::SettingsDraftFollowPcSet(_)
+            | Message::SettingsHddDirectoryBrowse
+            | Message::SettingsDraftHddDirectorySet(_)
             | Message::SettingsLanguageDropdownToggled
             | Message::SettingsResetRequested
             | Message::SettingsResetConfirmed
@@ -117,6 +119,7 @@ impl DesktopApp {
                 let current = dialog.draft_follow_pc;
                 Task::done(Message::SettingsDraftFollowPcSet(!current))
             }
+            ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),
             ContentFocus::Theme => Task::none(),
             ContentFocus::Shortcuts => Task::none(),
         }

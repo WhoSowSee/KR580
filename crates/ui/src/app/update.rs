@@ -128,7 +128,7 @@ impl DesktopApp {
                 } else {
                     self.step_register(1);
                 }
-            },
+            }
             Message::RegisterValueChanged(value) if !self.running => {
                 self.change_register_value(value);
                 self.active_register_target = None;
@@ -142,7 +142,9 @@ impl DesktopApp {
                 }
                 return self.apply_register_and_step(self.keyboard_modifiers.shift());
             }
-            Message::RegisterSelected(target) if !self.running => self.select_register_target(target),
+            Message::RegisterSelected(target) if !self.running => {
+                self.select_register_target(target)
+            }
             Message::RegisterEnter(target) if !self.running => {
                 self.enter_inline_register(target);
                 self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
@@ -215,9 +217,15 @@ impl DesktopApp {
                 let step = self.step_memory_address(if backward { -1 } else { 1 });
                 return step.chain(iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID));
             }
-            Message::OpcodeDropdownToggled(address) if !self.running => self.toggle_opcode_dropdown(address),
-            Message::OpcodeSearchChanged(value) if !self.running => self.change_opcode_search(value),
-            Message::OpcodeSelected(address, value) if !self.running => self.select_opcode(address, value),
+            Message::OpcodeDropdownToggled(address) if !self.running => {
+                self.toggle_opcode_dropdown(address)
+            }
+            Message::OpcodeSearchChanged(value) if !self.running => {
+                self.change_opcode_search(value)
+            }
+            Message::OpcodeSelected(address, value) if !self.running => {
+                self.select_opcode(address, value)
+            }
             Message::OpcodeScrolled => {
                 self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }

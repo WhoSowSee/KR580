@@ -1,3 +1,10 @@
+mod floppy;
+mod hdd;
+mod text;
+
+pub(in crate::view) use floppy::floppy_window_overlay;
+pub(in crate::view) use hdd::hdd_window_overlay;
+
 use iced::widget::{
     Space, button, column, container, mouse_area, opaque, row, scrollable, stack, svg,
 };
@@ -5,18 +12,14 @@ use iced::{Background, Border, Color, Element, Length, Padding, Theme, alignment
 use k580_app::{DeviceStatus, StorageState};
 use std::time::Duration;
 
-use super::icons;
 use super::styles::scrollable_style;
 use super::theme::{
     MONO_FONT, TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_SELECTION_BLUE,
     TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT, ui_text,
 };
-use super::tooltips::{hover_tooltip, shortcut_hint};
+use super::tooltips::hover_tooltip;
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
-
-mod text;
-
 use text::storage_buffer_text;
 
 const ICON_BUTTON_SIZE: f32 = 32.0;
@@ -24,12 +27,49 @@ const ICON_GLYPH_SIZE: f32 = 18.0;
 const WINDOW_WIDTH: f32 = 760.0;
 const WINDOW_HEIGHT: f32 = 340.0;
 
-pub(in crate::view) fn floppy_window_overlay<'a>(
+pub(super) struct StorageKeys {
+    pub(super) content: Key,
+    pub(super) image_content: Key,
+    pub(super) status: Key,
+    pub(super) path: Key,
+    pub(super) path_missing: Key,
+    pub(super) image_path_missing: Key,
+    pub(super) bytes_queued: Key,
+    pub(super) debug_enabled: Key,
+}
+
+pub(super) const FLOPPY_KEYS: StorageKeys = StorageKeys {
+    content: Key::FloppyContent,
+    image_content: Key::FloppyImageContent,
+    status: Key::FloppyStatus,
+    path: Key::FloppyPath,
+    path_missing: Key::FloppyPathMissing,
+    image_path_missing: Key::FloppyImagePathMissing,
+    bytes_queued: Key::FloppyBytesQueued,
+    debug_enabled: Key::FloppyDebugEnabled,
+};
+
+pub(super) const HDD_KEYS: StorageKeys = StorageKeys {
+    content: Key::HddContent,
+    image_content: Key::HddImageContent,
+    status: Key::HddStatus,
+    path: Key::HddPath,
+    path_missing: Key::HddPathMissing,
+    image_path_missing: Key::HddImagePathMissing,
+    bytes_queued: Key::HddBytesQueued,
+    debug_enabled: Key::HddDebugEnabled,
+};
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn storage_window_overlay<'a>(
     state: &'a StorageState,
     show_image_contents: bool,
     image_contents: &'a [u8],
     image_error: Option<&'a str>,
     lang: Lang,
+    close_msg: Message,
+    header_fn: impl FnOnce(&'a StorageState, bool, Lang) -> Element<'a, Message>,
+    keys: StorageKeys,
 ) -> Element<'a, Message> {
     let backdrop: Element<'_, Message> = mouse_area(
         container(Space::new())
@@ -37,19 +77,13 @@ pub(in crate::view) fn floppy_window_overlay<'a>(
             .height(Length::Fill)
             .style(backdrop_style),
     )
-    .on_press(Message::CloseFloppy)
+    .on_press(close_msg)
     .into();
 
     let body = column![
-        header(state, show_image_contents, lang),
+        header_fn(state, show_image_contents, lang),
         Space::new().height(Length::Fixed(12.0)),
-        dialog_body(
-            state,
-            show_image_contents,
-            image_contents,
-            image_error,
-            lang
-        ),
+        dialog_body(state, show_image_contents, image_contents, image_error, lang, keys),
     ]
     .width(Length::Fill)
     .height(Length::Fill);
@@ -79,86 +113,18 @@ pub(in crate::view) fn floppy_window_overlay<'a>(
         .into()
 }
 
-fn header<'a>(
-    state: &'a StorageState,
-    show_image_contents: bool,
-    lang: Lang,
-) -> Element<'a, Message> {
-    let debug_icon = icons::bug();
-
-    row![
-        Space::new().width(Length::Fill),
-        icon_button(
-            icons::hard_drive_download(),
-            Message::OpenFloppyImage,
-            lang.t(Key::FloppyOpenImage),
-            false,
-            None,
-        ),
-        Space::new().width(Length::Fixed(6.0)),
-        icon_button(
-            icons::hard_drive_upload(),
-            Message::SaveFloppyBuffer,
-            lang.t(Key::FloppySaveBuffer),
-            false,
-            None,
-        ),
-        Space::new().width(Length::Fixed(6.0)),
-        icon_button(
-            icons::hard_drive_x(),
-            Message::DetachFloppyImage,
-            lang.t(Key::FloppyDetachImage),
-            false,
-            None,
-        ),
-        Space::new().width(Length::Fixed(6.0)),
-        icon_button(
-            icons::binary(),
-            Message::ToggleFloppyImageContents,
-            lang.t(Key::FloppyShowImageContents),
-            show_image_contents,
-            None,
-        ),
-        Space::new().width(Length::Fixed(6.0)),
-        icon_button(
-            debug_icon,
-            Message::ToggleFloppyDebugBuffer,
-            lang.t(Key::FloppyDebugBuffer),
-            state.debug_buffer,
-            None,
-        ),
-        Space::new().width(Length::Fixed(6.0)),
-        icon_button(
-            icons::brush_cleaning(),
-            Message::ClearFloppyBuffer,
-            lang.t(Key::FloppyClearBuffer),
-            false,
-            None,
-        ),
-        Space::new().width(Length::Fixed(6.0)),
-        icon_button(
-            icons::window_close(),
-            Message::CloseFloppy,
-            lang.t(Key::MonitorClose),
-            false,
-            shortcut_hint(&Message::CloseFloppy),
-        ),
-    ]
-    .align_y(alignment::Vertical::Center)
-    .into()
-}
-
 fn dialog_body<'a>(
     state: &'a StorageState,
     show_image_contents: bool,
     image_contents: &'a [u8],
     image_error: Option<&'a str>,
     lang: Lang,
+    keys: StorageKeys,
 ) -> Element<'a, Message> {
     let (bytes, title_key, error) = if show_image_contents {
-        (image_contents, Key::FloppyImageContent, image_error)
+        (image_contents, keys.image_content, image_error)
     } else {
-        (state.visible_buffer.as_slice(), Key::FloppyContent, None)
+        (state.visible_buffer.as_slice(), keys.content, None)
     };
     let image_path_missing = show_image_contents && state.path.is_none();
     let text = error
@@ -167,7 +133,7 @@ fn dialog_body<'a>(
         .unwrap_or_else(|| storage_buffer_text(bytes));
     let empty = text.is_empty();
     let label = if image_path_missing {
-        Some(lang.t(Key::FloppyImagePathMissing))
+        Some(lang.t(keys.image_path_missing))
     } else {
         empty.then(|| lang.t(title_key))
     };
@@ -177,7 +143,7 @@ fn dialog_body<'a>(
                 .font(MONO_FONT)
                 .size(15)
                 .color(TOKYO_TEXT)
-                .wrapping(iced::widget::text::Wrapping::None),
+                .wrapping(iced::widget::text::Wrapping::Glyph),
         )
         .padding(buffer_padding(empty))
         .width(Length::Fill)
@@ -195,7 +161,7 @@ fn dialog_body<'a>(
 
     column![
         framed_buffer(buffer_frame.into(), label),
-        footer(state, lang),
+        storage_footer(state, lang, keys),
     ]
     .spacing(12)
     .width(Length::Fill)
@@ -223,24 +189,28 @@ fn framed_buffer<'a>(buffer: Element<'a, Message>, title: Option<&'a str>) -> El
         .into()
 }
 
-fn footer<'a>(state: &'a StorageState, lang: Lang) -> Element<'a, Message> {
-    let path = state
-        .path
-        .as_ref()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|| lang.t(Key::FloppyPathMissing).to_owned());
+fn storage_footer<'a>(
+    state: &'a StorageState,
+    lang: Lang,
+    keys: StorageKeys,
+) -> Element<'a, Message> {
+    let path = if state.debug_buffer {
+        lang.t(keys.debug_enabled).to_owned()
+    } else {
+        state
+            .path
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| lang.t(keys.path_missing).to_owned())
+    };
     let status = status_label(&state.status, lang);
-    let mut meta = format!(
+    let meta = format!(
         "{}: {status}   {}: {path}   {}: {}",
-        lang.t(Key::FloppyStatus),
-        lang.t(Key::FloppyPath),
-        lang.t(Key::FloppyBytesQueued),
+        lang.t(keys.status),
+        lang.t(keys.path),
+        lang.t(keys.bytes_queued),
         state.bytes_queued,
     );
-    if let Some(error) = state.last_error.as_deref() {
-        meta.push_str("   ");
-        meta.push_str(error);
-    }
 
     row![
         container(
@@ -257,14 +227,21 @@ fn footer<'a>(state: &'a StorageState, lang: Lang) -> Element<'a, Message> {
     .into()
 }
 
-fn icon_button(
+pub(super) fn icon_button(
     handle: svg::Handle,
-    on_press: Message,
+    on_press: Option<Message>,
     hint: &'static str,
     active: bool,
     shortcut: Option<&'static str>,
 ) -> Element<'static, Message> {
-    let glyph_color = if active { TOKYO_BLUE } else { TOKYO_TEXT };
+    let is_disabled = on_press.is_none() && !active;
+    let glyph_color = if active {
+        TOKYO_BLUE
+    } else if is_disabled {
+        TOKYO_MUTED
+    } else {
+        TOKYO_TEXT
+    };
     let glyph = svg(handle)
         .width(Length::Fixed(ICON_GLYPH_SIZE))
         .height(Length::Fixed(ICON_GLYPH_SIZE))
@@ -272,18 +249,21 @@ fn icon_button(
             color: Some(glyph_color),
         });
 
-    let face = button(
+    let mut btn = button(
         container(glyph)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(alignment::Horizontal::Center)
             .align_y(alignment::Vertical::Center),
-    )
-    .on_press(on_press)
-    .padding(0)
-    .width(Length::Fixed(ICON_BUTTON_SIZE))
-    .height(Length::Fixed(ICON_BUTTON_SIZE))
-    .style(move |_theme, status| icon_button_style(status, active));
+    );
+    if let Some(msg) = on_press {
+        btn = btn.on_press(msg);
+    }
+    let face = btn
+        .padding(0)
+        .width(Length::Fixed(ICON_BUTTON_SIZE))
+        .height(Length::Fixed(ICON_BUTTON_SIZE))
+        .style(move |_theme, status| icon_button_style(status, active));
 
     hover_tooltip(
         face.into(),
@@ -350,19 +330,31 @@ fn buffer_padding(empty: bool) -> Padding {
 }
 
 fn icon_button_style(status: iced::widget::button::Status, active: bool) -> button::Style {
+    let disabled = matches!(status, button::Status::Disabled) && !active;
     let background = match (status, active) {
-        (iced::widget::button::Status::Pressed, _) => TOKYO_SURFACE_2,
-        (iced::widget::button::Status::Hovered, _) => TOKYO_SURFACE,
-        (_, true) => TOKYO_SELECTION_BLUE,
+        (iced::widget::button::Status::Pressed, _) if !disabled => TOKYO_SURFACE_2,
+        (iced::widget::button::Status::Hovered, _) if !disabled => TOKYO_SURFACE,
+        (_, true) if !disabled => TOKYO_SELECTION_BLUE,
         _ => TOKYO_BOARD,
     };
+    let border_color = if disabled {
+        Color {
+            a: 0.35,
+            ..TOKYO_BORDER
+        }
+    } else if active {
+        TOKYO_BLUE
+    } else {
+        TOKYO_BORDER
+    };
+    let text_color = if disabled { TOKYO_MUTED } else { TOKYO_TEXT };
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color,
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: if active { TOKYO_BLUE } else { TOKYO_BORDER },
+            color: border_color,
         },
         ..button::Style::default()
     }

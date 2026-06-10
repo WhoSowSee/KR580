@@ -27,11 +27,12 @@ pub(super) fn shortcut_hint(message: &Message) -> Option<&'static str> {
         Message::ClearHalt => Some("Ctrl+Shift+H"),
         Message::OpenHelp => Some("Ctrl+H"),
         Message::OpenMonitor => Some("Ctrl+M"),
+        Message::OpenHdd => Some("Ctrl+D"),
         Message::OpenSettings => Some("Ctrl+,"),
         Message::Undo => Some("Ctrl+Z"),
         Message::Redo => Some("Ctrl+Shift+Z"),
         Message::OpenOpcodePicker => Some("E"),
-        Message::CloseMonitor | Message::CloseFloppy => Some("Esc"),
+        Message::CloseMonitor | Message::CloseFloppy | Message::CloseHdd => Some("Esc"),
         _ => None,
     }
 }

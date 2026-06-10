@@ -58,10 +58,20 @@ pub(super) fn segmented_button(
     keyboard_focused: bool,
     action: Message,
 ) -> Element<'static, Message> {
+    segmented_button_width(label, active, keyboard_focused, action, SPEED_SEGMENT_WIDTH)
+}
+
+pub(super) fn segmented_button_width(
+    label: &'static str,
+    active: bool,
+    keyboard_focused: bool,
+    action: Message,
+    width: f32,
+) -> Element<'static, Message> {
     button(
         container(ui_text(label, 13, TOKYO_TEXT))
             .padding([6, 0])
-            .width(Length::Fixed(SPEED_SEGMENT_WIDTH))
+            .width(Length::Fixed(width))
             .align_x(alignment::Horizontal::Center),
     )
     .on_press(action)

@@ -39,6 +39,10 @@ pub enum AppCommand {
     AttachFloppyImage(PathBuf),
     DetachFloppyImage,
     SetFloppyDebugBuffer(bool),
+    ClearHddBuffer,
+    DetachHddFile,
+    SetHddDebugBuffer(bool),
+    AttachHddFile(PathBuf),
     Shutdown,
 }
 

@@ -39,7 +39,7 @@ use modal::discard_modal_overlay;
 use monitor::monitor_window_overlay;
 use notices::{error_notice_overlay, halt_notice_overlay};
 use settings_dialog::settings_modal_overlay;
-use storage::floppy_window_overlay;
+use storage::{floppy_window_overlay, hdd_window_overlay};
 use styles::app_style;
 
 use about::about_modal_overlay;
@@ -47,7 +47,7 @@ use export_modal::{ExportModalViewState, export_modal_overlay};
 use help::help_modal_overlay;
 use import_modal::{ImportModalViewState, import_modal_overlay};
 
-use crate::app::{DesktopApp, MenuId, Message};
+use crate::app::{DesktopApp, MenuId, Message, PendingAction};
 
 /// Vertical offset of the dropdown so its top border sits on the
 /// menu bar's bottom hairline.
@@ -138,13 +138,30 @@ impl DesktopApp {
         };
 
         if let Some(action) = self.pending_action.as_ref() {
-            stack![
-                scrimmed,
-                discard_modal_overlay(action, self.discard_modal_focus, self.lang)
-            ]
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
+            let modal =
+                discard_modal_overlay(action, self.discard_modal_focus, self.lang);
+            if matches!(action, PendingAction::DeleteHdd) && self.hdd_open {
+                stack![
+                    scrimmed,
+                    hdd_window_overlay(
+                        &self.snapshot.devices.hdd,
+                        self.hdd_file_exists,
+                        self.hdd_show_image_contents,
+                        &self.hdd_image_contents,
+                        self.hdd_image_error.as_deref(),
+                        self.lang,
+                    ),
+                    modal,
+                ]
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+            } else {
+                stack![scrimmed, modal]
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into()
+            }
         } else if self.export_modal_open {
             stack![
                 scrimmed,
@@ -208,6 +225,21 @@ impl DesktopApp {
                     self.monitor_hex_filter,
                     self.monitor_hex_scroll_visible_ticks > 0,
                     self.lang
+                )
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+        } else if self.hdd_open {
+            stack![
+                scrimmed,
+                hdd_window_overlay(
+                    &self.snapshot.devices.hdd,
+                    self.hdd_file_exists,
+                    self.hdd_show_image_contents,
+                    &self.hdd_image_contents,
+                    self.hdd_image_error.as_deref(),
+                    self.lang,
                 )
             ]
             .width(Length::Fill)

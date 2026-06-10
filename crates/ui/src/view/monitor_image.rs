@@ -134,7 +134,12 @@ fn encode_jpeg(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, Strin
     let mut out = Vec::new();
     let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 90);
     encoder
-        .encode(buf, width as u32, height as u32, image::ColorType::Rgb8.into())
+        .encode(
+            buf,
+            width as u32,
+            height as u32,
+            image::ColorType::Rgb8.into(),
+        )
         .map_err(|e| format!("jpeg: {e}"))?;
     Ok(out)
 }
@@ -143,7 +148,12 @@ fn encode_webp(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, Strin
     let mut out = Vec::new();
     let encoder = image::codecs::webp::WebPEncoder::new_lossless(&mut out);
     encoder
-        .encode(buf, width as u32, height as u32, image::ColorType::Rgb8.into())
+        .encode(
+            buf,
+            width as u32,
+            height as u32,
+            image::ColorType::Rgb8.into(),
+        )
         .map_err(|e| format!("webp: {e}"))?;
     Ok(out)
 }
@@ -152,7 +162,12 @@ fn encode_bmp(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String
     let mut out = Vec::new();
     let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut out);
     encoder
-        .encode(buf, width as u32, height as u32, image::ColorType::Rgb8.into())
+        .encode(
+            buf,
+            width as u32,
+            height as u32,
+            image::ColorType::Rgb8.into(),
+        )
         .map_err(|e| format!("bmp: {e}"))?;
     Ok(out)
 }
