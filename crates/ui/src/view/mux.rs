@@ -278,7 +278,6 @@ fn mux_register_cell(
                 .align_x(alignment::Horizontal::Center),
         )
         .on_press(Message::RegisterEnter(target))
-        .on_double_click(Message::RegisterEnter(target))
         .interaction(iced::mouse::Interaction::Pointer)
         .into()
     };
@@ -306,9 +305,7 @@ fn mux_register_cell(
         .interaction(iced::mouse::Interaction::Pointer);
 
     if editing {
-        area.on_press(Message::RegisterEnter(target))
-            .on_double_click(Message::RegisterEnter(target))
-            .into()
+        area.on_press(Message::RegisterEnter(target)).into()
     } else {
         area.on_press(Message::RegisterSelected(target))
             .on_double_click(Message::RegisterEnter(target))

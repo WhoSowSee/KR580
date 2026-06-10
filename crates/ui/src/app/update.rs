@@ -148,7 +148,7 @@ impl DesktopApp {
             Message::RegisterEnter(target) if !self.running => {
                 self.enter_inline_register(target);
                 self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
-                return Task::done(Message::RefocusInlineRegister);
+                return iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID);
             }
             Message::InlineRegisterValueChanged(target, value) if !self.running => {
                 self.change_inline_register_value(target, value);

@@ -219,7 +219,6 @@ pub(super) fn functional_block<'a>(
                 .align_y(alignment::Vertical::Center),
         )
         .on_press(Message::RegisterEnter(target))
-        .on_double_click(Message::RegisterEnter(target))
         .interaction(iced::mouse::Interaction::Pointer)
         .into()
     };
@@ -244,9 +243,7 @@ pub(super) fn functional_block<'a>(
         .interaction(iced::mouse::Interaction::Pointer);
 
     if state.editing {
-        area.on_press(Message::RegisterEnter(target))
-            .on_double_click(Message::RegisterEnter(target))
-            .into()
+        area.on_press(Message::RegisterEnter(target)).into()
     } else {
         area.on_press(Message::RegisterSelected(target))
             .on_double_click(Message::RegisterEnter(target))

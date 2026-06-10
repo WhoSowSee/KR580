@@ -142,7 +142,6 @@ pub(crate) enum Message {
     ApplyRegister,
     RegisterSelected(RegisterInlineTarget),
     RegisterEnter(RegisterInlineTarget),
-    RefocusInlineRegister,
     InlineRegisterValueChanged(RegisterInlineTarget, String),
     ApplyInlineRegisterValue(RegisterInlineTarget),
     RegisterHoverStarted(RegisterInlineTarget),
