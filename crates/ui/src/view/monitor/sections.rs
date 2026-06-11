@@ -1,7 +1,7 @@
 use iced::widget::canvas::Cache;
-use iced::widget::{Canvas, column, container, stack};
+use iced::widget::{Canvas, container, stack, text::Wrapping};
 use iced::{Element, Length, Padding};
-use k580_app::{MonitorState, TEXT_COLS, TEXT_ROWS};
+use k580_app::{MonitorState, TextCell};
 
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
@@ -54,40 +54,45 @@ pub(super) fn pixel_layer_section<'a>(state: &'a MonitorState, lang: Lang) -> El
 }
 
 pub(super) fn text_layer_section<'a>(state: &MonitorState, lang: Lang) -> Element<'a, Message> {
-    let cols = TEXT_COLS as usize;
-    let rows = TEXT_ROWS as usize;
-    let cells = &state.text_cells;
+    let (text, empty) = text_layer_text(&state.text_cells);
 
-    let mut grid = column![].spacing(1);
-    let mut empty = true;
-    for r in 0..rows {
-        let mut line = String::with_capacity(cols);
-        for c in 0..cols {
-            let idx = r * cols + c;
-            let ch = cells.get(idx).map(|cell| cell.ch).unwrap_or(0);
-            let glyph = if ch.is_ascii_graphic() || ch == b' ' {
-                ch as char
-            } else if ch == 0 {
-                ' '
-            } else {
-                '·'
-            };
-            if ch != 0 && ch != b' ' {
-                empty = false;
-            }
-            line.push(glyph);
-        }
-        grid = grid.push(mono_text(line, 13, TOKYO_TEXT));
-    }
-
-    let body: Element<'_, Message> = container(grid)
-        .padding(framebuffer_padding(empty))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .style(framebuffer_style)
-        .into();
+    let body: Element<'_, Message> = container(
+        mono_text(text, 13, TOKYO_TEXT)
+            .width(Length::Fill)
+            .wrapping(Wrapping::Glyph),
+    )
+    .padding(framebuffer_padding(empty))
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .style(framebuffer_style)
+    .into();
 
     framed_layer(body, empty.then(|| lang.t(Key::MonitorTextLayer)))
+}
+
+fn text_layer_text(cells: &[TextCell]) -> (String, bool) {
+    let visible_len = cells
+        .iter()
+        .rposition(|cell| cell.ch != 0)
+        .map_or(0, |index| index + 1);
+    let mut text = String::with_capacity(visible_len);
+    let mut empty = true;
+
+    for cell in &cells[..visible_len] {
+        let glyph = if cell.ch.is_ascii_graphic() || cell.ch == b' ' {
+            cell.ch as char
+        } else if cell.ch == 0 {
+            ' '
+        } else {
+            '·'
+        };
+        if cell.ch != 0 && cell.ch != b' ' {
+            empty = false;
+        }
+        text.push(glyph);
+    }
+
+    (text, empty)
 }
 
 fn framed_layer<'a>(canvas: Element<'a, Message>, title: Option<&'a str>) -> Element<'a, Message> {
@@ -108,4 +113,24 @@ fn framed_layer<'a>(canvas: Element<'a, Message>, title: Option<&'a str>) -> Ele
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn text_only_layer_does_not_insert_framebuffer_row_breaks() {
+        let cells: Vec<TextCell> = (b'a'..=b'z')
+            .cycle()
+            .take(104)
+            .map(|ch| TextCell { ch, color: 0x40 })
+            .collect();
+
+        let (text, empty) = text_layer_text(&cells);
+
+        assert!(!empty);
+        assert_eq!(text.len(), 104);
+        assert!(!text.contains('\n'));
+    }
 }

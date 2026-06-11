@@ -1,7 +1,7 @@
 use crate::DeviceStatus;
 use serde::{Deserialize, Serialize};
 
-pub const TEXT_COLS: u16 = 39;
+pub const TEXT_COLS: u16 = 64;
 pub const TEXT_ROWS: u16 = 20;
 pub const TEXT_CELL_COUNT: usize = (TEXT_COLS as usize) * (TEXT_ROWS as usize);
 pub const GRAPHICS_WIDTH: u16 = 256;
@@ -180,6 +180,24 @@ mod tests {
         dev.output_byte(7);
         let s = dev.state();
         assert_eq!(s.pixels, vec![(5, 7, 0x7F)]);
+    }
+
+    #[test]
+    fn text_geometry_matches_monitor_protocol() {
+        assert_eq!(TEXT_COLS, 64);
+        assert_eq!(TEXT_ROWS, 20);
+        assert_eq!(TEXT_CELL_COUNT, 64 * 20);
+
+        let mut dev = MonitorDevice::default();
+        for ch in 0..=TEXT_COLS {
+            dev.output_byte(0x40);
+            dev.output_byte(ch as u8);
+        }
+
+        let s = dev.state();
+        assert_eq!(s.text_cells[63].ch, 63);
+        assert_eq!(s.text_cells[64].ch, 64);
+        assert_eq!(s.text_cursor, 65);
     }
 
     #[test]
