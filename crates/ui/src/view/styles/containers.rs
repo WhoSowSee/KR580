@@ -47,6 +47,22 @@ pub(crate) fn panel_style(theme: &Theme) -> container::Style {
     board_style(theme)
 }
 
+pub(crate) fn modal_backdrop_style(_theme: &Theme) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(Color {
+            r: 0.07,
+            g: 0.07,
+            b: 0.13,
+            a: 0.70,
+        })),
+        ..container::Style::default()
+    }
+}
+
+pub(crate) fn large_dialog_style(_theme: &Theme) -> container::Style {
+    surface_style(Some(TOKYO_BOARD), 12.0, 1.0, TOKYO_BORDER)
+}
+
 /// Shared surface for hover tooltips. Matches `status_tooltip_style`
 /// so every tooltip in the app uses the same darker plate fill.
 pub(crate) fn inset_style(_theme: &Theme) -> container::Style {

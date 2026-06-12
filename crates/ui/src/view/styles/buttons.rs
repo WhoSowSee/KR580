@@ -77,6 +77,54 @@ pub(crate) fn enter_button_style(status: button::Status) -> button::Style {
     }
 }
 
+pub(crate) fn modal_field_button_style(status: button::Status) -> button::Style {
+    let background = match status {
+        button::Status::Hovered => Color {
+            a: 0.45,
+            ..TOKYO_SURFACE
+        },
+        button::Status::Pressed => TOKYO_SURFACE_2,
+        _ => Color::TRANSPARENT,
+    };
+
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: TOKYO_TEXT,
+        border: Border {
+            radius: 6.0.into(),
+            width: 1.0,
+            color: TOKYO_BORDER,
+        },
+        ..button::Style::default()
+    }
+}
+
+pub(crate) fn modal_dropdown_option_style(
+    status: button::Status,
+    highlighted: bool,
+) -> button::Style {
+    let background = match (highlighted, status) {
+        (true, _) => TOKYO_SURFACE,
+        (false, button::Status::Hovered) => Color {
+            a: 0.45,
+            ..TOKYO_SURFACE
+        },
+        (false, button::Status::Pressed) => TOKYO_SURFACE_2,
+        _ => Color::TRANSPARENT,
+    };
+
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: TOKYO_TEXT,
+        border: Border {
+            radius: 4.0.into(),
+            width: 0.0,
+            color: Color::TRANSPARENT,
+        },
+        ..button::Style::default()
+    }
+}
+
 pub(crate) fn menu_button_style(status: button::Status) -> button::Style {
     let background = if is_button_active(status) {
         TOKYO_SURFACE_2

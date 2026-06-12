@@ -8,8 +8,8 @@ impl DesktopApp {
     pub(crate) fn subscription(&self) -> Subscription<Message> {
         let mut subscriptions = vec![
             time::every(tick_interval(self.running, self.speed_tier)).map(|_| Message::Tick),
-            iced::window::open_events().map(Message::WindowOpened),
-            event::listen_with(|event, status, _window| match (event, status) {
+            iced::window::close_events().map(Message::WindowClosed),
+            event::listen_with(|event, status, window| match (event, status) {
                 (iced::Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)), _) => {
                     Some(Message::ModifiersChanged(modifiers))
                 }
@@ -89,10 +89,10 @@ impl DesktopApp {
                     Some(Message::MousePressed)
                 }
                 (iced::Event::Window(iced::window::Event::CloseRequested), _) => {
-                    Some(Message::WindowCloseRequested)
+                    Some(Message::WindowCloseRequested(window))
                 }
                 (iced::Event::Window(iced::window::Event::Resized(size)), _) => {
-                    Some(Message::WindowResized(size.width))
+                    Some(Message::WindowResized { id: window, size })
                 }
                 _ => None,
             }),

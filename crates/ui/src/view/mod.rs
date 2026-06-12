@@ -36,10 +36,10 @@ use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
 
 use modal::discard_modal_overlay;
-use monitor::monitor_window_overlay;
+use monitor::{monitor_window, monitor_window_overlay};
 use notices::{error_notice_overlay, halt_notice_overlay};
 use settings_dialog::settings_modal_overlay;
-use storage::{floppy_window_overlay, hdd_window_overlay};
+use storage::{floppy_window, floppy_window_overlay, hdd_window, hdd_window_overlay};
 use styles::app_style;
 
 use about::about_modal_overlay;
@@ -64,7 +64,55 @@ pub(super) const MP_MENU_DROPDOWN_LEFT: f32 = 93.0;
 pub(super) const HELP_MENU_DROPDOWN_LEFT: f32 = 308.0;
 
 impl DesktopApp {
-    pub(crate) fn view(&self) -> Element<'_, Message> {
+    pub(crate) fn view(&self, window: iced::window::Id) -> Element<'_, Message> {
+        if self.monitor_window.id == Some(window) {
+            if !self.monitor_window.detached {
+                return Space::new().into();
+            }
+            return monitor_window(
+                &self.snapshot.devices.monitor,
+                self.monitor_split,
+                self.monitor_hex_popup,
+                self.monitor_hex_filter,
+                self.monitor_hex_scroll_visible_ticks > 0,
+                self.monitor_window.always_on_top,
+                self.lang,
+            );
+        }
+        if self.floppy_window.id == Some(window) {
+            if !self.floppy_window.detached {
+                return Space::new().into();
+            }
+            return floppy_window(
+                &self.snapshot.devices.floppy,
+                self.floppy_show_image_contents,
+                &self.floppy_image_contents,
+                self.floppy_image_error.as_deref(),
+                self.floppy_window.always_on_top,
+                self.lang,
+            );
+        }
+        if self.hdd_window.id == Some(window) {
+            if !self.hdd_window.detached {
+                return Space::new().into();
+            }
+            return hdd_window(
+                &self.snapshot.devices.hdd,
+                self.hdd_file_exists,
+                self.hdd_show_image_contents,
+                &self.hdd_image_contents,
+                self.hdd_image_error.as_deref(),
+                self.hdd_window.always_on_top,
+                self.lang,
+            );
+        }
+        if self.main_window_id != Some(window) {
+            return Space::new().into();
+        }
+        self.main_view()
+    }
+
+    fn main_view(&self) -> Element<'_, Message> {
         let main = row![self.schematic_panel(), self.side_panel()]
             .spacing(8)
             .height(Length::Fill);
@@ -138,9 +186,11 @@ impl DesktopApp {
         };
 
         if let Some(action) = self.pending_action.as_ref() {
-            let modal =
-                discard_modal_overlay(action, self.discard_modal_focus, self.lang);
-            if matches!(action, PendingAction::DeleteHdd) && self.hdd_open {
+            let modal = discard_modal_overlay(action, self.discard_modal_focus, self.lang);
+            if matches!(action, PendingAction::DeleteHdd)
+                && self.hdd_open
+                && !self.hdd_window.detached
+            {
                 stack![
                     scrimmed,
                     hdd_window_overlay(
@@ -215,7 +265,7 @@ impl DesktopApp {
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .into()
-        } else if self.monitor_open {
+        } else if self.monitor_open && !self.monitor_window.detached {
             stack![
                 scrimmed,
                 monitor_window_overlay(
@@ -230,7 +280,7 @@ impl DesktopApp {
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
-        } else if self.hdd_open {
+        } else if self.hdd_open && !self.hdd_window.detached {
             stack![
                 scrimmed,
                 hdd_window_overlay(
@@ -245,7 +295,7 @@ impl DesktopApp {
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
-        } else if self.floppy_open {
+        } else if self.floppy_open && !self.floppy_window.detached {
             stack![
                 scrimmed,
                 floppy_window_overlay(

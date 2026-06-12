@@ -1,11 +1,13 @@
-use iced::{Point, Task, Theme, keyboard};
+use iced::{Point, Size, Task, Theme, keyboard};
 use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use k580_core::RegisterName;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use super::help::HelpDialog;
-use super::messages::{ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier};
+use super::messages::{
+    ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier, ToolWindowKind,
+};
 use super::modal::DiscardModalButton;
 use super::settings_modal::SettingsDialog;
 use super::status::StatusKind;
@@ -24,6 +26,14 @@ pub(crate) enum PendingAction {
     Import,
     CloseWindow,
     DeleteHdd,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ToolWindowState {
+    pub(crate) id: Option<iced::window::Id>,
+    pub(crate) ready: bool,
+    pub(crate) detached: bool,
+    pub(crate) always_on_top: bool,
 }
 
 pub(crate) struct DesktopApp {
@@ -67,7 +77,7 @@ pub(crate) struct DesktopApp {
     /// Set on `TactAdvanced { instruction_boundary: true }`.
     pub(crate) last_tact_was_boundary: bool,
     pub(crate) startup_frames_seen: u8,
-    pub(crate) window_width: f32,
+    pub(crate) main_window_size: Size,
     pub(crate) open_menu: Option<MenuId>,
     pub(crate) about_dialog_open: bool,
     pub(crate) current_snapshot_path: Option<PathBuf>,
@@ -81,7 +91,10 @@ pub(crate) struct DesktopApp {
     pub(crate) error_notice: Option<String>,
     pub(crate) error_notice_dismiss_at: Option<Instant>,
 
-    pub(crate) window_id: Option<iced::window::Id>,
+    pub(crate) main_window_id: Option<iced::window::Id>,
+    pub(crate) monitor_window: ToolWindowState,
+    pub(crate) floppy_window: ToolWindowState,
+    pub(crate) hdd_window: ToolWindowState,
     pub(crate) window_maximized: bool,
     pub(crate) follow_pc: bool,
     pub(crate) menu_categories_visible: bool,
@@ -204,7 +217,7 @@ impl DesktopApp {
             inline_register_just_entered: false,
             last_tact_was_boundary: false,
             startup_frames_seen: 0,
-            window_width: 1180.0,
+            main_window_size: Size::new(1180.0, 720.0),
             open_menu: None,
             about_dialog_open: false,
             current_snapshot_path: None,
@@ -214,7 +227,10 @@ impl DesktopApp {
             run_blocked_after_halt: false,
             error_notice: None,
             error_notice_dismiss_at: None,
-            window_id: None,
+            main_window_id: None,
+            monitor_window: ToolWindowState::default(),
+            floppy_window: ToolWindowState::default(),
+            hdd_window: ToolWindowState::default(),
             window_maximized: false,
             menu_categories_visible: true,
             follow_pc,
@@ -272,8 +288,8 @@ impl DesktopApp {
         (app, startup_task)
     }
 
-    pub(crate) fn theme(&self) -> Theme {
-        Theme::TokyoNight
+    pub(crate) fn theme(&self, _window: iced::window::Id) -> Option<Theme> {
+        Some(Theme::TokyoNight)
     }
 
     pub(crate) fn set_status(&mut self, kind: StatusKind) {
@@ -345,5 +361,23 @@ impl DesktopApp {
             _ => k580_app::RunMode::Paced,
         };
         self.dispatch(k580_app::AppCommand::SetRunMode(mode));
+    }
+}
+
+impl DesktopApp {
+    pub(crate) fn tool_window(&self, kind: ToolWindowKind) -> &ToolWindowState {
+        match kind {
+            ToolWindowKind::Monitor => &self.monitor_window,
+            ToolWindowKind::Floppy => &self.floppy_window,
+            ToolWindowKind::Hdd => &self.hdd_window,
+        }
+    }
+
+    pub(crate) fn tool_window_mut(&mut self, kind: ToolWindowKind) -> &mut ToolWindowState {
+        match kind {
+            ToolWindowKind::Monitor => &mut self.monitor_window,
+            ToolWindowKind::Floppy => &mut self.floppy_window,
+            ToolWindowKind::Hdd => &mut self.hdd_window,
+        }
     }
 }

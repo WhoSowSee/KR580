@@ -2,39 +2,10 @@ use iced::widget::{button, container, scrollable, text_editor, text_input};
 use iced::{Background, Border, Color};
 
 use crate::view::styles::input_borderless_style;
-use crate::view::theme::{
-    TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT,
+pub(super) use crate::view::styles::{
+    large_dialog_style as modal_dialog_style, modal_backdrop_style,
 };
-
-pub(super) fn modal_backdrop_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(Color {
-            r: 0.07,
-            g: 0.07,
-            b: 0.13,
-            a: 0.70,
-        })),
-        border: Border {
-            radius: 0.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        ..container::Style::default()
-    }
-}
-
-pub(super) fn modal_dialog_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 12.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..container::Style::default()
-    }
-}
+use crate::view::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT};
 
 pub(super) fn sidebar_chip_style(
     status: button::Status,

@@ -14,6 +14,13 @@ pub(crate) enum MenuId {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ToolWindowKind {
+    Monitor,
+    Floppy,
+    Hdd,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SpeedTier {
     Slow,
     Medium,
@@ -191,7 +198,11 @@ pub(crate) enum Message {
     FocusReconciled(Option<iced::widget::Id>),
     ResolveFocusedTracker(Option<iced::widget::Id>),
     WindowOpened(iced::window::Id),
-    WindowResized(f32),
+    WindowClosed(iced::window::Id),
+    WindowResized {
+        id: iced::window::Id,
+        size: iced::Size,
+    },
     FrameRendered,
     MenuCategoriesToggled,
     MenuToggled(MenuId),
@@ -200,6 +211,7 @@ pub(crate) enum Message {
     MenuBatch(Vec<Message>),
     SpeedTierChanged(SpeedTier),
     WindowDragStart,
+    ToolWindowDragStart(ToolWindowKind),
     WindowMinimize,
     WindowToggleMaximize,
     WindowClose,
@@ -209,7 +221,7 @@ pub(crate) enum Message {
     ConfirmDiscard,
     CancelDiscard,
     /// OS-side close (× / Alt+F4); routed through the dirty gate.
-    WindowCloseRequested,
+    WindowCloseRequested(iced::window::Id),
     OpenSettings,
     CloseSettings,
     SaveSettings,
@@ -225,6 +237,9 @@ pub(crate) enum Message {
     OpenUrl(&'static str),
     OpenMonitor,
     CloseMonitor,
+    DetachToolWindow(ToolWindowKind),
+    AttachToolWindow(ToolWindowKind),
+    ToggleToolWindowAlwaysOnTop(ToolWindowKind),
     ToggleMonitorSplit,
     ToggleMonitorHexPopup,
     CycleMonitorHexFilter,

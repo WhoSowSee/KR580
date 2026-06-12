@@ -4,8 +4,9 @@ use k580_app::StorageState;
 
 use super::super::icons;
 use super::super::tooltips::shortcut_hint;
-use super::{HDD_KEYS, icon_button, storage_window_overlay};
-use crate::app::Message;
+use super::chrome::{icon_button, window_controls};
+use super::{HDD_KEYS, storage_window, storage_window_overlay};
+use crate::app::{Message, ToolWindowKind};
 use crate::i18n::{Key, Lang};
 
 pub(in crate::view) fn hdd_window_overlay<'a>(
@@ -23,7 +24,32 @@ pub(in crate::view) fn hdd_window_overlay<'a>(
         image_error,
         lang,
         Message::CloseHdd,
-        move |state, show, lang| hdd_header(state, hdd_file_exists, show, lang),
+        move |state, show, detached, always_on_top, lang| {
+            hdd_header(state, hdd_file_exists, show, detached, always_on_top, lang)
+        },
+        HDD_KEYS,
+    )
+}
+
+pub(in crate::view) fn hdd_window<'a>(
+    state: &'a StorageState,
+    hdd_file_exists: bool,
+    show_image_contents: bool,
+    image_contents: &'a [u8],
+    image_error: Option<&'a str>,
+    always_on_top: bool,
+    lang: Lang,
+) -> Element<'a, Message> {
+    storage_window(
+        state,
+        show_image_contents,
+        image_contents,
+        image_error,
+        always_on_top,
+        lang,
+        move |state, show, detached, always_on_top, lang| {
+            hdd_header(state, hdd_file_exists, show, detached, always_on_top, lang)
+        },
         HDD_KEYS,
     )
 }
@@ -32,10 +58,12 @@ fn hdd_header<'a>(
     state: &'a StorageState,
     hdd_file_exists: bool,
     show_image_contents: bool,
+    detached: bool,
+    always_on_top: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     row![
-        Space::new().width(Length::Fill),
+        window_controls(ToolWindowKind::Hdd, detached, always_on_top, lang),
         icon_button(
             icons::folder_open(),
             Some(Message::ChooseHddDirectory),

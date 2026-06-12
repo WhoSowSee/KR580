@@ -121,17 +121,15 @@ impl DesktopApp {
             if self.monitor_hex_popup {
                 self.monitor_hex_popup = false;
             } else {
-                self.monitor_open = false;
+                return self.close_monitor();
             }
             return Task::none();
         }
         if self.hdd_open {
-            self.hdd_open = false;
-            return Task::none();
+            return self.close_hdd();
         }
         if self.floppy_open {
-            self.floppy_open = false;
-            return Task::none();
+            return self.close_floppy();
         }
         if self.error_notice.is_some() {
             self.clear_error_notice();

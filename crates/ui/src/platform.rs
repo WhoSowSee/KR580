@@ -1,6 +1,4 @@
-//! Windows-only DWM helpers: cloak the window through the first frame
-//! to suppress the launch flash, and opt into the Win11 rounded-corner
-//! treatment. Both are no-ops on other platforms.
+//! Windows window helpers for startup cloaking and rounded corners.
 
 #[cfg(windows)]
 pub(crate) fn cloak_window(window: &dyn iced::window::Window, cloaked: bool) {
@@ -69,6 +67,8 @@ pub(crate) fn cloak_window(_window: &dyn iced::window::Window, _cloaked: bool) {
 
 #[cfg(not(windows))]
 pub(crate) fn set_rounded_corners(_window: &dyn iced::window::Window) {}
+
+pub(crate) const SUPPORTS_HIDDEN_WINDOW_REUSE: bool = cfg!(windows);
 
 /// `Some(2..=480)` on Windows when the OS reports a believable refresh
 /// rate. Callers fall back to 60 Hz on `None`.

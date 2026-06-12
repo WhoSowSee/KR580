@@ -25,6 +25,9 @@ mod undo;
 mod update;
 mod update_overlays;
 mod update_settings;
+#[cfg(test)]
+mod window_tests;
+mod windows;
 
 pub(crate) use constants::{
     MEMORY_ADDRESS_COUNT, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
@@ -44,7 +47,7 @@ pub(crate) use help::{
 pub(crate) use import_modal_state::{ImportFileFormat, ImportModalFocus};
 pub(crate) use messages::{
     ExportFlag, ExportMemoryColumn, ExportRegister, ExportTab, MenuId, Message,
-    RegisterInlineTarget, SettingsCategory, SpeedTier,
+    RegisterInlineTarget, SettingsCategory, SpeedTier, ToolWindowKind,
 };
 pub(crate) use modal::DiscardModalButton;
 pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};

@@ -4,8 +4,9 @@ use k580_app::StorageState;
 
 use super::super::icons;
 use super::super::tooltips::shortcut_hint;
-use super::{FLOPPY_KEYS, icon_button, storage_window_overlay};
-use crate::app::Message;
+use super::chrome::{icon_button, window_controls};
+use super::{FLOPPY_KEYS, storage_window, storage_window_overlay};
+use crate::app::{Message, ToolWindowKind};
 use crate::i18n::{Key, Lang};
 
 pub(in crate::view) fn floppy_window_overlay<'a>(
@@ -22,7 +23,31 @@ pub(in crate::view) fn floppy_window_overlay<'a>(
         image_error,
         lang,
         Message::CloseFloppy,
-        |state, show, lang| floppy_header(state, show, lang),
+        |state, show, detached, always_on_top, lang| {
+            floppy_header(state, show, detached, always_on_top, lang)
+        },
+        FLOPPY_KEYS,
+    )
+}
+
+pub(in crate::view) fn floppy_window<'a>(
+    state: &'a StorageState,
+    show_image_contents: bool,
+    image_contents: &'a [u8],
+    image_error: Option<&'a str>,
+    always_on_top: bool,
+    lang: Lang,
+) -> Element<'a, Message> {
+    storage_window(
+        state,
+        show_image_contents,
+        image_contents,
+        image_error,
+        always_on_top,
+        lang,
+        |state, show, detached, always_on_top, lang| {
+            floppy_header(state, show, detached, always_on_top, lang)
+        },
         FLOPPY_KEYS,
     )
 }
@@ -30,10 +55,12 @@ pub(in crate::view) fn floppy_window_overlay<'a>(
 fn floppy_header<'a>(
     state: &'a StorageState,
     show_image_contents: bool,
+    detached: bool,
+    always_on_top: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     row![
-        Space::new().width(Length::Fill),
+        window_controls(ToolWindowKind::Floppy, detached, always_on_top, lang),
         icon_button(
             icons::hard_drive_download(),
             Some(Message::OpenFloppyImage),

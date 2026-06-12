@@ -173,7 +173,7 @@ fn confirming_malformed_txt_import_sets_localized_status() {
     app.load_import_file(path.clone());
     let _task = app.confirm_import();
 
-    assert_eq!(app.status, "Не удалось прочитать файл - проверьте формат");
+    assert_eq!(app.status, "Не удалось прочитать файл – проверьте формат");
     assert!(
         app.error_notice
             .as_deref()

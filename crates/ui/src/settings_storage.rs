@@ -16,7 +16,7 @@
 
 use crate::app::messages::SpeedTier;
 use crate::i18n::Lang;
-use k580_persistence::{Language, Settings, SettingsStore, SpeedPreset};
+use k580_persistence::{Language, Settings, SettingsError, SettingsStore, SpeedPreset};
 use std::path::PathBuf;
 
 const SETTINGS_FILENAME: &str = "settings.json";
@@ -37,20 +37,24 @@ pub(crate) fn settings_path() -> PathBuf {
     PathBuf::from(SETTINGS_FILENAME)
 }
 
-/// Loads settings without panicking. A missing or unreadable file returns
-/// `Settings::default()`; a malformed file is logged and replaced with
-/// defaults too – the user keeps a working app instead of a hard error.
+/// Loads settings without panicking. A missing file silently returns
+/// `Settings::default()`; unreadable or malformed files are logged and
+/// replaced with defaults too.
 pub(crate) fn load_settings() -> Settings {
     let path = settings_path();
     match SettingsStore::load(&path) {
         Ok(settings) => settings,
         Err(error) => {
-            // `tracing::warn!` is enough – the UI shows defaults and the
-            // log explains why if anyone digs in.
-            tracing::warn!(?path, %error, "settings load failed; using defaults");
+            if should_log_settings_load_error(&error) {
+                tracing::warn!(?path, %error, "settings load failed; using defaults");
+            }
             Settings::default()
         }
     }
+}
+
+fn should_log_settings_load_error(error: &SettingsError) -> bool {
+    !matches!(error, SettingsError::Io(source) if source.kind() == std::io::ErrorKind::NotFound)
 }
 
 /// Saves settings best-effort. Errors are logged but not surfaced to the
@@ -92,11 +96,12 @@ pub(crate) fn language_from_lang(lang: Lang) -> Language {
 #[cfg(test)]
 mod tests {
     use super::{
-        lang_from_language, language_from_lang, preset_from_speed_tier, speed_tier_from_preset,
+        lang_from_language, language_from_lang, preset_from_speed_tier,
+        should_log_settings_load_error, speed_tier_from_preset,
     };
     use crate::app::messages::SpeedTier;
     use crate::i18n::Lang;
-    use k580_persistence::{Language, SpeedPreset};
+    use k580_persistence::{Language, SettingsError, SpeedPreset};
 
     #[test]
     fn speed_tier_round_trips_through_preset() {
@@ -120,5 +125,16 @@ mod tests {
             speed_tier_from_preset(SpeedPreset::Medium),
             SpeedTier::Medium
         );
+    }
+
+    #[test]
+    fn missing_settings_file_uses_defaults_without_warning() {
+        let missing = SettingsError::Io(std::io::Error::from(std::io::ErrorKind::NotFound));
+        let denied = SettingsError::Io(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
+        let unsupported = SettingsError::UnsupportedVersion(2);
+
+        assert!(!should_log_settings_load_error(&missing));
+        assert!(should_log_settings_load_error(&denied));
+        assert!(should_log_settings_load_error(&unsupported));
     }
 }

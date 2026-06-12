@@ -1,31 +1,25 @@
 use super::super::icons;
 use super::super::styles::scrollable_style;
 use super::super::theme::{TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT, ui_text};
-use super::super::tooltips::hover_tooltip;
+use super::super::widgets::{modal_footer_button, modal_icon_button};
 use super::styles::{
     badge_style, dropdown_option_style, dropdown_panel_style, error_shell_style,
     field_button_style, footer_button_style, group_label_style, group_panel_style,
-    icon_button_style,
 };
 use crate::app::{ImportFileFormat, Message};
 use crate::i18n::{Key, Lang};
-use iced::widget::{
-    Space, button, column, container, opaque, row, scrollable, stack, svg, tooltip,
-};
+use iced::widget::{Space, button, column, container, opaque, row, scrollable, stack, svg};
 use iced::{Element, Length, Padding, alignment};
-use std::time::Duration;
 const FIELD_WIDTH: f32 = 352.0;
 const XLSX_BADGE_WIDTH: f32 = 58.0;
 const TEXT_BADGE_WIDTH: f32 = 112.0;
 const LABEL_WIDTH: f32 = 74.0;
 const ROW_HEIGHT: f32 = 34.0;
 const ICON_SIZE: f32 = 34.0;
-const GLYPH_SIZE: f32 = 18.0;
 const DROPDOWN_TOP: f32 = 108.0;
 const DROPDOWN_LEFT: f32 = 94.0;
 const DROPDOWN_OPTION_HEIGHT: f32 = 24.0;
 const DROPDOWN_MAX_LIST_HEIGHT: f32 = 48.0;
-const TOOLTIP_DELAY: Duration = Duration::from_millis(350);
 pub(super) struct SourceGroupState<'a> {
     pub(super) file_display: &'a str,
     pub(super) format: Option<ImportFileFormat>,
@@ -64,8 +58,16 @@ pub(super) fn source_group<'a>(state: SourceGroupState<'a>) -> Element<'a, Messa
 pub(super) fn footer(lang: Lang) -> Element<'static, Message> {
     row![
         Space::new().width(Length::Fill),
-        footer_button(lang.t(Key::DiscardCancel), Message::CancelImport,),
-        footer_button(lang.t(Key::FileImport), Message::ConfirmImport,),
+        modal_footer_button(
+            lang.t(Key::DiscardCancel),
+            Message::CancelImport,
+            footer_button_style,
+        ),
+        modal_footer_button(
+            lang.t(Key::FileImport),
+            Message::ConfirmImport,
+            footer_button_style,
+        ),
     ]
     .spacing(12)
     .width(Length::Fill)
@@ -80,10 +82,11 @@ fn file_row<'a>(
     row![
         row_label(lang.t(Key::ImportFileLabel)),
         file_anchor(file_display, format, lang),
-        icon_button(
+        modal_icon_button(
             icons::file_down(),
             Message::ImportFileBrowse,
             lang.t(Key::ImportBrowseTooltip),
+            ICON_SIZE,
         ),
     ]
     .spacing(8)
@@ -304,52 +307,6 @@ fn row_label(value: &'static str) -> Element<'static, Message> {
         .height(Length::Fixed(ROW_HEIGHT))
         .align_y(alignment::Vertical::Center)
         .into()
-}
-
-fn icon_button(
-    handle: svg::Handle,
-    message: Message,
-    tooltip_text: &'static str,
-) -> Element<'static, Message> {
-    let glyph = svg(handle)
-        .width(Length::Fixed(GLYPH_SIZE))
-        .height(Length::Fixed(GLYPH_SIZE))
-        .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
-        });
-
-    let face = button(
-        container(glyph)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(alignment::Horizontal::Center)
-            .align_y(alignment::Vertical::Center),
-    )
-    .on_press(message)
-    .padding(0)
-    .width(Length::Fixed(ICON_SIZE))
-    .height(Length::Fixed(ICON_SIZE))
-    .style(move |_theme, status| icon_button_style(status));
-
-    hover_tooltip(
-        face.into(),
-        tooltip_text,
-        None,
-        tooltip::Position::Bottom,
-        TOOLTIP_DELAY,
-    )
-}
-
-fn footer_button(label_text: &'static str, message: Message) -> Element<'static, Message> {
-    button(
-        container(ui_text(label_text, 14, TOKYO_TEXT))
-            .padding([7, 22])
-            .align_x(alignment::Horizontal::Center),
-    )
-    .on_press(message)
-    .padding(0)
-    .style(move |_theme, status| footer_button_style(status))
-    .into()
 }
 
 fn format_badge(label: &'static str, format: ImportFileFormat) -> Element<'static, Message> {

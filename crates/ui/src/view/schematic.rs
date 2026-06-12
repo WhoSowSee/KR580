@@ -201,7 +201,7 @@ impl DesktopApp {
             u8::from(cpu.flags.carry),
         );
         let shortened_status =
-            crate::app::shorten_status_for_width(&self.status, self.window_width);
+            crate::app::shorten_status_for_width(&self.status, self.main_window_size.width);
         let status_value: Element<'_, Message> = mono_text(shortened_status, 13, TOKYO_TEXT)
             .wrapping(iced::widget::text::Wrapping::None)
             .into();

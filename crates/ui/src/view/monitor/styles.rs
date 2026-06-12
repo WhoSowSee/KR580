@@ -1,7 +1,10 @@
 use iced::widget::button;
 use iced::{Background, Border, Color, Padding, Theme};
 
-use crate::view::theme::{TOKYO_BOARD, TOKYO_BORDER, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT};
+pub(super) use crate::view::styles::panel_style as dialog_style;
+use crate::view::theme::{
+    TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT,
+};
 
 pub(super) const HEX_GROUP: usize = 16;
 pub(super) const ICON_BUTTON_SIZE: f32 = 32.0;
@@ -37,19 +40,6 @@ pub(super) fn popup_backdrop_style(_theme: &Theme) -> iced::widget::container::S
     }
 }
 
-pub(super) fn dialog_style(_theme: &Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 8.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..iced::widget::container::Style::default()
-    }
-}
-
 pub(super) fn framebuffer_style(_theme: &Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
         background: Some(Background::Color(TOKYO_BOARD)),
@@ -71,11 +61,15 @@ pub(super) fn framebuffer_padding(empty: bool) -> Padding {
     }
 }
 
-pub(super) fn icon_button_style(status: button::Status) -> button::Style {
-    let background = match status {
-        button::Status::Pressed => TOKYO_SURFACE_2,
-        button::Status::Hovered => TOKYO_SURFACE,
-        _ => TOKYO_BOARD,
+pub(super) fn icon_button_style(status: button::Status, active: bool) -> button::Style {
+    let background = if active {
+        TOKYO_SURFACE_2
+    } else {
+        match status {
+            button::Status::Pressed => TOKYO_SURFACE_2,
+            button::Status::Hovered => TOKYO_SURFACE,
+            _ => TOKYO_BOARD,
+        }
     };
     button::Style {
         background: Some(Background::Color(background)),
@@ -83,7 +77,7 @@ pub(super) fn icon_button_style(status: button::Status) -> button::Style {
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: TOKYO_BORDER,
+            color: if active { TOKYO_BLUE } else { TOKYO_BORDER },
         },
         ..button::Style::default()
     }

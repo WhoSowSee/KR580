@@ -5,10 +5,8 @@ pub(crate) enum Key {
     MenuView,
     MenuSettings,
     MenuHelp,
-
     HelpShowDocs,
     HelpAbout,
-
     HelpDialogTitle,
     HelpSearchPlaceholder,
     HnIntroduction,
@@ -107,13 +105,11 @@ pub(crate) enum Key {
     HcDeviceWorkflow,
     HcCommandSummary,
     HcShortcuts,
-
     AboutTitle,
     AppName,
     AboutDescription,
     AboutVersion,
     AboutGithubLabel,
-
     FileNew,
     FileOpen,
     FileSave,
@@ -153,7 +149,6 @@ pub(crate) enum Key {
     ImportSectionLabel,
     ImportBrowseTooltip,
     ImportChooseFileRequired,
-
     MpRunProgram,
     MpRunInstruction,
     MpRunTact,
@@ -285,12 +280,15 @@ pub(crate) enum Key {
     DeviceHdd,
     DeviceNetwork,
     DevicePrinter,
-
     MonitorUnifiedScreen,
     MonitorTextLayer,
     MonitorPixelLayer,
     MonitorHexBuffer,
     MonitorClose,
+    MonitorDetach,
+    MonitorAttach,
+    MonitorPin,
+    MonitorUnpin,
     MonitorViewSplit,
     MonitorViewUnified,
     MonitorClearBuffer,

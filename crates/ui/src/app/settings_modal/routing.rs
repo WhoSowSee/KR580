@@ -23,9 +23,6 @@ impl DesktopApp {
             Message::Tick
             | Message::CursorMoved(_)
             | Message::ModifiersChanged(_)
-            | Message::WindowOpened(_)
-            | Message::FrameRendered
-            | Message::WindowMaximizedChanged(_)
             | Message::FocusReconciled(_)
             | Message::ResolveFocusedTracker(_) => None,
             Message::CloseSettings

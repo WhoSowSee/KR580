@@ -1,16 +1,13 @@
-use iced::widget::{Space, button, column, container, opaque, row, svg, text_input, tooltip};
+use iced::widget::{Space, button, column, container, opaque, row, svg, text_input};
 use iced::{Element, Length, Padding, alignment};
-use std::time::Duration;
 
 use super::super::icons;
 use super::super::styles::{input_borderless_style, input_shell_style};
 use super::super::theme::{TOKYO_MUTED, TOKYO_TEXT, ui_text};
-use super::super::tooltips::hover_tooltip;
+use super::super::widgets::modal_icon_button;
 use super::controls::label;
 use super::local_icons;
-use super::styles::{
-    combo_arrow_style, dropdown_option_style, dropdown_panel_style, icon_button_style,
-};
+use super::styles::{combo_arrow_style, dropdown_option_style, dropdown_panel_style};
 use crate::app::{ExportTab, Message};
 use crate::i18n::{Key, Lang};
 
@@ -21,8 +18,6 @@ const TARGET_HEIGHT: f32 = 32.0;
 const DROPDOWN_OFFSET: f32 = TARGET_HEIGHT + 3.0;
 const ARROW_WIDTH: f32 = 28.0;
 const ICON_SIZE: f32 = TARGET_HEIGHT;
-const GLYPH_SIZE: f32 = 18.0;
-const TOOLTIP_DELAY: Duration = Duration::from_millis(350);
 
 pub(super) fn target_selector<'a>(
     tab: ExportTab,
@@ -54,11 +49,17 @@ pub(super) fn target_selector<'a>(
             .height(Length::Fixed(TARGET_HEIGHT))
             .align_y(alignment::Vertical::Center),
         combo_box(value, dropdown_open),
-        icon_button(add_icon, Message::ExportTargetAdd, lang.t(add_tooltip),),
-        icon_button(
+        modal_icon_button(
+            add_icon,
+            Message::ExportTargetAdd,
+            lang.t(add_tooltip),
+            ICON_SIZE,
+        ),
+        modal_icon_button(
             local_icons::trash(),
             Message::ExportTargetDelete,
             lang.t(delete_tooltip),
+            ICON_SIZE,
         ),
     ]
     .spacing(6)
@@ -140,40 +141,6 @@ fn combo_box<'a>(value: &'a str, open: bool) -> Element<'a, Message> {
     .height(Length::Fixed(TARGET_HEIGHT))
     .style(|theme| input_shell_style(theme, false))
     .into()
-}
-
-fn icon_button(
-    handle: svg::Handle,
-    message: Message,
-    tooltip_text: &'static str,
-) -> Element<'static, Message> {
-    let glyph = svg(handle)
-        .width(Length::Fixed(GLYPH_SIZE))
-        .height(Length::Fixed(GLYPH_SIZE))
-        .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
-        });
-
-    let face = button(
-        container(glyph)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(alignment::Horizontal::Center)
-            .align_y(alignment::Vertical::Center),
-    )
-    .on_press(message)
-    .padding(0)
-    .width(Length::Fixed(ICON_SIZE))
-    .height(Length::Fixed(ICON_SIZE))
-    .style(move |_theme, status| icon_button_style(status));
-
-    hover_tooltip(
-        face.into(),
-        tooltip_text,
-        None,
-        tooltip::Position::Bottom,
-        TOOLTIP_DELAY,
-    )
 }
 
 fn dropdown(options: &[String], highlighted: Option<usize>) -> Element<'static, Message> {

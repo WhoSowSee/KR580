@@ -67,6 +67,7 @@ pub(super) fn hex_popup_overlay<'a>(
             Message::CycleMonitorHexFilter,
             lang.t(filter_hint),
             None,
+            false,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -74,6 +75,7 @@ pub(super) fn hex_popup_overlay<'a>(
             Message::ToggleMonitorHexPopup,
             lang.t(Key::MonitorClose),
             Some("Esc"),
+            false,
         ),
     ]
     .align_y(iced::alignment::Vertical::Center);

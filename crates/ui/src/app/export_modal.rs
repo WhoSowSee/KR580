@@ -40,13 +40,7 @@ impl DesktopApp {
         }
 
         match message {
-            Message::Tick
-            | Message::CursorMoved(_)
-            | Message::ModifiersChanged(_)
-            | Message::WindowOpened(_)
-            | Message::WindowResized(_)
-            | Message::FrameRendered
-            | Message::WindowMaximizedChanged(_) => None,
+            Message::Tick | Message::CursorMoved(_) | Message::ModifiersChanged(_) => None,
             Message::ExportTabSelected(tab) => {
                 self.select_export_tab(*tab);
                 Some(Task::none())

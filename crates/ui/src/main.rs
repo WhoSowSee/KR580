@@ -9,7 +9,7 @@ mod settings_storage;
 mod view;
 
 use app::DesktopApp;
-use iced::{Color, Size, Theme, theme, window};
+use iced::{Color, Theme, theme};
 use std::path::PathBuf;
 
 /// Matches `TOKYO_BOARD` so the launch flash blends into the UI.
@@ -18,8 +18,6 @@ const BOARD_BACKGROUND: Color = Color::from_rgb(
     0x13 as f32 / 255.0,
     0x20 as f32 / 255.0,
 );
-
-const ICON_PNG: &[u8] = include_bytes!("../../../assets/icons/icon-64.png");
 
 fn main() -> iced::Result {
     tracing_subscriber::fmt()
@@ -43,29 +41,16 @@ fn main() -> iced::Result {
 
     let initial_snapshot_path: Option<PathBuf> =
         initial_arg.map(PathBuf::from).filter(|path| path.is_file());
-    iced::application(
-        move || DesktopApp::with_initial_path(initial_snapshot_path.clone()),
+    iced::daemon(
+        move || DesktopApp::boot(initial_snapshot_path.clone()),
         DesktopApp::update,
         DesktopApp::view,
     )
-    .title("KR580 Emulator")
+    .title(DesktopApp::title)
     .subscription(DesktopApp::subscription)
     .theme(DesktopApp::theme)
     .style(app_style)
-    .window(window::Settings {
-        size: Size::new(1180.0, 720.0),
-        maximized: false,
-        min_size: Some(Size::new(1180.0, 720.0)),
-        icon: window::icon::from_file_data(ICON_PNG, None).ok(),
-        decorations: false,
-        // Hidden until the first iced paint; uncloaked from `update`.
-        visible: false,
-        ..window::Settings::default()
-    })
-    .centered()
     .antialiasing(true)
-    // Route OS close requests through the dirty gate.
-    .exit_on_close_request(false)
     .run()
 }
 

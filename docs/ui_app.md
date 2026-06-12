@@ -6,7 +6,7 @@
 `WritePort`, `LoadSnapshot`, `SaveSnapshot`, `LoadSubprogram`, and direct
 export commands.
 
-`k580-ui` is an iced application shell. It renders an `AppSnapshot`, sends
+`k580-ui` is an iced multi-window daemon shell. It renders an `AppSnapshot`, sends
 `AppCommand` values to the actor, and drains `AppEvent` notifications.
 Register and memory edits are parsed and validated before commands are
 sent.
@@ -20,9 +20,9 @@ store emulator state in widgets.
 
 ## UI module split
 
-- `main.rs` initializes tracing, declares the iced subsystem and window
-  options, sets the app-level theme/style, and wires the embedded window
-  icon. It also pins the Windows subsystem to GUI on release builds (see
+- `main.rs` initializes tracing, starts the iced daemon, and sets the
+  app-level theme/style. `app/windows.rs` opens and configures the native
+  windows. The binary also pins the Windows subsystem to GUI on release builds (see
   "Console window suppression").
 - `app/` defines `DesktopApp`, message routing, theme, and the keyboard
   subscription. To stay under the 400-line per-file budget the shell is
@@ -38,7 +38,9 @@ store emulator state in widgets.
     lookup helpers. Re-exported from `crate::app::*` so the rest of the
     crate keeps importing them by short path.
   - `app/update.rs` – the main `update()` message handler for runtime,
-    window, menu, focus, file, memory, register, and opcode messages.
+    menu, focus, file, memory, register, and opcode messages.
+  - `app/windows.rs` – main/monitor window settings, IDs, lifecycle,
+    drag, close-request routing, and daemon shutdown.
   - `app/handlers.rs` – helper handlers shared with `update`/`subscription`:
     `handle_tick`, `handle_focus_reconciled`, `handle_esc`, plus the
     `tick_interval`, `ctrl_shortcut`, and `plain_shortcut` resolvers.
@@ -90,9 +92,9 @@ store emulator state in widgets.
 - `view/` renders the current snapshot and lays out every panel
   (split into focused submodules – see “Левая панель: расщепление
   модулей” below).
-- `platform.rs` is a Windows-only helper used by `app/update.rs` for DWM
-  cloaking during launch (see "Launch flash mitigation"). On non-Windows
-  targets it compiles down to a no-op.
+- `platform.rs` contains Windows-only HWND helpers for DWM launch cloaking
+  and rounded corners. The reusable monitor window is shown and hidden with
+  iced window modes so winit's internal visibility state stays synchronized.
 
 ## Event handling
 
@@ -272,37 +274,54 @@ it visually belongs to the same chrome family as the action-panel
 tooltips. Hover uses the shared dark `TOKYO_SURFACE` fill and keeps the
 neutral frame colour, matching the current action-button feedback.
 
-`device_chip` takes an `Option<Message>` for `on_press`. The Монитор
-slot is wired to `Message::OpenMonitor`; the Дисковод slot is wired to
-`Message::OpenFloppy`; the three remaining slots pass `None` and stay
-command-neutral until their own peripheral windows are implemented. A
+`device_chip` takes an `Option<Message>` for `on_press`. The Монитор,
+Дисковод, and HDD slots are wired to `Message::OpenMonitor`,
+`Message::OpenFloppy`, and `Message::OpenHdd`; the two remaining slots pass
+`None` and stay command-neutral until their own peripheral windows are implemented. A
 `None` chip still hovers and shows its tooltip, but its click resolves
 to `Message::MenuBatch(Vec::new())` so half-finished slots don't
 dispatch stale messages.
 
 ### Окно монитора (Quick-access → Монитор)
 
-`Message::OpenMonitor` flips `DesktopApp::monitor_open` and
-`view::monitor::monitor_window_overlay` paints a **fullscreen modal**
-(`Length::Fill` × `Length::Fill`) over the whole app. The dialog has no
-fixed dimensions – its body grows to fill the window minus a 16-px
-gutter so the central canvas auto-scales to whatever the user has on
-screen.
+`Message::OpenMonitor` flips `DesktopApp::monitor_open`. In attached mode
+`view::monitor::monitor_window_overlay` paints a fullscreen modal over the
+main app. Monitor, floppy, and HDD each own a `ToolWindowState`; on Windows
+their top-level iced windows are created once, invisibly, after the main
+window's startup frames. `Message::DetachToolWindow(kind)` resizes the selected
+window and switches its iced mode to `Windowed`;
+`Message::AttachToolWindow(kind)` switches it to `Hidden` and restores the
+overlay. Keeping visibility changes
+inside iced prevents later level changes such as pin/unpin from restoring a
+stale hidden state. This avoids rebuilding the winit window, renderer state,
+and first UI on every transition. Other platforms keep the ordinary
+open/close lifecycle. Both presentations share the same
+`MonitorState`, split mode, byte-stream popup, and live updates. The native
+window size is the current main-window size minus the attached modal's two
+60-px edge insets, so detaching preserves the dialog dimensions instead of
+switching to a separate fixed size.
 
 The window is a pure read-only view over `AppSnapshot.devices.monitor`
 (`MonitorState` from `k580-devices`, re-exported through `k580-app`);
 nothing in the window mutates device state.
 
-The header carries five icon-only buttons (lucide glyphs, 32×32 with
-a tooltip on hover):
+The custom header contains an empty drag band and six icon-only buttons in
+attached mode, plus an always-on-top pin in detached mode (lucide glyphs,
+32×32 with a tooltip on hover). In detached mode pressing
+the title band dispatches `Message::ToolWindowDragStart(ToolWindowKind::Monitor)`, which calls
+`iced::window::drag` for the monitor ID. The OS therefore moves the
+borderless monitor independently, including outside the main emulator
+window and onto another display.
 
 | Glyph | Tooltip | Action |
 |---|---|---|
+| `panel-detach` / `panel-attach` | «Открепить в отдельное окно» / «Вернуть в окно эмулятора» | Switches the prepared borderless monitor between iced `Windowed` and `Hidden` modes on Windows; other platforms open or close it normally. |
+| `pin` | «Закрепить поверх других окон» / «Не держать поверх других окон» | `Message::ToggleToolWindowAlwaysOnTop(ToolWindowKind::Monitor)` toggles the detached window between `window::Level::AlwaysOnTop` and `window::Level::Normal`. The active state uses a blue border. Attaching or closing the monitor resets the flag. |
 | `square-split-vertical` / `square-merge-vertical` | «Разделить» / «Объединить» | `Message::ToggleMonitorSplit` – flips `DesktopApp::monitor_split` between unified screen and split (graphics + text). The glyph swaps with the mode: in unified the button shows `square-split-vertical` (proposing a split); in split mode it shows `square-merge-vertical` (proposing a merge). |
 | `binary` | «Поток байт» | `Message::ToggleMonitorHexPopup` – opens / closes the byte-stream popup that floats *above* the monitor modal |
 | `brush-cleaning` | «Очистить буфер» | `Message::ClearMonitorBuffer` – dispatches `AppCommand::ClearMonitorBuffer` to wipe pixels, text cells, hex buffer |
 | `image` | «Сохранить изображение» | `Message::SaveMonitorImage` – encodes the current monitor framebuffer as PNG and prompts the user for a save path via `rfd::FileDialog` |
-| `x` (window-close) | «Закрыть» | `Message::CloseMonitor` – closes the modal; also clears `monitor_hex_popup` so a stale popup never lingers |
+| `x` (window-close) | «Закрыть» | `Message::CloseMonitor` – closes either presentation and clears `monitor_hex_popup` so a stale popup never lingers |
 
 Body sections (top to bottom):
 
@@ -328,7 +347,7 @@ scrollbar auto-hides when idle: `DesktopApp::monitor_hex_scroll_visible_ticks`
 is bumped to `MEMORY_SCROLL_VISIBLE_TICKS` whenever the user opens the
 popup, scrolls (`Message::MonitorHexScrolled`), or cycles the filter,
 and decremented every `Tick` until the scroller fades back to
-transparent. Esc handling: while the monitor modal is open, Esc first
+transparent. Esc handling: while either monitor presentation is open, Esc first
 closes the popup if it's up, otherwise it closes the monitor itself.
 This is implemented in `DesktopApp::handle_esc` ahead of the menu /
 notice fallbacks.
@@ -344,9 +363,12 @@ path is surfaced via `set_status_custom`; on render or write failure
 the status falls back to `Key::MonitorImageSaveFailed` and the error
 is logged through `tracing::error`.
 
-Closing the monitor: `Message::CloseMonitor` (close button, backdrop
-click on the monitor scrim) or `Esc` (when the popup is closed). The
-dialog does not suppress runtime ticks – `Message::Tick` keeps pulling
+Closing the monitor: `Message::CloseMonitor` (close button, attached
+backdrop click, detached Alt+F4/close request) or `Esc` when the popup is
+closed. On Windows this hides the reusable monitor HWND instead of destroying
+it. Closing the detached monitor does not close the emulator; closing the main
+emulator destroys the monitor window before the daemon exits. The
+monitor does not suppress runtime ticks – `Message::Tick` keeps pulling
 events while the window is open, so the layers update live as the
 program drives port `00h`.
 
@@ -359,7 +381,8 @@ Strings live under the `MonitorUnifiedScreen…MonitorImageSaveFailed`
 keys in `crates/ui/src/i18n/keys.rs` with both `ru` and `en`
 translations. The icons are bundled SVGs in `assets/icons/actions/` –
 the ones introduced for the monitor are `square-split-vertical.svg`,
-`square-merge-vertical.svg`, `binary.svg`, `brush-cleaning.svg`,
+`square-merge-vertical.svg`, `panel-detach.svg`, `panel-attach.svg`, `pin.svg`,
+`binary.svg`, `brush-cleaning.svg`,
 `line-squiggle.svg`, `text-cursor.svg`, and `image.svg`, all authored
 from lucide. The
 `iced` `canvas` Cargo feature is enabled in `crates/ui/Cargo.toml` so
@@ -367,7 +390,8 @@ the renderer pulls in the `lyon` tessellator used by both canvases.
 The `png` crate is added to the workspace for the save-image path.
 
 The monitor view itself is split across `crates/ui/src/view/monitor/`:
-`mod.rs` (overlay layout, header, shared `icon_button` helper),
+`mod.rs` (attached/detached shells, shared content, draggable header,
+shared `icon_button` helper),
 `sections.rs` (unified / split section builders), `canvas.rs`
 (`PixelCanvas`, `UnifiedCanvas`, the `pixel_color` palette and its
 tests), `hex_popup.rs` (popup overlay, filter, `filtered_hex_bytes`
@@ -378,12 +402,16 @@ and its tests), and `styles.rs` (every container / button style and the
 ### Окно дисковода (Quick-access → Дисковод)
 
 `Message::OpenFloppy` flips `DesktopApp::floppy_open`, closes any
-monitor overlay, and `view::storage::floppy_window_overlay` paints a
-compact centred modal over the app. It keeps the monitor's dark board,
-border, `stack!`, and `opaque` overlay pattern, but uses a fixed
-760×340 window because the drive buffer is an inspection surface, not a
-full screen. Clicking the dim backdrop closes it, matching the monitor
-overlay's direct-close behaviour.
+other device surface, and `view::storage::floppy_window_overlay` paints a
+compact centred modal over the app. It can also render through
+`view::storage::floppy_window` as a separate movable borderless native window.
+Both presentations keep the monitor's dark board, border, `stack!`, and
+`opaque` overlay pattern, but use a fixed 760×340 client area because the
+drive buffer is an inspection surface, not a full screen. Detaching therefore
+preserves the popup size exactly. Clicking the attached dim backdrop closes
+it, matching the monitor overlay's direct-close behaviour. The detached title
+band is draggable outside the emulator window and the pin uses the shared
+`ToolWindowState.always_on_top`.
 
 The window is a pure view over `AppSnapshot.devices.floppy`
 (`StorageState`, re-exported through `k580-app`). It shows accepted
@@ -406,6 +434,8 @@ The header buttons are icon-only and mirror the monitor menu chrome:
 
 | Glyph | Tooltip | Action |
 |---|---|---|
+| `panel-detach` / `panel-attach` | «Открепить в отдельное окно» / «Вернуть в окно эмулятора» | switches the floppy between the attached popup and its prepared `760×340` native window |
+| `pin` | «Закрепить поверх других окон» / «Не держать поверх других окон» | toggles `ToolWindowKind::Floppy` between normal and always-on-top levels; visible only while detached |
 | `hard-drive-download` | «Открыть файл образа дискеты» | opens a file picker and dispatches `AppCommand::AttachFloppyImage` |
 | `hard-drive-upload` | «Сохранить текущий буфер в файл» | opens a save picker with separate `.kpd`, `.img`, and `.bin` export filters and writes `visible_buffer` bytes |
 | `hard-drive-x` | «Отключить файл образа дискеты» | dispatches `AppCommand::DetachFloppyImage`, stops using the file-backed worker, and leaves the visible buffer unchanged |
@@ -1356,7 +1386,7 @@ loop.
 ## Overlay modals
 
 All overlay modals (discard confirmation, import source, export
-settings, settings dialog, about window, help dialog, monitor window)
+settings, settings dialog, about window, help dialog, attached monitor)
 layer on top of the
 main app via `stack![]` at the end of `DesktopApp::view()`. While a
 modal is open, the corresponding routing function
@@ -1549,14 +1579,15 @@ read-only article editor content.
 ### Monitor window
 
 Opened via `Ctrl+M` or the View menu. Renders the device monitor
-(text layer, pixel layer, byte stream) in a resizable overlay. Supports
-split/unified view toggling and PNG export.
+(text layer, pixel layer, byte stream) in an attached overlay or a
+separate movable borderless native window. Supports attach/detach,
+split/unified view toggling, and PNG export.
 
-**State:** `monitor_open: bool`, `monitor_split: bool`,
+**State:** `monitor_open: bool`, `monitor_window: ToolWindowState`, `monitor_split: bool`,
 `monitor_hex_popup: bool`, `monitor_hex_filter: HexStreamFilter`,
 `monitor_hex_scroll_visible_ticks: u8`.
 
-**View:** `view/monitor/` – `monitor_window_overlay()`.
+**View:** `view/monitor/` – `monitor_window_overlay()` and `monitor_window()`.
 
 ### Floppy window
 
@@ -1571,10 +1602,25 @@ visible drive buffer to `.kpd`, `.img`, or `.bin`. The clear button dispatches
 `AppCommand::ClearFloppyBuffer` and still clears only the visible device
 buffer.
 
-**State:** `floppy_open: bool`, `floppy_show_image_contents: bool`,
+**State:** `floppy_open: bool`, `floppy_window: ToolWindowState`,
+`floppy_show_image_contents: bool`,
 `floppy_image_contents: Vec<u8>`, `floppy_image_error: Option<String>`.
 
-**View:** `view/storage.rs` – `floppy_window_overlay()`.
+**View:** `view/storage/` – `floppy_window_overlay()` and `floppy_window()`.
+
+### HDD window
+
+Opened from the HDD quick-access chip. Uses the same fixed `760×340`
+attached/detached storage shell, draggable title band, attach/detach control,
+and detached always-on-top pin as the floppy window. Device-specific controls
+select the backing directory, switch between buffer and file contents, toggle
+debug mode, clear the buffer, and create or delete `hdd.kpd`.
+
+**State:** `hdd_open: bool`, `hdd_window: ToolWindowState`,
+`hdd_show_image_contents: bool`, `hdd_image_contents: Vec<u8>`,
+`hdd_image_error: Option<String>`.
+
+**View:** `view/storage/` – `hdd_window_overlay()` and `hdd_window()`.
 
 ## Keyboard shortcuts
 
@@ -1736,6 +1782,10 @@ the moment the modal opens.
   snapshot so a follow-up `Cancel` cannot restore the pre-reset values,
   and persists.
 
+The first launch may not have a `settings.json` yet. `load_settings()`
+silently uses defaults for that expected `NotFound` case; permission,
+JSON, and version errors still emit a warning before falling back.
+
 `StatusKind` (in `app/status.rs`) tags every canonical status string
 with its provenance (`Ready`, `Stopped`, `SavedTo { display, legacy }`,
 …) so a language switch can re-render the cached `self.status` from
@@ -1822,7 +1872,7 @@ on the same frame.
 
 ## Launch flash mitigation (Windows)
 
-On Windows the desktop window manager paints the client area with the
+On Windows the desktop window manager paints the main client area with the
 default white system brush between window creation and the first
 GPU-presented frame. To suppress that flash:
 
@@ -1851,7 +1901,7 @@ so `tracing` output stays visible during `cargo run`.
 
 ## Window icon
 
-The runtime icon is loaded from `assets/icons/icon-64.png` via
+Both native windows load the runtime icon from `assets/icons/icon-64.png` via
 `include_bytes!` and `iced::window::icon::from_file_data`. The full icon
 fan-out (`16/32/48/64/128/256` PNGs and a multi-resolution `icon.ico`)
 lives in `assets/icons/` and is regenerated by the scripts in
@@ -1869,8 +1919,7 @@ the asset pipeline.
 - `rfd` for native file dialogs.
 - `tracing` and `tracing-subscriber` for diagnostic logging.
 - `windows-sys` (Windows only) with `Win32_Foundation`,
-  `Win32_Graphics_Dwm`, and `Win32_Graphics_Gdi` features – the first
-  two for DWM cloaking and the rounded-corner attribute, the third for
-  `EnumDisplaySettingsW` (used by the High speed tier to read the
-  primary monitor's refresh rate).
+  `Win32_Graphics_Dwm`, and `Win32_Graphics_Gdi` features – DWM handles
+  launch cloaking and rounded corners, while GDI supplies
+  `EnumDisplaySettingsW` for the High speed tier.
 - `winresource` (Windows-only build dependency) for the PE icon resource.

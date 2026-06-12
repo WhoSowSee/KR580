@@ -60,12 +60,17 @@ impl DesktopApp {
             Message::OpenMonitor => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                self.floppy_open = false;
+                let close_storage = Task::batch([self.close_floppy(), self.close_hdd()]);
                 self.monitor_open = true;
+                if self.monitor_window.detached
+                    && let Some(id) = self.monitor_window.id
+                {
+                    return Some(close_storage.chain(iced::window::gain_focus(id)));
+                }
+                return Some(close_storage);
             }
             Message::CloseMonitor => {
-                self.monitor_open = false;
-                self.monitor_hex_popup = false;
+                return Some(self.close_monitor());
             }
             Message::ToggleMonitorSplit => {
                 self.monitor_split = !self.monitor_split;
@@ -92,15 +97,20 @@ impl DesktopApp {
             Message::OpenFloppy => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                self.monitor_open = false;
-                self.monitor_hex_popup = false;
+                let close_other = Task::batch([self.close_monitor(), self.close_hdd()]);
                 self.floppy_open = true;
                 if self.floppy_show_image_contents {
                     self.refresh_floppy_image_contents();
                 }
+                if self.floppy_window.detached
+                    && let Some(id) = self.floppy_window.id
+                {
+                    return Some(close_other.chain(iced::window::gain_focus(id)));
+                }
+                return Some(close_other);
             }
             Message::CloseFloppy => {
-                self.floppy_open = false;
+                return Some(self.close_floppy());
             }
             Message::ToggleFloppyImageContents => {
                 self.floppy_show_image_contents = !self.floppy_show_image_contents;
@@ -132,16 +142,21 @@ impl DesktopApp {
             Message::OpenHdd => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                self.monitor_open = false;
-                self.monitor_hex_popup = false;
+                let close_other = Task::batch([self.close_monitor(), self.close_floppy()]);
                 self.hdd_open = true;
                 self.refresh_hdd_file_exists();
                 if self.hdd_show_image_contents {
                     self.refresh_hdd_image_contents();
                 }
+                if self.hdd_window.detached
+                    && let Some(id) = self.hdd_window.id
+                {
+                    return Some(close_other.chain(iced::window::gain_focus(id)));
+                }
+                return Some(close_other);
             }
             Message::CloseHdd => {
-                self.hdd_open = false;
+                return Some(self.close_hdd());
             }
             Message::ChooseHddDirectory => {
                 self.choose_hdd_directory();

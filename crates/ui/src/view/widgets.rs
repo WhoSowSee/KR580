@@ -232,6 +232,58 @@ pub(super) fn enter_button_disabled() -> Element<'static, Message> {
     .into()
 }
 
+pub(super) fn modal_icon_button(
+    handle: svg::Handle,
+    message: Message,
+    tooltip_text: &'static str,
+    size: f32,
+) -> Element<'static, Message> {
+    const GLYPH_SIZE: f32 = 18.0;
+
+    let glyph = svg(handle)
+        .width(Length::Fixed(GLYPH_SIZE))
+        .height(Length::Fixed(GLYPH_SIZE))
+        .style(|_theme, _status| svg::Style {
+            color: Some(TOKYO_TEXT),
+        });
+    let face = button(
+        container(glyph)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+    )
+    .on_press(message)
+    .padding(0)
+    .width(Length::Fixed(size))
+    .height(Length::Fixed(size))
+    .style(move |_theme, status| super::styles::modal_field_button_style(status));
+
+    hover_tooltip(
+        face.into(),
+        tooltip_text,
+        None,
+        iced::widget::tooltip::Position::Bottom,
+        Duration::from_millis(350),
+    )
+}
+
+pub(super) fn modal_footer_button(
+    label_text: &'static str,
+    message: Message,
+    style: fn(button::Status) -> button::Style,
+) -> Element<'static, Message> {
+    button(
+        container(ui_text(label_text, 14, TOKYO_TEXT))
+            .padding([7, 22])
+            .align_x(alignment::Horizontal::Center),
+    )
+    .on_press(message)
+    .padding(0)
+    .style(move |_theme, status| style(status))
+    .into()
+}
+
 /// Square icon-only action button with hover tooltip. The SVG is
 /// tinted with `accent`; passing `None` for `message` renders a
 /// disabled chip (no `on_press`, faded glyph) – used by the post-HLT

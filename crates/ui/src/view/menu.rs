@@ -54,7 +54,9 @@ impl DesktopApp {
             ),
             caption_button(
                 icons::window_close(),
-                Message::WindowCloseRequested,
+                self.main_window_id
+                    .map(Message::WindowCloseRequested)
+                    .unwrap_or(Message::WindowClose),
                 CaptionKind::Close
             ),
         ]

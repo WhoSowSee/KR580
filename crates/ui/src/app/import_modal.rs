@@ -42,13 +42,7 @@ impl DesktopApp {
         }
 
         match message {
-            Message::Tick
-            | Message::CursorMoved(_)
-            | Message::ModifiersChanged(_)
-            | Message::WindowOpened(_)
-            | Message::WindowResized(_)
-            | Message::FrameRendered
-            | Message::WindowMaximizedChanged(_) => None,
+            Message::Tick | Message::CursorMoved(_) | Message::ModifiersChanged(_) => None,
             Message::ImportFileBrowse => {
                 self.choose_import_file();
                 Some(Task::none())

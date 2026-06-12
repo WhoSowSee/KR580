@@ -1,5 +1,4 @@
 use super::{help_en, keys::Key};
-
 pub(super) fn translate(key: Key) -> &'static str {
     match key {
         Key::MenuFile => "File",
@@ -7,7 +6,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MenuView => "View",
         Key::MenuSettings => "Settings",
         Key::MenuHelp => "Help",
-
         Key::HelpShowDocs => "Show help",
         Key::HelpAbout => "About",
         Key::HelpDialogTitle => "Help",
@@ -114,7 +112,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::AboutDescription => "Microprocessor system emulator based on the KR580VM80 chip",
         Key::AboutVersion => "Version 1.0.0",
         Key::AboutGithubLabel => "GitHub",
-
         Key::FileNew => "New file",
         Key::FileOpen => "Open",
         Key::FileSave => "Save",
@@ -154,14 +151,12 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ImportSectionLabel => "In section",
         Key::ImportBrowseTooltip => "Choose file",
         Key::ImportChooseFileRequired => "Choose a file to import",
-
         Key::MpRunProgram => "Run program",
         Key::MpRunInstruction => "Run instruction",
         Key::MpRunTact => "Run tact",
         Key::MpResetRam => "Clear RAM",
         Key::MpResetCpu => "Clear registers",
         Key::MpClearHalt => "Clear HLT flag",
-
         Key::DiscardCancel => "Cancel",
         Key::DiscardBody => "Unsaved changes will be lost.",
         Key::DiscardBodyDeleteHdd => "All data will be lost.",
@@ -175,7 +170,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DiscardConfirmImport => "Import",
         Key::DiscardConfirmClose => "Close",
         Key::DiscardConfirmDeleteHdd => "Delete",
-
         Key::StatusReady => "Ready",
         Key::StatusNewFile => "New file",
         Key::StatusCpuHalted => "CPU halted",
@@ -193,7 +187,6 @@ pub(super) fn translate(key: Key) -> &'static str {
 
         Key::SpeedTitle => "Speed",
         Key::SpeedUnit => "instr/sec",
-
         Key::SettingsTitle => "Settings",
         Key::SettingsSearchPlaceholder => "Search settings",
         Key::SettingsCategoryGeneral => "General",
@@ -210,7 +203,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsHddDirectoryBrowse => "Browse…",
         Key::SettingsToggleOn => "On",
         Key::SettingsToggleOff => "Off",
-
         Key::SettingsThemeLabel => "Theme",
         Key::SettingsThemeHint => "Interface theme",
         Key::SettingsThemePlaceholder => "Coming soon",
@@ -227,11 +219,9 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SpeedMedium => "Medium",
         Key::SpeedHigh => "Fast",
         Key::SpeedMax => "Max",
-
         Key::HeaderStatus => "Status",
         Key::HltOn => "HLT ON",
         Key::HltOff => "HLT OFF",
-
         Key::RegistersAndOperands => "Registers and operands",
         Key::Accumulator => "Accumulator",
         Key::BufferRegister1 => "Buffer register 1",
@@ -244,14 +234,12 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DataBuffer => "Data buffer",
         Key::FlagsRegister => "Flags register",
         Key::StatusRegister => "Status register",
-
         Key::Multiplexer => "Multiplexer",
         Key::TempStorageRegisters => "Temporary storage registers",
         Key::GeneralPurposeRegisters => "General-purpose registers",
         Key::StackPointer => "Stack pointer (SP)",
         Key::ProgramCounter => "Program counter (PC)",
         Key::IncDec => "Increment-decrement",
-
         Key::CyclesAndTacts => "Cycle and tact",
         Key::CycleLabel => "Cycle",
         Key::TactLabel => "Tact",
@@ -268,12 +256,10 @@ pub(super) fn translate(key: Key) -> &'static str {
             "Tact number within the current instruction on the full scale (T1, T2, ...). Counts from one."
         }
         Key::PhaseTooltip => "Same as 'Instruction tact' but counts from zero.",
-
         Key::MemoryListTitle => "RAM contents",
         Key::ColumnAddress => "Address",
         Key::ColumnValue => "Value",
         Key::ColumnCommand => "Command",
-
         Key::MemoryEditorTitle => "RAM cell and value",
         Key::RegisterEditorTitle => "Register and value",
         Key::ActionPause => "Pause",
@@ -285,19 +271,21 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ActionResetCpu => "Reset registers",
         Key::ExecutionPanel => "Execution",
         Key::ResetPanel => "Reset",
-
         Key::QuickAccess => "Quick access",
         Key::DeviceMonitor => "Show monitor",
         Key::DeviceFloppy => "Show floppy buffer",
         Key::DeviceHdd => "Show HDD buffer",
         Key::DeviceNetwork => "Show network buffer",
         Key::DevicePrinter => "Show printer buffer",
-
         Key::MonitorUnifiedScreen => "KR580 screen",
         Key::MonitorTextLayer => "Text layer",
         Key::MonitorPixelLayer => "Graphics layer",
         Key::MonitorHexBuffer => "Byte stream",
         Key::MonitorClose => "Close",
+        Key::MonitorDetach => "Detach into a separate window",
+        Key::MonitorAttach => "Return to the emulator window",
+        Key::MonitorPin => "Keep above other windows",
+        Key::MonitorUnpin => "Stop keeping above other windows",
         Key::MonitorViewSplit => "Split",
         Key::MonitorViewUnified => "Unified",
         Key::MonitorClearBuffer => "Clear buffer",

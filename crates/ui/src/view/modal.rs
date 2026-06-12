@@ -1,6 +1,7 @@
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
-use iced::{Background, Border, Color, Element, Length};
+use iced::{Background, Border, Element, Length};
 
+use super::styles::{modal_backdrop_style, panel_style as modal_dialog_style};
 use super::theme::{TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::{DiscardModalButton, Message, PendingAction};
 use crate::i18n::{Key, Lang};
@@ -129,43 +130,6 @@ fn discard_confirm_label_key(action: &PendingAction) -> Key {
         PendingAction::Import => Key::DiscardConfirmImport,
         PendingAction::CloseWindow => Key::DiscardConfirmClose,
         PendingAction::DeleteHdd => Key::DiscardConfirmDeleteHdd,
-    }
-}
-
-/// Iced 0.14 has no native gaussian blur, so the modal backdrop
-/// approximates the "blur the background" intent with a 70%-alpha
-/// dark fill. Lets enough of the schematic bleed through that the
-/// user remembers what they were doing while reading it as
-/// suppressed.
-fn modal_backdrop_style(_theme: &iced::Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        background: Some(Background::Color(Color {
-            r: 0.07,
-            g: 0.07,
-            b: 0.13,
-            a: 0.70,
-        })),
-        border: Border {
-            radius: 0.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        ..iced::widget::container::Style::default()
-    }
-}
-
-/// Solid surface (the backdrop already provides contrast) with a
-/// 1-px border so the dialog reads as a discrete floating element.
-fn modal_dialog_style(_theme: &iced::Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 8.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..iced::widget::container::Style::default()
     }
 }
 

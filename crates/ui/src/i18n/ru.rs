@@ -1,5 +1,4 @@
 use super::{help_ru, keys::Key};
-
 pub(super) fn translate(key: Key) -> &'static str {
     match key {
         Key::MenuFile => "Файл",
@@ -7,7 +6,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MenuView => "Вид",
         Key::MenuSettings => "Настройки",
         Key::MenuHelp => "Помощь",
-
         Key::HelpShowDocs => "Вызвать справку",
         Key::HelpAbout => "О программе",
         Key::HelpDialogTitle => "Справка",
@@ -66,7 +64,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HnSystemComposition => "Состав МП-системы",
         Key::HnTopicShortcuts => "Таблица горячих клавиш",
         Key::HnWorkflow => "Работа с программой",
-
         Key::HcAbout
         | Key::HcFeatures
         | Key::HcSystemComponents
@@ -116,7 +113,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         }
         Key::AboutVersion => "Версия 1.0.0",
         Key::AboutGithubLabel => "GitHub",
-
         Key::FileNew => "Новый файл",
         Key::FileOpen => "Открыть",
         Key::FileSave => "Сохранить",
@@ -156,14 +152,12 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ImportSectionLabel => "В разделе",
         Key::ImportBrowseTooltip => "Выбрать файл",
         Key::ImportChooseFileRequired => "Выберите файл для импорта",
-
         Key::MpRunProgram => "Выполнить программу",
         Key::MpRunInstruction => "Выполнить команду",
         Key::MpRunTact => "Выполнить такт",
         Key::MpResetRam => "Очистить ОЗУ",
         Key::MpResetCpu => "Очистить регистры",
         Key::MpClearHalt => "Сбросить флаг HLT",
-
         Key::DiscardCancel => "Отменить",
         Key::DiscardBody => "Несохранённые изменения будут потеряны.",
         Key::DiscardBodyDeleteHdd => "Все данные будут потеряны.",
@@ -177,7 +171,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DiscardConfirmImport => "Импортировать",
         Key::DiscardConfirmClose => "Закрыть",
         Key::DiscardConfirmDeleteHdd => "Удалить",
-
         Key::StatusReady => "Готов",
         Key::StatusNewFile => "Новый файл",
         Key::StatusCpuHalted => "ЦП остановлен",
@@ -190,10 +183,8 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusImportFrom => "Импорт из",
         Key::ErrorPrefix => "Ошибка",
         Key::HaltNotice => "Процессор остановлен командой HLT\nСбросьте регистры или флаг HLT",
-
         Key::SpeedTitle => "Скорость",
         Key::SpeedUnit => "инстр/сек",
-
         Key::SettingsTitle => "Настройки",
         Key::SettingsSearchPlaceholder => "Поиск настроек",
         Key::SettingsCategoryGeneral => "Общие",
@@ -210,7 +201,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsHddDirectoryBrowse => "Обзор…",
         Key::SettingsToggleOn => "Включено",
         Key::SettingsToggleOff => "Выключено",
-
         Key::SettingsThemeLabel => "Тема",
         Key::SettingsThemeHint => "Тема оформления интерфейса",
         Key::SettingsThemePlaceholder => "Скоро",
@@ -227,11 +217,9 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SpeedMedium => "Средне",
         Key::SpeedHigh => "Быстро",
         Key::SpeedMax => "Макс",
-
         Key::HeaderStatus => "Статус",
         Key::HltOn => "HLT ВКЛ",
         Key::HltOff => "HLT ВЫКЛ",
-
         Key::RegistersAndOperands => "Регистры и операнды",
         Key::Accumulator => "Аккумулятор",
         Key::BufferRegister1 => "Буферный регистр 1",
@@ -244,14 +232,12 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DataBuffer => "Буфер данных",
         Key::FlagsRegister => "Регистр признаков",
         Key::StatusRegister => "Регистр состояния",
-
         Key::Multiplexer => "Мультиплексор",
         Key::TempStorageRegisters => "Регистры временного хранения",
         Key::GeneralPurposeRegisters => "Регистры общего назначения (РОН)",
         Key::StackPointer => "Указатель стека (УС)",
         Key::ProgramCounter => "Счётчик команд (СК)",
         Key::IncDec => "Инкремент-декремент",
-
         Key::CyclesAndTacts => "Цикл и такт",
         Key::CycleLabel => "Цикл",
         Key::TactLabel => "Такт",
@@ -268,12 +254,10 @@ pub(super) fn translate(key: Key) -> &'static str {
             "Номер такта внутри текущей команды по полной шкале (T1, T2, ...). Числится с единицы."
         }
         Key::PhaseTooltip => "То же, что «Такт инструкции», но считается с нуля.",
-
         Key::MemoryListTitle => "Содержимое ячеек ОЗУ",
         Key::ColumnAddress => "Адрес",
         Key::ColumnValue => "Значение",
         Key::ColumnCommand => "Команда",
-
         Key::MemoryEditorTitle => "Ячейка ОЗУ и ее значение",
         Key::RegisterEditorTitle => "Регистр и его значение",
         Key::ActionPause => "Пауза",
@@ -285,19 +269,21 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ActionResetCpu => "Сброс регистров",
         Key::ExecutionPanel => "Выполнение",
         Key::ResetPanel => "Сброс",
-
         Key::QuickAccess => "Быстрый доступ",
         Key::DeviceMonitor => "Отобразить монитор",
         Key::DeviceFloppy => "Отобразить буфер дисковода",
         Key::DeviceHdd => "Отобразить буфер жёсткого диска",
         Key::DeviceNetwork => "Отобразить буфер сетевого адаптера",
         Key::DevicePrinter => "Отобразить буфер принтера",
-
         Key::MonitorUnifiedScreen => "Экран КР580",
         Key::MonitorTextLayer => "Текстовый слой",
         Key::MonitorPixelLayer => "Графический слой",
         Key::MonitorHexBuffer => "Поток байт",
         Key::MonitorClose => "Закрыть",
+        Key::MonitorDetach => "Открепить в отдельное окно",
+        Key::MonitorAttach => "Вернуть в окно эмулятора",
+        Key::MonitorPin => "Закрепить поверх других окон",
+        Key::MonitorUnpin => "Не держать поверх других окон",
         Key::MonitorViewSplit => "Разделить",
         Key::MonitorViewUnified => "Объединить",
         Key::MonitorClearBuffer => "Очистить буфер",
@@ -402,7 +388,9 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ErrDiskFull => "На диске недостаточно места",
         Key::ErrIoGeneric => "Ошибка чтения или записи файла",
         Key::ErrAddressOutOfRange => "Адрес вне допустимого диапазона памяти",
-        Key::ErrHddDirectoryNotWritable => "Невозможно использовать этот каталог – нет прав на запись",
+        Key::ErrHddDirectoryNotWritable => {
+            "Невозможно использовать этот каталог – нет прав на запись"
+        }
         Key::ErrUnknownRegister => "Неизвестное имя регистра",
         Key::ErrUndocumentedOpcode => "Недокументированная команда",
         Key::ErrFloppyImageNotAttached => "Файл образа дисковода не подключён",

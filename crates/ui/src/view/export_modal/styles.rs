@@ -1,65 +1,12 @@
 use iced::widget::{button, container};
 use iced::{Background, Border, Color};
 
-use super::super::theme::{
-    TOKYO_BOARD, TOKYO_BORDER, TOKYO_GREEN, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT,
+pub(super) use super::super::styles::{
+    inset_style as dropdown_panel_style, inset_style as group_panel_style,
+    legend_label_style as group_label_style, modal_backdrop_style,
+    modal_dropdown_option_style as dropdown_option_style, panel_style as modal_dialog_style,
 };
-
-pub(super) fn modal_backdrop_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(Color {
-            r: 0.07,
-            g: 0.07,
-            b: 0.13,
-            a: 0.70,
-        })),
-        border: Border {
-            radius: 0.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        ..container::Style::default()
-    }
-}
-
-pub(super) fn modal_dialog_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 8.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..container::Style::default()
-    }
-}
-
-pub(super) fn group_panel_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 6.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..container::Style::default()
-    }
-}
-
-pub(super) fn group_label_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 0.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        ..container::Style::default()
-    }
-}
+use super::super::theme::{TOKYO_BORDER, TOKYO_GREEN, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT};
 
 pub(super) fn tab_button_style(status: button::Status, active: bool) -> button::Style {
     let background = match (active, status) {
@@ -87,64 +34,6 @@ pub(super) fn tab_button_style(status: button::Status, active: bool) -> button::
 pub(super) fn combo_arrow_style(_status: button::Status, _open: bool) -> button::Style {
     button::Style {
         background: Some(Background::Color(Color::TRANSPARENT)),
-        text_color: TOKYO_TEXT,
-        border: Border {
-            radius: 4.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        ..button::Style::default()
-    }
-}
-
-pub(super) fn icon_button_style(status: button::Status) -> button::Style {
-    let background = match status {
-        button::Status::Hovered => Color {
-            a: 0.45,
-            ..TOKYO_SURFACE
-        },
-        button::Status::Pressed => TOKYO_SURFACE_2,
-        _ => Color::TRANSPARENT,
-    };
-
-    button::Style {
-        background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
-        border: Border {
-            radius: 6.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..button::Style::default()
-    }
-}
-
-pub(super) fn dropdown_panel_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 6.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..container::Style::default()
-    }
-}
-
-pub(super) fn dropdown_option_style(status: button::Status, highlighted: bool) -> button::Style {
-    let background = match (highlighted, status) {
-        (true, _) => TOKYO_SURFACE,
-        (false, button::Status::Hovered) => Color {
-            a: 0.45,
-            ..TOKYO_SURFACE
-        },
-        (false, button::Status::Pressed) => TOKYO_SURFACE_2,
-        _ => Color::TRANSPARENT,
-    };
-
-    button::Style {
-        background: Some(Background::Color(background)),
         text_color: TOKYO_TEXT,
         border: Border {
             radius: 4.0.into(),

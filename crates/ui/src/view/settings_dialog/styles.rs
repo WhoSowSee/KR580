@@ -1,26 +1,10 @@
 use iced::widget::{button, container};
 use iced::{Background, Border, Color};
 
+pub(super) use super::super::styles::modal_backdrop_style;
 use super::super::theme::{
     TOKYO_BOARD, TOKYO_BORDER, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT,
 };
-
-pub(super) fn modal_backdrop_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(Color {
-            r: 0.07,
-            g: 0.07,
-            b: 0.13,
-            a: 0.70,
-        })),
-        border: Border {
-            radius: 0.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        ..container::Style::default()
-    }
-}
 
 /// Dialog body uses `TOKYO_BOARD` so it blends with the schematic plate
 /// behind the backdrop instead of standing out as a light-grey panel.

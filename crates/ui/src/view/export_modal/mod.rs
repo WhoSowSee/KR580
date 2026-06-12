@@ -11,6 +11,7 @@ use groups::{MemoryGroupState, flags_group, memory_group, register_group};
 use styles::{footer_button_style, modal_backdrop_style, modal_dialog_style, tab_button_style};
 
 use super::theme::{TOKYO_TEXT, ui_text};
+use super::widgets::modal_footer_button;
 use crate::app::{
     ExportFlagSelection, ExportMemoryColumns, ExportRegisterSelection, ExportTab, Message,
 };
@@ -144,23 +145,19 @@ fn tab_button(label: &'static str, target: ExportTab, active: bool) -> Element<'
 fn footer(lang: Lang) -> Element<'static, Message> {
     row![
         Space::new().width(Length::Fill),
-        footer_button(lang.t(Key::DiscardCancel), Message::CancelExport,),
-        footer_button(lang.t(Key::FileExport), Message::ConfirmExport),
+        modal_footer_button(
+            lang.t(Key::DiscardCancel),
+            Message::CancelExport,
+            footer_button_style,
+        ),
+        modal_footer_button(
+            lang.t(Key::FileExport),
+            Message::ConfirmExport,
+            footer_button_style,
+        ),
     ]
     .spacing(12)
     .width(Length::Fill)
-    .into()
-}
-
-fn footer_button(label_text: &'static str, message: Message) -> Element<'static, Message> {
-    button(
-        container(ui_text(label_text, 14, TOKYO_TEXT))
-            .padding([7, 22])
-            .align_x(alignment::Horizontal::Center),
-    )
-    .on_press(message)
-    .padding(0)
-    .style(move |_theme, status| footer_button_style(status))
     .into()
 }
 

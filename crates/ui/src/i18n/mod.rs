@@ -177,7 +177,7 @@ mod tests {
 
         for lang in [Lang::Ru, Lang::En] {
             for key in HELP_KEYS {
-                assert!(!lang.t(*key).contains('–'), "{lang:?} {key:?}");
+                assert!(!lang.t(*key).contains('—'), "{lang:?} {key:?}");
             }
         }
     }

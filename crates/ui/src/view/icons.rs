@@ -58,6 +58,12 @@ static WINDOW_RESTORE: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("window-restore").as_slice()));
 static WINDOW_CLOSE: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("window-close").as_slice()));
+static PANEL_DETACH: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("panel-detach").as_slice()));
+static PANEL_ATTACH: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("panel-attach").as_slice()));
+static PIN: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("pin").as_slice()));
 static CPU: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("cpu").as_slice()));
 static CLEAR_HALT: LazyLock<svg::Handle> =
@@ -205,6 +211,18 @@ pub(super) fn window_restore() -> svg::Handle {
 
 pub(super) fn window_close() -> svg::Handle {
     WINDOW_CLOSE.clone()
+}
+
+pub(super) fn panel_detach() -> svg::Handle {
+    PANEL_DETACH.clone()
+}
+
+pub(super) fn panel_attach() -> svg::Handle {
+    PANEL_ATTACH.clone()
+}
+
+pub(super) fn pin() -> svg::Handle {
+    PIN.clone()
 }
 
 pub(super) fn cpu() -> svg::Handle {

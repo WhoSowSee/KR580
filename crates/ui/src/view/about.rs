@@ -9,9 +9,9 @@ use iced::widget::{Space, button, column, container, image, mouse_area, opaque, 
 use iced::{Background, Border, Color, Element, Length, alignment};
 
 use super::icons;
+use super::styles::{large_dialog_style as modal_dialog_style, modal_backdrop_style};
 use super::theme::{
-    TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3,
-    TOKYO_TEXT, ui_text,
+    TOKYO_MUTED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT, ui_text,
 };
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
@@ -113,36 +113,6 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
-}
-
-fn modal_backdrop_style(_theme: &iced::Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        background: Some(Background::Color(Color {
-            r: 0.07,
-            g: 0.07,
-            b: 0.13,
-            a: 0.70,
-        })),
-        border: Border {
-            radius: 0.0.into(),
-            width: 0.0,
-            color: Color::TRANSPARENT,
-        },
-        ..iced::widget::container::Style::default()
-    }
-}
-
-fn modal_dialog_style(_theme: &iced::Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 12.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..iced::widget::container::Style::default()
-    }
 }
 
 /// Soundly-style pill: dark fill, no border, fully rounded corners,

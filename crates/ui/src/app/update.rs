@@ -7,10 +7,12 @@ use super::constants::{
 };
 use super::messages::{Message, RegisterInlineTarget};
 use super::state::{DesktopApp, PendingAction};
-use crate::platform;
 
 impl DesktopApp {
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
+        if let Some(task) = self.dispatch_window_message(&message) {
+            return task;
+        }
         if let Some(task) = self.route_discard_modal_message(&message) {
             return task;
         }
@@ -291,32 +293,6 @@ impl DesktopApp {
             Message::FocusResolved { focused, backward } => {
                 return self.cycle_focus(focused, backward);
             }
-            Message::WindowOpened(id) => {
-                // Cloak through the first frame so DWM doesn't paint
-                // the default white client area; uncloak after iced presents.
-                self.window_id = Some(id);
-                return Task::batch([
-                    iced::window::run(id, |window| platform::cloak_window(window, true)).discard(),
-                    iced::window::run(id, |window| platform::set_rounded_corners(window)).discard(),
-                    iced::window::set_mode(id, iced::window::Mode::Windowed),
-                    iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
-                ]);
-            }
-            Message::WindowResized(width) => {
-                self.window_width = width;
-            }
-            Message::FrameRendered => {
-                if self.startup_frames_seen < u8::MAX {
-                    self.startup_frames_seen = self.startup_frames_seen.saturating_add(1);
-                }
-                if self.startup_frames_seen == 2 {
-                    return iced::window::latest()
-                        .and_then(|id| {
-                            iced::window::run(id, |window| platform::cloak_window(window, false))
-                        })
-                        .discard();
-                }
-            }
             Message::MenuToggled(menu) => {
                 self.open_menu = if self.open_menu == Some(menu) {
                     None
@@ -340,53 +316,10 @@ impl DesktopApp {
             Message::SpeedTierChanged(tier) => {
                 self.apply_speed_tier(tier);
             }
-            Message::WindowDragStart => {
-                if self.close_titlebar_popup_before_drag() {
-                    return Task::none();
-                }
-                let Some(id) = self.window_id else {
-                    return Task::none();
-                };
-                return iced::window::drag(id);
-            }
-            Message::WindowMinimize => {
-                let Some(id) = self.window_id else {
-                    return Task::none();
-                };
-                return iced::window::minimize(id, true);
-            }
-            Message::WindowToggleMaximize => {
-                let Some(id) = self.window_id else {
-                    return Task::none();
-                };
-                // Optimistic swap so the caption glyph updates this
-                // frame; the poll reconciles if the WM refuses.
-                self.window_maximized = !self.window_maximized;
-                return Task::batch([
-                    iced::window::toggle_maximize(id),
-                    iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
-                ]);
-            }
-            Message::WindowClose => {
-                let Some(id) = self.window_id else {
-                    return Task::none();
-                };
-                return iced::window::close(id);
-            }
-            Message::WindowMaximizedChanged(maximized) => {
-                self.window_maximized = maximized;
-            }
             Message::Undo => return self.apply_undo(),
             Message::Redo => return self.apply_redo(),
             Message::ConfirmDiscard => return self.confirm_discard(),
             Message::CancelDiscard => self.cancel_discard(),
-            Message::WindowCloseRequested => {
-                if self.dirty {
-                    self.open_discard_modal(PendingAction::CloseWindow);
-                } else {
-                    return Task::done(Message::WindowClose);
-                }
-            }
             _ => {}
         }
         Task::none()
