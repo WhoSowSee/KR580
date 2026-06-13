@@ -28,9 +28,11 @@ fn second_startup_frame_prepares_hidden_tool_windows() {
     assert!(app.monitor_window.id.is_some());
     assert!(app.floppy_window.id.is_some());
     assert!(app.hdd_window.id.is_some());
+    assert!(app.network_window.id.is_some());
     assert!(!app.monitor_window.ready);
     assert!(!app.floppy_window.ready);
     assert!(!app.hdd_window.ready);
+    assert!(!app.network_window.ready);
 }
 
 #[cfg(windows)]
@@ -144,6 +146,29 @@ fn detached_storage_pin_and_attach_are_independent() {
     assert!(!app.floppy_window.always_on_top);
     assert_eq!(app.floppy_window.id, Some(floppy));
     assert_eq!(app.hdd_window.id, Some(hdd));
+}
+
+#[test]
+fn detached_network_pin_and_attach_are_independent() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let network = window::Id::unique();
+    app.network_open = true;
+    app.network_window.id = Some(network);
+    app.network_window.ready = true;
+    app.network_window.detached = true;
+
+    let _task = app.update(Message::ToggleToolWindowAlwaysOnTop(
+        ToolWindowKind::Network,
+    ));
+
+    assert!(app.network_window.always_on_top);
+
+    let _task = app.update(Message::AttachToolWindow(ToolWindowKind::Network));
+
+    assert!(app.network_open);
+    assert!(!app.network_window.detached);
+    assert!(!app.network_window.always_on_top);
+    assert_eq!(app.network_window.id, Some(network));
 }
 
 #[test]

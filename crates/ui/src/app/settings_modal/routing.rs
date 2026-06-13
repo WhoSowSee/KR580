@@ -35,6 +35,10 @@ impl DesktopApp {
             | Message::SettingsDraftFollowPcSet(_)
             | Message::SettingsHddDirectoryBrowse
             | Message::SettingsDraftHddDirectorySet(_)
+            | Message::SettingsNetworkClientHostChanged(_)
+            | Message::SettingsNetworkClientPortChanged(_)
+            | Message::SettingsNetworkServerHostChanged(_)
+            | Message::SettingsNetworkServerPortChanged(_)
             | Message::SettingsLanguageDropdownToggled
             | Message::SettingsResetRequested
             | Message::SettingsResetConfirmed

@@ -1,6 +1,6 @@
 use crate::AppError;
 use k580_core::{Cpu8080State, InstructionOutcome, RegisterName, TactOutcome};
-use k580_devices::DeviceSnapshot;
+use k580_devices::{DeviceSnapshot, NetworkMode};
 use k580_persistence::ExportOptions;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -43,6 +43,12 @@ pub enum AppCommand {
     DetachHddFile,
     SetHddDebugBuffer(bool),
     AttachHddFile(PathBuf),
+    ConfigureNetwork {
+        mode: NetworkMode,
+        host: String,
+        port: u16,
+    },
+    ClearNetworkBuffers,
     Shutdown,
 }
 

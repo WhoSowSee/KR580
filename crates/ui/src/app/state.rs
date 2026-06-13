@@ -5,9 +5,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use super::help::HelpDialog;
-use super::messages::{
-    ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier, ToolWindowKind,
-};
+use super::messages::{ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier};
 use super::modal::DiscardModalButton;
 use super::settings_modal::SettingsDialog;
 use super::status::StatusKind;
@@ -95,6 +93,7 @@ pub(crate) struct DesktopApp {
     pub(crate) monitor_window: ToolWindowState,
     pub(crate) floppy_window: ToolWindowState,
     pub(crate) hdd_window: ToolWindowState,
+    pub(crate) network_window: ToolWindowState,
     pub(crate) window_maximized: bool,
     pub(crate) follow_pc: bool,
     pub(crate) menu_categories_visible: bool,
@@ -138,6 +137,12 @@ pub(crate) struct DesktopApp {
     pub(crate) monitor_hex_popup: bool,
     pub(crate) floppy_open: bool,
     pub(crate) hdd_open: bool,
+    pub(crate) network_open: bool,
+    pub(crate) network_settings_open: bool,
+    pub(crate) network_mode_draft: k580_app::NetworkMode,
+    pub(crate) network_host_input: String,
+    pub(crate) network_port_input: String,
+    pub(crate) network_settings_error: Option<String>,
     pub(crate) hdd_file_exists: bool,
     pub(crate) hdd_show_image_contents: bool,
     pub(crate) hdd_image_contents: Vec<u8>,
@@ -179,6 +184,14 @@ impl DesktopApp {
         let _ = handle.send(k580_app::AppCommand::AttachHddFile(
             crate::runtime::storage_files::hdd_default_path(),
         ));
+        let network_mode = k580_app::NetworkMode::Client;
+        let network_host = settings.network.host.clone();
+        let network_port = settings.network.port;
+        let _ = handle.send(k580_app::AppCommand::ConfigureNetwork {
+            mode: network_mode,
+            host: network_host.clone(),
+            port: network_port,
+        });
         let default_speed = speed_tier_from_preset(settings.general.default_speed);
         let follow_pc = settings.general.follow_pc;
         let initial_status_kind = StatusKind::Ready;
@@ -231,6 +244,7 @@ impl DesktopApp {
             monitor_window: ToolWindowState::default(),
             floppy_window: ToolWindowState::default(),
             hdd_window: ToolWindowState::default(),
+            network_window: ToolWindowState::default(),
             window_maximized: false,
             menu_categories_visible: true,
             follow_pc,
@@ -275,6 +289,12 @@ impl DesktopApp {
             monitor_hex_popup: false,
             floppy_open: false,
             hdd_open: false,
+            network_open: false,
+            network_settings_open: false,
+            network_mode_draft: network_mode,
+            network_host_input: network_host,
+            network_port_input: network_port.to_string(),
+            network_settings_error: None,
             hdd_file_exists: true,
             hdd_show_image_contents: false,
             hdd_image_contents: Vec::new(),
@@ -361,23 +381,5 @@ impl DesktopApp {
             _ => k580_app::RunMode::Paced,
         };
         self.dispatch(k580_app::AppCommand::SetRunMode(mode));
-    }
-}
-
-impl DesktopApp {
-    pub(crate) fn tool_window(&self, kind: ToolWindowKind) -> &ToolWindowState {
-        match kind {
-            ToolWindowKind::Monitor => &self.monitor_window,
-            ToolWindowKind::Floppy => &self.floppy_window,
-            ToolWindowKind::Hdd => &self.hdd_window,
-        }
-    }
-
-    pub(crate) fn tool_window_mut(&mut self, kind: ToolWindowKind) -> &mut ToolWindowState {
-        match kind {
-            ToolWindowKind::Monitor => &mut self.monitor_window,
-            ToolWindowKind::Floppy => &mut self.floppy_window,
-            ToolWindowKind::Hdd => &mut self.hdd_window,
-        }
     }
 }

@@ -1,15 +1,16 @@
-use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
+use iced::widget::{Space, button, column, container, mouse_area, opaque, row, scrollable, stack};
 use iced::{Element, Length};
 
-use super::super::theme::{TOKYO_MUTED, TOKYO_TEXT, TOKYO_SURFACE, TOKYO_BORDER, ui_text};
+use super::super::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_SURFACE, TOKYO_TEXT, ui_text};
 use super::consts::{CONTENT_PADDING, SETTING_ROW_HEIGHT};
 use super::language::{language_dropdown_list, language_setting_row};
+use super::network::network_defaults_row;
 use super::setting_row::setting_row;
 use super::shortcuts_row::shortcuts_setting_row;
 use super::speed::speed_setting_row;
 use super::theme_row::theme_setting_row;
 use crate::app::{ContentFocus, Message, SettingsCategory, SettingsDialog, SettingsSection};
-use crate::i18n::{Key, Lang};
+use crate::i18n::{Key, Lang, NetworkKey};
 
 pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
     let lower_query = dialog.search_query().to_lowercase();
@@ -53,6 +54,14 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
     } else {
         column(rows).spacing(20).padding(CONTENT_PADDING).into()
     };
+
+    let body: Element<'a, Message> = scrollable(body)
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::hidden(),
+        ))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
 
     let body: Element<'a, Message> = match (dialog.language_dropdown_open, language_row_index) {
         (true, Some(idx)) if !searching => {
@@ -148,6 +157,18 @@ fn collect_category_rows<'a>(
             ) {
                 out.push(hdd_directory_row(dialog, lang));
             }
+            if matches_query(
+                &[
+                    Key::Network(NetworkKey::GeneralSettingsLabel),
+                    Key::Network(NetworkKey::GeneralSettingsHint),
+                    Key::Network(NetworkKey::ModeClient),
+                    Key::Network(NetworkKey::ModeServer),
+                ],
+                lang,
+                lower_query,
+            ) {
+                out.push(network_defaults_row(dialog, lang));
+            }
         }
         SettingsCategory::Appearance => {
             if matches_query(
@@ -229,8 +250,12 @@ fn hdd_directory_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, 
     let display = truncate_path(&raw_path, 36);
 
     let browse_btn = button(
-        container(ui_text(lang.t(Key::SettingsHddDirectoryBrowse), 12, TOKYO_TEXT))
-            .padding([2, 8]),
+        container(ui_text(
+            lang.t(Key::SettingsHddDirectoryBrowse),
+            12,
+            TOKYO_TEXT,
+        ))
+        .padding([2, 8]),
     )
     .on_press(Message::SettingsHddDirectoryBrowse)
     .style(move |_theme, status| {

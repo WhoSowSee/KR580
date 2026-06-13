@@ -14,9 +14,11 @@ mod en;
 mod help_en;
 mod help_ru;
 mod keys;
+mod network;
 mod ru;
 
 pub(crate) use keys::Key;
+pub(crate) use network::NetworkKey;
 
 use k580_persistence::Language as PersistedLanguage;
 

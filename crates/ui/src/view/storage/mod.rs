@@ -1,4 +1,4 @@
-mod chrome;
+pub(in crate::view) mod chrome;
 mod floppy;
 mod hdd;
 mod text;
@@ -7,11 +7,12 @@ pub(in crate::view) use floppy::{floppy_window, floppy_window_overlay};
 pub(in crate::view) use hdd::{hdd_window, hdd_window_overlay};
 
 use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
-use iced::{Background, Border, Color, Element, Length, Padding, Theme, alignment};
+use iced::{Element, Length, Padding, alignment};
 use k580_app::{DeviceStatus, StorageState};
 
+use self::chrome::{device_backdrop_style, device_buffer_style};
 use super::styles::{panel_style as dialog_style, scrollable_style};
-use super::theme::{MONO_FONT, TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{MONO_FONT, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
 use text::storage_buffer_text;
@@ -68,7 +69,7 @@ pub(super) fn storage_window_overlay<'a>(
         container(Space::new())
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(backdrop_style),
+            .style(device_backdrop_style),
     )
     .on_press(close_msg)
     .into();
@@ -211,7 +212,7 @@ fn dialog_body<'a>(
     let buffer_frame = container(buffer)
         .width(Length::Fill)
         .height(Length::Fill)
-        .style(buffer_style)
+        .style(device_buffer_style)
         .clip(true);
 
     column![
@@ -292,26 +293,6 @@ fn status_label(status: &DeviceStatus, lang: Lang) -> String {
         DeviceStatus::Listening => lang.t(Key::DeviceStatusListening).to_owned(),
         DeviceStatus::Disconnected => lang.t(Key::DeviceStatusDisconnected).to_owned(),
         DeviceStatus::Error(error) => error.clone(),
-    }
-}
-
-fn backdrop_style(_theme: &Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        background: Some(Background::Color(Color::from_rgba8(0x12, 0x12, 0x21, 0.85))),
-        ..iced::widget::container::Style::default()
-    }
-}
-
-fn buffer_style(_theme: &Theme) -> iced::widget::container::Style {
-    iced::widget::container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
-        border: Border {
-            radius: 4.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..iced::widget::container::Style::default()
     }
 }
 

@@ -1,5 +1,5 @@
 pub(super) const DIALOG_WIDTH: f32 = 760.0;
-pub(super) const DIALOG_HEIGHT: f32 = 480.0;
+pub(super) const DIALOG_HEIGHT: f32 = 496.0;
 pub(super) const SIDEBAR_WIDTH: f32 = 220.0;
 pub(super) const HEADER_HEIGHT: f32 = 52.0;
 pub(super) const FOOTER_HEIGHT: f32 = 56.0;

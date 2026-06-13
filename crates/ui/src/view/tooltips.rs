@@ -32,7 +32,10 @@ pub(super) fn shortcut_hint(message: &Message) -> Option<&'static str> {
         Message::Undo => Some("Ctrl+Z"),
         Message::Redo => Some("Ctrl+Shift+Z"),
         Message::OpenOpcodePicker => Some("E"),
-        Message::CloseMonitor | Message::CloseFloppy | Message::CloseHdd => Some("Esc"),
+        Message::CloseMonitor
+        | Message::CloseFloppy
+        | Message::CloseHdd
+        | Message::CloseNetwork => Some("Esc"),
         _ => None,
     }
 }

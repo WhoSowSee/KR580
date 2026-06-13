@@ -331,6 +331,7 @@ pub(crate) enum Key {
     HddCreateFile,
     HddDebugEnabled,
     HddFileDeleted,
+    Network(super::network::NetworkKey),
     DeviceStatusReady,
     DeviceStatusNotReady,
     DeviceStatusBusy,

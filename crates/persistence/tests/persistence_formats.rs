@@ -187,9 +187,29 @@ fn settings_are_versioned_camel_case_json() {
     assert!(json.contains("recentFiles"));
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
-    let unsupported = json.replace("\"settingsVersion\": 1", "\"settingsVersion\": 2");
+    let unsupported = json.replace("\"settingsVersion\": 2", "\"settingsVersion\": 3");
     assert!(matches!(
         SettingsStore::from_json(&unsupported),
-        Err(SettingsError::UnsupportedVersion(2))
+        Err(SettingsError::UnsupportedVersion(3))
     ));
+}
+
+#[test]
+fn version_one_settings_reset_legacy_runtime_network_endpoints() {
+    let legacy = Settings {
+        settings_version: 1,
+        network: k580_persistence::NetworkSettings {
+            host: "legacy-client".to_owned(),
+            port: 6000,
+            bind_host: "legacy-server".to_owned(),
+            bind_port: 7000,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
+
+    assert_eq!(migrated.settings_version, 2);
+    assert_eq!(migrated.network, Default::default());
 }

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use iced::widget::{Space, button, container, mouse_area, row, svg};
-use iced::{Background, Border, Color, Element, Length, alignment};
+use iced::{Background, Border, Color, Element, Length, Theme, alignment};
 
 use super::super::icons;
 use super::super::theme::{
@@ -15,7 +15,27 @@ use crate::i18n::{Key, Lang};
 const ICON_BUTTON_SIZE: f32 = 32.0;
 const ICON_GLYPH_SIZE: f32 = 18.0;
 
-pub(super) fn window_controls(
+pub(in crate::view) fn device_backdrop_style(_theme: &Theme) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(Color::from_rgba8(0x12, 0x12, 0x21, 0.85))),
+        ..container::Style::default()
+    }
+}
+
+pub(in crate::view) fn device_buffer_style(_theme: &Theme) -> container::Style {
+    container::Style {
+        text_color: Some(TOKYO_TEXT),
+        background: Some(Background::Color(TOKYO_BOARD)),
+        border: Border {
+            radius: 4.0.into(),
+            width: 1.0,
+            color: TOKYO_BORDER,
+        },
+        ..container::Style::default()
+    }
+}
+
+pub(in crate::view) fn window_controls(
     kind: ToolWindowKind,
     detached: bool,
     always_on_top: bool,
@@ -81,7 +101,7 @@ pub(super) fn window_controls(
     .into()
 }
 
-pub(super) fn icon_button(
+pub(in crate::view) fn icon_button(
     handle: svg::Handle,
     on_press: Option<Message>,
     hint: &'static str,

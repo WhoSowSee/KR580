@@ -8,11 +8,11 @@ use crate::app::Message;
 /// Two-column setting row: label + hint on the left, control on the
 /// right. Fixed-width left column keeps every control on the page on
 /// the same vertical axis regardless of label length.
-pub(super) fn setting_row(
+pub(super) fn setting_row<'a>(
     label: &'static str,
     hint: &'static str,
-    control: Element<'static, Message>,
-) -> Element<'static, Message> {
+    control: Element<'a, Message>,
+) -> Element<'a, Message> {
     let label_column = column![
         ui_text(label, 14, TOKYO_TEXT),
         Space::new().height(Length::Fixed(4.0)),

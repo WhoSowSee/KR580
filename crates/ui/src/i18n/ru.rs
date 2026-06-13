@@ -1,4 +1,4 @@
-use super::{help_ru, keys::Key};
+use super::{help_ru, keys::Key, network};
 pub(super) fn translate(key: Key) -> &'static str {
     match key {
         Key::MenuFile => "Файл",
@@ -326,6 +326,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HddDebugEnabled => "режим отладки",
         Key::HddShowImageContents => "Отобразить содержимое файла",
         Key::HddFileDeleted => "Файл HDD удалён",
+        Key::Network(key) => network::translate_ru(key),
         Key::DeviceStatusReady => "готов",
         Key::DeviceStatusNotReady => "не готов",
         Key::DeviceStatusBusy => "занят",
@@ -333,7 +334,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DeviceStatusConnected => "подключён",
         Key::DeviceStatusListening => "слушает",
         Key::DeviceStatusDisconnected => "отключён",
-
         Key::ColCmdCode => "Код",
         Key::ColCmdMnemonic => "Команда",
         Key::ColCmdOperand => "Операнд",

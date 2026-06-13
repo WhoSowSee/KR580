@@ -2,9 +2,8 @@ use iced::Task;
 
 use super::constants::SETTINGS_SEARCH_INPUT_ID;
 use super::messages::{Message, SpeedTier};
-use super::settings_modal::{
-    FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection,
-};
+use super::network::{NetworkEndpointError, parse_network_endpoint};
+use super::settings_modal::{FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection};
 use super::state::DesktopApp;
 use crate::i18n::{Key, Lang};
 use crate::settings_storage::{
@@ -28,6 +27,7 @@ impl DesktopApp {
                     self.default_speed,
                     self.follow_pc,
                     settings.general.hdd_directory,
+                    settings.network,
                 ));
                 Some(Task::none())
             }
@@ -49,11 +49,28 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SaveSettings => {
-                if let Some(dialog) = self.settings_dialog.as_ref() {
-                    let mut settings = load_settings();
-                    settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
-                    save_settings(&settings);
-                }
+                let Some(dialog) = self.settings_dialog.as_ref() else {
+                    return Some(Task::none());
+                };
+                let network = match parse_network_defaults(dialog) {
+                    Ok(network) => network,
+                    Err(_) => {
+                        let error = self
+                            .lang
+                            .t(Key::Network(
+                                crate::i18n::NetworkKey::GeneralSettingsInvalid,
+                            ))
+                            .to_owned();
+                        if let Some(dialog) = self.settings_dialog.as_mut() {
+                            dialog.network_error = Some(error);
+                        }
+                        return Some(Task::none());
+                    }
+                };
+                let mut settings = load_settings();
+                settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
+                apply_network_defaults(&mut settings.network, network);
+                save_settings(&settings);
                 if self.settings_dialog.take().is_some() {
                     Some(Task::done(Message::PersistSettings))
                 } else {
@@ -67,6 +84,9 @@ impl DesktopApp {
                 if let Some(dialog) = self.settings_dialog.as_ref() {
                     settings.general.follow_pc = dialog.draft_follow_pc;
                     settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
+                    if let Ok(network) = parse_network_defaults(dialog) {
+                        apply_network_defaults(&mut settings.network, network);
+                    }
                 }
                 save_settings(&settings);
                 Some(Task::none())
@@ -135,9 +155,8 @@ impl DesktopApp {
                 }
                 if let Some(folder) = dialog.pick_folder() {
                     if !is_directory_writable(&folder) {
-                        self.error_notice = Some(
-                            self.lang.t(Key::ErrHddDirectoryNotWritable).to_owned(),
-                        );
+                        self.error_notice =
+                            Some(self.lang.t(Key::ErrHddDirectoryNotWritable).to_owned());
                         self.error_notice_dismiss_at =
                             Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
                         return Some(Task::none());
@@ -149,6 +168,34 @@ impl DesktopApp {
             Message::SettingsDraftHddDirectorySet(path) => {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_hdd_directory = Some(path);
+                }
+                Some(Task::none())
+            }
+            Message::SettingsNetworkClientHostChanged(host) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_network_client_host = host;
+                    dialog.network_error = None;
+                }
+                Some(Task::none())
+            }
+            Message::SettingsNetworkClientPortChanged(port) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_network_client_port = port;
+                    dialog.network_error = None;
+                }
+                Some(Task::none())
+            }
+            Message::SettingsNetworkServerHostChanged(host) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_network_server_host = host;
+                    dialog.network_error = None;
+                }
+                Some(Task::none())
+            }
+            Message::SettingsNetworkServerPortChanged(port) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_network_server_port = port;
+                    dialog.network_error = None;
                 }
                 Some(Task::none())
             }
@@ -201,6 +248,7 @@ impl DesktopApp {
             Message::SettingsResetConfirmed => {
                 let default_lang = Lang::Ru;
                 let default_speed = SpeedTier::Medium;
+                let network = k580_persistence::NetworkSettings::default();
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_lang = default_lang;
                     dialog.draft_speed = default_speed;
@@ -208,6 +256,11 @@ impl DesktopApp {
                     dialog.original_lang = default_lang;
                     dialog.original_speed = default_speed;
                     dialog.original_hdd_directory = None;
+                    dialog.draft_network_client_host = network.host;
+                    dialog.draft_network_client_port = network.port.to_string();
+                    dialog.draft_network_server_host = network.bind_host;
+                    dialog.draft_network_server_port = network.bind_port.to_string();
+                    dialog.network_error = None;
                     dialog.reset_confirm_open = false;
                 }
                 let lang_changed = self.lang != default_lang;
@@ -222,6 +275,32 @@ impl DesktopApp {
             _ => None,
         }
     }
+}
+
+type NetworkDefaults = ((String, u16), (String, u16));
+
+fn parse_network_defaults(
+    dialog: &SettingsDialog,
+) -> Result<NetworkDefaults, NetworkEndpointError> {
+    let client = parse_network_endpoint(
+        &dialog.draft_network_client_host,
+        &dialog.draft_network_client_port,
+    )?;
+    let server = parse_network_endpoint(
+        &dialog.draft_network_server_host,
+        &dialog.draft_network_server_port,
+    )?;
+    Ok((client, server))
+}
+
+fn apply_network_defaults(
+    settings: &mut k580_persistence::NetworkSettings,
+    ((client_host, client_port), (server_host, server_port)): NetworkDefaults,
+) {
+    settings.host = client_host;
+    settings.port = client_port;
+    settings.bind_host = server_host;
+    settings.bind_port = server_port;
 }
 
 #[cfg(unix)]

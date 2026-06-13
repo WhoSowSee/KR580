@@ -14,6 +14,7 @@ mod import_modal_tests;
 mod keymap;
 pub(crate) mod messages;
 mod modal;
+mod network;
 mod opcode_picker;
 mod register_inline;
 pub(crate) mod settings_modal;

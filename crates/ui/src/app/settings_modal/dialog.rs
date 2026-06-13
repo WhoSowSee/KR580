@@ -3,6 +3,7 @@ use super::focus::{
 };
 use crate::app::messages::SpeedTier;
 use crate::i18n::Lang;
+use k580_persistence::NetworkSettings;
 
 /// Draft state edited by the dialog. Live language and speed (the
 /// fields on `DesktopApp`) are kept in sync with the draft so the user
@@ -17,6 +18,11 @@ pub(crate) struct SettingsDialog {
     pub(crate) draft_speed: SpeedTier,
     pub(crate) draft_follow_pc: bool,
     pub(crate) draft_hdd_directory: Option<std::path::PathBuf>,
+    pub(crate) draft_network_client_host: String,
+    pub(crate) draft_network_client_port: String,
+    pub(crate) draft_network_server_host: String,
+    pub(crate) draft_network_server_port: String,
+    pub(crate) network_error: Option<String>,
     pub(crate) language_dropdown_open: bool,
     /// Keyboard highlight inside the open language dropdown. `None`
     /// when the dropdown is closed; while open, ArrowUp / ArrowDown
@@ -35,7 +41,13 @@ pub(crate) struct SettingsDialog {
 }
 
 impl SettingsDialog {
-    pub(crate) fn new(lang: Lang, speed: SpeedTier, follow_pc: bool, hdd_directory: Option<std::path::PathBuf>) -> Self {
+    pub(crate) fn new(
+        lang: Lang,
+        speed: SpeedTier,
+        follow_pc: bool,
+        hdd_directory: Option<std::path::PathBuf>,
+        network: NetworkSettings,
+    ) -> Self {
         Self {
             category: SettingsCategory::General,
             search: String::new(),
@@ -43,6 +55,11 @@ impl SettingsDialog {
             draft_speed: speed,
             draft_follow_pc: follow_pc,
             draft_hdd_directory: hdd_directory.clone(),
+            draft_network_client_host: network.host,
+            draft_network_client_port: network.port.to_string(),
+            draft_network_server_host: network.bind_host,
+            draft_network_server_port: network.bind_port.to_string(),
+            network_error: None,
             language_dropdown_open: false,
             dropdown_highlight: None,
             original_lang: lang,

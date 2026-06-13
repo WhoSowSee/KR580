@@ -21,7 +21,7 @@ Subprograms are raw byte slices. The base address is supplied by the caller and 
 
 ## Settings
 
-Settings are UTF-8 JSON with `settingsVersion: 1` and top-level `network`, `storage`, `export`, `ui`, and `recentFiles` fields.
+Settings are UTF-8 JSON with `settingsVersion: 2` and top-level `network`, `storage`, `export`, `ui`, `general`, and `recentFiles` fields. Loading version 1 preserves non-network preferences but resets the legacy runtime-written client/server endpoints to `127.0.0.1:5800`; version 2 stores the startup client and server endpoints edited in General settings.
 
 ## Exports
 

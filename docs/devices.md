@@ -14,7 +14,7 @@ Device operations return typed status or errors. They do not mutate CPU state be
 
 - Monitor keeps a 64×20 text-cell framebuffer (`ch` + 7-bit `color`), a sparse 256×256 graphics layer (`Vec<(x, y, intensity)>`), a phase tracker for the in-flight 2/3-byte command, last command byte, and the raw byte stream (`hex_buffer`).
 - Storage devices append accepted bytes to visible buffers, maintain a bounded tail buffer, count queued file-backed bytes, expose last enqueue error, and can attach async file-backed workers. A `NotReady`/`Disconnected` enqueue failure reports an error but does not add the rejected byte to the visible buffers. `debug_buffer` is an explicit buffer-only mode for manual program checks: with no attached file it makes `OUT 01h` accept bytes into `visible_buffer`/`tail_buffer`, report `Ready`, and leave `bytes_queued` unchanged.
-- Network exposes explicit mode, connection state, RX buffer, TX buffer, byte counters, last error, and an optional Tokio-backed TCP worker. No-data reads are non-fatal.
+- Network exposes explicit mode, connection state, RX buffer, last transmitted byte, byte counters, last error, and an optional Tokio-backed TCP worker. No-data reads are non-fatal.
 - Printer accumulates bytes in a spool first, tracks buffered byte count and last enqueue error, and exports/prints through a separate queued action.
 
 ## Port behavior

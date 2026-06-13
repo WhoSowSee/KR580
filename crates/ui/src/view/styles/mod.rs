@@ -13,7 +13,7 @@ mod scrollable;
 pub(super) use buttons::{
     action_button_style, caption_button_style, close_caption_button_style, enter_button_style,
     menu_button_disabled_style, menu_button_style, modal_dropdown_option_style,
-    modal_field_button_style, opcode_option_style, step_button_style,
+    modal_field_button_style, modal_tab_button_style, opcode_option_style, step_button_style,
 };
 pub(super) use containers::{
     app_style, error_inset_style, input_shell_style, inset_style, large_dialog_style,

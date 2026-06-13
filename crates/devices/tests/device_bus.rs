@@ -131,6 +131,16 @@ fn network_no_data_is_non_fatal_and_buffers_are_separate() {
 }
 
 #[test]
+fn network_tx_keeps_only_the_last_output_byte() {
+    let mut network = NetworkDevice::default();
+
+    let _ = network.output_byte(0x40);
+    let _ = network.output_byte(0x41);
+
+    assert_eq!(network.state().tx_buffer, vec![0x41]);
+}
+
+#[test]
 fn network_worker_transfers_bytes_over_tcp() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let port = runtime.block_on(async {
@@ -175,6 +185,75 @@ fn network_worker_transfers_bytes_over_tcp() {
     assert_eq!(received, b'N');
     assert_eq!(server.state().rx_total, 1);
     assert_eq!(client.state().tx_total, 1);
+}
+
+#[test]
+fn network_buffers_can_be_cleared_without_resetting_connection_settings() {
+    let mut network = NetworkDevice::default();
+    network.configure(NetworkMode::Server, "0.0.0.0", 5803);
+    network.queue_received(0x55);
+    let _ = network.output_byte(0x10);
+
+    network.clear_buffers();
+
+    let state = network.state();
+    assert_eq!(state.mode, NetworkMode::Server);
+    assert_eq!(state.host, "0.0.0.0");
+    assert_eq!(state.port, 5803);
+    assert!(state.rx_buffer.is_empty());
+    assert!(state.tx_buffer.is_empty());
+}
+
+#[test]
+fn clearing_network_buffers_preserves_the_connection_state() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let occupied = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = occupied.local_addr().unwrap().port();
+    let mut network = NetworkDevice::default();
+    network.configure(NetworkMode::Server, "127.0.0.1", port);
+    network.start_worker(runtime.handle());
+
+    runtime.block_on(async {
+        for _ in 0..40 {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+            if network.state().last_error.is_some() {
+                break;
+            }
+        }
+    });
+    let before = network.state();
+    assert!(before.last_error.is_some());
+
+    network.clear_buffers();
+
+    let after = network.state();
+    assert_eq!(after.mode, before.mode);
+    assert_eq!(after.host, before.host);
+    assert_eq!(after.port, before.port);
+    assert_eq!(after.connection, before.connection);
+    assert_eq!(after.status, before.status);
+    assert_eq!(after.last_error, before.last_error);
+}
+
+#[test]
+fn reconfiguring_network_aborts_the_previous_worker() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let port = runtime.block_on(async {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        port
+    });
+    let mut network = NetworkDevice::default();
+    network.configure(NetworkMode::Server, "127.0.0.1", port);
+    network.start_worker(runtime.handle());
+    runtime.block_on(async { tokio::time::sleep(Duration::from_millis(50)).await });
+
+    network.configure(NetworkMode::Client, "127.0.0.1", port + 1);
+
+    runtime.block_on(async { tokio::time::sleep(Duration::from_millis(50)).await });
+    let rebound = runtime.block_on(tokio::net::TcpListener::bind(("127.0.0.1", port)));
+    assert!(rebound.is_ok());
 }
 
 #[test]

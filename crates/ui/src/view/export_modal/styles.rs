@@ -4,32 +4,10 @@ use iced::{Background, Border, Color};
 pub(super) use super::super::styles::{
     inset_style as dropdown_panel_style, inset_style as group_panel_style,
     legend_label_style as group_label_style, modal_backdrop_style,
-    modal_dropdown_option_style as dropdown_option_style, panel_style as modal_dialog_style,
+    modal_dropdown_option_style as dropdown_option_style,
+    modal_tab_button_style as tab_button_style, panel_style as modal_dialog_style,
 };
 use super::super::theme::{TOKYO_BORDER, TOKYO_GREEN, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT};
-
-pub(super) fn tab_button_style(status: button::Status, active: bool) -> button::Style {
-    let background = match (active, status) {
-        (true, _) => TOKYO_SURFACE,
-        (false, button::Status::Hovered) => Color {
-            a: 0.45,
-            ..TOKYO_SURFACE
-        },
-        (false, button::Status::Pressed) => TOKYO_SURFACE_2,
-        _ => Color::TRANSPARENT,
-    };
-
-    button::Style {
-        background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
-        border: Border {
-            radius: 6.0.into(),
-            width: 1.0,
-            color: TOKYO_BORDER,
-        },
-        ..button::Style::default()
-    }
-}
 
 pub(super) fn combo_arrow_style(_status: button::Status, _open: bool) -> button::Style {
     button::Style {

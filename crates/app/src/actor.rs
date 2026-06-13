@@ -1,5 +1,5 @@
 use crate::{AppCommand, AppError, AppEvent, AppSnapshot, Emulator, RunMode};
-use crossbeam_channel::{Receiver, Sender, after, never, select};
+use crossbeam_channel::{Receiver, Sender, after, never, select, tick};
 use std::thread;
 use std::time::Duration;
 
@@ -75,10 +75,10 @@ pub fn initial_snapshot() -> AppSnapshot {
 
 fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
     let mut emulator = Emulator::default();
-    publish(
-        &event_tx,
-        AppEvent::StateChanged(Box::new(emulator.snapshot())),
-    );
+    let initial = emulator.snapshot();
+    let mut published_network = initial.devices.network.clone();
+    publish(&event_tx, AppEvent::StateChanged(Box::new(initial)));
+    let network_poll = tick(Duration::from_millis(50));
     loop {
         // `never()` parks the timer when paused; otherwise the deadline
         // is `step_interval` (Paced) or `slice` (Burst). The slice also
@@ -97,6 +97,9 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
                 let Ok(command) = command else { break };
                 let shutdown = matches!(command, AppCommand::Shutdown);
                 for event in emulator.handle_command(command) {
+                    if let AppEvent::StateChanged(snapshot) = &event {
+                        published_network = snapshot.devices.network.clone();
+                    }
                     publish(&event_tx, event);
                 }
                 if shutdown {
@@ -105,7 +108,17 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
             }
             recv(tick) -> _ => {
                 for event in emulator.tick() {
+                    if let AppEvent::StateChanged(snapshot) = &event {
+                        published_network = snapshot.devices.network.clone();
+                    }
                     publish(&event_tx, event);
+                }
+            }
+            recv(network_poll) -> _ => {
+                let snapshot = emulator.snapshot();
+                if snapshot.devices.network != published_network {
+                    published_network = snapshot.devices.network.clone();
+                    publish(&event_tx, AppEvent::StateChanged(Box::new(snapshot)));
                 }
             }
         }

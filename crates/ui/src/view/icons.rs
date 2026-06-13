@@ -64,6 +64,8 @@ static PANEL_ATTACH: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("panel-attach").as_slice()));
 static PIN: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("pin").as_slice()));
+static GLOBE: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("globe").as_slice()));
 static CPU: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("cpu").as_slice()));
 static CLEAR_HALT: LazyLock<svg::Handle> =
@@ -223,6 +225,10 @@ pub(super) fn panel_attach() -> svg::Handle {
 
 pub(super) fn pin() -> svg::Handle {
     PIN.clone()
+}
+
+pub(super) fn globe() -> svg::Handle {
+    GLOBE.clone()
 }
 
 pub(super) fn cpu() -> svg::Handle {

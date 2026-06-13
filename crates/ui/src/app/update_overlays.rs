@@ -60,7 +60,8 @@ impl DesktopApp {
             Message::OpenMonitor => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                let close_storage = Task::batch([self.close_floppy(), self.close_hdd()]);
+                let close_storage =
+                    Task::batch([self.close_floppy(), self.close_hdd(), self.close_network()]);
                 self.monitor_open = true;
                 if self.monitor_window.detached
                     && let Some(id) = self.monitor_window.id
@@ -97,7 +98,8 @@ impl DesktopApp {
             Message::OpenFloppy => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                let close_other = Task::batch([self.close_monitor(), self.close_hdd()]);
+                let close_other =
+                    Task::batch([self.close_monitor(), self.close_hdd(), self.close_network()]);
                 self.floppy_open = true;
                 if self.floppy_show_image_contents {
                     self.refresh_floppy_image_contents();
@@ -142,7 +144,11 @@ impl DesktopApp {
             Message::OpenHdd => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                let close_other = Task::batch([self.close_monitor(), self.close_floppy()]);
+                let close_other = Task::batch([
+                    self.close_monitor(),
+                    self.close_floppy(),
+                    self.close_network(),
+                ]);
                 self.hdd_open = true;
                 self.refresh_hdd_file_exists();
                 if self.hdd_show_image_contents {
@@ -182,6 +188,40 @@ impl DesktopApp {
             }
             Message::ClearFloppyBuffer => {
                 self.dispatch(k580_app::AppCommand::ClearFloppyBuffer);
+            }
+            Message::OpenNetwork => {
+                self.open_menu = None;
+                self.hide_opcode_dropdown();
+                let close_other =
+                    Task::batch([self.close_monitor(), self.close_floppy(), self.close_hdd()]);
+                self.network_open = true;
+                if self.network_window.detached
+                    && let Some(id) = self.network_window.id
+                {
+                    return Some(close_other.chain(iced::window::gain_focus(id)));
+                }
+                return Some(close_other);
+            }
+            Message::CloseNetwork => {
+                return Some(self.close_network());
+            }
+            Message::OpenNetworkSettings => self.open_network_settings(),
+            Message::CloseNetworkSettings => {
+                self.network_settings_open = false;
+                self.network_settings_error = None;
+            }
+            Message::NetworkModeChanged(mode) => self.select_network_mode(*mode),
+            Message::NetworkHostChanged(host) => {
+                self.network_host_input = host.clone();
+                self.network_settings_error = None;
+            }
+            Message::NetworkPortChanged(port) => {
+                self.network_port_input = port.clone();
+                self.network_settings_error = None;
+            }
+            Message::ApplyNetworkSettings => self.apply_network_settings(),
+            Message::ClearNetworkBuffers => {
+                self.dispatch(k580_app::AppCommand::ClearNetworkBuffers);
             }
             _ => return None,
         }

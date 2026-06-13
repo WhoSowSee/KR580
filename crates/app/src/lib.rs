@@ -8,6 +8,6 @@ pub use command::{AppCommand, AppEvent, AppSnapshot, RunMode};
 pub use emulator::{DEFAULT_STEP_INTERVAL, Emulator};
 pub use error::AppError;
 pub use k580_devices::{
-    DeviceSnapshot, DeviceStatus, GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorPhase, MonitorState,
-    StorageState, TEXT_COLS, TEXT_ROWS, TextCell,
+    ConnectionState, DeviceSnapshot, DeviceStatus, GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorPhase,
+    MonitorState, NetworkMode, NetworkState, StorageState, TEXT_COLS, TEXT_ROWS, TextCell,
 };

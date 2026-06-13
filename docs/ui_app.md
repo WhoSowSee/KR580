@@ -275,9 +275,9 @@ tooltips. Hover uses the shared dark `TOKYO_SURFACE` fill and keeps the
 neutral frame colour, matching the current action-button feedback.
 
 `device_chip` takes an `Option<Message>` for `on_press`. The Монитор,
-Дисковод, and HDD slots are wired to `Message::OpenMonitor`,
-`Message::OpenFloppy`, and `Message::OpenHdd`; the two remaining slots pass
-`None` and stay command-neutral until their own peripheral windows are implemented. A
+Дисковод, HDD, and network slots are wired to `Message::OpenMonitor`,
+`Message::OpenFloppy`, `Message::OpenHdd`, and `Message::OpenNetwork`; only the
+printer slot passes `None` and stays command-neutral until its peripheral window is implemented. A
 `None` chip still hovers and shows its tooltip, but its click resolves
 to `Message::MenuBatch(Vec::new())` so half-finished slots don't
 dispatch stale messages.
@@ -286,7 +286,7 @@ dispatch stale messages.
 
 `Message::OpenMonitor` flips `DesktopApp::monitor_open`. In attached mode
 `view::monitor::monitor_window_overlay` paints a fullscreen modal over the
-main app. Monitor, floppy, and HDD each own a `ToolWindowState`; on Windows
+main app. Monitor, floppy, HDD, and network each own a `ToolWindowState`; on Windows
 their top-level iced windows are created once, invisibly, after the main
 window's startup frames. `Message::DetachToolWindow(kind)` resizes the selected
 window and switches its iced mode to `Windowed`;
@@ -1622,6 +1622,36 @@ debug mode, clear the buffer, and create or delete `hdd.kpd`.
 
 **View:** `view/storage/` – `hdd_window_overlay()` and `hdd_window()`.
 
+### Network adapter window
+
+Opened from the network quick-access chip. The fixed `760×340` surface is
+available both as an attached modal and as a prepared borderless native window
+with the shared drag band, attach/detach button, and detached always-on-top pin.
+It renders the receive buffer as hexadecimal rows with 16 bytes per row and the
+last transmitted byte without an offset, plus the active client/server mode,
+endpoint, short localized connection status, and byte counters. Raw socket errors stay in device state for
+diagnostics and are never rendered in the window. Network worker changes are sampled
+by the app actor every 50 ms, so RX/TX and connection state update while the CPU
+is paused and without requiring another device command.
+
+The globe button opens a compact modal above the device surface. The user can
+switch between client and server mode and edit the corresponding address and
+TCP port for the current session. Applying the dialog dispatches
+`AppCommand::ConfigureNetwork`, which aborts the previous worker before starting
+the new client connection or listener without changing startup defaults. General
+settings contain persistent client and server endpoint fields; every launch starts
+in client mode with the saved client endpoint. The cleaning button dispatches
+`AppCommand::ClearNetworkBuffers`; it clears the RX inspection buffer and last transmitted value
+without changing the endpoint, connection state, status, internal socket error, or
+worker lifetime. If both buffers are already empty, no state event is emitted.
+
+**State:** `network_open: bool`, `network_window: ToolWindowState`,
+`network_settings_open: bool`, `network_mode_draft: NetworkMode`, endpoint input
+strings, and an optional validation error.
+
+**View:** `view/network.rs` and `view/network_settings.rs` –
+`network_window_overlay()`, `network_window()`, and the endpoint modal.
+
 ## Keyboard shortcuts
 
 The UI exposes the following shortcuts. Modifier names follow iced's
@@ -1775,7 +1805,14 @@ the moment the modal opens.
   the snapshot (`original_*`) and re-applies the original speed tier
   through the same chokepoint.
 - `Save` keeps the live state and dispatches `Message::PersistSettings`
-  to write the JSON.
+  to write the JSON. The General page also stores separate startup address/port
+  pairs for the network client and server; these are draft-only until `Save`.
+  Their compact fields use the same control scale as the segmented buttons.
+- The settings content pane scrolls vertically when its rows exceed the fixed
+  dialog height. It uses `scrollable::Scrollbar::hidden()`, so wheel scrolling
+  remains available without a visible rail or reserved scrollbar width.
+- The `760×496` dialog balances the margins above and below the General rows;
+  hidden scrolling remains the overflow fallback on smaller displays.
 - `Reset` opens a stack-layer sub-modal whose `Cancel` / `Confirm`
   buttons follow `reset_confirm_focus`. `Confirm` writes
   `Lang::Ru` / `SpeedTier::Medium`, rewrites the dialog's `original_*`
@@ -1820,7 +1857,7 @@ each file under the 400-line ceiling:
 - `app/status.rs` – `StatusKind` and its `render(lang)` so language
   changes re-render the status bar.
 - `view/settings_dialog/{mod,consts,header,sidebar,content,language,
-  speed,theme_row,footer,setting_row,reset_confirm,styles}.rs` – the
+  network,speed,theme_row,footer,setting_row,reset_confirm,styles}.rs` – the
   view layer split per zone. `mod.rs` composes the four-zone modal
   and stacks the reset-confirm overlay on top when armed.
 - `i18n/{mod,keys,ru,en,help_ru,help_en}.rs` – translation registry

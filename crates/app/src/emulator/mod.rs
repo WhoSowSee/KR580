@@ -80,6 +80,12 @@ impl Emulator {
     }
 
     pub fn handle_command(&mut self, command: AppCommand) -> Vec<AppEvent> {
+        if matches!(&command, AppCommand::ClearNetworkBuffers) {
+            let network = self.bus.network.state();
+            if network.rx_buffer.is_empty() && network.tx_buffer.is_empty() {
+                return Vec::new();
+            }
+        }
         let result = self.apply(command);
         let mut events = match result {
             Ok(events) => events,
@@ -273,6 +279,13 @@ impl Emulator {
             }
             AppCommand::SetFloppyDebugBuffer(enabled) => {
                 self.bus.floppy.set_debug_buffer(enabled);
+            }
+            AppCommand::ConfigureNetwork { mode, host, port } => {
+                self.bus.network.configure(mode, host, port);
+                self.bus.network.start_worker(self.io_runtime.handle());
+            }
+            AppCommand::ClearNetworkBuffers => {
+                self.bus.network.clear_buffers();
             }
             AppCommand::Shutdown => {
                 self.running = false;

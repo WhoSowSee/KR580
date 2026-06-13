@@ -99,6 +99,29 @@ pub(crate) fn modal_field_button_style(status: button::Status) -> button::Style 
     }
 }
 
+pub(crate) fn modal_tab_button_style(status: button::Status, active: bool) -> button::Style {
+    let background = match (active, status) {
+        (true, _) => TOKYO_SURFACE,
+        (false, button::Status::Hovered) => Color {
+            a: 0.45,
+            ..TOKYO_SURFACE
+        },
+        (false, button::Status::Pressed) => TOKYO_SURFACE_2,
+        _ => Color::TRANSPARENT,
+    };
+
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: TOKYO_TEXT,
+        border: Border {
+            radius: 6.0.into(),
+            width: 1.0,
+            color: TOKYO_BORDER,
+        },
+        ..button::Style::default()
+    }
+}
+
 pub(crate) fn modal_dropdown_option_style(
     status: button::Status,
     highlighted: bool,

@@ -2,18 +2,38 @@ use std::path::PathBuf;
 
 use iced::{Size, Task, window};
 
+use super::state::ToolWindowState;
 use super::{DesktopApp, Message, PendingAction, ToolWindowKind};
 use crate::i18n::Key;
 use crate::platform;
 
 const ICON_PNG: &[u8] = include_bytes!("../../../../assets/icons/icon-64.png");
-const TOOL_WINDOWS: [ToolWindowKind; 3] = [
+const TOOL_WINDOWS: [ToolWindowKind; 4] = [
     ToolWindowKind::Monitor,
     ToolWindowKind::Floppy,
     ToolWindowKind::Hdd,
+    ToolWindowKind::Network,
 ];
 
 impl DesktopApp {
+    pub(crate) fn tool_window(&self, kind: ToolWindowKind) -> &ToolWindowState {
+        match kind {
+            ToolWindowKind::Monitor => &self.monitor_window,
+            ToolWindowKind::Floppy => &self.floppy_window,
+            ToolWindowKind::Hdd => &self.hdd_window,
+            ToolWindowKind::Network => &self.network_window,
+        }
+    }
+
+    pub(crate) fn tool_window_mut(&mut self, kind: ToolWindowKind) -> &mut ToolWindowState {
+        match kind {
+            ToolWindowKind::Monitor => &mut self.monitor_window,
+            ToolWindowKind::Floppy => &mut self.floppy_window,
+            ToolWindowKind::Hdd => &mut self.hdd_window,
+            ToolWindowKind::Network => &mut self.network_window,
+        }
+    }
+
     pub(crate) fn boot(initial: Option<PathBuf>) -> (Self, Task<Message>) {
         let (mut app, startup) = Self::with_initial_path(initial);
         let (id, open) = window::open(main_window_settings());
@@ -70,6 +90,10 @@ impl DesktopApp {
 
     pub(crate) fn close_hdd(&mut self) -> Task<Message> {
         self.close_tool_window(ToolWindowKind::Hdd)
+    }
+
+    pub(crate) fn close_network(&mut self) -> Task<Message> {
+        self.close_tool_window(ToolWindowKind::Network)
     }
 
     fn detach_tool_window(&mut self, kind: ToolWindowKind) -> Task<Message> {
@@ -256,6 +280,10 @@ impl DesktopApp {
         if kind == ToolWindowKind::Monitor {
             self.monitor_hex_popup = false;
         }
+        if kind == ToolWindowKind::Network {
+            self.network_settings_open = false;
+            self.network_settings_error = None;
+        }
     }
 
     fn set_tool_window_open(&mut self, kind: ToolWindowKind, open: bool) {
@@ -263,6 +291,7 @@ impl DesktopApp {
             ToolWindowKind::Monitor => self.monitor_open = open,
             ToolWindowKind::Floppy => self.floppy_open = open,
             ToolWindowKind::Hdd => self.hdd_open = open,
+            ToolWindowKind::Network => self.network_open = open,
         }
     }
 
@@ -303,14 +332,18 @@ fn tool_window_settings(kind: ToolWindowKind, main_window_size: Size) -> window:
 fn tool_window_size(kind: ToolWindowKind, main_window_size: Size) -> Size {
     match kind {
         ToolWindowKind::Monitor => detached_monitor_size(main_window_size),
-        ToolWindowKind::Floppy | ToolWindowKind::Hdd => detached_storage_size(),
+        ToolWindowKind::Floppy | ToolWindowKind::Hdd | ToolWindowKind::Network => {
+            detached_storage_size()
+        }
     }
 }
 
 fn tool_window_min_size(kind: ToolWindowKind) -> Size {
     match kind {
         ToolWindowKind::Monitor => Size::new(720.0, 480.0),
-        ToolWindowKind::Floppy | ToolWindowKind::Hdd => detached_storage_size(),
+        ToolWindowKind::Floppy | ToolWindowKind::Hdd | ToolWindowKind::Network => {
+            detached_storage_size()
+        }
     }
 }
 
@@ -319,6 +352,7 @@ fn tool_window_title(kind: ToolWindowKind) -> Key {
         ToolWindowKind::Monitor => Key::HnMonitor,
         ToolWindowKind::Floppy => Key::HnFloppy,
         ToolWindowKind::Hdd => Key::HnHdd,
+        ToolWindowKind::Network => Key::HnNetwork,
     }
 }
 

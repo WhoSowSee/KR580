@@ -4,6 +4,10 @@
 //! reusable button shape, …). Panel-level composition lives in the panel
 //! modules themselves so this file does not turn into another monolith.
 
+mod inputs;
+
+pub(super) use inputs::{compact_text_input_shell, text_input_shell};
+
 use iced::widget::{Space, button, column, container, row, stack, svg, text_input};
 use iced::{Color, Element, Length, Padding, alignment};
 use std::time::Duration;

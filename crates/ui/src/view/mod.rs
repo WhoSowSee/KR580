@@ -19,6 +19,8 @@ mod monitor;
 mod monitor_font;
 pub(crate) mod monitor_image;
 mod mux;
+mod network;
+mod network_settings;
 mod notices;
 mod opcode_dropdown;
 mod schematic;
@@ -37,6 +39,7 @@ use iced::{Element, Length};
 
 use modal::discard_modal_overlay;
 use monitor::{monitor_window, monitor_window_overlay};
+use network::{NetworkViewState, network_window, network_window_overlay};
 use notices::{error_notice_overlay, halt_notice_overlay};
 use settings_dialog::settings_modal_overlay;
 use storage::{floppy_window, floppy_window_overlay, hdd_window, hdd_window_overlay};
@@ -64,6 +67,18 @@ pub(super) const MP_MENU_DROPDOWN_LEFT: f32 = 93.0;
 pub(super) const HELP_MENU_DROPDOWN_LEFT: f32 = 308.0;
 
 impl DesktopApp {
+    fn network_view_state(&self) -> NetworkViewState<'_> {
+        NetworkViewState {
+            network: &self.snapshot.devices.network,
+            settings_open: self.network_settings_open,
+            mode: self.network_mode_draft,
+            host: &self.network_host_input,
+            port: &self.network_port_input,
+            error: self.network_settings_error.as_deref(),
+            lang: self.lang,
+        }
+    }
+
     pub(crate) fn view(&self, window: iced::window::Id) -> Element<'_, Message> {
         if self.monitor_window.id == Some(window) {
             if !self.monitor_window.detached {
@@ -105,6 +120,12 @@ impl DesktopApp {
                 self.hdd_window.always_on_top,
                 self.lang,
             );
+        }
+        if self.network_window.id == Some(window) {
+            if !self.network_window.detached {
+                return Space::new().into();
+            }
+            return network_window(self.network_view_state(), self.network_window.always_on_top);
         }
         if self.main_window_id != Some(window) {
             return Space::new().into();
@@ -309,6 +330,11 @@ impl DesktopApp {
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
+        } else if self.network_open && !self.network_window.detached {
+            stack![scrimmed, network_window_overlay(self.network_view_state())]
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
         } else {
             scrimmed
         }

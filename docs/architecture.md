@@ -8,7 +8,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `k580-devices`: `IoBus` for ports `00h..04h`, monitor, floppy, HDD, network, printer, device states, and non-blocking worker queues.
 - `k580-persistence`: versioned `.580` snapshots, raw `.krs` subprograms, JSON settings, and direct `.txt`/`.xlsx` exporters/importers.
 - `k580-app`: application orchestration, crossbeam command/event actor, top-level dependency wiring, and file/export commands. The emulator state and tick body live under `emulator/` (split into `mod.rs` for the struct + command application and `tick.rs` for the paced/burst tick loop).
-- `k580-ui`: iced multi-window daemon split into app state/update, native window lifecycle, runtime command/event helpers, view rendering, and a small Windows-only platform shim. Monitor, floppy, and HDD surfaces share `ToolWindowState` and the same attach/detach/pin lifecycle while keeping device-specific views. It renders snapshots and sends commands. It does not own emulator state.
+- `k580-ui`: iced multi-window daemon split into app state/update, native window lifecycle, runtime command/event helpers, view rendering, and a small Windows-only platform shim. Monitor, floppy, HDD, and network surfaces share `ToolWindowState` and the same attach/detach/pin lifecycle while keeping device-specific views. It renders snapshots and sends commands. It does not own emulator state.
 
 ## Repository layout
 
@@ -33,7 +33,7 @@ UI messages become `AppCommand` values. The app actor owns `Cpu8080State` and `I
 
 ## Runtime shape
 
-`k580-ui` sends commands through a crossbeam channel to the emulator actor in `k580-app`. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage workers, so `AppCommand::AttachFloppyImage` can attach a file-backed floppy image from the actor thread without making the UI own device internals. Disk/printer operations are queued to Tokio-backed workers where host I/O is needed, keeping the UI thread away from blocking device work.
+`k580-ui` sends commands through a crossbeam channel to the emulator actor in `k580-app`. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage and network workers, so file and TCP operations stay outside the UI thread. The actor polls the network state every 50 ms and publishes a snapshot only when that state differs from the last published one, allowing received bytes and connection changes to reach an idle UI without causing continuous redraws. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
 
 ## Actor pacing loop
 

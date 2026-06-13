@@ -10,6 +10,7 @@ mod content;
 mod footer;
 mod header;
 mod language;
+mod network;
 mod reset_confirm;
 mod setting_row;
 mod shortcuts_row;
@@ -96,6 +97,7 @@ pub(super) fn settings_modal_overlay<'a>(
 
 #[cfg(test)]
 mod tests {
+    use super::consts::DIALOG_HEIGHT;
     use super::content::matches_query;
     use super::language::language_label_key;
     use crate::i18n::{Key, Lang};
@@ -145,5 +147,12 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn settings_dialog_balances_vertical_content_margins() {
+        let height = std::hint::black_box(DIALOG_HEIGHT);
+
+        assert_eq!(height, 496.0);
     }
 }

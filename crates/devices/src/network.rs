@@ -5,8 +5,9 @@ use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
+use tokio::task::AbortHandle;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum NetworkMode {
     Client,
@@ -46,6 +47,7 @@ pub struct NetworkDevice {
     tx: Option<mpsc::UnboundedSender<u8>>,
     worker_rx: Arc<Mutex<VecDeque<u8>>>,
     worker_status: Arc<Mutex<NetworkWorkerStatus>>,
+    worker_abort: Option<AbortHandle>,
 }
 
 #[derive(Clone, Debug)]
@@ -87,12 +89,14 @@ impl Default for NetworkDevice {
             tx: None,
             worker_rx: Arc::new(Mutex::new(VecDeque::new())),
             worker_status: Arc::new(Mutex::new(NetworkWorkerStatus::default())),
+            worker_abort: None,
         }
     }
 }
 
 impl NetworkDevice {
     pub fn configure(&mut self, mode: NetworkMode, host: impl Into<String>, port: u16) {
+        self.stop_worker();
         self.state.mode = mode;
         self.state.host = host.into();
         self.state.port = port;
@@ -104,44 +108,14 @@ impl NetworkDevice {
         *self.worker_status.lock().unwrap() = NetworkWorkerStatus::default();
     }
 
-    pub async fn connect_client(&mut self) -> Result<(), DeviceError> {
-        self.state.mode = NetworkMode::Client;
-        self.state.connection = ConnectionState::Connecting;
-        match TcpStream::connect((self.state.host.as_str(), self.state.port)).await {
-            Ok(_) => {
-                self.state.connection = ConnectionState::Connected;
-                self.state.status = DeviceStatus::Connected;
-                self.state.last_error = None;
-                Ok(())
-            }
-            Err(err) => {
-                self.state.connection = ConnectionState::Error(err.to_string());
-                self.state.status = DeviceStatus::Error(err.to_string());
-                self.state.last_error = Some(err.to_string());
-                Err(err.into())
-            }
-        }
-    }
-
-    pub async fn bind_server(&mut self) -> Result<(), DeviceError> {
-        self.state.mode = NetworkMode::Server;
-        match TcpListener::bind((self.state.host.as_str(), self.state.port)).await {
-            Ok(_) => {
-                self.state.connection = ConnectionState::Listening;
-                self.state.status = DeviceStatus::Listening;
-                self.state.last_error = None;
-                Ok(())
-            }
-            Err(err) => {
-                self.state.connection = ConnectionState::Error(err.to_string());
-                self.state.status = DeviceStatus::Error(err.to_string());
-                self.state.last_error = Some(err.to_string());
-                Err(err.into())
-            }
-        }
+    pub fn clear_buffers(&mut self) {
+        self.state.rx_buffer.clear();
+        self.state.tx_buffer.clear();
+        self.worker_rx.lock().unwrap().clear();
     }
 
     pub fn start_worker(&mut self, handle: &tokio::runtime::Handle) {
+        self.stop_worker();
         let (tx, rx_out) = mpsc::unbounded_channel();
         self.worker_rx.lock().unwrap().clear();
         self.worker_status = Arc::new(Mutex::new(NetworkWorkerStatus {
@@ -159,12 +133,13 @@ impl NetworkDevice {
         }));
         let rx_in = Arc::clone(&self.worker_rx);
         let status = Arc::clone(&self.worker_status);
-        let mode = self.state.mode.clone();
+        let mode = self.state.mode;
         let host = self.state.host.clone();
         let port = self.state.port;
-        handle.spawn(async move {
+        let task = handle.spawn(async move {
             run_worker(mode, host, port, rx_out, rx_in, status).await;
         });
+        self.worker_abort = Some(task.abort_handle());
         self.state.connection = self.worker_status.lock().unwrap().connection.clone();
         self.state.status = self.worker_status.lock().unwrap().status.clone();
         self.state.last_error = None;
@@ -179,6 +154,7 @@ impl NetworkDevice {
     }
 
     pub fn output_byte(&mut self, value: u8) -> Result<(), DeviceError> {
+        self.state.tx_buffer.clear();
         self.state.tx_buffer.push(value);
         if let Some(tx) = &self.tx {
             tx.send(value).map_err(|_| {
@@ -244,6 +220,13 @@ impl NetworkDevice {
             self.state.last_error = worker.last_error;
         }
     }
+
+    fn stop_worker(&mut self) {
+        if let Some(worker) = self.worker_abort.take() {
+            worker.abort();
+        }
+        self.tx = None;
+    }
 }
 
 async fn run_worker(
@@ -259,7 +242,7 @@ async fn run_worker(
         NetworkMode::Client => match TcpStream::connect(&address).await {
             Ok(socket) => socket,
             Err(error) => {
-                set_network_error(&status, ConnectionState::Error(error.to_string()), error);
+                set_network_error(&status, error);
                 return;
             }
         },
@@ -267,7 +250,7 @@ async fn run_worker(
             let listener = match TcpListener::bind(&address).await {
                 Ok(listener) => listener,
                 Err(error) => {
-                    set_network_error(&status, ConnectionState::Error(error.to_string()), error);
+                    set_network_error(&status, error);
                     return;
                 }
             };
@@ -280,7 +263,7 @@ async fn run_worker(
             match listener.accept().await {
                 Ok((socket, _)) => socket,
                 Err(error) => {
-                    set_network_error(&status, ConnectionState::Error(error.to_string()), error);
+                    set_network_error(&status, error);
                     return;
                 }
             }
@@ -343,13 +326,13 @@ async fn run_worker(
     let _ = read_task.await;
 }
 
-fn set_network_error(
-    status: &Arc<Mutex<NetworkWorkerStatus>>,
-    connection: ConnectionState,
-    error: std::io::Error,
-) {
+fn set_network_error(status: &Arc<Mutex<NetworkWorkerStatus>>, error: std::io::Error) {
     let mut worker = status.lock().unwrap();
-    worker.connection = connection;
+    worker.connection = match error.kind() {
+        std::io::ErrorKind::ConnectionRefused => ConnectionState::Refused,
+        std::io::ErrorKind::TimedOut => ConnectionState::TimedOut,
+        _ => ConnectionState::Error(error.to_string()),
+    };
     worker.status = DeviceStatus::Error(error.to_string());
     worker.last_error = Some(error.to_string());
 }

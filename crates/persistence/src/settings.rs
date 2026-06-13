@@ -2,6 +2,8 @@ use crate::SettingsError;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+const SETTINGS_VERSION: u32 = 2;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -83,7 +85,7 @@ pub struct SettingsStore;
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            settings_version: 1,
+            settings_version: SETTINGS_VERSION,
             network: NetworkSettings::default(),
             storage: StorageSettings::default(),
             export: ExportSettings::default(),
@@ -150,9 +152,14 @@ impl SettingsStore {
     }
 
     pub fn from_json(json: &str) -> Result<Settings, SettingsError> {
-        let settings: Settings = serde_json::from_str(json)?;
-        if settings.settings_version != 1 {
-            return Err(SettingsError::UnsupportedVersion(settings.settings_version));
+        let mut settings: Settings = serde_json::from_str(json)?;
+        match settings.settings_version {
+            SETTINGS_VERSION => {}
+            1 => {
+                settings.settings_version = SETTINGS_VERSION;
+                settings.network = NetworkSettings::default();
+            }
+            version => return Err(SettingsError::UnsupportedVersion(version)),
         }
         Ok(settings)
     }

@@ -125,6 +125,14 @@ impl DesktopApp {
             }
             return Task::none();
         }
+        if self.network_settings_open {
+            self.network_settings_open = false;
+            self.network_settings_error = None;
+            return Task::none();
+        }
+        if self.network_open {
+            return self.close_network();
+        }
         if self.hdd_open {
             return self.close_hdd();
         }

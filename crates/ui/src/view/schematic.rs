@@ -293,7 +293,7 @@ impl DesktopApp {
                 icons::device_network(),
                 TOKYO_YELLOW,
                 lang.t(Key::DeviceNetwork),
-                None,
+                Some(Message::OpenNetwork),
                 None,
             ),
             device_chip(
