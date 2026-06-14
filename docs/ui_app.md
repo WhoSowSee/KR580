@@ -118,8 +118,14 @@ The visible top-level categories are localized as `Файл`,
 `МП-Система`, `Вид`, `Настройки`, and `Справка`. `Файл` and
 `МП-Система` open dropdowns; `Справка` opens a dropdown with
 «Вызвать справку» (Ctrl+H – opens the Help dialog) and «О программе»
-(opens the About dialog). `Вид` and `Настройки` use the same Russian
-UI language as the rest of the menu bar.
+(opens the About dialog). `Вид` now opens a dropdown with the five
+peripheral windows (Monitor, Floppy, HDD, Network, Printer) and a
+«Показать стековую область памяти» item. Selecting the stack view
+restricts the RAM list to the last 256 bytes (`0xFF00..=0xFFFF`);
+pressing `Esc` or `Ctrl+Shift+C` exits stack view and restores the
+previous list position. The stack-view item is disabled while the mode is active,
+matching the disabled-state pattern used for `Сбросить флаг HLT` in
+`МП-Система`. `Настройки` opens the Settings dialog.
 
 Legacy `.580` rows in the file dropdown keep the primary action as the
 main label (`Открыть` / `Сохранить`) and render `старый формат` as a

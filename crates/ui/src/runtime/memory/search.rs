@@ -1,6 +1,4 @@
-use crate::app::{
-    DesktopApp, MEMORY_ADDRESS_COUNT, MEMORY_ADDRESS_INPUT_ID, MEMORY_ROW_HEIGHT, Message,
-};
+use crate::app::{DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_ROW_HEIGHT, Message};
 use iced::Task;
 use iced::widget::operation;
 
@@ -34,10 +32,13 @@ impl DesktopApp {
     }
 
     pub(super) fn step_address_in_input(&mut self, backward: bool) {
-        let current = parse_hex_u16(&self.memory_address_input).unwrap_or(0) as i32;
-        let total = MEMORY_ADDRESS_COUNT as i32;
+        let (view_start, view_count) = self.memory_view();
+        let current = (parse_hex_u16(&self.memory_address_input)
+            .unwrap_or(view_start)
+            .saturating_sub(view_start)) as i32;
+        let total = view_count as i32;
         let delta = if backward { -1 } else { 1 };
-        let next = ((current + delta).rem_euclid(total)) as u16;
+        let next = view_start + ((current + delta).rem_euclid(total)) as u16;
 
         self.memory_address_input = format!("{next:04X}");
         self.refresh_memory_value(next);
@@ -69,13 +70,16 @@ impl DesktopApp {
             }
         };
 
-        let start = parse_hex_u16(&self.memory_address_input).unwrap_or(0) as i32;
-        let total = MEMORY_ADDRESS_COUNT as i32;
+        let (view_start, view_count) = self.memory_view();
+        let start = parse_hex_u16(&self.memory_address_input).unwrap_or(view_start) as i32;
+        let start_idx = (start - view_start as i32).rem_euclid(view_count as i32);
+        let total = view_count as i32;
         let direction = if backward { -1 } else { 1 };
 
         let mut next_match = None;
         for step in 1..=total {
-            let candidate = ((start + direction * step).rem_euclid(total)) as u16;
+            let candidate_idx = (start_idx + direction * step).rem_euclid(total);
+            let candidate = view_start + candidate_idx as u16;
             if format!("{candidate:04X}").contains(&pattern) {
                 next_match = Some(candidate);
                 break;
@@ -87,7 +91,7 @@ impl DesktopApp {
                 self.memory_address_input = format!("{address:04X}");
                 self.refresh_memory_value(address);
                 self.set_status(crate::app::StatusKind::PatternFound { pattern, address });
-                let target_offset = address as f32 * MEMORY_ROW_HEIGHT;
+                let target_offset = (address.saturating_sub(view_start) as f32) * MEMORY_ROW_HEIGHT;
                 self.scroll_memory(target_offset);
                 scroll_memory_to(target_offset)
             }

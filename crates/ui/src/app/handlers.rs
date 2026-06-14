@@ -178,6 +178,10 @@ impl DesktopApp {
         if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
             return self.cancel_inline_memory_edit().chain(resolve);
         }
+        if self.stack_view {
+            self.disable_stack_view();
+            return Task::none();
+        }
         self.finish_replacement();
         if self.active_register_target.is_some() {
             self.active_register_target = None;
@@ -240,6 +244,7 @@ pub(crate) fn ctrl_shortcut(
         ('d', false, false) => Some(Message::OpenHdd),
         ('f', false, false) => Some(Message::OpenFloppy),
         ('p', false, false) => Some(Message::OpenPrinter),
+        ('c', true, false) => Some(Message::ToggleStackView),
         ('r', false, false) => Some(Message::ToggleRun),
         ('t', false, false) => Some(Message::StepInstruction),
         ('y', false, false) => Some(Message::StepTact),
@@ -382,6 +387,14 @@ mod tests {
                 keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT,
             ),
             Message::ClearHalt,
+        );
+        assert_message(
+            ctrl_shortcut(
+                &char_key("С"),
+                physical(Code::KeyC),
+                keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT,
+            ),
+            Message::ToggleStackView,
         );
         assert_message(
             ctrl_shortcut(

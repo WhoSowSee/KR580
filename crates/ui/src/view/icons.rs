@@ -98,6 +98,8 @@ static SQUARE_MERGE_VERTICAL: LazyLock<svg::Handle> = LazyLock::new(|| {
 });
 static BINARY: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("binary").as_slice()));
+static STACK: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("stack").as_slice()));
 static LINE_SQUIGGLE: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("line-squiggle").as_slice()));
 static TEXT_CURSOR: LazyLock<svg::Handle> =
@@ -298,6 +300,10 @@ pub(super) fn square_merge_vertical() -> svg::Handle {
 
 pub(super) fn binary() -> svg::Handle {
     BINARY.clone()
+}
+
+pub(super) fn stack() -> svg::Handle {
+    STACK.clone()
 }
 
 pub(super) fn line_squiggle() -> svg::Handle {

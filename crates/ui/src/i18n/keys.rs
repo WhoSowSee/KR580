@@ -280,6 +280,7 @@ pub(crate) enum Key {
     DeviceHdd,
     DeviceNetwork,
     DevicePrinter,
+    ViewStackArea,
     MonitorUnifiedScreen,
     MonitorTextLayer,
     MonitorPixelLayer,

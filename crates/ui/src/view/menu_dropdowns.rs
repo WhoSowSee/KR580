@@ -4,6 +4,7 @@ use iced::{Element, Length, alignment};
 use super::icons;
 use super::styles::{menu_button_disabled_style, menu_button_style, opcode_dropdown_style};
 use super::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::tooltips::shortcut_hint;
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
 
@@ -17,6 +18,9 @@ pub(super) const MP_DROPDOWN_WIDTH: f32 = 270.0;
 
 /// Width of the Help dropdown. Tuned for the longest Russian label.
 pub(super) const HELP_DROPDOWN_WIDTH: f32 = 260.0;
+
+/// Width of the View dropdown. Tuned for the longest Russian device label plus shortcut.
+pub(super) const VIEW_DROPDOWN_WIDTH: f32 = 360.0;
 
 /// Edge length of the icon square that prefixes every dropdown row.
 pub(super) const MENU_ICON_SIZE: f32 = 16.0;
@@ -150,6 +154,60 @@ pub(super) fn help_dropdown(lang: Lang) -> Element<'static, Message> {
     container(column(items).spacing(0))
         .padding(4)
         .width(Length::Fixed(HELP_DROPDOWN_WIDTH))
+        .style(opcode_dropdown_style)
+        .into()
+}
+
+pub(super) fn view_dropdown(stack_view: bool, lang: Lang) -> Element<'static, Message> {
+    let items: Vec<Element<'static, Message>> = vec![
+        menu_item(
+            lang.t(Key::DeviceMonitor),
+            shortcut_hint(&Message::OpenMonitor).unwrap_or(""),
+            icons::device_monitor(),
+            Message::OpenMonitor,
+            true,
+        ),
+        menu_item(
+            lang.t(Key::DeviceFloppy),
+            shortcut_hint(&Message::OpenFloppy).unwrap_or(""),
+            icons::device_floppy(),
+            Message::OpenFloppy,
+            true,
+        ),
+        menu_item(
+            lang.t(Key::DeviceHdd),
+            shortcut_hint(&Message::OpenHdd).unwrap_or(""),
+            icons::device_hdd(),
+            Message::OpenHdd,
+            true,
+        ),
+        menu_item(
+            lang.t(Key::DeviceNetwork),
+            shortcut_hint(&Message::OpenNetwork).unwrap_or(""),
+            icons::device_network(),
+            Message::OpenNetwork,
+            true,
+        ),
+        menu_item(
+            lang.t(Key::DevicePrinter),
+            shortcut_hint(&Message::OpenPrinter).unwrap_or(""),
+            icons::device_printer(),
+            Message::OpenPrinter,
+            true,
+        ),
+        menu_separator(),
+        menu_item(
+            lang.t(Key::ViewStackArea),
+            shortcut_hint(&Message::ToggleStackView).unwrap_or(""),
+            icons::stack(),
+            Message::ToggleStackView,
+            !stack_view,
+        ),
+    ];
+
+    container(column(items).spacing(0))
+        .padding(4)
+        .width(Length::Fixed(VIEW_DROPDOWN_WIDTH))
         .style(opcode_dropdown_style)
         .into()
 }

@@ -1,4 +1,7 @@
-use crate::app::{DesktopApp, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_VISIBLE_TICKS, Message};
+use crate::app::{
+    DesktopApp, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_VISIBLE_TICKS, Message, STACK_VIEW_SIZE,
+    STACK_VIEW_START,
+};
 use iced::Task;
 use k580_app::AppCommand;
 
@@ -11,7 +14,7 @@ impl DesktopApp {
         self.inline_register_target = None;
         self.opcode_dropdown_address = None;
         self.opcode_search_input.clear();
-        self.set_memory_address(address);
+        self.set_memory_address(self.clamp_memory_address_to_view(address));
     }
 
     pub(crate) fn enter_inline_memory_replacing(&mut self, address: u16) {
@@ -23,13 +26,72 @@ impl DesktopApp {
         parse_hex_u16(&self.memory_address_input).ok()
     }
 
+    pub(crate) fn memory_view(&self) -> (u16, usize) {
+        if self.stack_view {
+            (STACK_VIEW_START, STACK_VIEW_SIZE)
+        } else {
+            (0, crate::app::MEMORY_ADDRESS_COUNT)
+        }
+    }
+
+    pub(crate) fn clamp_memory_address_to_view(&self, address: u16) -> u16 {
+        let (start, count) = self.memory_view();
+        let end = start.saturating_add((count.saturating_sub(1)) as u16);
+        address.clamp(start, end)
+    }
+
+    pub(crate) fn toggle_stack_view(&mut self) -> Task<Message> {
+        if self.stack_view {
+            self.disable_stack_view();
+        } else {
+            self.enable_stack_view();
+        }
+        Task::none()
+    }
+
+    pub(crate) fn enable_stack_view(&mut self) {
+        self.stack_view_saved_address = self.selected_memory_address();
+        self.stack_view_saved_scroll_offset = self.memory_scroll_offset;
+        self.stack_view = true;
+        self.memory_address_input = format!("{STACK_VIEW_START:04X}");
+        self.memory_value_input =
+            format!("{:02X}", self.snapshot.cpu.memory.read(STACK_VIEW_START));
+        self.memory_inline_value_input = self.memory_value_input.clone();
+        self.memory_scroll_offset = 0.0;
+        self.memory_scroll_first_row = 0;
+        self.memory_search_pattern = None;
+        self.opcode_dropdown_address = None;
+        self.opcode_search_input.clear();
+    }
+
+    pub(crate) fn disable_stack_view(&mut self) {
+        self.stack_view = false;
+        if let Some(address) = self.stack_view_saved_address {
+            self.memory_address_input = format!("{address:04X}");
+            self.memory_value_input = format!("{:02X}", self.snapshot.cpu.memory.read(address));
+            self.memory_inline_value_input = self.memory_value_input.clone();
+        } else {
+            self.memory_address_input.clear();
+            self.memory_value_input.clear();
+            self.memory_inline_value_input.clear();
+        }
+        self.memory_scroll_offset = self.stack_view_saved_scroll_offset;
+        self.memory_scroll_first_row = (self.memory_scroll_offset / MEMORY_ROW_HEIGHT)
+            .floor()
+            .clamp(0.0, u16::MAX as f32) as u16;
+        self.memory_search_pattern = None;
+        self.opcode_dropdown_address = None;
+        self.opcode_search_input.clear();
+    }
+
     pub(crate) fn step_memory_address(&mut self, delta: i32) -> Task<Message> {
+        let (view_start, _) = self.memory_view();
         if self.memory_address_input.is_empty() {
-            self.select_memory(0x0000);
+            self.select_memory(view_start);
             return Task::none();
         }
         let address = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
-        let next = step_address(address, delta);
+        let next = self.clamp_memory_address_to_view(step_address(address, delta));
         self.select_memory(next);
 
         if self.memory_viewport_height <= 0.0 {
@@ -46,14 +108,15 @@ impl DesktopApp {
     /// Skips `SetPc` dispatch – sync round-trips were eating focus
     /// on the inline editor every ArrowUp/Down keystroke.
     pub(crate) fn step_memory_address_browse(&mut self, delta: i32) -> Task<Message> {
+        let (view_start, _) = self.memory_view();
         if self.memory_address_input.is_empty() {
-            self.memory_address_input = "0000".to_owned();
-            self.refresh_memory_value(0x0000);
+            self.memory_address_input = format!("{view_start:04X}");
+            self.refresh_memory_value(view_start);
             self.memory_search_pattern = None;
             return Task::none();
         }
         let address = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
-        let next = step_address(address, delta);
+        let next = self.clamp_memory_address_to_view(step_address(address, delta));
 
         self.opcode_dropdown_address = None;
         self.opcode_search_input.clear();
@@ -73,20 +136,25 @@ impl DesktopApp {
     }
 
     pub(crate) fn scroll_memory(&mut self, offset: f32) {
-        self.memory_scroll_offset = offset.max(0.0);
+        let (_, view_count) = self.memory_view();
+        let max_row = view_count.saturating_sub(1) as f32;
+        let max_offset = max_row * MEMORY_ROW_HEIGHT;
+        self.memory_scroll_offset = offset.clamp(0.0, max_offset);
         self.memory_scroll_first_row = (self.memory_scroll_offset / MEMORY_ROW_HEIGHT)
             .floor()
-            .clamp(0.0, u16::MAX as f32) as u16;
+            .clamp(0.0, max_row) as u16;
     }
 
     /// `None` if the row is already on screen.
     pub(super) fn scroll_offset_to_reveal(&self, address: u16) -> Option<f32> {
+        let (view_start, _) = self.memory_view();
         let viewport = self.memory_viewport_height;
+        let row_offset = (address.saturating_sub(view_start)) as f32 * MEMORY_ROW_HEIGHT;
         if viewport <= 0.0 {
-            return Some(address as f32 * MEMORY_ROW_HEIGHT);
+            return Some(row_offset);
         }
 
-        let row_top = address as f32 * MEMORY_ROW_HEIGHT;
+        let row_top = row_offset;
         let row_bottom = row_top + MEMORY_ROW_HEIGHT;
         let view_top = self.memory_scroll_offset;
         let view_bottom = view_top + viewport;

@@ -36,7 +36,7 @@ pub(crate) use constants::{
     MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, MEMORY_SCROLL_VISIBLE_TICKS,
     MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID, REGISTER_INLINE_INPUT_ID,
     REGISTER_NAME_INPUT_ID, REGISTER_ORDER, REGISTER_VALUE_INPUT_ID, SETTINGS_SEARCH_INPUT_ID,
-    parse_register_name, register_name,
+    STACK_VIEW_SIZE, STACK_VIEW_START, parse_register_name, register_name,
 };
 pub(crate) use export_modal_state::{
     ExportFlagSelection, ExportMemoryColumns, ExportModalFocus, ExportRegisterSelection,

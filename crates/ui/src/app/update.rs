@@ -255,6 +255,7 @@ impl DesktopApp {
             Message::HideOpcodeDropdown => self.hide_opcode_dropdown(),
             Message::DismissErrorNotice => self.clear_error_notice(),
             Message::DismissHaltNotice => self.clear_halt_notice(),
+            Message::ToggleStackView => return self.toggle_stack_view(),
             Message::EscPressed => return self.handle_esc(),
             Message::EnterPressed => {
                 if self.running {

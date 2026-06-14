@@ -10,4 +10,4 @@ Letter shortcuts use the physical QWERTY key, so English and Russian layouts are
 
 - Editing: Ctrl+Z (Undo), Ctrl+Shift+Z (Redo), Ctrl+Enter (search forward), Ctrl+Shift+Enter (search backward), Alt+Enter (jump to address)
 
-- Windows: Ctrl+M (Monitor), Ctrl+F (Floppy buffer), Ctrl+A (Network adapter), Ctrl+P (Printer), Ctrl+, (Settings), Ctrl+H/F1 (Help), Esc (close/clear focus)
+- Windows: Ctrl+M (Monitor), Ctrl+F (Floppy buffer), Ctrl+A (Network adapter), Ctrl+P (Printer), Ctrl+Shift+C (Stack memory), Ctrl+, (Settings), Ctrl+H/F1 (Help), Esc (close/clear focus)

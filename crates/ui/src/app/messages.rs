@@ -10,6 +10,7 @@ use std::path::PathBuf;
 pub(crate) enum MenuId {
     File,
     Mp,
+    View,
     Help,
 }
 
@@ -283,6 +284,7 @@ pub(crate) enum Message {
     TogglePrinterBufferView,
     ClearPrinterBuffer,
     PrintPrinterPdf,
+    ToggleStackView,
     SettingsCategorySelected(SettingsCategory),
     SettingsSearchChanged(String),
     SettingsDraftLanguageChanged(Lang),

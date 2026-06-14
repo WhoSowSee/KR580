@@ -7,8 +7,8 @@ use iced::{Element, Length, alignment};
 
 use super::icons;
 use super::menu_dropdowns::{
-    FILE_DROPDOWN_WIDTH, HELP_DROPDOWN_WIDTH, MENU_ICON_SIZE, MP_DROPDOWN_WIDTH, file_dropdown,
-    help_dropdown, mp_dropdown,
+    FILE_DROPDOWN_WIDTH, HELP_DROPDOWN_WIDTH, MENU_ICON_SIZE, MP_DROPDOWN_WIDTH,
+    VIEW_DROPDOWN_WIDTH, file_dropdown, help_dropdown, mp_dropdown, view_dropdown,
 };
 use super::menu_labels::{inactive_category_keys, settings_category_key};
 use super::styles::{
@@ -87,6 +87,11 @@ impl DesktopApp {
                 MenuId::Mp,
                 self.open_menu == Some(MenuId::Mp),
             ));
+            bar_children.push(menu_trigger(
+                self.lang.t(Key::MenuView),
+                MenuId::View,
+                self.open_menu == Some(MenuId::View),
+            ));
             for key in inactive_category_keys() {
                 bar_children.push(menu_label(self.lang.t(key)));
             }
@@ -128,6 +133,7 @@ impl DesktopApp {
                 let (dropdown_left, gap_width) = match menu {
                     MenuId::File => (super::FILE_MENU_DROPDOWN_LEFT, FILE_DROPDOWN_WIDTH),
                     MenuId::Mp => (super::MP_MENU_DROPDOWN_LEFT, MP_DROPDOWN_WIDTH),
+                    MenuId::View => (super::VIEW_MENU_DROPDOWN_LEFT, VIEW_DROPDOWN_WIDTH),
                     MenuId::Help => (super::HELP_MENU_DROPDOWN_LEFT, HELP_DROPDOWN_WIDTH),
                 };
                 let gap_local_left = (dropdown_left - ROOT_PADDING_LEFT).max(0.0);
@@ -155,6 +161,7 @@ impl DesktopApp {
         match self.open_menu? {
             MenuId::File => Some(file_dropdown(self.lang)),
             MenuId::Mp => Some(mp_dropdown(self.snapshot.cpu.halted, self.lang)),
+            MenuId::View => Some(view_dropdown(self.stack_view, self.lang)),
             MenuId::Help => Some(help_dropdown(self.lang)),
         }
     }

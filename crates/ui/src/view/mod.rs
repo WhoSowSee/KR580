@@ -63,6 +63,9 @@ const MENU_DROPDOWN_TOP: f32 = 34.0;
 /// under the open dropdown.
 pub(super) const FILE_MENU_DROPDOWN_LEFT: f32 = 39.0;
 pub(super) const MP_MENU_DROPDOWN_LEFT: f32 = 93.0;
+/// View menu trigger offset between MP and Settings. Coupled to the
+/// same `.left(11)` bar padding and the per-trigger label widths.
+pub(super) const VIEW_MENU_DROPDOWN_LEFT: f32 = 130.0;
 /// Right-most menu trigger ("Помощь" / "Help"). Coupled to the same
 /// `.left(11)` bar padding and the per-trigger label widths between
 /// `MP_MENU_DROPDOWN_LEFT` and this offset.
@@ -172,6 +175,7 @@ impl DesktopApp {
             let left = match self.open_menu {
                 Some(MenuId::File) => FILE_MENU_DROPDOWN_LEFT,
                 Some(MenuId::Mp) => MP_MENU_DROPDOWN_LEFT,
+                Some(MenuId::View) => VIEW_MENU_DROPDOWN_LEFT,
                 Some(MenuId::Help) => HELP_MENU_DROPDOWN_LEFT,
                 None => FILE_MENU_DROPDOWN_LEFT,
             };

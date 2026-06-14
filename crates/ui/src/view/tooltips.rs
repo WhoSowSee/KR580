@@ -30,6 +30,7 @@ pub(super) fn shortcut_hint(message: &Message) -> Option<&'static str> {
         Message::OpenHdd => Some("Ctrl+D"),
         Message::OpenNetwork => Some("Ctrl+A"),
         Message::OpenPrinter => Some("Ctrl+P"),
+        Message::ToggleStackView => Some("Ctrl+Shift+C"),
         Message::OpenSettings => Some("Ctrl+,"),
         Message::Undo => Some("Ctrl+Z"),
         Message::Redo => Some("Ctrl+Shift+Z"),
@@ -92,6 +93,10 @@ mod tests {
         assert_eq!(shortcut_hint(&Message::OpenFloppy), Some("Ctrl+F"));
         assert_eq!(shortcut_hint(&Message::OpenNetwork), Some("Ctrl+A"));
         assert_eq!(shortcut_hint(&Message::OpenPrinter), Some("Ctrl+P"));
+        assert_eq!(
+            shortcut_hint(&Message::ToggleStackView),
+            Some("Ctrl+Shift+C")
+        );
         assert_eq!(shortcut_hint(&Message::RestartProgram), None);
     }
 

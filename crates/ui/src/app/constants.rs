@@ -1,6 +1,9 @@
 use k580_core::RegisterName;
 
 pub(crate) const MEMORY_ADDRESS_COUNT: usize = 0x1_0000;
+/// Stack area shown when the View → "Show stack memory area" mode is active.
+pub(crate) const STACK_VIEW_START: u16 = 0xFF00;
+pub(crate) const STACK_VIEW_SIZE: usize = 0x0100;
 pub(crate) const MEMORY_OVERSCAN_ROWS: usize = 12;
 pub(crate) const MEMORY_RENDER_ROWS: usize = 96;
 pub(crate) const MEMORY_ROW_HEIGHT: f32 = 28.0;

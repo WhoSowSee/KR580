@@ -21,8 +21,8 @@ use super::theme::{
 };
 use super::widgets::legend_panel;
 use crate::app::{
-    DesktopApp, MEMORY_ADDRESS_COUNT, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
-    MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, Message,
+    DesktopApp, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS, MEMORY_RENDER_ROWS,
+    MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, Message,
 };
 use crate::i18n::Key;
 
@@ -31,10 +31,11 @@ const VALUE_GLYPH_WIDTH: f32 = 28.0;
 impl DesktopApp {
     pub(super) fn memory_panel(&self) -> Element<'_, Message> {
         let cpu = &self.snapshot.cpu;
+        let (view_start, view_count) = self.memory_view();
         let selected = parse_hex_u16_preview(&self.memory_address_input);
         let render_start =
             (self.memory_scroll_first_row as usize).saturating_sub(MEMORY_OVERSCAN_ROWS);
-        let render_end = (render_start + MEMORY_RENDER_ROWS).min(MEMORY_ADDRESS_COUNT);
+        let render_end = (render_start + MEMORY_RENDER_ROWS).min(view_count);
         let mut rows: Column<'_, Message> = Column::new().spacing(0);
         let inline_placeholder = self.input_placeholder(MEMORY_INLINE_INPUT_ID, "00");
 
@@ -42,8 +43,8 @@ impl DesktopApp {
             rows = rows.push(memory_spacer(render_start));
         }
 
-        for address in render_start..render_end {
-            let address = address as u16;
+        for row in render_start..render_end {
+            let address = view_start + row as u16;
             // PC sits one byte past the HLT opcode after halt;
             // halted row = `pc == addr+1` AND byte == 0x76.
             let halted_here =
@@ -59,8 +60,8 @@ impl DesktopApp {
             ));
         }
 
-        if render_end < MEMORY_ADDRESS_COUNT {
-            rows = rows.push(memory_spacer(MEMORY_ADDRESS_COUNT - render_end));
+        if render_end < view_count {
+            rows = rows.push(memory_spacer(view_count - render_end));
         }
 
         let memory_scroll_reveal = self.memory_scroll_visible_ticks > 0;
@@ -75,7 +76,9 @@ impl DesktopApp {
 
         let memory_body: Element<'_, Message> = if let Some(address) = self.opcode_dropdown_address
         {
-            let top = ((address as f32 * MEMORY_ROW_HEIGHT) - self.memory_scroll_offset).max(0.0);
+            let top = (((address.saturating_sub(view_start) as f32) * MEMORY_ROW_HEIGHT)
+                - self.memory_scroll_offset)
+                .max(0.0);
 
             stack(vec![
                 scrollable_memory,
