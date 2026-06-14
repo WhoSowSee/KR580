@@ -3,7 +3,8 @@ use iced::{Background, Border, Color, Padding, Theme};
 
 pub(super) use crate::view::styles::panel_style as dialog_style;
 use crate::view::theme::{
-    TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT,
+    TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_SELECTION_BLUE, TOKYO_SURFACE, TOKYO_SURFACE_2,
+    TOKYO_TEXT,
 };
 
 pub(super) const HEX_GROUP: usize = 16;
@@ -63,7 +64,7 @@ pub(super) fn framebuffer_padding(empty: bool) -> Padding {
 
 pub(super) fn icon_button_style(status: button::Status, active: bool) -> button::Style {
     let background = if active {
-        TOKYO_SURFACE_2
+        TOKYO_SELECTION_BLUE
     } else {
         match status {
             button::Status::Pressed => TOKYO_SURFACE_2,

@@ -22,9 +22,43 @@ pub(super) fn settings_overlay(view: NetworkViewState<'_>) -> Element<'_, Messag
     )
     .on_press(Message::CloseNetworkSettings);
     let error: Element<'_, Message> = view.error.map_or_else(
-        || Space::new().height(Length::Fixed(16.0)).into(),
+        || Space::new().height(Length::Fixed(12.0)).into(),
         |error| ui_text(error, 12, TOKYO_RED).into(),
     );
+    let inputs = row![
+        column![
+            ui_text(view.lang.t(Key::Network(NetworkKey::Host)), 12, TOKYO_MUTED),
+            text_input_shell(
+                "127.0.0.1",
+                view.host,
+                Message::NetworkHostChanged,
+                Length::Fill,
+            ),
+        ]
+        .spacing(4)
+        .width(Length::Fill),
+        column![
+            ui_text(view.lang.t(Key::Network(NetworkKey::Port)), 12, TOKYO_MUTED),
+            text_input_shell("5800", view.port, Message::NetworkPortChanged, Length::Fill,),
+        ]
+        .spacing(4)
+        .width(Length::Fixed(110.0)),
+    ]
+    .spacing(10);
+    let buttons = row![
+        Space::new().width(Length::Fill),
+        modal_footer_button(
+            view.lang.t(Key::Network(NetworkKey::Cancel)),
+            Message::CloseNetworkSettings,
+            modal_field_button_style,
+        ),
+        modal_footer_button(
+            view.lang.t(Key::Network(NetworkKey::Apply)),
+            Message::ApplyNetworkSettings,
+            modal_field_button_style,
+        ),
+    ]
+    .spacing(8);
     let dialog = container(
         column![
             row![
@@ -58,41 +92,7 @@ pub(super) fn settings_overlay(view: NetworkViewState<'_>) -> Element<'_, Messag
             ]
             .spacing(8)
             .align_y(alignment::Vertical::Center),
-            row![
-                column![
-                    ui_text(view.lang.t(Key::Network(NetworkKey::Host)), 12, TOKYO_MUTED),
-                    text_input_shell(
-                        "127.0.0.1",
-                        view.host,
-                        Message::NetworkHostChanged,
-                        Length::Fill,
-                    ),
-                ]
-                .spacing(4)
-                .width(Length::Fill),
-                column![
-                    ui_text(view.lang.t(Key::Network(NetworkKey::Port)), 12, TOKYO_MUTED),
-                    text_input_shell("5800", view.port, Message::NetworkPortChanged, Length::Fill,),
-                ]
-                .spacing(4)
-                .width(Length::Fixed(110.0)),
-            ]
-            .spacing(10),
-            error,
-            row![
-                Space::new().width(Length::Fill),
-                modal_footer_button(
-                    view.lang.t(Key::Network(NetworkKey::Cancel)),
-                    Message::CloseNetworkSettings,
-                    modal_field_button_style,
-                ),
-                modal_footer_button(
-                    view.lang.t(Key::Network(NetworkKey::Apply)),
-                    Message::ApplyNetworkSettings,
-                    modal_field_button_style,
-                ),
-            ]
-            .spacing(8),
+            column![inputs, error, buttons].spacing(4),
         ]
         .spacing(12),
     )

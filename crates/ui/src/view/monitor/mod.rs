@@ -14,7 +14,7 @@ use k580_app::MonitorState;
 use crate::app::{HexStreamFilter, Message, ToolWindowKind};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
-use crate::view::theme::TOKYO_TEXT;
+use crate::view::theme::{TOKYO_BLUE, TOKYO_TEXT};
 use crate::view::tooltips::{hover_tooltip, shortcut_hint};
 
 use hex_popup::hex_popup_overlay;
@@ -40,7 +40,7 @@ pub(in crate::view) fn monitor_window_overlay<'a>(
     )
     .on_press(Message::CloseMonitor);
 
-    let body = monitor_content(state, split, false, false, lang);
+    let body = monitor_content(state, split, false, false, hex_popup, lang);
 
     let dialog = container(body)
         .padding(16)
@@ -88,11 +88,18 @@ pub(in crate::view) fn monitor_window<'a>(
     always_on_top: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let body = container(monitor_content(state, split, true, always_on_top, lang))
-        .padding(16)
-        .style(dialog_style)
-        .width(Length::Fill)
-        .height(Length::Fill);
+    let body = container(monitor_content(
+        state,
+        split,
+        true,
+        always_on_top,
+        hex_popup,
+        lang,
+    ))
+    .padding(16)
+    .style(dialog_style)
+    .width(Length::Fill)
+    .height(Length::Fill);
     if hex_popup {
         stack![body, hex_popup_overlay(state, hex_filter, hex_reveal, lang)]
             .width(Length::Fill)
@@ -108,6 +115,7 @@ fn monitor_content<'a>(
     split: bool,
     detached: bool,
     always_on_top: bool,
+    hex_popup: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     let layer_section: Element<'_, Message> = if split {
@@ -126,7 +134,7 @@ fn monitor_content<'a>(
         unified_screen_section(state, lang)
     };
     column![
-        monitor_header(split, detached, always_on_top, lang),
+        monitor_header(split, detached, always_on_top, hex_popup, lang),
         Space::new().height(Length::Fixed(12.0)),
         layer_section,
     ]
@@ -139,6 +147,7 @@ fn monitor_header<'a>(
     split: bool,
     detached: bool,
     always_on_top: bool,
+    hex_popup: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     let toggle_tooltip = if split {
@@ -217,7 +226,7 @@ fn monitor_header<'a>(
             Message::ToggleMonitorHexPopup,
             lang.t(Key::MonitorHexBuffer),
             None,
-            false,
+            hex_popup,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -256,11 +265,12 @@ fn icon_button(
     shortcut: Option<&'static str>,
     active: bool,
 ) -> Element<'static, Message> {
+    let glyph_color = if active { TOKYO_BLUE } else { TOKYO_TEXT };
     let glyph = svg(handle)
         .width(Length::Fixed(ICON_GLYPH_SIZE))
         .height(Length::Fixed(ICON_GLYPH_SIZE))
-        .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
+        .style(move |_theme, _status| svg::Style {
+            color: Some(glyph_color),
         });
 
     let face = button(
