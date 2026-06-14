@@ -283,7 +283,7 @@ fn storage_footer<'a>(
     .into()
 }
 
-fn status_label(status: &DeviceStatus, lang: Lang) -> String {
+pub(in crate::view) fn status_label(status: &DeviceStatus, lang: Lang) -> String {
     match status {
         DeviceStatus::Ready => lang.t(Key::DeviceStatusReady).to_owned(),
         DeviceStatus::NotReady => lang.t(Key::DeviceStatusNotReady).to_owned(),

@@ -290,6 +290,15 @@ impl Emulator {
             AppCommand::ClearNetworkBuffers => {
                 self.bus.network.clear_buffers();
             }
+            AppCommand::ClearPrinterBuffer => {
+                self.bus.printer.clear();
+            }
+            AppCommand::PrintPrinterPdf(path) => {
+                self.bus
+                    .printer
+                    .print_to_pdf(path, self.io_runtime.handle())
+                    .map_err(|error| crate::AppError::Io(error.to_string()))?;
+            }
             AppCommand::Shutdown => {
                 self.running = false;
                 events.push(AppEvent::Stopped);

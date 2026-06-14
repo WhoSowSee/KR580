@@ -60,8 +60,12 @@ impl DesktopApp {
             Message::OpenMonitor => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                let close_storage =
-                    Task::batch([self.close_floppy(), self.close_hdd(), self.close_network()]);
+                let close_storage = Task::batch([
+                    self.close_floppy(),
+                    self.close_hdd(),
+                    self.close_network(),
+                    self.close_printer(),
+                ]);
                 self.monitor_open = true;
                 if self.monitor_window.detached
                     && let Some(id) = self.monitor_window.id
@@ -98,8 +102,12 @@ impl DesktopApp {
             Message::OpenFloppy => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                let close_other =
-                    Task::batch([self.close_monitor(), self.close_hdd(), self.close_network()]);
+                let close_other = Task::batch([
+                    self.close_monitor(),
+                    self.close_hdd(),
+                    self.close_network(),
+                    self.close_printer(),
+                ]);
                 self.floppy_open = true;
                 if self.floppy_show_image_contents {
                     self.refresh_floppy_image_contents();
@@ -148,6 +156,7 @@ impl DesktopApp {
                     self.close_monitor(),
                     self.close_floppy(),
                     self.close_network(),
+                    self.close_printer(),
                 ]);
                 self.hdd_open = true;
                 self.refresh_hdd_file_exists();
@@ -192,8 +201,12 @@ impl DesktopApp {
             Message::OpenNetwork => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
-                let close_other =
-                    Task::batch([self.close_monitor(), self.close_floppy(), self.close_hdd()]);
+                let close_other = Task::batch([
+                    self.close_monitor(),
+                    self.close_floppy(),
+                    self.close_hdd(),
+                    self.close_printer(),
+                ]);
                 self.network_open = true;
                 if self.network_window.detached
                     && let Some(id) = self.network_window.id
@@ -223,6 +236,31 @@ impl DesktopApp {
             Message::ClearNetworkBuffers => {
                 self.dispatch(k580_app::AppCommand::ClearNetworkBuffers);
             }
+            Message::OpenPrinter => {
+                self.open_menu = None;
+                self.hide_opcode_dropdown();
+                let close_other = Task::batch([
+                    self.close_monitor(),
+                    self.close_floppy(),
+                    self.close_hdd(),
+                    self.close_network(),
+                ]);
+                self.printer_open = true;
+                if self.printer_window.detached
+                    && let Some(id) = self.printer_window.id
+                {
+                    return Some(close_other.chain(iced::window::gain_focus(id)));
+                }
+                return Some(close_other);
+            }
+            Message::ClosePrinter => return Some(self.close_printer()),
+            Message::TogglePrinterBufferView => {
+                self.printer_text_view = !self.printer_text_view;
+            }
+            Message::ClearPrinterBuffer => {
+                self.dispatch(k580_app::AppCommand::ClearPrinterBuffer);
+            }
+            Message::PrintPrinterPdf => self.print_printer_pdf(),
             _ => return None,
         }
         Some(Task::none())

@@ -1,5 +1,8 @@
 use k580_core::{PortBus, PortError};
-use k580_devices::{DeviceStatus, IoBus, MonitorPhase, NetworkDevice, NetworkMode, TextCell};
+use k580_devices::{
+    DeviceStatus, IoBus, MonitorPhase, NetworkDevice, NetworkMode, TextCell, decode_oem_text,
+};
+use printpdf::{PdfDocument, PdfParseOptions};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -269,6 +272,78 @@ fn printer_buffers_then_exports_as_separate_action() {
     bus.printer.print_spool().unwrap();
     runtime.block_on(async { tokio::time::sleep(Duration::from_millis(50)).await });
     assert_eq!(std::fs::read(&path).unwrap(), vec![b'P']);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn printer_text_decodes_dos_oem_bytes() {
+    assert_eq!(
+        decode_oem_text(&[0x8F, 0xE0, b'!', b'\r', b'\n', 0x01]),
+        "Пр!\n·"
+    );
+}
+
+#[test]
+fn printer_exports_spool_to_pdf_without_clearing_buffer() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let path = unique_temp_path("printer.pdf");
+    let mut bus = IoBus::default();
+    bus.output(IoBus::PRINTER_PORT, 0x8F).unwrap();
+    bus.output(IoBus::PRINTER_PORT, 0xE0).unwrap();
+
+    bus.printer.print_to_pdf(&path, runtime.handle()).unwrap();
+    assert_eq!(bus.snapshot().printer.status, DeviceStatus::Busy);
+
+    for _ in 0..40 {
+        runtime.block_on(async { tokio::time::sleep(Duration::from_millis(25)).await });
+        bus.printer.poll();
+        if bus.snapshot().printer.status != DeviceStatus::Busy {
+            break;
+        }
+    }
+
+    let printer = bus.snapshot().printer;
+    let pdf = std::fs::read(&path).unwrap();
+    assert!(pdf.starts_with(b"%PDF-"));
+    let mut warnings = Vec::new();
+    let document = PdfDocument::parse(&pdf, &PdfParseOptions::default(), &mut warnings).unwrap();
+    let text = document
+        .extract_text()
+        .into_iter()
+        .flatten()
+        .collect::<String>();
+    assert!(!document.resources.fonts.map.is_empty());
+    assert_eq!(text, "Пр");
+    assert_eq!(printer.status, DeviceStatus::Ready);
+    assert_eq!(printer.target_path, Some(path.clone()));
+    assert_eq!(printer.spool, vec![0x8F, 0xE0]);
+    assert_eq!(printer.bytes_buffered, 2);
+    assert_eq!(printer.last_error, None);
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn printer_exports_empty_spool_to_pdf() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let path = unique_temp_path("empty-printer.pdf");
+    let mut bus = IoBus::default();
+
+    bus.printer.print_to_pdf(&path, runtime.handle()).unwrap();
+    assert_eq!(bus.snapshot().printer.status, DeviceStatus::Busy);
+
+    for _ in 0..40 {
+        runtime.block_on(async { tokio::time::sleep(Duration::from_millis(25)).await });
+        bus.printer.poll();
+        if bus.snapshot().printer.status != DeviceStatus::Busy {
+            break;
+        }
+    }
+
+    let printer = bus.snapshot().printer;
+    assert_eq!(printer.status, DeviceStatus::Ready);
+    assert!(printer.spool.is_empty());
+    assert_eq!(printer.bytes_buffered, 0);
+    assert!(std::fs::read(&path).unwrap().starts_with(b"%PDF-"));
     std::fs::remove_file(path).ok();
 }
 

@@ -5,10 +5,10 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 ## Crates
 
 - `k580-core`: deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, typed command/event contracts, and the `PortBus` trait. Opcode execution is split by instruction family under `ops/`.
-- `k580-devices`: `IoBus` for ports `00h..04h`, monitor, floppy, HDD, network, printer, device states, and non-blocking worker queues.
+- `k580-devices`: `IoBus` for ports `00h..04h`, monitor, floppy, HDD, network, printer, device states, non-blocking worker queues, and printer PDF generation through `printpdf` with its `text_layout` font parser enabled.
 - `k580-persistence`: versioned `.580` snapshots, raw `.krs` subprograms, JSON settings, and direct `.txt`/`.xlsx` exporters/importers.
 - `k580-app`: application orchestration, crossbeam command/event actor, top-level dependency wiring, and file/export commands. The emulator state and tick body live under `emulator/` (split into `mod.rs` for the struct + command application and `tick.rs` for the paced/burst tick loop).
-- `k580-ui`: iced multi-window daemon split into app state/update, native window lifecycle, runtime command/event helpers, view rendering, and a small Windows-only platform shim. Monitor, floppy, HDD, and network surfaces share `ToolWindowState` and the same attach/detach/pin lifecycle while keeping device-specific views. It renders snapshots and sends commands. It does not own emulator state.
+- `k580-ui`: iced multi-window daemon split into app state/update, native window lifecycle, runtime command/event helpers, view rendering, and a small Windows-only platform shim. Monitor, floppy, HDD, network, and printer surfaces share `ToolWindowState` and the same attach/detach/pin lifecycle while keeping device-specific views. It renders snapshots and sends commands. It does not own emulator state.
 
 ## Repository layout
 
@@ -16,6 +16,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
 - `assets/icons/`: pre-rendered icon set consumed at build and run time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
+- `assets/fonts/`: bundled fonts and their licenses. Roboto Mono is embedded into printer PDFs.
 - `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `assets/icons/` from the master image.
 - `target/`: cargo build artefacts (gitignored).
 
@@ -33,7 +34,7 @@ UI messages become `AppCommand` values. The app actor owns `Cpu8080State` and `I
 
 ## Runtime shape
 
-`k580-ui` sends commands through a crossbeam channel to the emulator actor in `k580-app`. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage and network workers, so file and TCP operations stay outside the UI thread. The actor polls the network state every 50 ms and publishes a snapshot only when that state differs from the last published one, allowing received bytes and connection changes to reach an idle UI without causing continuous redraws. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
+`k580-ui` sends commands through a crossbeam channel to the emulator actor in `k580-app`. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage, network, and printer PDF workers, so file, TCP, and PDF operations stay outside the UI thread. The actor polls network state and printer export completion every 50 ms and publishes a snapshot only when either state differs from the last published one, allowing received bytes, connection changes, and completed PDF jobs to reach an idle UI without causing continuous redraws. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
 
 ## Actor pacing loop
 

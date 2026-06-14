@@ -56,6 +56,7 @@ store emulator state in widgets.
     selection.
   - `app/import_modal.rs` and `app/import_modal_state.rs` – import
     modal routing, source format detection, and sheet/section selection.
+  - `app/printer.rs` – printer PDF save dialog and `.pdf` path normalization.
   - `app/register_inline.rs` – inline register-cell editor (Tab/Shift+Tab
     walk, Ctrl+Arrow navigation).
   - `app/undo.rs` – `UndoEntry` / `UndoStack` storage and coalescing,
@@ -263,8 +264,8 @@ left-to-right order:
 | Монитор | `device_monitor` (`assets/icons/devices/monitor.svg`) | green | Отобразить монитор | `Ctrl+M` |
 | Дисковод | `device_floppy` (`devices/floppy.svg`) | cyan | Отобразить буфер дисковода | `Ctrl+F` |
 | Диск | `device_hdd` (`devices/hdd.svg`) | blue | Отобразить буфер жёсткого диска | - |
-| Адаптер | `device_network` (`devices/network.svg`) | yellow | Отобразить буфер сетевого адаптера | - |
-| Принтер | `device_printer` (`devices/printer.svg`) | magenta | Отобразить буфер принтера | - |
+| Адаптер | `device_network` (`devices/network.svg`) | yellow | Отобразить буфер сетевого адаптера | `Ctrl+A` |
+| Принтер | `device_printer` (`devices/printer.svg`) | magenta | Отобразить буфер принтера | `Ctrl+P` |
 
 Each chip is rendered by `view::chips::device_chip`: a tinted SVG
 glyph centred inside the same neutral button chrome as the action
@@ -275,19 +276,15 @@ it visually belongs to the same chrome family as the action-panel
 tooltips. Hover uses the shared dark `TOKYO_SURFACE` fill and keeps the
 neutral frame colour, matching the current action-button feedback.
 
-`device_chip` takes an `Option<Message>` for `on_press`. The Монитор,
-Дисковод, HDD, and network slots are wired to `Message::OpenMonitor`,
-`Message::OpenFloppy`, `Message::OpenHdd`, and `Message::OpenNetwork`; only the
-printer slot passes `None` and stays command-neutral until its peripheral window is implemented. A
-`None` chip still hovers and shows its tooltip, but its click resolves
-to `Message::MenuBatch(Vec::new())` so half-finished slots don't
-dispatch stale messages.
+`device_chip` takes an `Option<Message>` for `on_press`. All five slots
+are active and dispatch `Message::OpenMonitor`, `Message::OpenFloppy`,
+`Message::OpenHdd`, `Message::OpenNetwork`, or `Message::OpenPrinter`.
 
 ### Окно монитора (Quick-access → Монитор)
 
 `Message::OpenMonitor` flips `DesktopApp::monitor_open`. In attached mode
 `view::monitor::monitor_window_overlay` paints a fullscreen modal over the
-main app. Monitor, floppy, HDD, and network each own a `ToolWindowState`; on Windows
+main app. Monitor, floppy, HDD, network, and printer each own a `ToolWindowState`; on Windows
 their top-level iced windows are created once, invisibly, after the main
 window's startup frames. `Message::DetachToolWindow(kind)` resizes the selected
 window and switches its iced mode to `Windowed`;
@@ -465,6 +462,38 @@ contents already written by the async storage worker.
 file-backed worker state. The already accepted `visible_buffer` stays
 visible, so detaching an image is not the same action as clearing the
 buffer.
+
+### Окно принтера (Quick-access → Принтер)
+
+`Message::OpenPrinter` closes the other device surfaces and opens a
+`760×340` printer window using the same attached overlay and prepared
+borderless native-window lifecycle as floppy, HDD, and network. The title
+band supports detach/attach, detached dragging, and always-on-top pinning.
+Backdrop click, Esc, the close button, and the native close request all
+close only the printer surface.
+
+The body is a read-only view over `AppSnapshot.devices.printer`. Its default
+mode matches the original KP580 printer window: uppercase HEX with a
+four-digit byte offset at the left and 16 bytes per line. The local
+`printer_text_view` toggle switches the same spool to CP866-decoded text;
+CR/LF is normalized, tabs expand to four spaces, and unsupported controls
+render as `·`. The footer shows device status, total buffered bytes, and the
+most recent PDF target.
+
+| Glyph | Tooltip | Action |
+|---|---|---|
+| `panel-detach` / `panel-attach` | «Открепить в отдельное окно» / «Вернуть в окно эмулятора» | switches between the attached popup and the prepared native window |
+| `pin` | «Закрепить поверх других окон» / «Не держать поверх других окон» | toggles `ToolWindowKind::Printer` between normal and always-on-top levels; visible only while detached |
+| `type` | «Показать текст» / «Показать байты» | dispatches `Message::TogglePrinterBufferView`; active blue state indicates CP866 text mode |
+| `printer` | «Печатать в PDF» | opens a `.pdf` save dialog and dispatches `AppCommand::PrintPrinterPdf`; an empty spool produces a blank PDF, while a second print is disabled during `Busy` |
+| `brush-cleaning` | «Очистить буфер принтера» | dispatches `AppCommand::ClearPrinterBuffer`; remains available for an empty spool and during PDF generation |
+| `x` | «Закрыть» / `Close` | `Message::ClosePrinter` |
+
+PDF generation belongs to `k580-devices`, not the UI. The UI selects the
+path and dispatches a command; the device copies the spool, enters `Busy`,
+and renders CP866-decoded text asynchronously with the bundled Roboto Mono
+font. Completion returns through the actor's 50 ms device poll. Printing
+does not clear the spool, while clearing does not erase the last PDF path.
 
 The older "I/O Controller" capsule that used to sit on the right of
 the same row was removed: it duplicated the role of the device strip
@@ -1654,6 +1683,21 @@ strings, and an optional validation error.
 **View:** `view/network.rs` and `view/network_settings.rs` –
 `network_window_overlay()`, `network_window()`, and the endpoint modal.
 
+### Printer window
+
+Opened from the Принтер quick-access chip. The fixed `760×340` surface
+uses the shared attached/detached tool-window lifecycle and renders the
+printer spool as 16-byte uppercase HEX rows with byte offsets. Its header
+can print the CP866-decoded spool to PDF, clear the buffer, detach or attach
+the window, pin a detached window, and close it.
+
+**State:** `printer_open: bool`, `printer_window: ToolWindowState`. Live
+buffer, status, byte count, PDF target, and error state come from
+`AppSnapshot.devices.printer`.
+
+**View:** `view/printer.rs` – `printer_window_overlay()` and
+`printer_window()`.
+
 ## Keyboard shortcuts
 
 The UI exposes the following shortcuts. Modifier names follow iced's
@@ -1771,6 +1815,8 @@ the accumulator. Invalid value input leaves the register field empty.
 | Ctrl+E / Ctrl+У | Open the export settings modal. |
 | Ctrl+M / Ctrl+Ь | Open the monitor window. |
 | Ctrl+F / Ctrl+А | Open the floppy-buffer window. |
+| Ctrl+A / Ctrl+Ф | Open the network-adapter window. |
+| Ctrl+P / Ctrl+З | Open the printer window. |
 | Ctrl+, | Open the Settings dialog. Implemented as a punctuation-aware branch in `app::handlers::ctrl_shortcut` so the shortcut survives keyboard layouts where `,` is not at QWERTY position. |
 
 ### Settings dialog (sectioned keyboard navigation)

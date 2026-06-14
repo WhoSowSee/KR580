@@ -25,6 +25,14 @@ Invalid ports return `PortError::InvalidPort`. Device-specific enqueue failures 
 
 `NetworkDevice::start_worker` spawns a Tokio task for client or server mode. The worker connects or binds explicitly from settings, splits the socket into read/write halves, queues received bytes into the device RX queue, drains outgoing bytes from a channel, and updates visible status/counters. The old manual `queue_received` test hook remains available for deterministic unit tests.
 
+## Printer spool and PDF export
+
+The printer on port `04h` accepts every `OUT` byte into `PrinterState::spool` and increments `bytes_buffered`. The spool is independent from export: printing does not consume or clear it.
+
+`AppCommand::PrintPrinterPdf(path)` copies the current spool and starts a blocking PDF generation task on the emulator's Tokio runtime. The device enters `Busy` immediately. The actor polls the completion channel every 50 ms and publishes the resulting `Ready` or `Error` state, target path, and error text without blocking the UI or CPU actor.
+
+PDF output is A4 text rendered with the bundled Roboto Mono font. An empty spool produces a valid blank PDF. Printer bytes are decoded as CP866, CR/LF and blank lines are preserved, tabs expand to four spaces, unsupported control bytes render as `·`, and long lines wrap at 80 columns. `AppCommand::ClearPrinterBuffer` clears only the spool and byte counter; it leaves the last PDF path and device status intact.
+
 ## Monitor command protocol
 
 The monitor on port `00h` consumes 2- or 3-byte commands. The first byte's bit 7 selects the destination layer; bits 0..6 carry a 7-bit colour intensity (`rgb = 0xFFFFFF / 127 * intensity`). This matches the original KP580 emulator's documented protocol (`KP580_Help.chm` → `Prog_Wrk_Peref.htm`).

@@ -299,14 +299,14 @@ impl DesktopApp {
                 TOKYO_YELLOW,
                 lang.t(Key::DeviceNetwork),
                 Some(Message::OpenNetwork),
-                None,
+                shortcut_hint(&Message::OpenNetwork),
             ),
             device_chip(
                 icons::device_printer(),
                 TOKYO_MAGENTA,
                 lang.t(Key::DevicePrinter),
-                None,
-                None,
+                Some(Message::OpenPrinter),
+                shortcut_hint(&Message::OpenPrinter),
             ),
         ]
         .spacing(14)

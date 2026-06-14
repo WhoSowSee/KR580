@@ -16,23 +16,28 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
 - `k580-devices`: port routing, invalid-port typed errors, monitor
   framebuffer/attribute state, storage worker queueing, storage visible
   buffer clearing, storage debug-buffer acceptance without an attached
-  file, network no-data handling, Tokio TCP worker roundtrip, and printer spool/export
-  behavior.
+  file, network no-data handling, Tokio TCP worker roundtrip, CP866
+  decoding, and asynchronous printer PDF export with spool preservation.
+  The PDF regression test parses the generated file, verifies that the
+  embedded font resource exists, and extracts the expected CP866-decoded
+  Cyrillic text.
 - `k580-persistence`: `.580` roundtrip/determinism/header validation,
   raw `.krs` behavior, settings JSON versioning, `.txt`/`.xlsx`
   direct exporters, and `.txt`/`.xlsx` importers (round-trip an
   `ExportModel` back into a `Cpu8080State`).
 - `k580-app`: command-mediated state mutation, including floppy image
-  attachment, floppy debug-buffer mode, floppy-buffer clearing, and actor event
-  publication. The `square_program` integration test generates a
+  attachment, floppy debug-buffer mode, floppy-buffer clearing, printer
+  clearing/export, and actor publication of completed printer jobs. The
+  `square_program` integration test generates a
   temporary `square.580` snapshot, loads it, runs it to HLT through the
   `Emulator`, and asserts the monitor pixel layer contains exactly
   the 28-pixel outline of an 8×8 square (corners included, interior
   untouched, every pixel at colour `0x7F`) – a smoke check that
   `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
   the documented 3-byte graphics command (`prompt/03_peripherals.md`).
-- `k580-ui`: pure view helpers, including CP866 terminal-text decoding
-  for the floppy-buffer modal.
+- `k580-ui`: pure view helpers, printer HEX and CP866 text formatting,
+  printer view-mode toggling, PDF path normalization, and detachable
+  tool-window lifecycle.
 
 External Intel 8080 binary suites are not included in this workspace.
 When available, add them as an additional compatibility gate instead of
@@ -47,6 +52,9 @@ replacing the local semantic tests.
   of the graphics layer, emitting one 3-byte graphics command per
   pixel. Command form is `[FF][X][Y]` (`FF` = bit7=1 for graphics + max
   colour `0x7F`).
+- `printer_demo_program_writes_test_line_to_port_four` loads a compact
+  null-terminated 8080 loop at `0000h`, writes `TEST PRINTER\r\n` through
+  `OUT 04h`, and verifies the CPU reaches `HLT` with the expected spool.
 
 ## Asset prerequisites
 
@@ -62,6 +70,8 @@ sync with the source artwork:
 The Windows build script does not regenerate `icon.ico` automatically –
 it only embeds it. A stale `icon.ico` will be silently shipped if you
 forget to rerun the generator.
+
+Printer PDF tests also require the checked-in `assets/fonts/RobotoMono.ttf` because `k580-devices` embeds it at compile time. The font has no generated derivative that needs regeneration.
 
 ## Manual smoke checks for the UI
 
@@ -126,3 +136,10 @@ worth eyeballing after touching `crates/ui`:
   between `bug-off` and active blue `bug`, the empty buffer state has no
   cursor glyph, and the clear button empties the visible buffer without
   changing the device footer state.
+- send bytes to port `04h`, open the Принтер quick-access chip, and confirm
+  the buffer renders as uppercase HEX with four-digit offsets and 16 bytes
+  per line; toggle the `type` button and confirm CP866 text appears without
+  changing the byte count, then toggle back to HEX; print to PDF, verify the
+  UI returns from `Busy` to `Ready` and the CP866 text is readable; clear the
+  buffer and confirm the last PDF path remains in the footer; detach, pin,
+  attach, and close the window.

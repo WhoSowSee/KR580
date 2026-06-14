@@ -53,6 +53,8 @@ pub enum AppCommand {
         port: u16,
     },
     ClearNetworkBuffers,
+    ClearPrinterBuffer,
+    PrintPrinterPdf(PathBuf),
     Shutdown,
 }
 

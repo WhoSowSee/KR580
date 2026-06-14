@@ -2,6 +2,7 @@ pub mod error;
 pub mod iobus;
 pub mod monitor;
 pub mod network;
+mod oem;
 pub mod printer;
 pub mod status;
 pub mod storage;
@@ -13,6 +14,7 @@ pub use monitor::{
     TEXT_COLS, TEXT_ROWS, TextCell,
 };
 pub use network::{ConnectionState, NetworkDevice, NetworkMode, NetworkState};
+pub use oem::decode_oem_text;
 pub use printer::{PrinterDevice, PrinterState};
 pub use status::DeviceStatus;
 pub use storage::{StorageDevice, StorageState};

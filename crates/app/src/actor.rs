@@ -77,8 +77,9 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
     let mut emulator = Emulator::default();
     let initial = emulator.snapshot();
     let mut published_network = initial.devices.network.clone();
+    let mut published_printer = initial.devices.printer.clone();
     publish(&event_tx, AppEvent::StateChanged(Box::new(initial)));
-    let network_poll = tick(Duration::from_millis(50));
+    let device_poll = tick(Duration::from_millis(50));
     loop {
         // `never()` parks the timer when paused; otherwise the deadline
         // is `step_interval` (Paced) or `slice` (Burst). The slice also
@@ -99,6 +100,7 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
                 for event in emulator.handle_command(command) {
                     if let AppEvent::StateChanged(snapshot) = &event {
                         published_network = snapshot.devices.network.clone();
+                        published_printer = snapshot.devices.printer.clone();
                     }
                     publish(&event_tx, event);
                 }
@@ -110,14 +112,19 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
                 for event in emulator.tick() {
                     if let AppEvent::StateChanged(snapshot) = &event {
                         published_network = snapshot.devices.network.clone();
+                        published_printer = snapshot.devices.printer.clone();
                     }
                     publish(&event_tx, event);
                 }
             }
-            recv(network_poll) -> _ => {
+            recv(device_poll) -> _ => {
+                emulator.bus_mut().printer.poll();
                 let snapshot = emulator.snapshot();
-                if snapshot.devices.network != published_network {
+                if snapshot.devices.network != published_network
+                    || snapshot.devices.printer != published_printer
+                {
                     published_network = snapshot.devices.network.clone();
+                    published_printer = snapshot.devices.printer.clone();
                     publish(&event_tx, AppEvent::StateChanged(Box::new(snapshot)));
                 }
             }

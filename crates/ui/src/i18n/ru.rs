@@ -1,4 +1,4 @@
-use super::{help_ru, keys::Key, network};
+use super::{help_ru, keys::Key, network, printer};
 pub(super) fn translate(key: Key) -> &'static str {
     match key {
         Key::MenuFile => "Файл",
@@ -327,6 +327,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HddShowImageContents => "Отобразить содержимое файла",
         Key::HddFileDeleted => "Файл HDD удалён",
         Key::Network(key) => network::translate_ru(key),
+        Key::Printer(key) => printer::translate_ru(key),
         Key::DeviceStatusReady => "готов",
         Key::DeviceStatusNotReady => "не готов",
         Key::DeviceStatusBusy => "занят",
@@ -356,7 +357,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::CmdAddrDirect => "прямая",
         Key::CmdAddrIndirect => "косвенная",
         Key::CmdAddrRegister => "регистровая",
-
         Key::OpcodeSearchPlaceholder => "Поиск: hex или мнемоника",
 
         Key::StatusByteHeader => "Статусный байт T1: что процессор делает на текущем такте.",

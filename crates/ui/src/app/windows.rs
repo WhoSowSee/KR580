@@ -2,17 +2,25 @@ use std::path::PathBuf;
 
 use iced::{Size, Task, window};
 
-use super::state::ToolWindowState;
 use super::{DesktopApp, Message, PendingAction, ToolWindowKind};
 use crate::i18n::Key;
 use crate::platform;
 
 const ICON_PNG: &[u8] = include_bytes!("../../../../assets/icons/icon-64.png");
-const TOOL_WINDOWS: [ToolWindowKind; 4] = [
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ToolWindowState {
+    pub(crate) id: Option<iced::window::Id>,
+    pub(crate) ready: bool,
+    pub(crate) detached: bool,
+    pub(crate) always_on_top: bool,
+}
+
+const TOOL_WINDOWS: [ToolWindowKind; 5] = [
     ToolWindowKind::Monitor,
     ToolWindowKind::Floppy,
     ToolWindowKind::Hdd,
     ToolWindowKind::Network,
+    ToolWindowKind::Printer,
 ];
 
 impl DesktopApp {
@@ -22,6 +30,7 @@ impl DesktopApp {
             ToolWindowKind::Floppy => &self.floppy_window,
             ToolWindowKind::Hdd => &self.hdd_window,
             ToolWindowKind::Network => &self.network_window,
+            ToolWindowKind::Printer => &self.printer_window,
         }
     }
 
@@ -31,6 +40,7 @@ impl DesktopApp {
             ToolWindowKind::Floppy => &mut self.floppy_window,
             ToolWindowKind::Hdd => &mut self.hdd_window,
             ToolWindowKind::Network => &mut self.network_window,
+            ToolWindowKind::Printer => &mut self.printer_window,
         }
     }
 
@@ -94,6 +104,10 @@ impl DesktopApp {
 
     pub(crate) fn close_network(&mut self) -> Task<Message> {
         self.close_tool_window(ToolWindowKind::Network)
+    }
+
+    pub(crate) fn close_printer(&mut self) -> Task<Message> {
+        self.close_tool_window(ToolWindowKind::Printer)
     }
 
     fn detach_tool_window(&mut self, kind: ToolWindowKind) -> Task<Message> {
@@ -292,6 +306,7 @@ impl DesktopApp {
             ToolWindowKind::Floppy => self.floppy_open = open,
             ToolWindowKind::Hdd => self.hdd_open = open,
             ToolWindowKind::Network => self.network_open = open,
+            ToolWindowKind::Printer => self.printer_open = open,
         }
     }
 
@@ -332,18 +347,20 @@ fn tool_window_settings(kind: ToolWindowKind, main_window_size: Size) -> window:
 fn tool_window_size(kind: ToolWindowKind, main_window_size: Size) -> Size {
     match kind {
         ToolWindowKind::Monitor => detached_monitor_size(main_window_size),
-        ToolWindowKind::Floppy | ToolWindowKind::Hdd | ToolWindowKind::Network => {
-            detached_storage_size()
-        }
+        ToolWindowKind::Floppy
+        | ToolWindowKind::Hdd
+        | ToolWindowKind::Network
+        | ToolWindowKind::Printer => detached_storage_size(),
     }
 }
 
 fn tool_window_min_size(kind: ToolWindowKind) -> Size {
     match kind {
         ToolWindowKind::Monitor => Size::new(720.0, 480.0),
-        ToolWindowKind::Floppy | ToolWindowKind::Hdd | ToolWindowKind::Network => {
-            detached_storage_size()
-        }
+        ToolWindowKind::Floppy
+        | ToolWindowKind::Hdd
+        | ToolWindowKind::Network
+        | ToolWindowKind::Printer => detached_storage_size(),
     }
 }
 
@@ -353,6 +370,7 @@ fn tool_window_title(kind: ToolWindowKind) -> Key {
         ToolWindowKind::Floppy => Key::HnFloppy,
         ToolWindowKind::Hdd => Key::HnHdd,
         ToolWindowKind::Network => Key::HnNetwork,
+        ToolWindowKind::Printer => Key::HnPrinter,
     }
 }
 

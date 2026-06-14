@@ -1,4 +1,4 @@
-use super::{help_en, keys::Key, network};
+use super::{help_en, keys::Key, network, printer};
 pub(super) fn translate(key: Key) -> &'static str {
     match key {
         Key::MenuFile => "File",
@@ -329,6 +329,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HddShowImageContents => "Show file contents",
         Key::HddFileDeleted => "HDD file deleted",
         Key::Network(key) => network::translate_en(key),
+        Key::Printer(key) => printer::translate_en(key),
         Key::DeviceStatusReady => "ready",
         Key::DeviceStatusNotReady => "not ready",
         Key::DeviceStatusBusy => "busy",
@@ -358,7 +359,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::CmdAddrDirect => "direct",
         Key::CmdAddrIndirect => "indirect",
         Key::CmdAddrRegister => "register",
-
         Key::OpcodeSearchPlaceholder => "Search: hex or mnemonic",
 
         Key::StatusByteHeader => "Status byte T1: what the CPU is doing on this tact.",

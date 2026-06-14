@@ -28,6 +28,8 @@ pub(super) fn shortcut_hint(message: &Message) -> Option<&'static str> {
         Message::OpenHelp => Some("Ctrl+H"),
         Message::OpenMonitor => Some("Ctrl+M"),
         Message::OpenHdd => Some("Ctrl+D"),
+        Message::OpenNetwork => Some("Ctrl+A"),
+        Message::OpenPrinter => Some("Ctrl+P"),
         Message::OpenSettings => Some("Ctrl+,"),
         Message::Undo => Some("Ctrl+Z"),
         Message::Redo => Some("Ctrl+Shift+Z"),
@@ -88,6 +90,8 @@ mod tests {
         assert_eq!(shortcut_hint(&Message::ResetCpu), Some("Ctrl+Shift+G"));
         assert_eq!(shortcut_hint(&Message::OpenMonitor), Some("Ctrl+M"));
         assert_eq!(shortcut_hint(&Message::OpenFloppy), Some("Ctrl+F"));
+        assert_eq!(shortcut_hint(&Message::OpenNetwork), Some("Ctrl+A"));
+        assert_eq!(shortcut_hint(&Message::OpenPrinter), Some("Ctrl+P"));
         assert_eq!(shortcut_hint(&Message::RestartProgram), None);
     }
 

@@ -9,5 +9,6 @@ pub use emulator::{DEFAULT_STEP_INTERVAL, Emulator};
 pub use error::AppError;
 pub use k580_devices::{
     ConnectionState, DeviceSnapshot, DeviceStatus, GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorPhase,
-    MonitorState, NetworkMode, NetworkState, StorageState, TEXT_COLS, TEXT_ROWS, TextCell,
+    MonitorState, NetworkMode, NetworkState, PrinterState, StorageState, TEXT_COLS, TEXT_ROWS,
+    TextCell, decode_oem_text,
 };

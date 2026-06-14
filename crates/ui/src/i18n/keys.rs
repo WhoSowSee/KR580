@@ -332,6 +332,7 @@ pub(crate) enum Key {
     HddDebugEnabled,
     HddFileDeleted,
     Network(super::network::NetworkKey),
+    Printer(super::printer::PrinterKey),
     DeviceStatusReady,
     DeviceStatusNotReady,
     DeviceStatusBusy,
@@ -339,7 +340,6 @@ pub(crate) enum Key {
     DeviceStatusConnected,
     DeviceStatusListening,
     DeviceStatusDisconnected,
-
     ColCmdCode,
     ColCmdMnemonic,
     ColCmdOperand,

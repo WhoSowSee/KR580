@@ -10,6 +10,7 @@ use super::modal::DiscardModalButton;
 use super::settings_modal::SettingsDialog;
 use super::status::StatusKind;
 use super::undo::UndoStack;
+use super::windows::ToolWindowState;
 use super::{
     ExportFlagSelection, ExportMemoryColumns, ExportModalFocus, ExportRegisterSelection,
     ExportTargetSettings, ImportFileFormat, ImportModalFocus,
@@ -24,14 +25,6 @@ pub(crate) enum PendingAction {
     Import,
     CloseWindow,
     DeleteHdd,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ToolWindowState {
-    pub(crate) id: Option<iced::window::Id>,
-    pub(crate) ready: bool,
-    pub(crate) detached: bool,
-    pub(crate) always_on_top: bool,
 }
 
 pub(crate) struct DesktopApp {
@@ -101,6 +94,7 @@ pub(crate) struct DesktopApp {
     pub(crate) floppy_window: ToolWindowState,
     pub(crate) hdd_window: ToolWindowState,
     pub(crate) network_window: ToolWindowState,
+    pub(crate) printer_window: ToolWindowState,
     pub(crate) window_maximized: bool,
     pub(crate) follow_pc: bool,
     pub(crate) menu_categories_visible: bool,
@@ -145,6 +139,8 @@ pub(crate) struct DesktopApp {
     pub(crate) floppy_open: bool,
     pub(crate) hdd_open: bool,
     pub(crate) network_open: bool,
+    pub(crate) printer_open: bool,
+    pub(crate) printer_text_view: bool,
     pub(crate) network_settings_open: bool,
     pub(crate) network_mode_draft: k580_app::NetworkMode,
     pub(crate) network_host_input: String,
@@ -258,6 +254,7 @@ impl DesktopApp {
             floppy_window: ToolWindowState::default(),
             hdd_window: ToolWindowState::default(),
             network_window: ToolWindowState::default(),
+            printer_window: ToolWindowState::default(),
             window_maximized: false,
             menu_categories_visible: true,
             follow_pc,
@@ -303,6 +300,8 @@ impl DesktopApp {
             floppy_open: false,
             hdd_open: false,
             network_open: false,
+            printer_open: false,
+            printer_text_view: false,
             network_settings_open: false,
             network_mode_draft: network_mode,
             network_host_input: network_host,

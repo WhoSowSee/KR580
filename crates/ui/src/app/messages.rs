@@ -19,6 +19,7 @@ pub(crate) enum ToolWindowKind {
     Floppy,
     Hdd,
     Network,
+    Printer,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -277,6 +278,11 @@ pub(crate) enum Message {
     NetworkPortChanged(String),
     ApplyNetworkSettings,
     ClearNetworkBuffers,
+    OpenPrinter,
+    ClosePrinter,
+    TogglePrinterBufferView,
+    ClearPrinterBuffer,
+    PrintPrinterPdf,
     SettingsCategorySelected(SettingsCategory),
     SettingsSearchChanged(String),
     SettingsDraftLanguageChanged(Lang),

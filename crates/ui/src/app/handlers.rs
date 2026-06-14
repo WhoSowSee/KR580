@@ -149,6 +149,9 @@ impl DesktopApp {
         if self.network_open {
             return self.close_network();
         }
+        if self.printer_open {
+            return self.close_printer();
+        }
         if self.hdd_open {
             return self.close_hdd();
         }
@@ -233,8 +236,10 @@ pub(crate) fn ctrl_shortcut(
         ('s', true, false) => Some(Message::SaveSnapshotAs),
         ('i', false, false) => Some(Message::Import),
         ('e', false, false) => Some(Message::Export),
+        ('a', false, false) => Some(Message::OpenNetwork),
         ('d', false, false) => Some(Message::OpenHdd),
         ('f', false, false) => Some(Message::OpenFloppy),
+        ('p', false, false) => Some(Message::OpenPrinter),
         ('r', false, false) => Some(Message::ToggleRun),
         ('t', false, false) => Some(Message::StepInstruction),
         ('y', false, false) => Some(Message::StepTact),
@@ -332,6 +337,8 @@ mod tests {
             ("р", Code::KeyH, Message::OpenHelp),
             ("в", Code::KeyD, Message::OpenHdd),
             ("а", Code::KeyF, Message::OpenFloppy),
+            ("ф", Code::KeyA, Message::OpenNetwork),
+            ("з", Code::KeyP, Message::OpenPrinter),
             ("я", Code::KeyZ, Message::Undo),
             ("ь", Code::KeyM, Message::OpenMonitor),
         ] {

@@ -1,6 +1,6 @@
 Keyboard Shortcuts:
 
-Letter shortcuts use the physical QWERTY key, so English and Russian layouts are equivalent: E/У opens the opcode picker, Ctrl+S/Ctrl+Ы saves, Ctrl+M/Ctrl+Ь opens the monitor, Ctrl+F/Ctrl+А opens the floppy buffer.
+Letter shortcuts use the physical QWERTY key, so English and Russian layouts are equivalent: E/У opens the opcode picker, Ctrl+S/Ctrl+Ы saves, Ctrl+M/Ctrl+Ь opens the monitor, Ctrl+F/Ctrl+А opens the floppy buffer, Ctrl+A/Ctrl+Ф opens the network adapter, Ctrl+P/Ctrl+З opens the printer.
 
 - File: Ctrl+N (New), Ctrl+O (Open), Ctrl+S (Save), Ctrl+Shift+S (Save As), Ctrl+Alt+S (Save Legacy), Ctrl+Alt+O (Open Legacy), Ctrl+I (Import), Ctrl+E (Export)
 
@@ -10,4 +10,4 @@ Letter shortcuts use the physical QWERTY key, so English and Russian layouts are
 
 - Editing: Ctrl+Z (Undo), Ctrl+Shift+Z (Redo), Ctrl+Enter (search forward), Ctrl+Shift+Enter (search backward), Alt+Enter (jump to address)
 
-- Windows: Ctrl+M (Monitor), Ctrl+F (Floppy buffer), Ctrl+, (Settings), Ctrl+H/F1 (Help), Esc (close/clear focus)
+- Windows: Ctrl+M (Monitor), Ctrl+F (Floppy buffer), Ctrl+A (Network adapter), Ctrl+P (Printer), Ctrl+, (Settings), Ctrl+H/F1 (Help), Esc (close/clear focus)

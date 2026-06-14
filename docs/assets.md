@@ -1,7 +1,15 @@
 # Assets
 
-Static assets shipped with the workspace live under `assets/`. Today this
-is just the icon set for the desktop binary.
+Static assets shipped with the workspace live under `assets/`.
+
+## `assets/fonts/`
+
+| File | Purpose |
+|---|---|
+| `RobotoMono.ttf` | Embedded Unicode monospace font used by printer PDF output. |
+| `OFL-RobotoMono.txt` | SIL Open Font License for the bundled Roboto Mono file. |
+
+`k580-devices` embeds `RobotoMono.ttf` through `include_bytes!`; PDF export therefore does not depend on fonts installed on the host system and can render CP866-decoded Cyrillic consistently.
 
 ## `assets/icons/`
 

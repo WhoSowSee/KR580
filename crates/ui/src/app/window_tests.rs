@@ -29,10 +29,12 @@ fn second_startup_frame_prepares_hidden_tool_windows() {
     assert!(app.floppy_window.id.is_some());
     assert!(app.hdd_window.id.is_some());
     assert!(app.network_window.id.is_some());
+    assert!(app.printer_window.id.is_some());
     assert!(!app.monitor_window.ready);
     assert!(!app.floppy_window.ready);
     assert!(!app.hdd_window.ready);
     assert!(!app.network_window.ready);
+    assert!(!app.printer_window.ready);
 }
 
 #[cfg(windows)]
@@ -172,6 +174,42 @@ fn detached_network_pin_and_attach_are_independent() {
 }
 
 #[test]
+fn detached_printer_pin_and_attach_are_independent() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let printer = window::Id::unique();
+    app.printer_open = true;
+    app.printer_window.id = Some(printer);
+    app.printer_window.ready = true;
+    app.printer_window.detached = true;
+
+    let _task = app.update(Message::ToggleToolWindowAlwaysOnTop(
+        ToolWindowKind::Printer,
+    ));
+
+    assert!(app.printer_window.always_on_top);
+
+    let _task = app.update(Message::AttachToolWindow(ToolWindowKind::Printer));
+
+    assert!(app.printer_open);
+    assert!(!app.printer_window.detached);
+    assert!(!app.printer_window.always_on_top);
+    assert_eq!(app.printer_window.id, Some(printer));
+}
+
+#[test]
+fn printer_buffer_view_toggles_between_hex_and_text() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+
+    assert!(!app.printer_text_view);
+
+    let _task = app.update(Message::TogglePrinterBufferView);
+    assert!(app.printer_text_view);
+
+    let _task = app.update(Message::TogglePrinterBufferView);
+    assert!(!app.printer_text_view);
+}
+
+#[test]
 fn closing_detached_monitor_does_not_close_main_window() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     let main = window::Id::unique();
@@ -213,6 +251,28 @@ fn closing_detached_hdd_does_not_close_main_window() {
     assert_eq!(app.hdd_window.id, None);
     assert!(!app.hdd_window.detached);
     assert!(!app.hdd_open);
+}
+
+#[test]
+fn closing_detached_printer_does_not_close_main_window() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let main = window::Id::unique();
+    let printer = window::Id::unique();
+    app.main_window_id = Some(main);
+    app.printer_window.id = Some(printer);
+    app.printer_window.ready = true;
+    app.printer_window.detached = true;
+    app.printer_open = true;
+
+    let _task = app.update(Message::WindowCloseRequested(printer));
+
+    assert_eq!(app.main_window_id, Some(main));
+    #[cfg(windows)]
+    assert_eq!(app.printer_window.id, Some(printer));
+    #[cfg(not(windows))]
+    assert_eq!(app.printer_window.id, None);
+    assert!(!app.printer_window.detached);
+    assert!(!app.printer_open);
 }
 
 #[test]

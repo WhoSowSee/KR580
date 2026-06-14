@@ -15,10 +15,12 @@ mod help_en;
 mod help_ru;
 mod keys;
 mod network;
+mod printer;
 mod ru;
 
 pub(crate) use keys::Key;
 pub(crate) use network::NetworkKey;
+pub(crate) use printer::PrinterKey;
 
 use k580_persistence::Language as PersistedLanguage;
 
