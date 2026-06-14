@@ -1,4 +1,4 @@
-use crate::{CoreError, Flags, Memory64K, PortBus, RegisterName, Registers};
+use crate::{CoreError, Flags, Memory64K, PortBus, RegisterName, Registers, ValidationError};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cpu8080State {
@@ -111,6 +111,15 @@ impl Cpu8080State {
 
     pub fn set_memory(&mut self, address: u16, value: u8) {
         self.memory.write(address, value);
+    }
+
+    pub fn set_memory_block(&mut self, start: u16, values: &[u8]) -> Result<(), ValidationError> {
+        let end = u32::from(start) + values.len() as u32;
+        if end > Memory64K::SIZE as u32 {
+            return Err(ValidationError::MemoryRange { start, end });
+        }
+        self.memory.as_mut_slice()[start as usize..end as usize].copy_from_slice(values);
+        Ok(())
     }
 
     /// Mirrors both bus latches; executors must go through this so

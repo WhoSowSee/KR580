@@ -6,7 +6,7 @@ Letter shortcuts use the physical QWERTY key, so English and Russian layouts are
 
 - Execution: Ctrl+R (Run/Pause), Ctrl+T (Step Instruction), Ctrl+Y (Step Tact), Ctrl+Shift+R (Reset RAM), Ctrl+Shift+G (Reset Registers), Ctrl+Shift+H (Clear HLT)
 
-- Navigation: Tab/Shift+Tab (fields), Up/Down (address/register), Left/Right (memory cells), PageUp/PageDown (+/-16 rows), Ctrl+Arrows (schematic registers). In the opcode picker, Up/Down and Tab/Shift+Tab move the highlighted command.
+- Navigation: Tab/Shift+Tab (fields), Up/Down (memory cells and multiplexer rows), Left/Right (schematic registers and multiplexer columns), PageUp/PageDown (+/-16 rows), Ctrl+Arrows (equivalent register-grid navigation). In the opcode picker, Up/Down and Tab/Shift+Tab move the highlighted command.
 
 - Editing: Ctrl+Z (Undo), Ctrl+Shift+Z (Redo), Ctrl+Enter (search forward), Ctrl+Shift+Enter (search backward), Alt+Enter (jump to address)
 

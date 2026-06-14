@@ -48,6 +48,7 @@ impl DesktopApp {
 
     pub(crate) fn handle_focus_reconciled(
         &mut self,
+        generation: u64,
         hit: Option<iced::widget::Id>,
     ) -> Task<Message> {
         const TRACKED: [&str; 7] = [
@@ -60,6 +61,10 @@ impl DesktopApp {
             OPCODE_SEARCH_INPUT_ID,
         ];
 
+        if generation != self.mouse_press_generation {
+            return Task::none();
+        }
+
         self.undo_stack.break_coalescing();
 
         let resolved = hit.as_ref().and_then(|id| {
@@ -67,6 +72,17 @@ impl DesktopApp {
                 .into_iter()
                 .find(|known| *id == iced::widget::Id::new(known))
         });
+
+        if let Some((guard_generation, input)) = self.replacement_reconcile_guard.take()
+            && generation == guard_generation
+        {
+            self.focused_input = Some(input);
+            return iced::widget::operation::focus(input);
+        }
+
+        if resolved != self.focused_input {
+            self.finish_replacement();
+        }
 
         if self.inline_register_just_entered {
             self.inline_register_just_entered = false;
@@ -159,6 +175,7 @@ impl DesktopApp {
         if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
             return self.cancel_inline_memory_edit().chain(resolve);
         }
+        self.finish_replacement();
         if self.active_register_target.is_some() {
             self.active_register_target = None;
             self.inline_register_target = None;
@@ -197,7 +214,7 @@ pub(crate) fn ctrl_shortcut(
     modifiers: keyboard::Modifiers,
 ) -> Option<Message> {
     if let Some(direction) = super::register_inline::ctrl_arrow_move(key, modifiers) {
-        return Some(Message::RegisterCtrlArrowKey(direction));
+        return Some(Message::RegisterArrowKey(direction));
     }
     if let keyboard::Key::Named(keyboard::key::Named::Tab) = key {
         return Some(Message::SettingsSectionCycle {

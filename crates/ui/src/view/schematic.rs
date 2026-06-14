@@ -83,6 +83,7 @@ impl DesktopApp {
         let active_target = self.active_register_target;
         let inline_target = self.inline_register_target;
         let hovered_target = self.hovered_register_target;
+        let inline_placeholder = self.input_placeholder(crate::app::REGISTER_INLINE_INPUT_ID, "00");
 
         let registers_grid = column![
             row![
@@ -97,6 +98,7 @@ impl DesktopApp {
                         hovered: hovered_target == Some(accumulator_target),
                     },
                     &self.register_value_input,
+                    inline_placeholder,
                 ),
                 Space::new().width(Length::Fill),
                 functional_block(
@@ -110,6 +112,7 @@ impl DesktopApp {
                         hovered: hovered_target == Some(buffer1_target),
                     },
                     &self.register_value_input,
+                    inline_placeholder,
                 ),
                 Space::new().width(Length::Fill),
                 functional_block(
@@ -123,6 +126,7 @@ impl DesktopApp {
                         hovered: hovered_target == Some(buffer2_target),
                     },
                     &self.register_value_input,
+                    inline_placeholder,
                 ),
             ]
             .spacing(14),
@@ -235,6 +239,7 @@ impl DesktopApp {
                 self.active_register_target,
                 self.hovered_register_target,
                 &self.register_value_input,
+                inline_placeholder,
                 MuxRegisterValues {
                     b: self.display_register_value(RegisterName::B),
                     c: self.display_register_value(RegisterName::C),

@@ -25,6 +25,10 @@ pub enum AppCommand {
     SetRegister(RegisterName, u8),
     SetPc(u16),
     SetMemory(u16, u8),
+    SetMemoryBlock {
+        start: u16,
+        values: Vec<u8>,
+    },
     ApplyCpuState(Box<Cpu8080State>),
     ExportTxt(PathBuf),
     ExportXlsx(PathBuf),

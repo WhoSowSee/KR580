@@ -363,15 +363,15 @@ pub(super) fn translate(key: Key) -> &'static str {
 
         Key::StatusByteHeader => "Status byte T1: what the CPU is doing on this tact.",
         Key::StatusPrefix => "Status:",
-
         Key::StatusNoProgramAt => "No program at address",
         Key::StatusNothingToUndo => "Nothing to undo",
         Key::StatusNothingToRedo => "Nothing to redo",
         Key::StatusEnterHexPattern => "Enter a hex pattern to search",
+        Key::StatusInvalidMemoryBytes => "Invalid bytes: use space-separated hex pairs",
+        Key::StatusMemoryBytesOutOfRange => "The byte sequence does not fit in memory",
         Key::StatusPatternFound => "Found pattern",
         Key::StatusAtAddress => "at address",
         Key::StatusNoMatchesFor => "No addresses match",
-
         Key::ErrNotA580File => "Not a .580 file – only .580 extension is supported",
         Key::ErrFileEmpty => "File is empty",
         Key::ErrWrong580Size => "Not a valid .580 file (must be exactly 65549 bytes)",

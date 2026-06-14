@@ -41,6 +41,50 @@ pub(super) fn bounded_hex_input(input: &str, max_len: usize) -> Option<String> {
     Some(input.to_ascii_uppercase())
 }
 
+pub(super) fn parse_hex_byte_sequence(input: &str) -> Result<Option<Vec<u8>>, ()> {
+    let tokens = input.split_whitespace().collect::<Vec<_>>();
+    if tokens.len() <= 1 && input.trim().len() <= 2 {
+        return if input.trim().chars().all(|char| char.is_ascii_hexdigit()) {
+            Ok(None)
+        } else {
+            Err(())
+        };
+    }
+
+    let mut values = Vec::with_capacity(tokens.len());
+    for token in tokens {
+        if token.len() != 2 || !token.chars().all(|char| char.is_ascii_hexdigit()) {
+            return Err(());
+        }
+        values.push(u8::from_str_radix(token, 16).map_err(|_| ())?);
+    }
+    Ok(Some(values))
+}
+
+pub(super) fn parse_hex_byte_sequence_edit(
+    input: &str,
+    existing: &str,
+) -> Result<Option<Vec<u8>>, ()> {
+    match parse_hex_byte_sequence(input) {
+        Err(()) => {}
+        result => return result,
+    }
+    if existing.len() != 2 || !existing.is_ascii() || !input.is_ascii() {
+        return Err(());
+    }
+    for split in 0..=existing.len() {
+        let (prefix, suffix) = existing.split_at(split);
+        if let Some(candidate) = input
+            .strip_prefix(prefix)
+            .and_then(|value| value.strip_suffix(suffix))
+            && let Ok(Some(values)) = parse_hex_byte_sequence(candidate)
+        {
+            return Ok(Some(values));
+        }
+    }
+    Err(())
+}
+
 const VALID_REGISTER_CHARS: [char; 7] = ['A', 'B', 'C', 'D', 'E', 'H', 'L'];
 
 pub(super) fn bounded_register_input(input: &str) -> Option<String> {

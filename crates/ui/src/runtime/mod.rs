@@ -7,6 +7,7 @@ pub(crate) mod humanize_error;
 mod memory;
 pub(crate) mod parse;
 mod register;
+mod replacement;
 pub(crate) mod storage_files;
 mod undo;
 

@@ -23,7 +23,7 @@ impl DesktopApp {
             Message::Tick
             | Message::CursorMoved(_)
             | Message::ModifiersChanged(_)
-            | Message::FocusReconciled(_)
+            | Message::FocusReconciled { .. }
             | Message::ResolveFocusedTracker(_) => None,
             Message::CloseSettings
             | Message::SaveSettings

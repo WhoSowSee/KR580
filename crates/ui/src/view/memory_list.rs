@@ -36,6 +36,7 @@ impl DesktopApp {
             (self.memory_scroll_first_row as usize).saturating_sub(MEMORY_OVERSCAN_ROWS);
         let render_end = (render_start + MEMORY_RENDER_ROWS).min(MEMORY_ADDRESS_COUNT);
         let mut rows: Column<'_, Message> = Column::new().spacing(0);
+        let inline_placeholder = self.input_placeholder(MEMORY_INLINE_INPUT_ID, "00");
 
         if render_start > 0 {
             rows = rows.push(memory_spacer(render_start));
@@ -54,6 +55,7 @@ impl DesktopApp {
                 selected == Some(address.saturating_add(1)),
                 halted_here,
                 &self.memory_inline_value_input,
+                inline_placeholder,
             ));
         }
 
@@ -136,6 +138,7 @@ fn memory_row<'a>(
     next_selected: bool,
     halted_here: bool,
     inline_value_input: &'a str,
+    inline_placeholder: &'a str,
 ) -> Element<'a, Message> {
     let value = cpu.memory.read(address);
     // Mirror the in-progress inline edit on the selected row so the
@@ -161,7 +164,13 @@ fn memory_row<'a>(
     let cells_row: Element<'a, Message> = container(
         row![
             address_cell(address, accent),
-            memory_value_cell(value, address, selected, inline_value_input),
+            memory_value_cell(
+                value,
+                address,
+                selected,
+                inline_value_input,
+                inline_placeholder,
+            ),
             command_cell(command, address),
         ]
         .spacing(0)
@@ -226,7 +235,7 @@ fn address_cell(address: u16, accent: iced::Color) -> Element<'static, Message> 
     container(cell_mouse_area(
         mono_text(format!("{address:04X}"), 14, accent),
         Message::MemorySelected(address),
-        Message::MemoryEnter(address),
+        Message::MemoryReplace(address),
     ))
     .width(Length::FillPortion(1))
     .height(Length::Fill)
@@ -240,7 +249,7 @@ fn address_cell(address: u16, accent: iced::Color) -> Element<'static, Message> 
 fn command_cell(command: String, address: u16) -> Element<'static, Message> {
     let glyph: Element<'static, Message> = mouse_area(mono_text(command, 14, TOKYO_TEXT))
         .on_press(Message::OpcodeDropdownToggled(address))
-        .on_double_click(Message::MemoryEnter(address))
+        .on_double_click(Message::MemoryReplace(address))
         .interaction(iced::mouse::Interaction::Pointer)
         .into();
 
@@ -252,7 +261,7 @@ fn command_cell(command: String, address: u16) -> Element<'static, Message> {
 
     let cell = mouse_area(body)
         .on_press(Message::MemorySelected(address))
-        .on_double_click(Message::MemoryEnter(address));
+        .on_double_click(Message::MemoryReplace(address));
 
     container(cell)
         .width(Length::FillPortion(1))
@@ -265,10 +274,11 @@ fn memory_value_cell<'a>(
     address: u16,
     selected: bool,
     inline_value_input: &'a str,
+    inline_placeholder: &'a str,
 ) -> Element<'a, Message> {
     if selected {
         let editor: Element<'a, Message> = container(
-            text_input("00", inline_value_input)
+            text_input(inline_placeholder, inline_value_input)
                 .id(MEMORY_INLINE_INPUT_ID)
                 .on_input(move |value| Message::InlineMemoryValueChanged(address, value))
                 .on_submit(Message::ApplyInlineMemoryValue(address))
@@ -287,7 +297,7 @@ fn memory_value_cell<'a>(
 
         let body = mouse_area(editor)
             .on_press(Message::MemorySelected(address))
-            .on_double_click(Message::MemoryEnter(address))
+            .on_double_click(Message::MemoryReplace(address))
             .interaction(iced::mouse::Interaction::Pointer);
 
         container(body)
@@ -299,13 +309,12 @@ fn memory_value_cell<'a>(
     }
 }
 
-/// Single click on the value column means "let me type here", so
-/// both single-click and double-click open the inline editor.
+/// Single-click edits in place; double-click starts with an empty replacement field.
 fn value_cell_button(value: u8, address: u16) -> Element<'static, Message> {
     let glyph: Element<'static, Message> =
         mouse_area(mono_text(format!("{value:02X}"), 14, TOKYO_GREEN))
             .on_press(Message::MemoryEnter(address))
-            .on_double_click(Message::MemoryEnter(address))
+            .on_double_click(Message::MemoryReplace(address))
             .interaction(iced::mouse::Interaction::Text)
             .into();
 
@@ -317,7 +326,7 @@ fn value_cell_button(value: u8, address: u16) -> Element<'static, Message> {
             .align_y(alignment::Vertical::Center),
     )
     .on_press(Message::MemorySelected(address))
-    .on_double_click(Message::MemoryEnter(address))
+    .on_double_click(Message::MemoryReplace(address))
     .interaction(iced::mouse::Interaction::Pointer);
 
     container(body)

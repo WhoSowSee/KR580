@@ -159,6 +159,21 @@ mod tests {
     }
 
     #[test]
+    fn reset_cpu_follows_pc_after_halt_was_cleared_manually() {
+        let mut app = app_with_clean_startup();
+        app.select_memory(0x0010);
+
+        let _ = app.update(Message::ToggleHalt);
+        let _ = app.update(Message::ToggleHalt);
+        let _ = app.update(Message::ResetCpu);
+        let _ = app.update(Message::Tick);
+
+        assert!(!app.snapshot.cpu.halted);
+        assert_eq!(app.snapshot.cpu.pc, 0x0000);
+        assert_eq!(app.memory_address_input, "0000");
+    }
+
+    #[test]
     fn step_instruction_keeps_halt_opcode_selected() {
         let mut app = app_with_clean_startup();
         app.select_memory(0x0010);

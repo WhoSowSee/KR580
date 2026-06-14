@@ -55,6 +55,8 @@ pub(crate) enum StatusKind {
     NothingToUndo,
     NothingToRedo,
     EnterHexPattern,
+    InvalidMemoryBytes,
+    MemoryBytesOutOfRange,
     PatternFound {
         pattern: String,
         address: u16,
@@ -108,6 +110,8 @@ impl StatusKind {
             Self::NothingToUndo => lang.t(Key::StatusNothingToUndo).to_owned(),
             Self::NothingToRedo => lang.t(Key::StatusNothingToRedo).to_owned(),
             Self::EnterHexPattern => lang.t(Key::StatusEnterHexPattern).to_owned(),
+            Self::InvalidMemoryBytes => lang.t(Key::StatusInvalidMemoryBytes).to_owned(),
+            Self::MemoryBytesOutOfRange => lang.t(Key::StatusMemoryBytesOutOfRange).to_owned(),
             Self::PatternFound { pattern, address } => format!(
                 "{} {pattern} {} {address:04X}",
                 lang.t(Key::StatusPatternFound),

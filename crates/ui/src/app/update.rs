@@ -41,12 +41,17 @@ impl DesktopApp {
                 self.latest_cursor_position = point;
             }
             Message::MousePressed | Message::MousePressedIgnored => {
+                self.mouse_press_generation = self.mouse_press_generation.wrapping_add(1);
+                let generation = self.mouse_press_generation;
+                self.handle_replacement_double_click(generation);
                 return iced::advanced::widget::operate(crate::runtime::find_focusable_at(
                     self.latest_cursor_position,
                 ))
-                .map(Message::FocusReconciled);
+                .map(move |hit| Message::FocusReconciled { generation, hit });
             }
-            Message::FocusReconciled(hit) => return self.handle_focus_reconciled(hit),
+            Message::FocusReconciled { generation, hit } => {
+                return self.handle_focus_reconciled(generation, hit);
+            }
             Message::ResolveFocusedTracker(None) => {
                 self.focused_input = None;
             }
@@ -58,6 +63,7 @@ impl DesktopApp {
             Message::ResetCpu => {
                 self.run_blocked_after_halt = false;
                 self.dispatch_with_undo(k580_app::AppCommand::ResetCpu);
+                self.pending_follow_pc = true;
             }
             Message::ResetRam => {
                 self.run_blocked_after_halt = false;
@@ -152,6 +158,11 @@ impl DesktopApp {
                 self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
                 return iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID);
             }
+            Message::RegisterReplace(target) if !self.running => {
+                self.enter_inline_register_replacing(target);
+                self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
+                return iced::widget::operation::focus(REGISTER_INLINE_INPUT_ID);
+            }
             Message::InlineRegisterValueChanged(target, value) if !self.running => {
                 self.change_inline_register_value(target, value);
                 self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
@@ -172,6 +183,11 @@ impl DesktopApp {
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
                 return Task::done(Message::RefocusInline);
             }
+            Message::MemoryReplace(address) if !self.running => {
+                self.enter_inline_memory_replacing(address);
+                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+                return Task::done(Message::RefocusInline);
+            }
             Message::RefocusInline => {
                 return iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID);
             }
@@ -183,7 +199,7 @@ impl DesktopApp {
             Message::HorizontalArrowKey(direction) => {
                 return self.handle_horizontal_arrow_key(direction);
             }
-            Message::RegisterCtrlArrowKey(direction) => {
+            Message::RegisterArrowKey(direction) => {
                 return self.navigate_inline_register_target(direction);
             }
             Message::MemoryScrolled(offset, viewport_height) => {
@@ -214,9 +230,14 @@ impl DesktopApp {
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
             }
             Message::ApplyInlineMemoryValue(address) if !self.running => {
+                let replacing = self.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
                 let backward = self.keyboard_modifiers.shift();
                 self.apply_inline_memory_value(address);
                 let step = self.step_memory_address(if backward { -1 } else { 1 });
+                if replacing {
+                    self.begin_replacement(MEMORY_INLINE_INPUT_ID);
+                }
+                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
                 return step.chain(iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID));
             }
             Message::OpcodeDropdownToggled(address) if !self.running => {

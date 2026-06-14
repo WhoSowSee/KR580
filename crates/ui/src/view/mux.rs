@@ -29,6 +29,7 @@ struct MuxEditState<'a> {
     active_target: Option<RegisterInlineTarget>,
     hovered_target: Option<RegisterInlineTarget>,
     input_value: &'a str,
+    input_placeholder: &'a str,
     has_selection: bool,
     running: bool,
 }
@@ -53,6 +54,7 @@ pub(super) fn mux_panel<'a>(
     active_target: Option<RegisterInlineTarget>,
     hovered_target: Option<RegisterInlineTarget>,
     input_value: &'a str,
+    input_placeholder: &'a str,
     values: MuxRegisterValues,
     lang: Lang,
     has_register_selection: bool,
@@ -64,6 +66,7 @@ pub(super) fn mux_panel<'a>(
         active_target,
         hovered_target,
         input_value,
+        input_placeholder,
         has_selection: has_register_selection,
         running,
     };
@@ -260,7 +263,7 @@ fn mux_register_cell(
     let label_color = if is_selected { TOKYO_BLUE } else { TOKYO_MUTED };
 
     let value: Element<'_, Message> = if editing && !edit_state.running {
-        text_input("00", edit_state.input_value)
+        text_input(edit_state.input_placeholder, edit_state.input_value)
             .id(REGISTER_INLINE_INPUT_ID)
             .on_input(move |value| Message::InlineRegisterValueChanged(target, value))
             .on_submit(Message::ApplyInlineRegisterValue(target))
@@ -278,6 +281,7 @@ fn mux_register_cell(
                 .align_x(alignment::Horizontal::Center),
         )
         .on_press(Message::RegisterEnter(target))
+        .on_double_click(Message::RegisterReplace(target))
         .interaction(iced::mouse::Interaction::Pointer)
         .into()
     };
@@ -308,7 +312,7 @@ fn mux_register_cell(
         area.on_press(Message::RegisterEnter(target)).into()
     } else {
         area.on_press(Message::RegisterSelected(target))
-            .on_double_click(Message::RegisterEnter(target))
+            .on_double_click(Message::RegisterReplace(target))
             .into()
     }
 }

@@ -14,6 +14,7 @@ use super::parse::{
 
 impl DesktopApp {
     pub(crate) fn select_register(&mut self, register: RegisterName) {
+        self.finish_replacement();
         self.selected_register = register;
         self.register_name_input = register_name(register).to_owned();
         self.register_value_input = format!("{:02X}", self.snapshot.cpu.registers.get(register));
@@ -22,6 +23,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn select_register_target(&mut self, target: RegisterInlineTarget) {
+        self.finish_replacement();
         self.selected_register = target.register();
         self.register_name_input = register_name(self.selected_register).to_owned();
         self.register_value_input = format!(
@@ -34,6 +36,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn enter_inline_register(&mut self, target: RegisterInlineTarget) {
+        self.finish_replacement();
         self.selected_register = target.register();
         self.register_name_input = register_name(self.selected_register).to_owned();
         self.register_value_input = format!(
@@ -43,6 +46,11 @@ impl DesktopApp {
         self.active_register_target = Some(target);
         self.inline_register_target = Some(target);
         self.inline_register_just_entered = true;
+    }
+
+    pub(crate) fn enter_inline_register_replacing(&mut self, target: RegisterInlineTarget) {
+        self.enter_inline_register(target);
+        self.begin_replacement(REGISTER_INLINE_INPUT_ID);
     }
 
     pub(crate) fn change_register_name(&mut self, value: String) {
@@ -69,6 +77,9 @@ impl DesktopApp {
 
     pub(crate) fn change_register_value(&mut self, value: String) {
         if let Some(value) = bounded_hex_input(&value, 2) {
+            if !value.is_empty() && self.materialize_input_fallback(REGISTER_NAME_INPUT_ID) {
+                self.selected_register = RegisterName::A;
+            }
             let before = self.register_value_input.clone();
             self.register_value_input = value;
             self.undo_stack.push_text(
@@ -92,7 +103,14 @@ impl DesktopApp {
 
     pub(crate) fn display_register_value(&self, register: RegisterName) -> String {
         if parse_register_name(&self.register_name_input) == Some(register) {
-            self.register_value_input.clone()
+            if self.register_value_input.is_empty()
+                && (self.replacement_input == Some(REGISTER_VALUE_INPUT_ID)
+                    || self.replacement_input == Some(REGISTER_INLINE_INPUT_ID))
+            {
+                self.replacement_placeholder.clone()
+            } else {
+                self.register_value_input.clone()
+            }
         } else {
             format!("{:02X}", self.snapshot.cpu.registers.get(register))
         }
@@ -103,6 +121,7 @@ impl DesktopApp {
         target: RegisterInlineTarget,
         backward: bool,
     ) -> Task<Message> {
+        let replacing = self.replacement_input == Some(REGISTER_INLINE_INPUT_ID);
         self.selected_register = target.register();
         self.register_name_input = register_name(self.selected_register).to_owned();
         self.inline_register_target = Some(target);
@@ -110,6 +129,9 @@ impl DesktopApp {
         if let Some(next) = next {
             self.apply_register_with_step_selection(next.register());
             self.enter_inline_register(next);
+            if replacing {
+                self.begin_replacement(REGISTER_INLINE_INPUT_ID);
+            }
             self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
             operation::focus(REGISTER_INLINE_INPUT_ID)
         } else {
@@ -162,12 +184,17 @@ impl DesktopApp {
             return operation::focus(REGISTER_INLINE_INPUT_ID);
         };
 
+        let replacing = self.replacement_input == Some(REGISTER_INLINE_INPUT_ID);
         self.enter_inline_register(next);
+        if replacing {
+            self.begin_replacement(REGISTER_INLINE_INPUT_ID);
+        }
         self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
         operation::focus(REGISTER_INLINE_INPUT_ID)
     }
 
     pub(crate) fn step_register_value_input(&mut self, delta: i32) {
+        self.commit_replacement(REGISTER_VALUE_INPUT_ID);
         let current = parse_hex_u8(&self.register_value_input).unwrap_or(0);
         let next = saturating_step_u8(current, delta);
         self.register_value_input = format!("{next:02X}");
@@ -191,6 +218,9 @@ impl DesktopApp {
     /// Inlines the dispatch instead of going through `dispatch_with_undo`
     /// so the undo entry can carry the optional register selection.
     fn apply_register_inner(&mut self, register_selection: Option<(RegisterName, RegisterName)>) {
+        self.commit_replacement(REGISTER_NAME_INPUT_ID);
+        self.commit_replacement(REGISTER_VALUE_INPUT_ID);
+        self.commit_replacement(REGISTER_INLINE_INPUT_ID);
         if self.register_name_input.is_empty() {
             return;
         }
@@ -223,6 +253,9 @@ impl DesktopApp {
     }
 
     pub(crate) fn apply_register_and_step(&mut self, backward: bool) -> Task<Message> {
+        let replacement = self.replacement_input;
+        self.commit_replacement(REGISTER_NAME_INPUT_ID);
+        self.commit_replacement(REGISTER_VALUE_INPUT_ID);
         if self.register_name_input.is_empty() {
             return Task::none();
         }
@@ -241,7 +274,78 @@ impl DesktopApp {
         } else {
             REGISTER_NAME_INPUT_ID
         };
+        if replacement == Some(target) {
+            self.begin_replacement(target);
+        }
         self.focused_input = Some(target);
         operation::focus(target)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DesktopApp;
+    use crate::app::{REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID, RegisterInlineTarget};
+    use k580_core::RegisterName;
+
+    #[test]
+    fn tab_to_register_value_starts_replacement_and_enter_keeps_it_for_next_register() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.select_register_target(RegisterInlineTarget::Mux(RegisterName::B));
+        let focused = iced::widget::Id::new(REGISTER_NAME_INPUT_ID);
+
+        let _ = app.cycle_focus(focused, false);
+        assert_eq!(app.focused_input, Some(REGISTER_VALUE_INPUT_ID));
+        assert!(app.register_value_input.is_empty());
+        assert_eq!(app.input_placeholder(REGISTER_VALUE_INPUT_ID, "00"), "00");
+
+        let _ = app.apply_register_and_step(false);
+
+        assert_eq!(app.selected_register, RegisterName::C);
+        assert!(app.register_value_input.is_empty());
+        assert_eq!(app.snapshot.cpu.registers.b, 0x00);
+    }
+
+    #[test]
+    fn double_click_register_edit_keeps_replacement_mode_on_next_register() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        let target = RegisterInlineTarget::Mux(RegisterName::B);
+        app.enter_inline_register_replacing(target);
+
+        assert!(app.register_value_input.is_empty());
+        assert_eq!(
+            app.input_placeholder(crate::app::REGISTER_INLINE_INPUT_ID, "00"),
+            "00"
+        );
+
+        let _ = app.apply_inline_register_value(target, false);
+
+        assert_eq!(app.selected_register, RegisterName::C);
+        assert!(app.register_value_input.is_empty());
+        assert_eq!(app.snapshot.cpu.registers.b, 0x00);
+    }
+
+    #[test]
+    fn value_input_uses_register_a_when_the_register_field_is_empty() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.register_name_input.clear();
+        app.register_value_input.clear();
+        app.selected_register = RegisterName::C;
+
+        let _ = app.update(crate::app::Message::RegisterValueChanged("41".to_owned()));
+
+        assert_eq!(app.register_name_input, "A");
+        assert_eq!(app.selected_register, RegisterName::A);
+        assert_eq!(app.register_value_input, "41");
+    }
+
+    #[test]
+    fn invalid_value_does_not_fill_an_empty_register_field() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.register_name_input.clear();
+
+        let _ = app.update(crate::app::Message::RegisterValueChanged("GG".to_owned()));
+
+        assert!(app.register_name_input.is_empty());
     }
 }

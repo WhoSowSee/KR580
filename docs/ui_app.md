@@ -2,7 +2,8 @@
 
 `k580-app` owns the emulator and exposes PascalCase commands such as
 `ResetCpu`, `StepTact`, `RunForTStates`, `StepInstruction`, `Run`, `Stop`,
-`SetStepInterval`, `SetRunMode`, `SetRegister`, `SetMemory`, `ReadPort`,
+`SetStepInterval`, `SetRunMode`, `SetRegister`, `SetMemory`,
+`SetMemoryBlock`, `ReadPort`,
 `WritePort`, `LoadSnapshot`, `SaveSnapshot`, `LoadSubprogram`, and direct
 export commands.
 
@@ -1189,9 +1190,10 @@ there is no next step (the gestures are blocked), and the
 `StateChanged`, which on a halted CPU is the same post-halt snapshot
 the worker keeps republishing (`pc = halt_pc + 1`); `apply_snapshot`
 then reads that PC back into the spinner and the visible address
-jumps one cell forward on every click. Skipping the dispatch lets
-the user browse memory freely after HLT – the next reset reattaches
-PC to whatever address they end up clicking on.
+jumps one cell forward on every click. Skipping the dispatch lets the
+user browse memory freely after HLT. `Message::ResetCpu` always arms
+`pending_follow_pc`, so the next worker snapshot reattaches the memory
+selection to reset PC `0000` even if HLT was cleared manually first.
 
 ### Esc reverts unsaved inline memory edits
 
@@ -1671,7 +1673,18 @@ save, and the same rule applies to the rest of the letter shortcuts.
 | Alt+Enter | Step to the next sequential address (same as ArrowDown). Never writes memory, never touches the search pattern cache. |
 | ArrowUp / ArrowDown (in address field) | Step the highlighted address by one. |
 | ArrowUp / ArrowDown (in value field) | Bump the byte in the value field by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to memory until Enter; ArrowUp on `FF` and ArrowDown on `00` are no-ops. |
-| Tab / Shift+Tab | Cycle focus between the two fields of this panel only. |
+| Tab / Shift+Tab | Cycle focus between the two fields of this panel only. The destination is cleared for replacement while its previous value remains visible as the placeholder. |
+
+Pasting two or more whitespace-separated hexadecimal bytes into the
+value field writes them immediately into consecutive addresses. Every
+token must contain exactly two hexadecimal digits and the complete
+range must fit in 64 KiB; invalid input leaves the whole range unchanged
+and shows a localized status without echoing the pasted text. A pasted
+sequence replaces the existing two-digit byte even when it was not
+cleared first and the caret is before, inside, or after that byte.
+Entering a valid value while the address field is empty materializes its
+`0000` placeholder and uses that address, including for a pasted byte
+sequence.
 
 ### Register editor (name + value pair)
 
@@ -1680,13 +1693,14 @@ save, and the same rule applies to the rest of the letter shortcuts.
 | Enter | Apply the typed value to the typed register. |
 | ArrowUp / ArrowDown (in name field) | Cycle to the previous/next register in `A B C D E H L`. |
 | ArrowUp / ArrowDown (in value field) | Bump the byte in the value field by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to the register until Enter; ArrowUp on `FF` and ArrowDown on `00` are no-ops. |
-| Tab / Shift+Tab | Cycle focus between the two fields of this panel only. |
+| Tab / Shift+Tab | Cycle focus between the two fields of this panel only. The destination is cleared for replacement while its previous value remains visible as the placeholder. |
 
 The schematic register chips mirror the memory-row editing contract:
 single-click on the numeric value of `A`, `B`, `C`, `D`, `E`, `H`, or
-`L` opens the inline hex editor; single-click on the rest of the chip
-only selects that register in the right-side editor. Double-click
-anywhere inside the same chip opens the inline editor. The `A/B/C`
+`L` opens the inline hex editor with the current value selected normally;
+single-click on the rest of the chip only selects that register in the
+right-side editor. Double-click anywhere inside the same chip opens an
+empty replacement field with the current value as its placeholder. The `A/B/C`
 schematic chips reserve the same fixed value slot for both the 24 px
 readout and the inline `text_input`; the input also uses a small
 top-padding compensation because iced renders text-input glyphs higher
@@ -1702,14 +1716,13 @@ Enter/Shift+Enter closes only the inline editor and leaves the register
 cell selected. Esc discards the pending byte, closes only the inline
 editor, and also keeps the register cell selected. When a register cell
 is selected but not editing, Enter opens the inline editor.
-ArrowUp/ArrowDown inside the inline field bumps the buffered byte
-without committing it; outside edit mode, arrows move only inside the
-active visual group. The schematic buffer row responds only to
-Left/Right (`A/B/C`); the mux grid responds to Left/Right between
-columns and Up/Down between rows (`B/C`, `D/E`, `H/L`). While the inline
-register input owns the caret, Ctrl+Arrow uses the same cell navigation
-instead of moving the text cursor inside the two hex digits; the target
-cell remains in inline edit mode. All readouts for the active register
+Arrow keys inside the inline field move only inside the active visual
+group. The schematic buffer row responds to Left/Right (`A/B/C`); the
+mux grid responds to Left/Right between columns and Up/Down between rows
+(`B/C`, `D/E`, `H/L`). Ctrl+Arrow remains an equivalent grid-navigation
+gesture. When replacement mode is active, every arrow transition opens
+the target cell empty and shows its current value as the placeholder.
+All readouts for the active register
 share the same pending
 `register_value_input`: typing `B=7F` in the right-side editor updates
 the top «Буферный регистр 1» and the mux `B` cell immediately, and
@@ -1721,14 +1734,18 @@ does the inverse: it clears the active register target, so subsequent
 unfocused ArrowUp/ArrowDown presses browse the memory list again rather
 than continuing to move the register highlight.
 
+Entering a valid value in the right-side register editor while the
+register-name field is empty materializes its `A` placeholder and targets
+the accumulator. Invalid value input leaves the register field empty.
+
 ### Memory list (the inline value cell of the selected row)
 
 | Shortcut | Effect |
 |---|---|
-| Enter | Apply the typed value to the selected address. |
-| Tab / Shift+Tab | Move the selection to the next/previous address and refocus the inline editor for the new row. |
+| Enter | Apply the typed value to the selected address. An empty replacement field keeps the previous byte. |
+| Tab / Shift+Tab | Move the selection to the next/previous address and refocus an empty replacement editor for the new row. |
 | Esc | Discard the unsaved byte typed into the inline editor and restore it to the value currently in memory. With no pending edit, falls through to closing the opcode dropdown. |
-| ArrowUp / ArrowDown (inline editor focused) | Bump the byte in the inline editor by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to memory until Enter. |
+| ArrowUp / ArrowDown (inline editor focused) | Move to the previous/next address and preserve replacement mode: the target editor is empty and its current byte is the placeholder. |
 | ArrowUp / ArrowDown (no editor focused) | Move the highlighted address by one. |
 | PageUp / PageDown | Move the highlighted address by 16. |
 
@@ -1870,12 +1887,26 @@ each file under the 400-line ceiling:
 ## Focus rings and styling
 
 The two paired panels each form a closed two-element focus ring that Tab
-and Shift+Tab simply swap. Focus is moved via
+and Shift+Tab simply swap. The destination value is cleared, while its
+previous content becomes the placeholder; submitting without typing
+restores that content. If the field was already empty and displayed its
+standard placeholder, replacement preserves that visible default instead
+of replacing it with an empty placeholder. Leaving such a field through
+Esc, Tab, Shift+Tab, or a mouse focus change keeps its stored value empty;
+the fallback becomes real only when the edit is explicitly submitted or a
+valid value is entered in the paired field. Focus is moved via
 `iced::widget::operation::focus(id)`, and the destination is decided in
 `runtime::cycle_focus` based on the id reported by
 `iced::advanced::widget::operation::focusable::find_focused()`. The
 inline-editor case handles Tab as "advance the selected address and
 refocus the same id", which iced re-renders against the new row.
+
+Double-click replacement is tracked from the global left-button stream.
+This preserves the first click across the iced widget-tree change from a
+static value to `text_input`; a local `mouse_area` loses its click history
+when that first click replaces the widget. Focus reconciliation results are
+tagged with the originating mouse-press generation, so a result from the old
+widget tree cannot cancel replacement after the second click.
 
 The address spinner and the register spinner are wrapped in `mouse_area`
 to surface hover events. Focus state is not exposed by `text_input` in
@@ -1893,7 +1924,8 @@ that does not contain the click runs the same clearing branch in
 `text_input::update`). Both paths chain a `find_focused_optional()`
 operation onto whatever else they do – Esc fires it from
 `Message::EscPressed`, dead-space clicks fire it from the
-`FocusReconciled(None)` branch – and the `Message::ResolveFocusedTracker`
+`FocusReconciled { hit: None, .. }` branch – and the
+`Message::ResolveFocusedTracker`
 handler clears `focused_input` iff iced reports no focusable still owns
 the caret. The `_optional` variant lives in `runtime::focus_ops` because
 the built-in `iced::advanced::widget::operation::focusable::find_focused`
@@ -1902,7 +1934,7 @@ drop the message exactly when we need it most. Wrapping the answer in
 `Option<Id>` and returning `Outcome::Some(option)` makes the report
 unconditional.
 
-The `FocusReconciled(Some(_))` branch never needs the poll: the
+The `FocusReconciled { hit: Some(_), .. }` branch never needs the poll: the
 two-pass click reconciler in `runtime::focus_ops` already chained
 `unfocus_except(hit)` and updated `focused_input` to the resolved id
 on the same frame.

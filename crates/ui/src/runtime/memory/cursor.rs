@@ -6,11 +6,17 @@ use crate::runtime::parse::{parse_hex_u16, scroll_memory_to};
 
 impl DesktopApp {
     pub(crate) fn select_memory(&mut self, address: u16) {
+        self.finish_replacement();
         self.active_register_target = None;
         self.inline_register_target = None;
         self.opcode_dropdown_address = None;
         self.opcode_search_input.clear();
         self.set_memory_address(address);
+    }
+
+    pub(crate) fn enter_inline_memory_replacing(&mut self, address: u16) {
+        self.select_memory(address);
+        self.begin_replacement(crate::app::MEMORY_INLINE_INPUT_ID);
     }
 
     pub(crate) fn selected_memory_address(&self) -> Option<u16> {

@@ -191,10 +191,11 @@ pub(super) fn functional_block<'a>(
     target: RegisterInlineTarget,
     state: FunctionalBlockState,
     input_value: &'a str,
+    input_placeholder: &'a str,
 ) -> Element<'a, Message> {
     let value: Element<'_, Message> = if state.editing {
         container(
-            text_input("00", input_value)
+            text_input(input_placeholder, input_value)
                 .id(REGISTER_INLINE_INPUT_ID)
                 .on_input(move |value| Message::InlineRegisterValueChanged(target, value))
                 .on_submit(Message::ApplyInlineRegisterValue(target))
@@ -219,6 +220,7 @@ pub(super) fn functional_block<'a>(
                 .align_y(alignment::Vertical::Center),
         )
         .on_press(Message::RegisterEnter(target))
+        .on_double_click(Message::RegisterReplace(target))
         .interaction(iced::mouse::Interaction::Pointer)
         .into()
     };
@@ -246,7 +248,7 @@ pub(super) fn functional_block<'a>(
         area.on_press(Message::RegisterEnter(target)).into()
     } else {
         area.on_press(Message::RegisterSelected(target))
-            .on_double_click(Message::RegisterEnter(target))
+            .on_double_click(Message::RegisterReplace(target))
             .into()
     }
 }

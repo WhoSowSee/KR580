@@ -1,10 +1,16 @@
-use crate::app::{DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message};
+use crate::app::{
+    DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message,
+    StatusKind,
+};
 use iced::Task;
 use iced::widget::operation;
 use k580_app::AppCommand;
 
 use crate::app::filtered_opcode_choices;
-use crate::runtime::parse::{bounded_hex_input, parse_hex_u8, parse_hex_u16, saturating_step_u8};
+use crate::runtime::parse::{
+    bounded_hex_input, parse_hex_byte_sequence_edit, parse_hex_u8, parse_hex_u16,
+    saturating_step_u8,
+};
 
 impl DesktopApp {
     pub(crate) fn change_memory_address(&mut self, value: String) {
@@ -29,7 +35,24 @@ impl DesktopApp {
     }
 
     pub(crate) fn change_memory_value(&mut self, value: String) {
+        match parse_hex_byte_sequence_edit(&value, &self.memory_value_input) {
+            Ok(Some(values)) => {
+                self.materialize_input_fallback(MEMORY_ADDRESS_INPUT_ID);
+                if let Ok(address) = parse_hex_u16(&self.memory_address_input) {
+                    self.write_memory_block(address, values);
+                }
+                return;
+            }
+            Err(()) => {
+                self.set_status(StatusKind::InvalidMemoryBytes);
+                return;
+            }
+            Ok(None) => {}
+        }
         if let Some(value) = bounded_hex_input(&value, 2) {
+            if !value.is_empty() {
+                self.materialize_input_fallback(MEMORY_ADDRESS_INPUT_ID);
+            }
             let before = self.memory_value_input.clone();
             self.memory_value_input = value;
             self.undo_stack.push_text(
@@ -41,12 +64,24 @@ impl DesktopApp {
     }
 
     pub(crate) fn step_memory_value_input(&mut self, delta: i32) {
+        self.commit_replacement(MEMORY_VALUE_INPUT_ID);
         let current = parse_hex_u8(&self.memory_value_input).unwrap_or(0);
         let next = saturating_step_u8(current, delta);
         self.memory_value_input = format!("{next:02X}");
     }
 
     pub(crate) fn change_inline_memory_value(&mut self, address: u16, value: String) {
+        match parse_hex_byte_sequence_edit(&value, &self.memory_inline_value_input) {
+            Ok(Some(values)) => {
+                self.write_memory_block(address, values);
+                return;
+            }
+            Err(()) => {
+                self.set_status(StatusKind::InvalidMemoryBytes);
+                return;
+            }
+            Ok(None) => {}
+        }
         let Some(value) = bounded_hex_input(&value, 2) else {
             return;
         };
@@ -61,6 +96,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn apply_inline_memory_value(&mut self, address: u16) {
+        self.commit_replacement(MEMORY_INLINE_INPUT_ID);
         match parse_hex_u8(&self.memory_inline_value_input) {
             Ok(value) => {
                 self.memory_address_input = format!("{address:04X}");
@@ -146,6 +182,8 @@ impl DesktopApp {
     }
 
     pub(crate) fn apply_memory(&mut self) -> Task<Message> {
+        self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
+        self.commit_replacement(MEMORY_VALUE_INPUT_ID);
         match (
             parse_hex_u16(&self.memory_address_input),
             parse_hex_u8(&self.memory_value_input),
@@ -166,6 +204,7 @@ impl DesktopApp {
     pub(crate) fn apply_memory_and_step(&mut self, backward: bool) -> Task<Message> {
         let write = self.apply_memory();
         self.step_address_in_input(backward);
+        self.continue_replacement(MEMORY_VALUE_INPUT_ID);
         self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
         write.chain(operation::focus(MEMORY_VALUE_INPUT_ID))
     }
@@ -175,64 +214,23 @@ impl DesktopApp {
         let jump = self.jump_memory_address();
         write.chain(jump)
     }
+
+    fn write_memory_block(&mut self, start: u16, values: Vec<u8>) {
+        let end = start as usize + values.len();
+        if end > k580_core::Memory64K::SIZE {
+            self.set_status(StatusKind::MemoryBytesOutOfRange);
+            return;
+        }
+        let first = values[0];
+        self.finish_replacement();
+        self.undo_stack.break_coalescing();
+        self.dispatch_with_undo(AppCommand::SetMemoryBlock { start, values });
+        self.memory_address_input = format!("{start:04X}");
+        self.memory_value_input = format!("{first:02X}");
+        self.memory_inline_value_input = self.memory_value_input.clone();
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::DesktopApp;
-    use crate::app::{Message, OPCODE_SEARCH_INPUT_ID};
-
-    #[test]
-    fn opcode_search_navigation_walks_filtered_results_and_wraps() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.toggle_opcode_dropdown(0x1234);
-        app.change_opcode_search("MVI".to_owned());
-
-        assert_eq!(app.highlighted_opcode_value(), Some(0x06));
-
-        app.step_opcode_highlight(1);
-        assert_eq!(app.highlighted_opcode_value(), Some(0x0E));
-
-        app.step_opcode_highlight(-1);
-        assert_eq!(app.highlighted_opcode_value(), Some(0x06));
-
-        app.step_opcode_highlight(-1);
-        assert_eq!(app.highlighted_opcode_value(), Some(0x3E));
-    }
-
-    #[test]
-    fn opcode_search_keyboard_messages_control_highlight() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.toggle_opcode_dropdown(0x1234);
-        app.change_opcode_search("MVI".to_owned());
-
-        let _ = app.update(Message::FocusCycle { backward: false });
-        assert_eq!(app.highlighted_opcode_value(), Some(0x0E));
-        assert_eq!(app.focused_input, Some(OPCODE_SEARCH_INPUT_ID));
-
-        let _ = app.update(Message::FocusCycle { backward: true });
-        assert_eq!(app.highlighted_opcode_value(), Some(0x06));
-
-        let _ = app.update(Message::ArrowKey(-1));
-        assert_eq!(app.highlighted_opcode_value(), Some(0x0E));
-
-        let _ = app.update(Message::ArrowKey(1));
-        assert_eq!(app.highlighted_opcode_value(), Some(0x06));
-    }
-
-    #[test]
-    fn enter_applies_highlighted_opcode() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.toggle_opcode_dropdown(0x1234);
-        app.change_opcode_search("MVI A".to_owned());
-
-        assert_eq!(app.highlighted_opcode_value(), Some(0x3E));
-
-        let _ = app.update(Message::EnterPressed);
-
-        assert_eq!(app.opcode_dropdown_address, None);
-        assert_eq!(app.opcode_search_input, "");
-        assert_eq!(app.memory_address_input, "1234");
-        assert_eq!(app.memory_value_input, "3E");
-    }
-}
+#[path = "editor/tests.rs"]
+mod tests;

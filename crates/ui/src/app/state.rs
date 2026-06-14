@@ -63,9 +63,16 @@ pub(crate) struct DesktopApp {
     pub(crate) keyboard_modifiers: keyboard::Modifiers,
     /// Cosmetic focus marker – iced 0.14 has no on_focus / on_blur.
     pub(crate) focused_input: Option<&'static str>,
+    pub(crate) replacement_input: Option<&'static str>,
+    pub(crate) replacement_placeholder: String,
+    pub(crate) replacement_original_value: String,
     /// Cached for `MousePressed` – `ButtonPressed` carries identity
     /// only, not coordinates.
     pub(crate) latest_cursor_position: Point,
+    /// iced drops local click history when the first click swaps in a text input.
+    pub(crate) previous_left_click: Option<iced::advanced::mouse::Click>,
+    pub(crate) mouse_press_generation: u64,
+    pub(crate) replacement_reconcile_guard: Option<(u64, &'static str)>,
     pub(crate) running: bool,
     /// One-shot signal that the next `Tick` must run `follow_pc_during_run`
     /// even though `running` is already false (high-speed bursts where
@@ -224,7 +231,13 @@ impl DesktopApp {
             memory_search_pattern: None,
             keyboard_modifiers: keyboard::Modifiers::default(),
             focused_input: None,
+            replacement_input: None,
+            replacement_placeholder: String::new(),
+            replacement_original_value: String::new(),
             latest_cursor_position: Point::ORIGIN,
+            previous_left_click: None,
+            mouse_press_generation: 0,
+            replacement_reconcile_guard: None,
             running: false,
             pending_follow_pc: false,
             inline_register_just_entered: false,

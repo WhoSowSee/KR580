@@ -361,15 +361,15 @@ pub(super) fn translate(key: Key) -> &'static str {
 
         Key::StatusByteHeader => "Статусный байт T1: что процессор делает на текущем такте.",
         Key::StatusPrefix => "Статус:",
-
         Key::StatusNoProgramAt => "Нет программы по адресу",
         Key::StatusNothingToUndo => "Нечего отменять",
         Key::StatusNothingToRedo => "Нечего вернуть",
         Key::StatusEnterHexPattern => "Введите hex-шаблон для поиска",
+        Key::StatusInvalidMemoryBytes => "Некорректные байты: используйте HEX-пары через пробел",
+        Key::StatusMemoryBytesOutOfRange => "Последовательность не помещается в ОЗУ",
         Key::StatusPatternFound => "Найден шаблон",
         Key::StatusAtAddress => "по адресу",
         Key::StatusNoMatchesFor => "Нет адресов, соответствующих",
-
         Key::ErrNotA580File => "Не .580 файл – поддерживается только расширение .580",
         Key::ErrFileEmpty => "Файл пуст",
         Key::ErrWrong580Size => "Не похоже на .580 файл (должно быть ровно 65549 байт)",

@@ -8,6 +8,7 @@ use crate::runtime::parse::{parse_hex_u16, scroll_memory_to};
 
 impl DesktopApp {
     pub(crate) fn jump_memory_address(&mut self) -> Task<Message> {
+        self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         match parse_hex_u16(&self.memory_address_input) {
             Ok(address) => {
                 self.refresh_memory_value(address);
@@ -25,7 +26,9 @@ impl DesktopApp {
     }
 
     pub(crate) fn advance_memory_address(&mut self, backward: bool) -> Task<Message> {
+        self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         self.step_address_in_input(backward);
+        self.continue_replacement(MEMORY_ADDRESS_INPUT_ID);
         self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
         operation::focus(MEMORY_ADDRESS_INPUT_ID)
     }

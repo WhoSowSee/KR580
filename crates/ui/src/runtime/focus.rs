@@ -12,25 +12,36 @@ impl DesktopApp {
         backward: bool,
     ) -> Task<Message> {
         if focused == iced::widget::Id::new(MEMORY_ADDRESS_INPUT_ID) {
+            self.begin_replacement(MEMORY_VALUE_INPUT_ID);
+            self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
             return operation::focus(MEMORY_VALUE_INPUT_ID);
         }
         if focused == iced::widget::Id::new(MEMORY_VALUE_INPUT_ID) {
+            self.begin_replacement(MEMORY_ADDRESS_INPUT_ID);
+            self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
             return operation::focus(MEMORY_ADDRESS_INPUT_ID);
         }
         if focused == iced::widget::Id::new(REGISTER_NAME_INPUT_ID) {
+            self.begin_replacement(REGISTER_VALUE_INPUT_ID);
+            self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
             return operation::focus(REGISTER_VALUE_INPUT_ID);
         }
         if focused == iced::widget::Id::new(REGISTER_VALUE_INPUT_ID) {
+            self.begin_replacement(REGISTER_NAME_INPUT_ID);
+            self.focused_input = Some(REGISTER_NAME_INPUT_ID);
             return operation::focus(REGISTER_NAME_INPUT_ID);
         }
         if focused == iced::widget::Id::new(REGISTER_INLINE_INPUT_ID) {
+            self.begin_replacement(REGISTER_VALUE_INPUT_ID);
+            self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
             return operation::focus(REGISTER_VALUE_INPUT_ID);
         }
         if focused == iced::widget::Id::new(MEMORY_INLINE_INPUT_ID) {
-            // Tab on the inline editor steps the selection; the editor is
-            // re-rendered against the new row under the same id.
+            self.finish_replacement();
             let step = if backward { -1 } else { 1 };
             let scroll_task = self.step_memory_address(step);
+            self.begin_replacement(MEMORY_INLINE_INPUT_ID);
+            self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
             return scroll_task.chain(operation::focus(MEMORY_INLINE_INPUT_ID));
         }
         Task::none()

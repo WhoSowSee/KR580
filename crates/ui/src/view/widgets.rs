@@ -111,7 +111,7 @@ pub(super) fn legend_panel_left<'a>(
 /// width – otherwise the focus glow gets clipped on the right edge.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn spinner_text_input<'a>(
-    placeholder: &'static str,
+    placeholder: &'a str,
     value: &'a str,
     on_input: fn(String) -> Message,
     up: Message,

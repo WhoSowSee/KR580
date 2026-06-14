@@ -74,8 +74,14 @@ worth eyeballing after touching `crates/ui`:
   `target/release/k580.exe`: no console window should pop up;
 - in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
   and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`;
+- paste `3E 41 D3 03 76` into a memory value field and confirm the five
+  consecutive cells update immediately without first deleting the
+  existing two-digit value; malformed or overflowing input must not
+  write a partial sequence and must show a short localized status
+  without repeating the pasted text;
 - in the inline memory list, confirm Tab walks down through addresses
-  and Shift+Tab walks back up;
+  and Shift+Tab walks back up, with each destination empty and its stored
+  byte shown as the placeholder;
 - in the opcode picker, type part of an opcode or mnemonic, confirm
   ArrowDown/Tab and ArrowUp/Shift+Tab move the highlighted filtered row
   with wrapping, and Enter writes the highlighted opcode to the selected
@@ -92,13 +98,24 @@ worth eyeballing after touching `crates/ui`:
   hovered button;
 - on the schematic, enter inline editing for «Буферный регистр 1» and
   «Буферный регистр 2» and confirm the hex value stays vertically stable
-  instead of jumping upward;
+  instead of jumping upward; double-click must clear the editor while
+  retaining the current value as its placeholder; while replacement is
+  active, Left/Right must carry the empty editor across `A/B/C`, and all
+  four arrows must carry it through the multiplexer grid; Up/Down in the
+  inline RAM editor must do the same for adjacent memory cells; entering
+  replacement again on an already empty field must keep its visible
+  `00`, `0000`, or `A` placeholder without materializing it after Esc or
+  repeated Tab/Shift+Tab focus cycles;
 - click the status-strip `HLT` indicator on and off and confirm the
   selected RAM row does not move; then execute a `76` byte and confirm
   the highlight stays on that HLT row without briefly flashing the next
-  address;
+  address; after manually clearing HLT, reset registers and confirm the
+  selected RAM row still returns to PC `0000`;
 - focus the address spinner with the mouse and Tab through the panel:
   hover and focus rings should match the standalone byte-value field.
+- clear the address or register-name field and type a valid value in its
+  paired value field; the empty field must become `0000` or `A`
+  respectively, while invalid value input must leave it empty;
 - click the Дисковод quick-access chip, confirm the buffer modal opens,
   Esc and backdrop-click close it, the open-image button attaches an
   existing `.kpd`/`.img`/`.bin` file, the save button writes the visible

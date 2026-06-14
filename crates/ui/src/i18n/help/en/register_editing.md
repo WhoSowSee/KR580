@@ -11,4 +11,7 @@ Inline editing on the schematic:
 - Enter value, press Enter or click anywhere
 - Esc to cancel
 - Tab/Shift+Tab to navigate between registers
-- Ctrl+arrows for grid navigation
+- Left/Right move between the accumulator and buffer registers
+- In the multiplexer, Left/Right move between columns and Up/Down between rows
+- Ctrl+arrows provide the same grid navigation
+- Replacement mode carries over to the destination register

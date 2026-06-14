@@ -36,19 +36,22 @@ impl DesktopApp {
 
     fn memory_editor_panel(&self) -> Element<'_, Message> {
         let value_focused = self.focused_input == Some(MEMORY_VALUE_INPUT_ID);
-        let mut value_text = text_input("00", &self.memory_value_input)
-            .id(MEMORY_VALUE_INPUT_ID)
-            .font(MONO_FONT)
-            .size(16)
-            .padding(Padding {
-                top: 6.0,
-                right: 0.0,
-                bottom: 6.0,
-                left: 0.0,
-            })
-            .align_x(alignment::Horizontal::Center)
-            .width(Length::Fill)
-            .style(input_borderless_style);
+        let mut value_text = text_input(
+            self.input_placeholder(MEMORY_VALUE_INPUT_ID, "00"),
+            &self.memory_value_input,
+        )
+        .id(MEMORY_VALUE_INPUT_ID)
+        .font(MONO_FONT)
+        .size(16)
+        .padding(Padding {
+            top: 6.0,
+            right: 0.0,
+            bottom: 6.0,
+            left: 0.0,
+        })
+        .align_x(alignment::Horizontal::Center)
+        .width(Length::Fill)
+        .style(input_borderless_style);
         if !self.running {
             value_text = value_text
                 .on_input(Message::MemoryValueChanged)
@@ -63,7 +66,7 @@ impl DesktopApp {
 
         let controls = row![
             spinner_text_input(
-                "0000",
+                self.input_placeholder(MEMORY_ADDRESS_INPUT_ID, "0000"),
                 &self.memory_address_input,
                 Message::MemoryAddressChanged,
                 Message::MemoryAddressNext,
@@ -93,18 +96,21 @@ impl DesktopApp {
 
     fn register_editor_panel(&self) -> Element<'_, Message> {
         let value_focused = self.focused_input == Some(REGISTER_VALUE_INPUT_ID);
-        let mut value_text = text_input("00", &self.register_value_input)
-            .id(REGISTER_VALUE_INPUT_ID)
-            .font(MONO_FONT)
-            .size(16)
-            .padding(Padding {
-                top: 6.0,
-                right: 0.0,
-                bottom: 6.0,
-                left: 0.0,
-            })
-            .align_x(alignment::Horizontal::Center)
-            .width(Length::Fill);
+        let mut value_text = text_input(
+            self.input_placeholder(REGISTER_VALUE_INPUT_ID, "00"),
+            &self.register_value_input,
+        )
+        .id(REGISTER_VALUE_INPUT_ID)
+        .font(MONO_FONT)
+        .size(16)
+        .padding(Padding {
+            top: 6.0,
+            right: 0.0,
+            bottom: 6.0,
+            left: 0.0,
+        })
+        .align_x(alignment::Horizontal::Center)
+        .width(Length::Fill);
         if !self.running {
             value_text = value_text
                 .on_input(Message::RegisterValueChanged)
@@ -119,7 +125,7 @@ impl DesktopApp {
 
         let editor = row![
             spinner_text_input(
-                "A",
+                self.input_placeholder(REGISTER_NAME_INPUT_ID, "A"),
                 &self.register_name_input,
                 Message::RegisterNameChanged,
                 Message::RegisterNext,

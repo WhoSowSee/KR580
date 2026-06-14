@@ -74,6 +74,10 @@ impl DesktopApp {
                     }
                     _ => plain_shortcut(&key, physical_key, modifiers),
                 },
+                (
+                    iced::Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }),
+                    iced::event::Status::Captured,
+                ) => captured_register_arrow(&key, modifiers),
                 (iced::Event::Mouse(mouse::Event::CursorMoved { position }), _) => {
                     Some(Message::CursorMoved(position))
                 }
@@ -103,5 +107,50 @@ impl DesktopApp {
         }
 
         Subscription::batch(subscriptions)
+    }
+}
+
+fn captured_register_arrow(key: &keyboard::Key, modifiers: keyboard::Modifiers) -> Option<Message> {
+    if modifiers.command() || modifiers.alt() || modifiers.shift() {
+        return None;
+    }
+    let direction = match key {
+        keyboard::Key::Named(keyboard::key::Named::ArrowUp) => super::RegisterMove::Up,
+        keyboard::Key::Named(keyboard::key::Named::ArrowDown) => super::RegisterMove::Down,
+        keyboard::Key::Named(keyboard::key::Named::ArrowLeft) => super::RegisterMove::Left,
+        keyboard::Key::Named(keyboard::key::Named::ArrowRight) => super::RegisterMove::Right,
+        _ => return None,
+    };
+    Some(Message::RegisterArrowKey(direction))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::captured_register_arrow;
+    use crate::app::{Message, RegisterMove};
+    use iced::keyboard;
+
+    #[test]
+    fn captured_plain_arrows_are_forwarded_to_register_navigation() {
+        for (key, expected) in [
+            (keyboard::key::Named::ArrowUp, RegisterMove::Up),
+            (keyboard::key::Named::ArrowDown, RegisterMove::Down),
+            (keyboard::key::Named::ArrowLeft, RegisterMove::Left),
+            (keyboard::key::Named::ArrowRight, RegisterMove::Right),
+        ] {
+            let message =
+                captured_register_arrow(&keyboard::Key::Named(key), keyboard::Modifiers::default());
+            assert!(
+                matches!(message, Some(Message::RegisterArrowKey(actual)) if actual == expected)
+            );
+        }
+    }
+
+    #[test]
+    fn modified_captured_arrows_keep_text_input_behavior() {
+        let key = keyboard::Key::Named(keyboard::key::Named::ArrowRight);
+        assert!(captured_register_arrow(&key, keyboard::Modifiers::SHIFT).is_none());
+        assert!(captured_register_arrow(&key, keyboard::Modifiers::CTRL).is_none());
+        assert!(captured_register_arrow(&key, keyboard::Modifiers::ALT).is_none());
     }
 }

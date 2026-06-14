@@ -367,15 +367,15 @@ pub(crate) enum Key {
 
     StatusByteHeader,
     StatusPrefix,
-
     StatusNoProgramAt,
     StatusNothingToUndo,
     StatusNothingToRedo,
     StatusEnterHexPattern,
+    StatusInvalidMemoryBytes,
+    StatusMemoryBytesOutOfRange,
     StatusPatternFound,
     StatusAtAddress,
     StatusNoMatchesFor,
-
     ErrNotA580File,
     ErrFileEmpty,
     ErrWrong580Size,

@@ -159,6 +159,9 @@ impl Emulator {
             AppCommand::SetRegister(register, value) => self.cpu.set_register(register, value),
             AppCommand::SetPc(address) => self.cpu.pc = address,
             AppCommand::SetMemory(address, value) => self.cpu.set_memory(address, value),
+            AppCommand::SetMemoryBlock { start, values } => {
+                self.cpu.set_memory_block(start, &values)?;
+            }
             AppCommand::ApplyCpuState(state) => {
                 let was_running = self.running;
                 self.cpu = *state;
