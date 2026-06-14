@@ -185,12 +185,12 @@ fn footer<'a>(state: &'a NetworkState, lang: Lang) -> Element<'a, Message> {
     };
     let status = network_status(state, lang);
     let meta = format!(
-        "{}: {mode}   {}: {}:{}   {}: {status}   {}: {}   {}: {}",
+        "{}: {status}   {}: {mode}   {}: {}:{}   {}: {}   {}: {}",
+        lang.t(Key::Network(NetworkKey::Status)),
         lang.t(Key::Network(NetworkKey::Mode)),
         lang.t(Key::Network(NetworkKey::Endpoint)),
         state.host,
         state.port,
-        lang.t(Key::Network(NetworkKey::Status)),
         lang.t(Key::Network(NetworkKey::RxTotal)),
         state.rx_total,
         lang.t(Key::Network(NetworkKey::TxTotal)),
