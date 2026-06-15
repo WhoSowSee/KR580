@@ -279,6 +279,7 @@ pub(crate) enum Message {
     NetworkPortChanged(String),
     ApplyNetworkSettings,
     ClearNetworkBuffers,
+    ToggleNetworkBufferView,
     OpenPrinter,
     ClosePrinter,
     TogglePrinterBufferView,

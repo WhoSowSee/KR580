@@ -236,6 +236,9 @@ impl DesktopApp {
             Message::ClearNetworkBuffers => {
                 self.dispatch(k580_app::AppCommand::ClearNetworkBuffers);
             }
+            Message::ToggleNetworkBufferView => {
+                self.network_text_view = !self.network_text_view;
+            }
             Message::OpenPrinter => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();

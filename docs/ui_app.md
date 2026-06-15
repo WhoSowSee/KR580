@@ -1671,6 +1671,11 @@ diagnostics and are never rendered in the window. Network worker changes are sam
 by the app actor every 50 ms, so RX/TX and connection state update while the CPU
 is paused and without requiring another device command.
 
+The type-icon button toggles the two buffer panels between the default HEX view
+and a CP866-decoded text view. In text mode the receive buffer shows decoded
+terminal characters and the transmit panel shows the full TX buffer text
+instead of only the last byte.
+
 The globe button opens a compact modal above the device surface. The user can
 switch between client and server mode and edit the corresponding address and
 TCP port for the current session. Applying the dialog dispatches
@@ -1683,8 +1688,8 @@ without changing the endpoint, connection state, status, internal socket error, 
 worker lifetime. If both buffers are already empty, no state event is emitted.
 
 **State:** `network_open: bool`, `network_window: ToolWindowState`,
-`network_settings_open: bool`, `network_mode_draft: NetworkMode`, endpoint input
-strings, and an optional validation error.
+`network_settings_open: bool`, `network_text_view: bool`, `network_mode_draft: NetworkMode`,
+endpoint input strings, and an optional validation error.
 
 **View:** `view/network.rs` and `view/network_settings.rs` –
 `network_window_overlay()`, `network_window()`, and the endpoint modal.

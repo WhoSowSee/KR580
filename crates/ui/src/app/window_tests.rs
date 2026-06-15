@@ -210,6 +210,19 @@ fn printer_buffer_view_toggles_between_hex_and_text() {
 }
 
 #[test]
+fn network_buffer_view_toggles_between_hex_and_text() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+
+    assert!(!app.network_text_view);
+
+    let _task = app.update(Message::ToggleNetworkBufferView);
+    assert!(app.network_text_view);
+
+    let _task = app.update(Message::ToggleNetworkBufferView);
+    assert!(!app.network_text_view);
+}
+
+#[test]
 fn closing_detached_monitor_does_not_close_main_window() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     let main = window::Id::unique();

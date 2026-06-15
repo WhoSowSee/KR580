@@ -11,6 +11,8 @@ pub(crate) enum NetworkKey {
     TxTotal,
     Settings,
     ClearBuffers,
+    ShowText,
+    ShowBytes,
     SettingsTitle,
     Host,
     Port,
@@ -30,6 +32,8 @@ pub(super) fn translate_ru(key: NetworkKey) -> &'static str {
     match key {
         NetworkKey::RxBuffer => "Буфер приёма",
         NetworkKey::LastTransmittedValue => "Буфер передачи",
+        NetworkKey::ShowText => "Показать текст",
+        NetworkKey::ShowBytes => "Показать байты",
         NetworkKey::Status => "Статус",
         NetworkKey::Endpoint => "Адрес",
         NetworkKey::Mode => "Режим",
@@ -59,6 +63,8 @@ pub(super) fn translate_en(key: NetworkKey) -> &'static str {
     match key {
         NetworkKey::RxBuffer => "Receive buffer",
         NetworkKey::LastTransmittedValue => "Transmit buffer",
+        NetworkKey::ShowText => "Show text",
+        NetworkKey::ShowBytes => "Show bytes",
         NetworkKey::Status => "Status",
         NetworkKey::Endpoint => "Endpoint",
         NetworkKey::Mode => "Mode",

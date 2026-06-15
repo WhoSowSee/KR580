@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
 use iced::{Element, Length, Padding, alignment};
-use k580_app::{ConnectionState, DeviceStatus, NetworkMode, NetworkState};
+use k580_app::{ConnectionState, DeviceStatus, NetworkMode, NetworkState, decode_oem_text};
 
 use super::icons;
 use super::storage::chrome::{
@@ -20,6 +20,7 @@ const WINDOW_HEIGHT: f32 = 340.0;
 pub(in crate::view) struct NetworkViewState<'a> {
     pub(in crate::view) network: &'a NetworkState,
     pub(in crate::view) settings_open: bool,
+    pub(in crate::view) text_view: bool,
     pub(in crate::view) mode: NetworkMode,
     pub(in crate::view) host: &'a str,
     pub(in crate::view) port: &'a str,
@@ -67,14 +68,23 @@ fn network_content(
     always_on_top: bool,
 ) -> Element<'_, Message> {
     let settings_open = view.settings_open;
+    let text_view = view.text_view;
     let buffers = row![
         buffer_panel(
             view.lang.t(Key::Network(NetworkKey::RxBuffer)),
-            format_network_buffer(&view.network.rx_buffer),
+            if text_view {
+                format_network_text(&view.network.rx_buffer)
+            } else {
+                format_network_buffer(&view.network.rx_buffer)
+            },
         ),
         buffer_panel(
             view.lang.t(Key::Network(NetworkKey::LastTransmittedValue)),
-            format_last_transmitted_value(&view.network.tx_buffer),
+            if text_view {
+                format_network_text(&view.network.tx_buffer)
+            } else {
+                format_last_transmitted_value(&view.network.tx_buffer)
+            },
         ),
     ]
     .spacing(12)
@@ -84,7 +94,7 @@ fn network_content(
         .width(Length::Fill)
         .height(Length::Fill);
     let body: Element<'_, Message> = column![
-        header(detached, always_on_top, settings_open, view.lang),
+        header(detached, always_on_top, settings_open, text_view, view.lang),
         Space::new().height(Length::Fixed(12.0)),
         device_body,
     ]
@@ -103,10 +113,23 @@ fn header(
     detached: bool,
     always_on_top: bool,
     settings_open: bool,
+    text_view: bool,
     lang: Lang,
 ) -> Element<'static, Message> {
     row![
         window_controls(ToolWindowKind::Network, detached, always_on_top, lang),
+        icon_button(
+            icons::type_icon(),
+            Some(Message::ToggleNetworkBufferView),
+            lang.t(Key::Network(if text_view {
+                NetworkKey::ShowBytes
+            } else {
+                NetworkKey::ShowText
+            })),
+            text_view,
+            None,
+        ),
+        Space::new().width(Length::Fixed(6.0)),
         icon_button(
             icons::globe(),
             Some(Message::OpenNetworkSettings),
@@ -233,6 +256,10 @@ fn format_network_buffer(bytes: &[u8]) -> String {
     output
 }
 
+fn format_network_text(bytes: &[u8]) -> String {
+    decode_oem_text(bytes).replace('\t', "    ")
+}
+
 fn format_last_transmitted_value(bytes: &[u8]) -> String {
     bytes
         .last()
@@ -264,7 +291,9 @@ fn network_status(state: &NetworkState, lang: Lang) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_last_transmitted_value, format_network_buffer, network_status};
+    use super::{
+        format_last_transmitted_value, format_network_buffer, format_network_text, network_status,
+    };
     use crate::i18n::Lang;
     use k580_app::{ConnectionState, DeviceStatus, NetworkMode, NetworkState};
 
@@ -280,6 +309,14 @@ mod tests {
     #[test]
     fn transmitted_value_has_no_offset_and_uses_the_last_byte() {
         assert_eq!(format_last_transmitted_value(&[0x40, 0x41]), "41");
+    }
+
+    #[test]
+    fn network_text_view_decodes_oem_and_normalizes_controls() {
+        assert_eq!(
+            format_network_text(&[0x8F, 0xE0, b'!', b'\r', b'\n', b'\t', 0x01]),
+            "Пр!\n    ·"
+        );
     }
 
     #[test]
