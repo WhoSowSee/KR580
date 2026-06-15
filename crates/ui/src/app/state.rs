@@ -190,6 +190,11 @@ impl DesktopApp {
         let _ = handle.send(k580_app::AppCommand::AttachHddFile(
             crate::runtime::storage_files::hdd_default_path(),
         ));
+        if let Some(ref path) = settings.general.floppy_image_path
+            && path.is_file()
+        {
+            let _ = handle.send(k580_app::AppCommand::AttachFloppyImage(path.clone()));
+        }
         let network_mode = k580_app::NetworkMode::Client;
         let network_host = settings.network.host.clone();
         let network_port = settings.network.port;
@@ -323,6 +328,25 @@ impl DesktopApp {
             monitor_hex_filter: HexStreamFilter::default(),
         };
         app.apply_speed_tier(default_speed);
+
+        // Let the startup commands settle before the first frame so
+        // that synchronous dispatchers (e.g. import) do not race with
+        // pending StateChanged events from AttachHddFile / AttachFloppyImage.
+        let settle_deadline = Instant::now() + Duration::from_millis(100);
+        loop {
+            let remaining = settle_deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            let events = app.handle.drain_until_state_change(remaining);
+            if events.is_empty() {
+                break;
+            }
+            for event in events {
+                app.consume_event(event);
+            }
+        }
+
         (app, startup_task)
     }
 

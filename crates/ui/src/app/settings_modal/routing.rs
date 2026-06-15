@@ -33,6 +33,9 @@ impl DesktopApp {
             | Message::SettingsDraftLanguageChanged(_)
             | Message::SettingsDraftSpeedChanged(_)
             | Message::SettingsDraftFollowPcSet(_)
+            | Message::SettingsFloppyImageBrowse
+            | Message::SettingsDraftFloppyImageSet(_)
+            | Message::SettingsFloppyImageClear
             | Message::SettingsHddDirectoryBrowse
             | Message::SettingsDraftHddDirectorySet(_)
             | Message::SettingsNetworkClientHostChanged(_)
@@ -120,6 +123,7 @@ impl DesktopApp {
                 let current = dialog.draft_follow_pc;
                 Task::done(Message::SettingsDraftFollowPcSet(!current))
             }
+            ContentFocus::FloppyImage => Task::done(Message::SettingsFloppyImageBrowse),
             ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),
             ContentFocus::Theme => Task::none(),
             ContentFocus::Shortcuts => Task::none(),

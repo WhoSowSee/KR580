@@ -16,6 +16,7 @@ impl DesktopApp {
             .floppy
             .path
             .as_ref()
+            .or(settings.general.floppy_image_path.as_ref())
             .unwrap_or(&settings.storage.floppy_path);
         if let Some(parent) = preferred
             .parent()

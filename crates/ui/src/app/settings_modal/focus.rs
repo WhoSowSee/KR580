@@ -101,6 +101,7 @@ pub(crate) enum ContentFocus {
     SpeedFast,
     SpeedMax,
     FollowPc,
+    FloppyImage,
     HddDirectory,
     Theme,
     Shortcuts,

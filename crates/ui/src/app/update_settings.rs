@@ -26,6 +26,7 @@ impl DesktopApp {
                     self.lang,
                     self.default_speed,
                     self.follow_pc,
+                    settings.general.floppy_image_path,
                     settings.general.hdd_directory,
                     settings.network,
                 ));
@@ -68,6 +69,7 @@ impl DesktopApp {
                     }
                 };
                 let mut settings = load_settings();
+                settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
                 settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
                 apply_network_defaults(&mut settings.network, network);
                 save_settings(&settings);
@@ -83,6 +85,7 @@ impl DesktopApp {
                 settings.general.default_speed = preset_from_speed_tier(self.default_speed);
                 if let Some(dialog) = self.settings_dialog.as_ref() {
                     settings.general.follow_pc = dialog.draft_follow_pc;
+                    settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
                     settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
                     if let Ok(network) = parse_network_defaults(dialog) {
                         apply_network_defaults(&mut settings.network, network);
@@ -131,6 +134,51 @@ impl DesktopApp {
                     dialog.draft_follow_pc = value;
                 }
                 self.follow_pc = value;
+                Some(Task::none())
+            }
+            Message::SettingsFloppyImageBrowse => {
+                if self.settings_dialog.is_none() {
+                    return Some(Task::none());
+                }
+                let preferred = self
+                    .settings_dialog
+                    .as_ref()
+                    .and_then(|d| d.draft_floppy_image_path.clone())
+                    .unwrap_or_else(|| {
+                        std::env::var("HOME")
+                            .or_else(|_| std::env::var("USERPROFILE"))
+                            .map(std::path::PathBuf::from)
+                            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+                    });
+                let mut dialog =
+                    rfd::FileDialog::new().add_filter("KR580 floppy image", &["kpd", "img", "bin"]);
+                if preferred.exists() && preferred.is_file() {
+                    if let Some(parent) = preferred.parent() {
+                        dialog = dialog.set_directory(parent);
+                    }
+                    if let Some(name) = preferred.file_name() {
+                        dialog = dialog.set_file_name(name.to_string_lossy().as_ref());
+                    }
+                } else if preferred.exists() && preferred.is_dir() {
+                    dialog = dialog.set_directory(&preferred);
+                } else if let Some(parent) = preferred.parent() {
+                    dialog = dialog.set_directory(parent);
+                }
+                if let Some(path) = dialog.pick_file() {
+                    return Some(Task::done(Message::SettingsDraftFloppyImageSet(path)));
+                }
+                Some(Task::none())
+            }
+            Message::SettingsDraftFloppyImageSet(path) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_floppy_image_path = Some(path);
+                }
+                Some(Task::none())
+            }
+            Message::SettingsFloppyImageClear => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_floppy_image_path = None;
+                }
                 Some(Task::none())
             }
             Message::SettingsHddDirectoryBrowse => {
@@ -252,10 +300,10 @@ impl DesktopApp {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_lang = default_lang;
                     dialog.draft_speed = default_speed;
+                    dialog.draft_floppy_image_path = None;
                     dialog.draft_hdd_directory = None;
                     dialog.original_lang = default_lang;
                     dialog.original_speed = default_speed;
-                    dialog.original_hdd_directory = None;
                     dialog.draft_network_client_host = network.host;
                     dialog.draft_network_client_port = network.port.to_string();
                     dialog.draft_network_server_host = network.bind_host;

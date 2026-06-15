@@ -23,6 +23,7 @@ pub struct GeneralSettings {
     pub language: Language,
     pub default_speed: SpeedPreset,
     pub follow_pc: bool,
+    pub floppy_image_path: Option<PathBuf>,
     pub hdd_directory: Option<PathBuf>,
 }
 
@@ -102,6 +103,7 @@ impl Default for GeneralSettings {
             language: Language::Ru,
             default_speed: SpeedPreset::Medium,
             follow_pc: true,
+            floppy_image_path: None,
             hdd_directory: None,
         }
     }

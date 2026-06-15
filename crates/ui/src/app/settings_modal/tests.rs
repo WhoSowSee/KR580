@@ -12,6 +12,7 @@ fn dialog_starts_on_general_category() {
         SpeedTier::Medium,
         true,
         None,
+        None,
         NetworkSettings::default(),
     );
     assert_eq!(dialog.category, SettingsCategory::General);
@@ -24,6 +25,7 @@ fn search_query_strips_surrounding_whitespace() {
         Lang::Ru,
         SpeedTier::Medium,
         true,
+        None,
         None,
         NetworkSettings::default(),
     );
@@ -38,9 +40,24 @@ fn footer_focus_defaults_to_cancel() {
         SpeedTier::Medium,
         true,
         None,
+        None,
         NetworkSettings::default(),
     );
     assert_eq!(dialog.footer_focus, FooterFocus::Cancel);
+}
+
+#[test]
+fn dialog_copies_floppy_image_path() {
+    let path = std::path::PathBuf::from("/tmp/floppy.kpd");
+    let dialog = SettingsDialog::new(
+        Lang::Ru,
+        SpeedTier::Medium,
+        true,
+        Some(path.clone()),
+        None,
+        NetworkSettings::default(),
+    );
+    assert_eq!(dialog.draft_floppy_image_path, Some(path));
 }
 
 #[test]
@@ -52,7 +69,7 @@ fn dialog_copies_client_and_server_network_defaults() {
         bind_port: 7000,
         ..NetworkSettings::default()
     };
-    let dialog = SettingsDialog::new(Lang::Ru, SpeedTier::Medium, true, None, network);
+    let dialog = SettingsDialog::new(Lang::Ru, SpeedTier::Medium, true, None, None, network);
 
     assert_eq!(dialog.draft_network_client_host, "client.local");
     assert_eq!(dialog.draft_network_client_port, "6000");
@@ -81,6 +98,7 @@ fn live_speed_change_updates_active_tier_immediately() {
         app.default_speed,
         true,
         None,
+        None,
         NetworkSettings::default(),
     ));
 
@@ -99,6 +117,7 @@ fn cancel_rolls_back_live_speed_to_pre_open_snapshot() {
         app.lang,
         app.default_speed,
         true,
+        None,
         None,
         NetworkSettings::default(),
     ));
@@ -121,6 +140,7 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
         app.lang,
         app.default_speed,
         true,
+        None,
         None,
         NetworkSettings::default(),
     ));
@@ -147,6 +167,7 @@ fn reset_confirm_opens_with_cancel_focused() {
         app.default_speed,
         true,
         None,
+        None,
         NetworkSettings::default(),
     ));
 
@@ -164,6 +185,7 @@ fn tab_toggles_reset_confirm_focus_in_a_two_button_ring() {
         app.lang,
         app.default_speed,
         true,
+        None,
         None,
         NetworkSettings::default(),
     ));
@@ -201,6 +223,7 @@ fn enter_in_reset_confirm_activates_focused_button() {
         app.lang,
         app.default_speed,
         true,
+        None,
         None,
         NetworkSettings::default(),
     ));

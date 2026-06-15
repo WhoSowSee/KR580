@@ -15,7 +15,7 @@ impl DesktopApp {
         }
     }
 
-    pub(super) fn consume_event(&mut self, event: AppEvent) {
+    pub(crate) fn consume_event(&mut self, event: AppEvent) {
         match event {
             AppEvent::StateChanged(snapshot) => self.apply_snapshot(*snapshot),
             AppEvent::InstructionBoundaryReached(outcome) => {
