@@ -19,6 +19,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) draft_follow_pc: bool,
     pub(crate) draft_floppy_image_path: Option<std::path::PathBuf>,
     pub(crate) draft_hdd_directory: Option<std::path::PathBuf>,
+    pub(crate) file_association_registered: bool,
     pub(crate) draft_network_client_host: String,
     pub(crate) draft_network_client_port: String,
     pub(crate) draft_network_server_host: String,
@@ -57,6 +58,7 @@ impl SettingsDialog {
             draft_follow_pc: follow_pc,
             draft_floppy_image_path: floppy_image_path.clone(),
             draft_hdd_directory: hdd_directory.clone(),
+            file_association_registered: k580_ui::file_assoc::is_registered(),
             draft_network_client_host: network.host,
             draft_network_client_port: network.port.to_string(),
             draft_network_server_host: network.bind_host,
@@ -82,6 +84,7 @@ impl SettingsDialog {
     pub(crate) fn first_content_focus(&self) -> ContentFocus {
         match self.category {
             SettingsCategory::General => ContentFocus::LanguageAnchor,
+            SettingsCategory::ExternalDevices => ContentFocus::FloppyImage,
             SettingsCategory::Appearance => ContentFocus::Theme,
             SettingsCategory::Shortcuts => ContentFocus::Shortcuts,
         }
@@ -89,7 +92,8 @@ impl SettingsDialog {
 
     pub(crate) fn last_content_focus(&self) -> ContentFocus {
         match self.category {
-            SettingsCategory::General => ContentFocus::HddDirectory,
+            SettingsCategory::General => ContentFocus::FileAssociation,
+            SettingsCategory::ExternalDevices => ContentFocus::NetworkDefaults,
             SettingsCategory::Appearance => ContentFocus::Theme,
             SettingsCategory::Shortcuts => ContentFocus::Shortcuts,
         }
@@ -103,9 +107,14 @@ impl SettingsDialog {
                 ContentFocus::SpeedMedium => Some(ContentFocus::SpeedFast),
                 ContentFocus::SpeedFast => Some(ContentFocus::SpeedMax),
                 ContentFocus::SpeedMax => Some(ContentFocus::FollowPc),
-                ContentFocus::FollowPc => Some(ContentFocus::FloppyImage),
+                ContentFocus::FollowPc => Some(ContentFocus::FileAssociation),
+                ContentFocus::FileAssociation => None,
+                _ => Some(self.first_content_focus()),
+            },
+            SettingsCategory::ExternalDevices => match current {
                 ContentFocus::FloppyImage => Some(ContentFocus::HddDirectory),
-                ContentFocus::HddDirectory => None,
+                ContentFocus::HddDirectory => Some(ContentFocus::NetworkDefaults),
+                ContentFocus::NetworkDefaults => None,
                 _ => Some(self.first_content_focus()),
             },
             SettingsCategory::Appearance => match current {
@@ -128,8 +137,13 @@ impl SettingsDialog {
                 ContentFocus::SpeedFast => Some(ContentFocus::SpeedMedium),
                 ContentFocus::SpeedMax => Some(ContentFocus::SpeedFast),
                 ContentFocus::FollowPc => Some(ContentFocus::SpeedMax),
-                ContentFocus::FloppyImage => Some(ContentFocus::FollowPc),
+                ContentFocus::FileAssociation => Some(ContentFocus::FollowPc),
+                _ => Some(self.last_content_focus()),
+            },
+            SettingsCategory::ExternalDevices => match current {
+                ContentFocus::FloppyImage => None,
                 ContentFocus::HddDirectory => Some(ContentFocus::FloppyImage),
+                ContentFocus::NetworkDefaults => Some(ContentFocus::HddDirectory),
                 _ => Some(self.last_content_focus()),
             },
             SettingsCategory::Appearance => match current {

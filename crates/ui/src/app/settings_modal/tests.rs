@@ -265,3 +265,78 @@ fn language_change_re_renders_canonical_status_string() {
     app.refresh_localized_status();
     assert_eq!(app.status, "entity not found");
 }
+
+#[cfg(windows)]
+#[test]
+fn dialog_reads_initial_file_association_state() {
+    let was_registered = k580_ui::file_assoc::is_registered();
+    let _ = k580_ui::file_assoc::unregister();
+
+    let dialog = SettingsDialog::new(
+        Lang::Ru,
+        SpeedTier::Medium,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+    );
+    assert!(!dialog.file_association_registered);
+
+    k580_ui::file_assoc::register().unwrap();
+    let dialog = SettingsDialog::new(
+        Lang::Ru,
+        SpeedTier::Medium,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+    );
+    assert!(dialog.file_association_registered);
+
+    let _ = k580_ui::file_assoc::unregister();
+    if was_registered {
+        k580_ui::file_assoc::register().unwrap();
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn settings_button_toggles_file_association_state() {
+    let was_registered = k580_ui::file_assoc::is_registered();
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let _ = k580_ui::file_assoc::unregister();
+    app.settings_dialog = Some(SettingsDialog::new(
+        app.lang,
+        app.default_speed,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+    ));
+    assert!(
+        !app.settings_dialog
+            .as_ref()
+            .unwrap()
+            .file_association_registered
+    );
+
+    let _ = app.update(Message::SettingsFileAssociationRegister);
+    assert!(
+        app.settings_dialog
+            .as_ref()
+            .unwrap()
+            .file_association_registered
+    );
+
+    let _ = app.update(Message::SettingsFileAssociationUnregister);
+    assert!(
+        !app.settings_dialog
+            .as_ref()
+            .unwrap()
+            .file_association_registered
+    );
+
+    if was_registered {
+        k580_ui::file_assoc::register().unwrap();
+    }
+}

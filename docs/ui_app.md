@@ -1545,11 +1545,14 @@ ring.
 
 ### Settings dialog
 
-Opened via `Ctrl+,` or the menu bar. Three categories (General,
-Appearance, Shortcuts) with keyboard-navigable sidebar chips. Live-
-editing language/speed with Cancel/Reset/Save footer. Reset opens a
-sub-modal confirmation. Search filters settings rows across all
-categories.
+Opened via `Ctrl+,` or the menu bar. Four categories (General,
+External Devices, Appearance, Shortcuts) with keyboard-navigable
+sidebar chips. General holds language, speed, follow-PC and the `.580`
+file association; External Devices holds the floppy image, HDD directory
+and network defaults; Appearance and Shortcuts hold their namesake
+settings. Live-editing language/speed with Cancel/Reset/Save footer.
+Reset opens a sub-modal confirmation. Search filters settings rows
+across all categories.
 
 **State:** `settings_dialog: Option<SettingsDialog>`. `SettingsDialog`
 lives in `app/settings_modal/` and is a standalone draft – the live
@@ -1845,15 +1848,15 @@ dialog is open and turns it into one of four section-aware actions.
   - `content_focus: Option<ContentFocus>` is the per-row focus inside
     the right-hand pane (`LanguageAnchor`, `SpeedSlow`, `SpeedMedium`,
     `SpeedFast`, `SpeedMax`, `FollowPc`, `FloppyImage`, `HddDirectory`,
-    `Theme`),
+    `NetworkDefaults`, `FileAssociation`, `Theme`),
   - `footer_focus: FooterFocus::{Reset, Cancel, Save}` is the bottom
     bar focus.
 
 | Shortcut | Effect |
 |---|---|
 | Ctrl+Tab / Ctrl+Shift+Tab | Cycle between sections. The keyboard subscription routes `Ctrl+Tab` to `Message::SettingsSectionCycle { backward }` before `to_latin` runs, so the shortcut does not depend on layout. Entering a section seeds its local focus: Content lands on the first / last interactive item, Footer lands on `Cancel` / `Save`, Sidebar leaves the existing category active, Search additionally focuses the text input through `iced::widget::operation::focus(SETTINGS_SEARCH_INPUT_ID)` so typing routes into the field; on every other section the dialog focuses a dummy id no widget owns to blur the search input and keep Tab/Enter from being eaten by it. |
-| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPc → FloppyImage → HddDirectory` and wraps at both ends. In `Footer` the three buttons cycle as a ring (`Reset → Cancel → Save → Reset`). In `Sidebar` Tab walks the categories as a ring (`General → Appearance → Shortcuts → General`) – same role as Up/Down, just reachable from the layout-agnostic key. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
-| ArrowUp / ArrowDown | Inside `Sidebar` walks the categories `General ↔ Appearance ↔ Shortcuts` (and applies the category change), stopping at the ends instead of wrapping. With the language dropdown open they only **highlight** the next/previous option without committing – `dropdown_highlight: Option<Lang>` on `SettingsDialog` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
+| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPc → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → NetworkDefaults`; and on Appearance/Shortcuts it is the single `Theme`/`Shortcuts` row. Each category wraps at both ends. In `Footer` the three buttons cycle as a ring (`Reset → Cancel → Save → Reset`). In `Sidebar` Tab walks the categories as a ring (`General → External Devices → Appearance → Shortcuts → General`) – same role as Up/Down, just reachable from the layout-agnostic key. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
+| ArrowUp / ArrowDown | Inside `Sidebar` walks the categories `General ↔ External Devices ↔ Appearance ↔ Shortcuts` (and applies the category change), stopping at the ends instead of wrapping. With the language dropdown open they only **highlight** the next/previous option without committing – `dropdown_highlight: Option<Lang>` on `SettingsDialog` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
 | ArrowLeft / ArrowRight | Inside the speed segment row of `Content` walks the four chips. Wraps at the ends. Has no effect outside the speed row. |
 | Enter | When the language dropdown is open, applies `dropdown_highlight` (or the current draft if nothing was highlighted) and closes the panel. Otherwise activates the focused item: opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier when one of the speed chips does, and triggers `SettingsResetRequested` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
 | Esc | Closes the language dropdown if it is open, otherwise closes the reset-confirm sub-modal if it is open, otherwise closes the dialog. |
@@ -2022,10 +2025,58 @@ Cross-platform fall-backs:
 
 ## Console window suppression
 
-Release builds set `windows_subsystem = "windows"` (via a top-of-file
+The `k580` GUI binary sets `windows_subsystem = "windows"` (via a top-of-file
 `#![cfg_attr(...)]`) so launching `k580.exe` from Explorer does not spawn
 a stray console window. Debug builds keep the default console subsystem
 so `tracing` output stays visible during `cargo run`.
+
+The `kr` launcher is a separate console binary: it prints help/version
+messages and file-association status to the terminal, then spawns `k580`
+and exits, leaving the terminal prompt free.
+
+## CLI arguments
+
+The UI ships two binaries:
+
+- `k580` – the GUI process. It is meant to be launched by `kr` or by
+  the OS shell (Explorer double-click). It accepts a single optional
+  positional argument, the `.580` snapshot to open, and nothing else.
+- `kr` – the terminal launcher. It parses CLI options, spawns `k580`
+  in the background, and exits immediately, like `zed` or `code`.
+
+```sh
+kr [OPTION] [FILE]
+```
+
+When building from source, `cargo run -p k580-ui` starts the `kr` CLI
+launcher by default. In debug builds `kr` automatically builds the
+`k580` GUI binary if it is missing, so `cargo run -p k580-ui` works
+without a manual `cargo build` step. Use `cargo run -p k580-ui --bin k580`
+to start the GUI binary directly.
+
+- `kr` – launch the GUI with an empty snapshot.
+- `kr <file.580>` – open the specified `.580` snapshot in the GUI.
+- `kr --help` / `kr -h` – print usage to stdout and exit.
+- `kr --version` / `kr -V` – print the version and exit.
+- `kr --register-file-type` / `kr -r` – register the `.580` file
+  association. The open command points to `kr`, so double-clicking a
+  `.580` file from the file manager also uses the launcher.
+- `kr --unregister-file-type` / `kr -u` – remove the `.580` file
+  association.
+
+The same toggle is available in the in-app Settings dialog under
+General → `.580 file association`. The button reads `Add` when the
+association is missing and `Remove` when it is present. The button label
+is read from the OS when the dialog is opened and updated immediately
+after the user presses it inside the dialog.
+
+`kr` looks for the `k580` executable in the same directory as itself
+(`k580.exe` on Windows, `k580` elsewhere), redirects its stdio to `/dev/null`,
+spawns it, and returns without waiting.
+
+If the given path does not exist, is not a file, or is not a valid `.580`
+snapshot, the GUI still launches and surfaces a localized error notice
+instead of failing silently.
 
 ## Window icon
 

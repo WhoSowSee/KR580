@@ -150,6 +150,20 @@ fn collect_category_rows<'a>(
                 out.push(follow_pc_toggle_row(dialog, lang));
             }
             if matches_query(
+                &[
+                    Key::SettingsFileAssociationLabel,
+                    Key::SettingsFileAssociationHint,
+                    Key::SettingsFileAssociationAdd,
+                    Key::SettingsFileAssociationRemove,
+                ],
+                lang,
+                lower_query,
+            ) {
+                out.push(file_association_row(dialog, lang));
+            }
+        }
+        SettingsCategory::ExternalDevices => {
+            if matches_query(
                 &[Key::SettingsFloppyImageLabel, Key::SettingsFloppyImageHint],
                 lang,
                 lower_query,

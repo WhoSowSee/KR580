@@ -85,6 +85,36 @@ pub(super) fn hdd_directory_row<'a>(
     )
 }
 
+pub(super) fn file_association_row<'a>(
+    dialog: &'a SettingsDialog,
+    lang: Lang,
+) -> Element<'a, Message> {
+    let kb_focus = (dialog.section == SettingsSection::Content)
+        .then_some(dialog.content_focus)
+        .flatten();
+    let kb_focused = kb_focus == Some(ContentFocus::FileAssociation);
+
+    let label = if dialog.file_association_registered {
+        Key::SettingsFileAssociationRemove
+    } else {
+        Key::SettingsFileAssociationAdd
+    };
+    let message = if dialog.file_association_registered {
+        Message::SettingsFileAssociationUnregister
+    } else {
+        Message::SettingsFileAssociationRegister
+    };
+
+    let btn = settings_browse_button(lang.t(label), message, kb_focused);
+    let control = row![Space::new().width(Length::Fill), btn].align_y(alignment::Vertical::Center);
+
+    setting_row(
+        lang.t(Key::SettingsFileAssociationLabel),
+        lang.t(Key::SettingsFileAssociationHint),
+        control.into(),
+    )
+}
+
 pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
     let kb_focus = (dialog.section == SettingsSection::Content)
         .then_some(dialog.content_focus)

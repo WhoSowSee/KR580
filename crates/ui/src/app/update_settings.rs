@@ -320,6 +320,30 @@ impl DesktopApp {
                 }
                 Some(Task::done(Message::PersistSettings))
             }
+            Message::SettingsFileAssociationRegister => {
+                if let Err(error) = k580_ui::file_assoc::register() {
+                    self.error_notice =
+                        Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
+                    self.error_notice_dismiss_at =
+                        Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
+                }
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.file_association_registered = k580_ui::file_assoc::is_registered();
+                }
+                Some(Task::none())
+            }
+            Message::SettingsFileAssociationUnregister => {
+                if let Err(error) = k580_ui::file_assoc::unregister() {
+                    self.error_notice =
+                        Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
+                    self.error_notice_dismiss_at =
+                        Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
+                }
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.file_association_registered = k580_ui::file_assoc::is_registered();
+                }
+                Some(Task::none())
+            }
             _ => None,
         }
     }

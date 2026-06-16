@@ -308,4 +308,6 @@ pub(crate) enum Message {
     SettingsSectionCycle {
         backward: bool,
     },
+    SettingsFileAssociationRegister,
+    SettingsFileAssociationUnregister,
 }

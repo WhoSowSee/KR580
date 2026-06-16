@@ -82,6 +82,22 @@ worth eyeballing after touching `crates/ui`:
   Windows (cloak/uncloak via DWM, see `docs/ui_app.md`);
 - run `cargo build --release -p k580-ui` and double-click
   `target/release/k580.exe`: no console window should pop up;
+- run `cargo run -p k580-ui --bin kr -- <path/to/file.580>` and confirm
+  the GUI loads the snapshot and the terminal prompt returns immediately;
+- run `cargo run -p k580-ui --bin kr -- --help` and confirm usage prints
+  to stdout;
+- run `cargo run -p k580-ui --bin kr -- nonexistent.580` and confirm
+  the GUI launches with a localized "Файл не найден" error notice;
+- on Linux, run `cargo run -p k580-ui --bin kr -- -r`, then confirm
+  `~/.local/share/mime/packages/application-x-kr580.xml` and
+  `~/.local/share/applications/kr580.desktop` were created and a `.580`
+  file opens with `kr` from the file manager;
+- on macOS, run `cargo run -p k580-ui --bin kr -- -r`, then confirm
+  `~/Applications/kr580.app` exists and `lsregister` reports it;
+- open the in-app Settings dialog (`,`), go to General, and confirm the
+  `.580 file association` row shows `Add` when the association is
+  missing and `Remove` when it is present; click it and verify the
+  button label flips and the OS association is created/removed;
 - in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
   and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`;
 - paste `3E 41 D3 03 76` into a memory value field and confirm the five

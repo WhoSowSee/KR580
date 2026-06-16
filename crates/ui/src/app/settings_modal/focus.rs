@@ -3,16 +3,23 @@ use crate::i18n::Key;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SettingsCategory {
     General,
+    ExternalDevices,
     Appearance,
     Shortcuts,
 }
 
 impl SettingsCategory {
-    pub(crate) const ALL: [Self; 3] = [Self::General, Self::Appearance, Self::Shortcuts];
+    pub(crate) const ALL: [Self; 4] = [
+        Self::General,
+        Self::ExternalDevices,
+        Self::Appearance,
+        Self::Shortcuts,
+    ];
 
     pub(crate) fn label_key(self) -> Key {
         match self {
             Self::General => Key::SettingsCategoryGeneral,
+            Self::ExternalDevices => Key::SettingsCategoryExternalDevices,
             Self::Appearance => Key::SettingsCategoryAppearance,
             Self::Shortcuts => Key::SettingsCategoryShortcuts,
         }
@@ -103,6 +110,8 @@ pub(crate) enum ContentFocus {
     FollowPc,
     FloppyImage,
     HddDirectory,
+    NetworkDefaults,
+    FileAssociation,
     Theme,
     Shortcuts,
 }

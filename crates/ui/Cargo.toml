@@ -5,6 +5,7 @@ license.workspace = true
 version.workspace = true
 rust-version.workspace = true
 build = "build.rs"
+default-run = "kr"
 
 [dependencies]
 k580-app = { path = "../app" }
@@ -33,6 +34,14 @@ windows-sys = { version = "0.59", features = [
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"
 
+[lib]
+name = "k580_ui"
+path = "src/lib.rs"
+
 [[bin]]
 name = "k580"
 path = "src/main.rs"
+
+[[bin]]
+name = "kr"
+path = "src/bin/kr.rs"

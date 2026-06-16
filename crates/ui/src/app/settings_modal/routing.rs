@@ -46,7 +46,9 @@ impl DesktopApp {
             | Message::SettingsResetRequested
             | Message::SettingsResetConfirmed
             | Message::SettingsResetCancelled
-            | Message::SettingsSectionCycle { .. } => None,
+            | Message::SettingsSectionCycle { .. }
+            | Message::SettingsFileAssociationRegister
+            | Message::SettingsFileAssociationUnregister => None,
             Message::EscPressed => {
                 if reset_open {
                     Some(Task::done(Message::SettingsResetCancelled))
@@ -125,6 +127,15 @@ impl DesktopApp {
             }
             ContentFocus::FloppyImage => Task::done(Message::SettingsFloppyImageBrowse),
             ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),
+            ContentFocus::NetworkDefaults => Task::none(),
+            ContentFocus::FileAssociation => {
+                let registered = dialog.file_association_registered;
+                Task::done(if registered {
+                    Message::SettingsFileAssociationUnregister
+                } else {
+                    Message::SettingsFileAssociationRegister
+                })
+            }
             ContentFocus::Theme => Task::none(),
             ContentFocus::Shortcuts => Task::none(),
         }

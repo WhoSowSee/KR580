@@ -1,7 +1,6 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod app;
-mod file_assoc;
 mod i18n;
 mod platform;
 mod runtime;
@@ -24,25 +23,16 @@ fn main() -> iced::Result {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    let mut args = std::env::args().skip(1);
-    let initial_arg = args.next();
-
-    if let Some(arg) = initial_arg.as_deref() {
-        match arg {
-            "--register-file-type" => {
-                return run_assoc(file_assoc::register, "Ассоциация .580 зарегистрирована");
-            }
-            "--unregister-file-type" => {
-                return run_assoc(file_assoc::unregister, "Ассоциация .580 удалена");
-            }
-            _ => {}
+    let initial_path = match parse_cli_args(&mut std::env::args().skip(1)) {
+        Ok(path) => path,
+        Err(message) => {
+            eprintln!("error: {message}");
+            std::process::exit(1);
         }
-    }
+    };
 
-    let initial_snapshot_path: Option<PathBuf> =
-        initial_arg.map(PathBuf::from).filter(|path| path.is_file());
     iced::daemon(
-        move || DesktopApp::boot(initial_snapshot_path.clone()),
+        move || DesktopApp::boot(initial_path.clone()),
         DesktopApp::update,
         DesktopApp::view,
     )
@@ -54,17 +44,17 @@ fn main() -> iced::Result {
     .run()
 }
 
-fn run_assoc(action: fn() -> Result<(), String>, success: &str) -> iced::Result {
-    match action() {
-        Ok(()) => {
-            println!("{success}");
-            Ok(())
-        }
-        Err(error) => {
-            eprintln!("{error}");
-            std::process::exit(1);
-        }
+fn parse_cli_args(args: &mut impl Iterator<Item = String>) -> Result<Option<PathBuf>, String> {
+    let Some(arg) = args.next() else {
+        return Ok(None);
+    };
+    if arg.starts_with('-') {
+        return Err(format!("unknown option: {arg}"));
     }
+    if args.next().is_some() {
+        return Err("too many arguments".to_owned());
+    }
+    Ok(Some(PathBuf::from(arg)))
 }
 
 fn app_style(_state: &DesktopApp, _theme: &Theme) -> theme::Style {
@@ -75,5 +65,24 @@ fn app_style(_state: &DesktopApp, _theme: &Theme) -> theme::Style {
             0xCA as f32 / 255.0,
             0xF5 as f32 / 255.0,
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_cli_args;
+    use std::path::PathBuf;
+
+    #[test]
+    fn no_args_opens_empty_file() {
+        assert!(matches!(parse_cli_args(&mut [].into_iter()), Ok(None)));
+    }
+
+    #[test]
+    fn single_path_arg_opens_file() {
+        assert_eq!(
+            parse_cli_args(&mut ["snapshot.580".to_owned()].into_iter()).unwrap(),
+            Some(PathBuf::from("snapshot.580"))
+        );
     }
 }
