@@ -4,7 +4,7 @@
 //! (B/C, D/E, H/L), and the SP/PC footer. Split out of `schematic.rs`
 //! to keep that file under the 400-line workspace ceiling.
 
-use iced::widget::{Space, column, container, mouse_area, row, text_input};
+use iced::widget::{Space, column, container, mouse_area, row, text_input, tooltip};
 use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
 use k580_core::{Cpu8080State, RegisterName, decode_opcode};
 
@@ -115,9 +115,17 @@ pub(super) fn mux_panel<'a>(
 
     let pointer_group = container(
         column![
-            mux_readout_row(lang.t(Key::StackPointer), format!("{:04X}", cpu.sp)),
+            mux_readout_row(
+                lang.t(Key::StackPointer),
+                format!("{:04X}", cpu.sp),
+                Some(lang.t(Key::StackPointerTooltip)),
+            ),
             row_separator(),
-            mux_readout_row(lang.t(Key::ProgramCounter), format!("{:04X}", cpu.pc)),
+            mux_readout_row(
+                lang.t(Key::ProgramCounter),
+                format!("{:04X}", cpu.pc),
+                Some(lang.t(Key::ProgramCounterTooltip)),
+            ),
             row_separator(),
             mux_readout_row(
                 lang.t(Key::IncDec),
@@ -127,6 +135,7 @@ pub(super) fn mux_panel<'a>(
                         .map(|info| info.size)
                         .unwrap_or(1)
                 ),
+                Some(lang.t(Key::IncDecTooltip)),
             ),
         ]
         .spacing(0),
@@ -210,8 +219,12 @@ fn mux_static_cell(label: &'static str, value: u8) -> Element<'static, Message> 
 /// Single row inside the SP / PC footer group. The group owns the
 /// frame; rows stay borderless and are split by 1-px separators so the
 /// footer reads as one subblock instead of three rounded chips.
-fn mux_readout_row(label: &str, value: String) -> Element<'_, Message> {
-    container(
+fn mux_readout_row<'a>(
+    label: &'a str,
+    value: String,
+    tooltip_hint: Option<&'static str>,
+) -> Element<'a, Message> {
+    let face = container(
         row![
             ui_text(label.to_owned(), 12, TOKYO_MUTED),
             Space::new().width(Length::Fill),
@@ -222,7 +235,21 @@ fn mux_readout_row(label: &str, value: String) -> Element<'_, Message> {
     )
     .padding([4, 10])
     .width(Length::Fill)
-    .into()
+    .into();
+
+    match tooltip_hint {
+        Some(hint) => tooltip(
+            face,
+            super::tooltips::long_tooltip_body(hint),
+            tooltip::Position::Bottom,
+        )
+        .gap(4.0)
+        .padding(12.0)
+        .delay(super::tooltips::EXPLANATORY_TOOLTIP_DELAY)
+        .snap_within_viewport(true)
+        .into(),
+        None => face,
+    }
 }
 
 fn mux_register_pair(

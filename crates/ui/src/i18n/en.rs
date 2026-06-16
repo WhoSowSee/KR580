@@ -235,19 +235,78 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::BufferRegister1 => "Buffer register 1",
         Key::BufferRegister2 => "Buffer register 2",
         Key::AddressBuffer => "Address buffer",
+        Key::AddressBufferTooltip => "Last 16-bit address driven by the CPU onto the address bus.",
         Key::InstructionRegister => "Instruction register",
+        Key::InstructionRegisterTooltip => {
+            "Opcode byte of the instruction currently being executed."
+        }
         Key::InstructionDecoder => "Decoder",
+        Key::InstructionDecoderTooltip => {
+            "Human-readable mnemonic decoded from the instruction register."
+        }
         Key::ControlSignals => "Control signals",
         Key::CurrentCommand => "Current command",
         Key::DataBuffer => "Data buffer",
+        Key::DataBufferTooltip => {
+            "Last byte that appeared on the CPU's 8-bit data bus. Updated on every memory or I/O read."
+        }
         Key::FlagsRegister => "Flags register",
+        Key::FlagsRegisterTooltip => {
+            "Compact PSW flags: S (sign), Z (zero), AC (auxiliary carry), P (parity), C (carry). Bits 1 and 3 are always 0 on the 8080."
+        }
         Key::StatusRegister => "Status register",
+        Key::PswTooltip => {
+            "Program status word: accumulator A concatenated with the PSW flag byte. Upper byte is A, lower byte is the flags."
+        }
+        Key::StackPointerTooltip => {
+            "Stack pointer. Points to the top of the program stack in memory; PUSH decreases it, POP increases it."
+        }
+        Key::ProgramCounterTooltip => {
+            "Program counter. Holds the address of the next instruction byte to be fetched."
+        }
+        Key::IncDecTooltip => {
+            "Number of bytes the CPU will add to the program counter after the current instruction finishes."
+        }
         Key::Multiplexer => "Multiplexer",
         Key::TempStorageRegisters => "Temporary storage registers",
         Key::GeneralPurposeRegisters => "General-purpose registers",
         Key::StackPointer => "Stack pointer (SP)",
         Key::ProgramCounter => "Program counter (PC)",
         Key::IncDec => "Increment-decrement",
+
+        Key::LampF2 => {
+            "Clock phase 2\nThe second half of the internal clock cycle; many control actions are strobed on this edge."
+        }
+        Key::LampF1 => {
+            "Clock phase 1\nThe first half of the internal clock cycle; the CPU starts a new bus state here."
+        }
+        Key::LampSync => {
+            "Synchronisation\nAsserted at the start of a machine cycle to identify the bus transaction type."
+        }
+        Key::LampReady => {
+            "CPU ready\nWhen active, the CPU can finish the bus cycle; when low, it inserts wait states."
+        }
+        Key::LampWait => {
+            "Wait state\nLit when the CPU is stretching a bus cycle because READY is not yet active."
+        }
+        Key::LampHold => {
+            "Hold request\nA peripheral asks the CPU to release the system bus for DMA."
+        }
+        Key::LampInt => {
+            "Interrupt request\nA peripheral is asking for attention; honoured only when INTE is set."
+        }
+        Key::LampInte => {
+            "Interrupts enabled\nWhen set, the CPU will accept a maskable interrupt request (INT)."
+        }
+        Key::LampDbin => {
+            "Data bus input\nThe CPU is reading data from memory or an I/O port onto the data bus."
+        }
+        Key::LampWr => {
+            "Write strobe\nThe CPU is writing data from the accumulator or data bus to memory or I/O."
+        }
+        Key::LampHlda => {
+            "Hold acknowledge\nThe CPU has released the bus and granted it to the requesting DMA controller."
+        }
         Key::CyclesAndTacts => "Cycle and tact",
         Key::CycleLabel => "Cycle",
         Key::TactLabel => "Tact",

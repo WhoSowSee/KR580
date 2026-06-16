@@ -7,7 +7,7 @@
 //! - `device_chip` – peripheral chip on the bottom strip.
 //! - `functional_block` – clickable register chip.
 
-use iced::widget::{Space, button, column, container, mouse_area, row, svg, text_input};
+use iced::widget::{Space, button, column, container, mouse_area, row, svg, text_input, tooltip};
 use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
 use k580_core::Cpu8080State;
 use std::time::Duration;
@@ -18,8 +18,17 @@ use super::theme::{
     MONO_FONT, TOKYO_MUTED, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE, TOKYO_TEXT, mono_text,
     ui_text,
 };
-use super::tooltips::hover_tooltip;
+use super::tooltips::{hover_tooltip, long_tooltip_body};
 use crate::app::{Message, REGISTER_INLINE_INPUT_ID, RegisterInlineTarget};
+
+fn wrap_tooltip(face: Element<'static, Message>, hint: &'static str) -> Element<'static, Message> {
+    tooltip(face, long_tooltip_body(hint), tooltip::Position::Bottom)
+        .gap(4.0)
+        .padding(12.0)
+        .delay(super::tooltips::EXPLANATORY_TOOLTIP_DELAY)
+        .snap_within_viewport(true)
+        .into()
+}
 
 const FUNCTIONAL_BLOCK_VALUE_WIDTH: f32 = 54.0;
 const FUNCTIONAL_BLOCK_VALUE_HEIGHT: f32 = 28.0;
@@ -44,8 +53,9 @@ pub(super) fn schematic_readout(
     label: impl Into<String>,
     value: impl Into<String>,
     accent: Color,
+    tooltip_hint: Option<&'static str>,
 ) -> Element<'static, Message> {
-    container(
+    let face = container(
         column![
             ui_text(label, 11, TOKYO_MUTED),
             mono_text(value, 20, accent),
@@ -59,15 +69,21 @@ pub(super) fn schematic_readout(
     .height(Length::Fixed(60.0))
     .align_x(alignment::Horizontal::Center)
     .style(schematic_block_style)
-    .into()
+    .into();
+
+    match tooltip_hint {
+        Some(hint) => wrap_tooltip(face, hint),
+        None => face,
+    }
 }
 
 pub(super) fn schematic_wide_readout(
     label: impl Into<String>,
     value: impl Into<String>,
     accent: Color,
+    tooltip_hint: Option<&'static str>,
 ) -> Element<'static, Message> {
-    container(
+    let face = container(
         column![
             ui_text(label, 11, TOKYO_MUTED),
             mono_text(value, 20, accent),
@@ -81,7 +97,12 @@ pub(super) fn schematic_wide_readout(
     .height(Length::Fixed(54.0))
     .align_x(alignment::Horizontal::Center)
     .style(schematic_block_style)
-    .into()
+    .into();
+
+    match tooltip_hint {
+        Some(hint) => wrap_tooltip(face, hint),
+        None => face,
+    }
 }
 
 /// 16 px value (vs 20 px for `schematic_readout`) so 10-character
@@ -90,8 +111,9 @@ pub(super) fn schematic_mnemonic_readout(
     label: impl Into<String>,
     value: impl Into<String>,
     accent: Color,
+    tooltip_hint: Option<&'static str>,
 ) -> Element<'static, Message> {
-    container(
+    let face = container(
         column![
             ui_text(label, 11, TOKYO_MUTED),
             mono_text(value, 16, accent),
@@ -105,7 +127,12 @@ pub(super) fn schematic_mnemonic_readout(
     .height(Length::Fixed(60.0))
     .align_x(alignment::Horizontal::Center)
     .style(schematic_block_style)
-    .into()
+    .into();
+
+    match tooltip_hint {
+        Some(hint) => wrap_tooltip(face, hint),
+        None => face,
+    }
 }
 
 pub(super) fn flag_strip(cpu: &Cpu8080State) -> Element<'static, Message> {

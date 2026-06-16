@@ -7,17 +7,16 @@
 //! R           Read         Bar
 //! ```
 
+use super::styles::status_tooltip_style;
+use super::theme::{TOKYO_BLUE, TOKYO_TEXT, ui_text};
+use super::tooltips::EXPLANATORY_TOOLTIP_DELAY;
+use crate::app::Message;
+use crate::i18n::{Key, Lang};
 use iced::widget::{Space, column, container, row, tooltip};
 use iced::{Element, Length, Padding, alignment};
 use k580_core::{
     Cpu8080State, MachineCycleKind, MachineCycleLayout, kind_at, layout_for, position_for,
 };
-use std::time::Duration;
-
-use super::styles::status_tooltip_style;
-use super::theme::{TOKYO_BLUE, TOKYO_TEXT, ui_text};
-use crate::app::Message;
-use crate::i18n::{Key, Lang};
 
 /// For conditional opcodes the taken/not-taken branches differ in
 /// length, so the current `phase` uniquely identifies the branch.
@@ -127,7 +126,7 @@ pub(super) fn status_register_tooltip<'a>(
     tooltip(face, body, tooltip::Position::Bottom)
         .gap(4.0)
         .padding(12.0)
-        .delay(Duration::from_millis(600))
+        .delay(EXPLANATORY_TOOLTIP_DELAY)
         .snap_within_viewport(true)
         .into()
 }

@@ -71,6 +71,7 @@ impl DesktopApp {
                     ((cpu.registers.a as u16) << 8) | cpu.flags.to_psw() as u16,
                 ),
                 TOKYO_GREEN,
+                Some(lang.t(Key::PswTooltip)),
             ),
             flag_panel,
         ]
@@ -135,12 +136,14 @@ impl DesktopApp {
                     lang.t(Key::AddressBuffer),
                     format!("{:04X}", cpu.last_address_bus),
                     TOKYO_GREEN,
+                    Some(lang.t(Key::AddressBufferTooltip)),
                 ),
                 Space::new().width(Length::Fill),
                 schematic_readout(
                     lang.t(Key::InstructionRegister),
                     format!("{:02X}", cpu.last_fetched_opcode),
                     TOKYO_GREEN,
+                    Some(lang.t(Key::InstructionRegisterTooltip)),
                 ),
                 Space::new().width(Length::Fill),
                 schematic_mnemonic_readout(
@@ -149,6 +152,7 @@ impl DesktopApp {
                         .map(|info| info.mnemonic)
                         .unwrap_or_else(|_| "-".to_owned()),
                     TOKYO_GREEN,
+                    Some(lang.t(Key::InstructionDecoderTooltip)),
                 ),
             ]
             .spacing(14),
@@ -163,7 +167,7 @@ impl DesktopApp {
         let cycles = super::cycles::cycle_panels(cpu, lang);
         let signals_panel = legend_panel_left(
             lang.t(Key::ControlSignals),
-            container(control_lamps(cpu))
+            container(control_lamps(cpu, lang))
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center),
             Length::Shrink,
@@ -190,6 +194,7 @@ impl DesktopApp {
                 lang.t(Key::StatusRegister),
                 super::status_register::status_register_bits(cpu),
                 TOKYO_GREEN,
+                None,
             ),
             lang,
         );
@@ -230,8 +235,14 @@ impl DesktopApp {
                 lang.t(Key::DataBuffer),
                 format!("{:02X}", cpu.last_data_bus_byte),
                 TOKYO_GREEN,
+                Some(lang.t(Key::DataBufferTooltip)),
             ),
-            schematic_wide_readout(lang.t(Key::FlagsRegister), flag_bits, TOKYO_GREEN),
+            schematic_wide_readout(
+                lang.t(Key::FlagsRegister),
+                flag_bits,
+                TOKYO_GREEN,
+                Some(lang.t(Key::FlagsRegisterTooltip)),
+            ),
             super::mux::mux_panel(
                 cpu,
                 self.selected_register,

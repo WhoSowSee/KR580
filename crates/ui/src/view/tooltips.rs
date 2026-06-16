@@ -1,14 +1,32 @@
-use iced::widget::{container, row, tooltip};
-use iced::{Element, Padding, alignment};
+use iced::widget::{container, row, text::Wrapping, tooltip};
+use iced::{Element, Length, Padding, alignment};
 use std::time::Duration;
 
 use super::styles::inset_style;
 use super::theme::{TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::Message;
 
+const LONG_TOOLTIP_WIDTH: f32 = 220.0;
+
+pub(super) fn long_tooltip_body(hint: &'static str) -> Element<'static, Message> {
+    container(
+        ui_text(hint, 11, TOKYO_TEXT)
+            .width(Length::Fixed(LONG_TOOLTIP_WIDTH))
+            .wrapping(Wrapping::Word),
+    )
+    .padding(Padding::from([4, 8]))
+    .style(inset_style)
+    .into()
+}
+
 pub(super) const VIEWPORT_PADDING: f32 = 12.0;
 pub(super) const VISIBLE_GAP: f32 = 6.0;
 pub(super) const SNAPPED_TOOLTIP_GAP: f32 = VISIBLE_GAP - VIEWPORT_PADDING;
+
+/// Slightly longer delay for explanatory readout/indicator tooltips so
+/// they don't pop up while the user is casually moving the mouse across
+/// the schematic plate, while keeping button/shortcut tooltips snappy.
+pub(super) const EXPLANATORY_TOOLTIP_DELAY: Duration = Duration::from_millis(1200);
 
 pub(super) fn shortcut_hint(message: &Message) -> Option<&'static str> {
     match message {
