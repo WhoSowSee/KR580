@@ -206,7 +206,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsHddDirectoryHint => "Default directory for the hard disk buffer file",
         Key::SettingsHddDirectoryBrowse => "Browse…",
         Key::SettingsFileAssociationLabel => ".580 file association",
-        Key::SettingsFileAssociationHint => "Open .580 snapshots in KR580 on double-click",
+        Key::SettingsFileAssociationHint => "Open .580 files in KR580 on double-click",
         Key::SettingsFileAssociationAdd => "Add",
         Key::SettingsFileAssociationRemove => "Remove",
         Key::SettingsToggleOn => "On",

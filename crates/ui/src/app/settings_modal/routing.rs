@@ -129,7 +129,7 @@ impl DesktopApp {
             ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),
             ContentFocus::NetworkDefaults => Task::none(),
             ContentFocus::FileAssociation => {
-                let registered = dialog.file_association_registered;
+                let registered = k580_ui::file_assoc::is_registered();
                 Task::done(if registered {
                     Message::SettingsFileAssociationUnregister
                 } else {

@@ -94,12 +94,13 @@ pub(super) fn file_association_row<'a>(
         .flatten();
     let kb_focused = kb_focus == Some(ContentFocus::FileAssociation);
 
-    let label = if dialog.file_association_registered {
+    let registered = k580_ui::file_assoc::is_registered();
+    let label = if registered {
         Key::SettingsFileAssociationRemove
     } else {
         Key::SettingsFileAssociationAdd
     };
-    let message = if dialog.file_association_registered {
+    let message = if registered {
         Message::SettingsFileAssociationUnregister
     } else {
         Message::SettingsFileAssociationRegister

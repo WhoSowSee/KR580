@@ -102,7 +102,7 @@ impl DesktopApp {
             }),
         ];
 
-        if self.startup_frames_seen < 2 {
+        if self.startup_frames_seen < 2 || self.settings_dialog.is_some() {
             subscriptions.push(iced::window::frames().map(|_| Message::FrameRendered));
         }
 

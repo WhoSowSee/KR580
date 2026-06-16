@@ -327,9 +327,8 @@ impl DesktopApp {
                     self.error_notice_dismiss_at =
                         Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
                 }
-                if let Some(dialog) = self.settings_dialog.as_mut() {
-                    dialog.file_association_registered = k580_ui::file_assoc::is_registered();
-                }
+                self.file_association_toggle_revision =
+                    self.file_association_toggle_revision.wrapping_add(1);
                 Some(Task::none())
             }
             Message::SettingsFileAssociationUnregister => {
@@ -339,9 +338,8 @@ impl DesktopApp {
                     self.error_notice_dismiss_at =
                         Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
                 }
-                if let Some(dialog) = self.settings_dialog.as_mut() {
-                    dialog.file_association_registered = k580_ui::file_assoc::is_registered();
-                }
+                self.file_association_toggle_revision =
+                    self.file_association_toggle_revision.wrapping_add(1);
                 Some(Task::none())
             }
             _ => None,

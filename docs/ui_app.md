@@ -2066,9 +2066,10 @@ to start the GUI binary directly.
 
 The same toggle is available in the in-app Settings dialog under
 General → `.580 file association`. The button reads `Add` when the
-association is missing and `Remove` when it is present. The button label
-is read from the OS when the dialog is opened and updated immediately
-after the user presses it inside the dialog.
+association is missing and `Remove` when it is present. While the dialog
+is open the UI polls the OS state on every frame tick, so changes made
+from the terminal (e.g. `kr -r`) or any other source are reflected in
+the button label without closing and reopening the dialog.
 
 `kr` looks for the `k580` executable in the same directory as itself
 (`k580.exe` on Windows, `k580` elsewhere), redirects its stdio to `/dev/null`,

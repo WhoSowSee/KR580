@@ -19,7 +19,7 @@ mod speed;
 mod styles;
 mod theme_row;
 
-use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
+use iced::widget::{Space, column, container, keyed_column, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
 
 use consts::{DIALOG_HEIGHT, DIALOG_WIDTH};
@@ -37,6 +37,7 @@ use crate::i18n::Lang;
 pub(super) fn settings_modal_overlay<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
+    file_association_toggle_revision: u64,
 ) -> Element<'a, Message> {
     let backdrop = mouse_area(
         container(Space::new())
@@ -63,6 +64,9 @@ pub(super) fn settings_modal_overlay<'a>(
         .height(Length::Fixed(DIALOG_HEIGHT)),
     )
     .style(modal_dialog_style);
+
+    let body: Element<'a, Message> =
+        keyed_column(vec![(file_association_toggle_revision, body.into())]).into();
 
     let centred = column![
         Space::new().height(Length::Fill),

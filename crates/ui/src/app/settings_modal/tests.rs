@@ -1,9 +1,13 @@
+use std::sync::Mutex;
+
 use super::dialog::SettingsDialog;
 use super::focus::{FooterFocus, ResetConfirmFocus, SettingsCategory};
 use crate::app::messages::SpeedTier;
 use crate::app::{DesktopApp, Message, StatusKind};
 use crate::i18n::Lang;
 use k580_persistence::NetworkSettings;
+
+static FILE_ASSOC_TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn dialog_starts_on_general_category() {
@@ -268,40 +272,8 @@ fn language_change_re_renders_canonical_status_string() {
 
 #[cfg(windows)]
 #[test]
-fn dialog_reads_initial_file_association_state() {
-    let was_registered = k580_ui::file_assoc::is_registered();
-    let _ = k580_ui::file_assoc::unregister();
-
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
-    assert!(!dialog.file_association_registered);
-
-    k580_ui::file_assoc::register().unwrap();
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
-    assert!(dialog.file_association_registered);
-
-    let _ = k580_ui::file_assoc::unregister();
-    if was_registered {
-        k580_ui::file_assoc::register().unwrap();
-    }
-}
-
-#[cfg(windows)]
-#[test]
 fn settings_button_toggles_file_association_state() {
+    let _guard = FILE_ASSOC_TEST_MUTEX.lock().unwrap();
     let was_registered = k580_ui::file_assoc::is_registered();
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     let _ = k580_ui::file_assoc::unregister();
@@ -313,28 +285,50 @@ fn settings_button_toggles_file_association_state() {
         None,
         NetworkSettings::default(),
     ));
-    assert!(
-        !app.settings_dialog
-            .as_ref()
-            .unwrap()
-            .file_association_registered
-    );
+    assert!(!k580_ui::file_assoc::is_registered());
+    assert_eq!(app.file_association_toggle_revision, 0);
 
     let _ = app.update(Message::SettingsFileAssociationRegister);
-    assert!(
-        app.settings_dialog
-            .as_ref()
-            .unwrap()
-            .file_association_registered
-    );
+    assert!(k580_ui::file_assoc::is_registered());
+    assert_eq!(app.file_association_toggle_revision, 1);
 
     let _ = app.update(Message::SettingsFileAssociationUnregister);
-    assert!(
-        !app.settings_dialog
-            .as_ref()
-            .unwrap()
-            .file_association_registered
-    );
+    assert!(!k580_ui::file_assoc::is_registered());
+    assert_eq!(app.file_association_toggle_revision, 2);
+
+    if was_registered {
+        k580_ui::file_assoc::register().unwrap();
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn tick_bumps_file_association_revision_on_external_change() {
+    let _guard = FILE_ASSOC_TEST_MUTEX.lock().unwrap();
+    let was_registered = k580_ui::file_assoc::is_registered();
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let _ = k580_ui::file_assoc::unregister();
+    let _ = app.handle_tick();
+    app.settings_dialog = Some(SettingsDialog::new(
+        app.lang,
+        app.default_speed,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+    ));
+    assert!(!k580_ui::file_assoc::is_registered());
+    let revision_before = app.file_association_toggle_revision;
+
+    k580_ui::file_assoc::register().unwrap();
+    let _ = app.handle_tick();
+    assert!(k580_ui::file_assoc::is_registered());
+    assert_eq!(app.file_association_toggle_revision, revision_before + 1);
+
+    k580_ui::file_assoc::unregister().unwrap();
+    let _ = app.handle_tick();
+    assert!(!k580_ui::file_assoc::is_registered());
+    assert_eq!(app.file_association_toggle_revision, revision_before + 2);
 
     if was_registered {
         k580_ui::file_assoc::register().unwrap();

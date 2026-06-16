@@ -204,7 +204,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsHddDirectoryHint => "Каталог по умолчанию для файла буфера жёсткого диска",
         Key::SettingsHddDirectoryBrowse => "Обзор…",
         Key::SettingsFileAssociationLabel => "Ассоциация .580",
-        Key::SettingsFileAssociationHint => "Открывать снимки .580 в KR580 по двойному клику",
+        Key::SettingsFileAssociationHint => "Открывать файлы .580 в KR580 по двойному клику",
         Key::SettingsFileAssociationAdd => "Добавить",
         Key::SettingsFileAssociationRemove => "Удалить",
         Key::SettingsToggleOn => "Включено",

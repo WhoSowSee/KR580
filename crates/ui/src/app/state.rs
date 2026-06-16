@@ -133,6 +133,13 @@ pub(crate) struct DesktopApp {
     pub(crate) lang: Lang,
     pub(crate) default_speed: SpeedTier,
     pub(crate) settings_dialog: Option<SettingsDialog>,
+    /// Bumped whenever the OS file-association state changes so the
+    /// settings overlay re-renders even when the dialog struct itself
+    /// is unchanged.
+    pub(crate) file_association_toggle_revision: u64,
+    /// Last known OS file-association state, used by `handle_tick` to
+    /// detect external changes.
+    pub(crate) file_association_last_registered: bool,
     pub(crate) monitor_open: bool,
     pub(crate) monitor_split: bool,
     pub(crate) monitor_hex_popup: bool,
@@ -302,6 +309,8 @@ impl DesktopApp {
             lang,
             default_speed,
             settings_dialog: None,
+            file_association_toggle_revision: 0,
+            file_association_last_registered: k580_ui::file_assoc::is_registered(),
             help_dialog: None,
             monitor_open: false,
             monitor_split: false,

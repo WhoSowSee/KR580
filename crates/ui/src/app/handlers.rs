@@ -12,6 +12,12 @@ use super::state::DesktopApp;
 impl DesktopApp {
     pub(crate) fn handle_tick(&mut self) -> Task<Message> {
         self.pull_events();
+        let registered = k580_ui::file_assoc::is_registered();
+        if registered != self.file_association_last_registered {
+            self.file_association_last_registered = registered;
+            self.file_association_toggle_revision =
+                self.file_association_toggle_revision.wrapping_add(1);
+        }
         self.memory_scroll_visible_ticks = self.memory_scroll_visible_ticks.saturating_sub(1);
         self.opcode_scroll_visible_ticks = self.opcode_scroll_visible_ticks.saturating_sub(1);
         self.monitor_hex_scroll_visible_ticks =
