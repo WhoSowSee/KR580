@@ -129,15 +129,12 @@ fn save_floppy_buffer_file(path: &Path, bytes: &[u8]) -> std::io::Result<PathBuf
 
 pub(crate) fn hdd_default_path() -> PathBuf {
     let settings = load_settings();
-    let dir = settings
-        .general
-        .hdd_directory
-        .unwrap_or_else(|| {
-            std::env::var("HOME")
-                .or_else(|_| std::env::var("USERPROFILE"))
-                .map(PathBuf::from)
-                .unwrap_or_else(|_| PathBuf::from("."))
-        });
+    let dir = settings.general.hdd_directory.unwrap_or_else(|| {
+        std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from("."))
+    });
     dir.join("hdd.kpd")
 }
 

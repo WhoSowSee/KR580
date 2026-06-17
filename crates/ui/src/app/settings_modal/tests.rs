@@ -15,6 +15,7 @@ fn dialog_starts_on_general_category() {
         Lang::Ru,
         SpeedTier::Medium,
         true,
+        true,
         None,
         None,
         NetworkSettings::default(),
@@ -28,6 +29,7 @@ fn search_query_strips_surrounding_whitespace() {
     let mut dialog = SettingsDialog::new(
         Lang::Ru,
         SpeedTier::Medium,
+        true,
         true,
         None,
         None,
@@ -43,6 +45,7 @@ fn footer_focus_defaults_to_cancel() {
         Lang::Ru,
         SpeedTier::Medium,
         true,
+        true,
         None,
         None,
         NetworkSettings::default(),
@@ -56,6 +59,7 @@ fn dialog_copies_floppy_image_path() {
     let dialog = SettingsDialog::new(
         Lang::Ru,
         SpeedTier::Medium,
+        true,
         true,
         Some(path.clone()),
         None,
@@ -73,7 +77,7 @@ fn dialog_copies_client_and_server_network_defaults() {
         bind_port: 7000,
         ..NetworkSettings::default()
     };
-    let dialog = SettingsDialog::new(Lang::Ru, SpeedTier::Medium, true, None, None, network);
+    let dialog = SettingsDialog::new(Lang::Ru, SpeedTier::Medium, true, true, None, None, network);
 
     assert_eq!(dialog.draft_network_client_host, "client.local");
     assert_eq!(dialog.draft_network_client_port, "6000");
@@ -101,6 +105,7 @@ fn live_speed_change_updates_active_tier_immediately() {
         app.lang,
         app.default_speed,
         true,
+        true,
         None,
         None,
         NetworkSettings::default(),
@@ -120,6 +125,7 @@ fn cancel_rolls_back_live_speed_to_pre_open_snapshot() {
     app.settings_dialog = Some(SettingsDialog::new(
         app.lang,
         app.default_speed,
+        true,
         true,
         None,
         None,
@@ -143,6 +149,7 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     app.settings_dialog = Some(SettingsDialog::new(
         app.lang,
         app.default_speed,
+        true,
         true,
         None,
         None,
@@ -170,6 +177,7 @@ fn reset_confirm_opens_with_cancel_focused() {
         app.lang,
         app.default_speed,
         true,
+        true,
         None,
         None,
         NetworkSettings::default(),
@@ -188,6 +196,7 @@ fn tab_toggles_reset_confirm_focus_in_a_two_button_ring() {
     app.settings_dialog = Some(SettingsDialog::new(
         app.lang,
         app.default_speed,
+        true,
         true,
         None,
         None,
@@ -226,6 +235,7 @@ fn enter_in_reset_confirm_activates_focused_button() {
     app.settings_dialog = Some(SettingsDialog::new(
         app.lang,
         app.default_speed,
+        true,
         true,
         None,
         None,
@@ -281,6 +291,7 @@ fn settings_button_toggles_file_association_state() {
         app.lang,
         app.default_speed,
         true,
+        true,
         None,
         None,
         NetworkSettings::default(),
@@ -313,6 +324,7 @@ fn tick_bumps_file_association_revision_on_external_change() {
         app.lang,
         app.default_speed,
         true,
+        true,
         None,
         None,
         NetworkSettings::default(),
@@ -333,4 +345,44 @@ fn tick_bumps_file_association_revision_on_external_change() {
     if was_registered {
         k580_ui::file_assoc::register().unwrap();
     }
+}
+
+#[test]
+fn memory_operand_highlighting_live_change_updates_app_state() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.memory_operand_highlighting = false;
+    app.settings_dialog = Some(SettingsDialog::new(
+        app.lang,
+        app.default_speed,
+        true,
+        false,
+        None,
+        None,
+        NetworkSettings::default(),
+    ));
+
+    let _ = app.update(Message::SettingsDraftMemoryOperandHighlightingSet(true));
+
+    assert!(app.memory_operand_highlighting);
+}
+
+#[test]
+fn cancel_rolls_back_memory_operand_highlighting_to_pre_open_snapshot() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.memory_operand_highlighting = false;
+    app.settings_dialog = Some(SettingsDialog::new(
+        app.lang,
+        app.default_speed,
+        true,
+        false,
+        None,
+        None,
+        NetworkSettings::default(),
+    ));
+
+    let _ = app.update(Message::SettingsDraftMemoryOperandHighlightingSet(true));
+    let _ = app.update(Message::CloseSettings);
+
+    assert!(!app.memory_operand_highlighting);
+    assert!(app.settings_dialog.is_none());
 }

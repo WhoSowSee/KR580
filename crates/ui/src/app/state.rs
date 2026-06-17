@@ -97,6 +97,7 @@ pub(crate) struct DesktopApp {
     pub(crate) printer_window: ToolWindowState,
     pub(crate) window_maximized: bool,
     pub(crate) follow_pc: bool,
+    pub(crate) memory_operand_highlighting: bool,
     pub(crate) menu_categories_visible: bool,
     pub(crate) undo_stack: UndoStack,
     pub(crate) dirty: bool,
@@ -213,6 +214,7 @@ impl DesktopApp {
         });
         let default_speed = speed_tier_from_preset(settings.general.default_speed);
         let follow_pc = settings.general.follow_pc;
+        let memory_operand_highlighting = settings.general.memory_operand_highlighting;
         let initial_status_kind = StatusKind::Ready;
         let initial_status = initial_status_kind
             .render(lang)
@@ -274,6 +276,7 @@ impl DesktopApp {
             window_maximized: false,
             menu_categories_visible: true,
             follow_pc,
+            memory_operand_highlighting,
             undo_stack: UndoStack::default(),
             dirty: false,
             saved_cpu: k580_core::Cpu8080State::default(),

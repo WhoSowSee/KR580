@@ -33,6 +33,7 @@ impl DesktopApp {
             | Message::SettingsDraftLanguageChanged(_)
             | Message::SettingsDraftSpeedChanged(_)
             | Message::SettingsDraftFollowPcSet(_)
+            | Message::SettingsDraftMemoryOperandHighlightingSet(_)
             | Message::SettingsFloppyImageBrowse
             | Message::SettingsDraftFloppyImageSet(_)
             | Message::SettingsFloppyImageClear
@@ -124,6 +125,10 @@ impl DesktopApp {
             ContentFocus::FollowPc => {
                 let current = dialog.draft_follow_pc;
                 Task::done(Message::SettingsDraftFollowPcSet(!current))
+            }
+            ContentFocus::MemoryOperandHighlighting => {
+                let current = dialog.draft_memory_operand_highlighting;
+                Task::done(Message::SettingsDraftMemoryOperandHighlightingSet(!current))
             }
             ContentFocus::FloppyImage => Task::done(Message::SettingsFloppyImageBrowse),
             ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),

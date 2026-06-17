@@ -199,6 +199,10 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsSpeedHint => "Default speed for all files",
         Key::SettingsFollowPcLabel => "Follow PC",
         Key::SettingsFollowPcHint => "Move highlight with program counter during execution",
+        Key::SettingsMemoryOperandHighlightingLabel => "Highlight memory operands",
+        Key::SettingsMemoryOperandHighlightingHint => {
+            "Color-code instruction operands in the RAM list"
+        }
         Key::SettingsFloppyImageLabel => "Floppy image",
         Key::SettingsFloppyImageHint => "Default floppy image loaded on startup",
         Key::SettingsFloppyImageBrowse => "Browse…",

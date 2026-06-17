@@ -151,6 +151,16 @@ fn collect_category_rows<'a>(
             }
             if matches_query(
                 &[
+                    Key::SettingsMemoryOperandHighlightingLabel,
+                    Key::SettingsMemoryOperandHighlightingHint,
+                ],
+                lang,
+                lower_query,
+            ) {
+                out.push(memory_operand_highlighting_row(dialog, lang));
+            }
+            if matches_query(
+                &[
                     Key::SettingsFileAssociationLabel,
                     Key::SettingsFileAssociationHint,
                     Key::SettingsFileAssociationAdd,

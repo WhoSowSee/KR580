@@ -197,6 +197,8 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsSpeedHint => "Скорость по умолчанию для всех файлов",
         Key::SettingsFollowPcLabel => "Следовать за PC",
         Key::SettingsFollowPcHint => "Перемещать подсветку за счётчиком команд во время выполнения",
+        Key::SettingsMemoryOperandHighlightingLabel => "Подсвечивать операнды памяти",
+        Key::SettingsMemoryOperandHighlightingHint => "Раскрашивать операнды команд в списке ОЗУ",
         Key::SettingsFloppyImageLabel => "Образ дисковода",
         Key::SettingsFloppyImageHint => "Образ дисковода, загружаемый по умолчанию",
         Key::SettingsFloppyImageBrowse => "Обзор…",

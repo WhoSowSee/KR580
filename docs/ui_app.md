@@ -144,7 +144,18 @@ The right-hand 330 px column stacks four legend-framed panels in this
 order, top to bottom:
 
 1. **«Список ячеек ОЗУ»** – virtualised memory list with the inline
-   value editor and the opcode dropdown.
+   value editor and the opcode dropdown. The value column can use a local
+   disassembly pass to colour the bytes that follow a multi-byte opcode:
+   16-bit memory addresses/16-bit immediates are `TOKYO_YELLOW`, 8-bit
+   generic immediate operands are `TOKYO_CYAN`, and the port operand of
+   `IN`/`OUT` (used by the monitor, printer, storage, and network
+   devices) is `TOKYO_MAGENTA`. Opcode bytes themselves stay
+   `TOKYO_GREEN`. The scan walks back up to two bytes from the top of
+   the visible window to recover an instruction boundary, so the hint
+   is accurate even when the list starts in the middle of an instruction.
+   The coloring is controlled by the **Highlight memory operands**
+   toggle in Settings → General; when the toggle is off, all value
+   cells render in `TOKYO_GREEN`.
 2. **«Ячейка ОЗУ и ее значение»** – address spinner + value field +
    `↵` apply button.
 3. **«Регистр и его значение»** – register name spinner + value field +
@@ -1547,8 +1558,8 @@ ring.
 
 Opened via `Ctrl+,` or the menu bar. Four categories (General,
 External Devices, Appearance, Shortcuts) with keyboard-navigable
-sidebar chips. General holds language, speed, follow-PC and the `.580`
-file association; External Devices holds the floppy image, HDD directory
+sidebar chips. General holds language, speed, follow-PC, memory operand
+   highlighting, and the `.580` file association; External Devices holds the floppy image, HDD directory
 and network defaults; Appearance and Shortcuts hold their namesake
 settings. Live-editing language/speed with Cancel/Reset/Save footer.
 Reset opens a sub-modal confirmation. Search filters settings rows
@@ -1855,7 +1866,7 @@ dialog is open and turns it into one of four section-aware actions.
 | Shortcut | Effect |
 |---|---|
 | Ctrl+Tab / Ctrl+Shift+Tab | Cycle between sections. The keyboard subscription routes `Ctrl+Tab` to `Message::SettingsSectionCycle { backward }` before `to_latin` runs, so the shortcut does not depend on layout. Entering a section seeds its local focus: Content lands on the first / last interactive item, Footer lands on `Cancel` / `Save`, Sidebar leaves the existing category active, Search additionally focuses the text input through `iced::widget::operation::focus(SETTINGS_SEARCH_INPUT_ID)` so typing routes into the field; on every other section the dialog focuses a dummy id no widget owns to blur the search input and keep Tab/Enter from being eaten by it. |
-| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPc → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → NetworkDefaults`; and on Appearance/Shortcuts it is the single `Theme`/`Shortcuts` row. Each category wraps at both ends. In `Footer` the three buttons cycle as a ring (`Reset → Cancel → Save → Reset`). In `Sidebar` Tab walks the categories as a ring (`General → External Devices → Appearance → Shortcuts → General`) – same role as Up/Down, just reachable from the layout-agnostic key. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
+| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPc → MemoryOperandHighlighting → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → NetworkDefaults`; and on Appearance/Shortcuts it is the single `Theme`/`Shortcuts` row. Each category wraps at both ends. In `Footer` the three buttons cycle as a ring (`Reset → Cancel → Save → Reset`). In `Sidebar` Tab walks the categories as a ring (`General → External Devices → Appearance → Shortcuts → General`) – same role as Up/Down, just reachable from the layout-agnostic key. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
 | ArrowUp / ArrowDown | Inside `Sidebar` walks the categories `General ↔ External Devices ↔ Appearance ↔ Shortcuts` (and applies the category change), stopping at the ends instead of wrapping. With the language dropdown open they only **highlight** the next/previous option without committing – `dropdown_highlight: Option<Lang>` on `SettingsDialog` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
 | ArrowLeft / ArrowRight | Inside the speed segment row of `Content` walks the four chips. Wraps at the ends. Has no effect outside the speed row. |
 | Enter | When the language dropdown is open, applies `dropdown_highlight` (or the current draft if nothing was highlighted) and closes the panel. Otherwise activates the focused item: opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier when one of the speed chips does, and triggers `SettingsResetRequested` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
@@ -1927,9 +1938,10 @@ each file under the 400-line ceiling:
   the section-aware Enter / Tab / arrow handlers.
 - `app/settings_modal/tests.rs` – focus / live-preview / reset-confirm
   regression tests.
-- `app/update_settings.rs` – `dispatch_settings_message`, called from
-  the main `update` loop before the big `match` so every
-  `Message::Settings*` is handled in one focused module.
+- `app/update_settings/{mod,network}.rs` – `dispatch_settings_message` lives in
+  `mod.rs` and is called from the main `update` loop before the big `match` so every
+  `Message::Settings*` is handled in one focused module; network parsing
+  helpers and the directory-writability check live in `network.rs`.
 - `app/update_overlays.rs` – `dispatch_overlay_message`, called from
   the main `update` loop for About, Help, external URL, and monitor
   overlay messages.

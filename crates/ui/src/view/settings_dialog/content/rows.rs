@@ -44,6 +44,41 @@ pub(super) fn follow_pc_toggle_row<'a>(
     )
 }
 
+pub(super) fn memory_operand_highlighting_row<'a>(
+    dialog: &'a SettingsDialog,
+    lang: Lang,
+) -> Element<'a, Message> {
+    let kb_focus = (dialog.section == SettingsSection::Content)
+        .then_some(dialog.content_focus)
+        .flatten();
+
+    let kb_focused = kb_focus == Some(ContentFocus::MemoryOperandHighlighting);
+
+    let segments = row![
+        segmented_button_width(
+            lang.t(Key::SettingsToggleOn),
+            dialog.draft_memory_operand_highlighting,
+            kb_focused,
+            Message::SettingsDraftMemoryOperandHighlightingSet(true),
+            TOGGLE_SEGMENT_WIDTH,
+        ),
+        segmented_button_width(
+            lang.t(Key::SettingsToggleOff),
+            !dialog.draft_memory_operand_highlighting,
+            false,
+            Message::SettingsDraftMemoryOperandHighlightingSet(false),
+            TOGGLE_SEGMENT_WIDTH,
+        ),
+    ]
+    .spacing(6);
+
+    setting_row(
+        lang.t(Key::SettingsMemoryOperandHighlightingLabel),
+        lang.t(Key::SettingsMemoryOperandHighlightingHint),
+        segments.into(),
+    )
+}
+
 pub(super) fn hdd_directory_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,

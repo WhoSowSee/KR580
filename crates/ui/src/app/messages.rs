@@ -291,6 +291,7 @@ pub(crate) enum Message {
     SettingsDraftLanguageChanged(Lang),
     SettingsDraftSpeedChanged(SpeedTier),
     SettingsDraftFollowPcSet(bool),
+    SettingsDraftMemoryOperandHighlightingSet(bool),
     SettingsFloppyImageBrowse,
     SettingsDraftFloppyImageSet(PathBuf),
     SettingsFloppyImageClear,

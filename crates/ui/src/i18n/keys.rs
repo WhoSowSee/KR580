@@ -198,6 +198,8 @@ pub(crate) enum Key {
     SettingsSpeedHint,
     SettingsFollowPcLabel,
     SettingsFollowPcHint,
+    SettingsMemoryOperandHighlightingLabel,
+    SettingsMemoryOperandHighlightingHint,
     SettingsFloppyImageLabel,
     SettingsFloppyImageHint,
     SettingsFloppyImageBrowse,
