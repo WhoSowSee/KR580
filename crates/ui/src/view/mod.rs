@@ -11,6 +11,7 @@ mod icons;
 mod import_modal;
 mod lamps;
 mod memory_list;
+pub(crate) use memory_list::{operand_jump_target, operand_port_number};
 mod menu;
 mod menu_dropdowns;
 mod menu_labels;

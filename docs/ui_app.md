@@ -155,7 +155,13 @@ order, top to bottom:
    is accurate even when the list starts in the middle of an instruction.
    The coloring is controlled by the **Highlight memory operands**
    toggle in Settings → General; when the toggle is off, all value
-   cells render in `TOKYO_GREEN`.
+   cells render in `TOKYO_GREEN`. The operand classification that
+   drives the colouring also feeds Alt+Enter on a selected operand
+   cell: pressing Alt+Enter while a 16-bit address operand byte is
+   selected (and the inline editor is not focused) relocates the
+   memory view to the address the two operand bytes encode, and on
+   the operand byte of an `IN`/`OUT` instruction opens the matching
+   device window. Both behaviours are independent of the toggle.
 2. **«Ячейка ОЗУ и ее значение»** – address spinner + value field +
    `↵` apply button.
 3. **«Регистр и его значение»** – register name spinner + value field +
@@ -1812,6 +1818,7 @@ the accumulator. Invalid value input leaves the register field empty.
 | Shortcut | Effect |
 |---|---|
 | Enter | Apply the typed value to the selected address. An empty replacement field keeps the previous byte. |
+| Alt+Enter | Relocate the memory view to the 16-bit address encoded by the operand when the selected cell is the low or high byte of a 3-byte address instruction (`LXI`, `JMP`, `CALL`, `SHLD`, `LHLD`, `STA`, `LDA`, and the conditional `Jcond`/`Ccond` family). Both operand bytes resolve to the same little-endian target, so the jump works from either half. On the operand byte of a 2-byte `IN`/`OUT` instruction, opens the corresponding device window — `0x00` monitor, `0x01` floppy, `0x02` HDD, `0x03` network, `0x04` printer (matches `k580_devices::IoBus` port constants). Unknown ports fall through. Independent of the Highlight memory operands toggle, and only when the inline editor is not focused — the address/value fields below keep their own Alt+Enter behavior. Falls back to the plain inline-edit Enter on non-address, non-port cells (including 8-bit data operands). |
 | Tab / Shift+Tab | Move the selection to the next/previous address and refocus an empty replacement editor for the new row. |
 | Esc | Discard the unsaved byte typed into the inline editor and restore it to the value currently in memory. With no pending edit, falls through to closing the opcode dropdown. |
 | ArrowUp / ArrowDown (inline editor focused) | Move to the previous/next address and preserve replacement mode: the target editor is empty and its current byte is the placeholder. |

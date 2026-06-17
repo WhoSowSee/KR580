@@ -271,6 +271,18 @@ impl DesktopApp {
                 let Some(address) = self.selected_memory_address() else {
                     return Task::none();
                 };
+                if self.keyboard_modifiers.alt() {
+                    let memory = &self.snapshot.cpu.memory;
+                    if let Some(port) = crate::view::operand_port_number(address, memory)
+                        && let Some(open) = open_device_message(port)
+                    {
+                        let _ = self.update(open);
+                        return Task::none();
+                    }
+                    if let Some(target) = crate::view::operand_jump_target(address, memory) {
+                        return self.jump_memory_to(target);
+                    }
+                }
                 return Task::done(Message::MemoryEnter(address));
             }
             Message::OpenOpcodePicker if !self.running => {
@@ -345,5 +357,17 @@ impl DesktopApp {
             _ => {}
         }
         Task::none()
+    }
+}
+
+fn open_device_message(port: u8) -> Option<Message> {
+    use k580_app::IoBus;
+    match port {
+        IoBus::MONITOR_PORT => Some(Message::OpenMonitor),
+        IoBus::FLOPPY_PORT => Some(Message::OpenFloppy),
+        IoBus::HDD_PORT => Some(Message::OpenHdd),
+        IoBus::NETWORK_PORT => Some(Message::OpenNetwork),
+        IoBus::PRINTER_PORT => Some(Message::OpenPrinter),
+        _ => None,
     }
 }

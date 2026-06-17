@@ -14,6 +14,8 @@ mod operands;
 use cells::{address_cell, command_cell, memory_value_cell};
 use operands::classify_operands;
 
+pub(crate) use operands::{operand_jump_target, operand_port_number};
+
 use super::opcode_dropdown::opcode_dropdown_overlay;
 use super::styles::{memory_row_container_style, scrollable_style, solid_style, transparent_style};
 use super::theme::{
