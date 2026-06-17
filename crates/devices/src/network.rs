@@ -1,4 +1,5 @@
 use crate::{DeviceError, DeviceStatus};
+use k580_core::Memory64K;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -6,6 +7,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio::task::AbortHandle;
+
+const RX_BUFFER_CAP: usize = Memory64K::SIZE;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -288,7 +291,8 @@ async fn run_worker(
                 Ok(count) => {
                     {
                         let mut queue = read_rx.lock().unwrap();
-                        queue.extend(buf[..count].iter().copied());
+                        let remaining = RX_BUFFER_CAP.saturating_sub(queue.len());
+                        queue.extend(buf[..count.min(remaining)].iter().copied());
                     }
                     let mut worker = read_status.lock().unwrap();
                     worker.rx_total += count as u64;
