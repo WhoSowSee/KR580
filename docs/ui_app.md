@@ -2099,8 +2099,9 @@ to start the GUI binary directly.
 - `kr --help` / `kr -h` – print usage to stdout and exit.
 - `kr --version` / `kr -V` – print the version and exit.
 - `kr --register-file-type` / `kr -r` – register the `.580` file
-  association. The open command points to `kr`, so double-clicking a
-  `.580` file from the file manager also uses the launcher.
+  association. The open command points directly to the neighboring
+  `k580` GUI binary, so double-clicking a `.580` file from the file
+  manager does not show a transient console window.
 - `kr --unregister-file-type` / `kr -u` – remove the `.580` file
   association.
 
@@ -2114,6 +2115,12 @@ the button label without closing and reopening the dialog.
 `kr` looks for the `k580` executable in the same directory as itself
 (`k580.exe` on Windows, `k580` elsewhere), redirects its stdio to `/dev/null`,
 spawns it, and returns without waiting.
+
+On Windows, registering the `.580` association from either `kr.exe` or
+`k580.exe` writes the same Explorer open command: `"k580.exe" "%1"` in the
+same directory as the registering binary. Existing registry entries that
+still point at `kr.exe` are treated as stale by the settings toggle and are
+overwritten on the next register action.
 
 If the given path does not exist, is not a file, or is not a valid `.580`
 snapshot, the GUI still launches and surfaces a localized error notice

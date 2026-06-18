@@ -4,13 +4,9 @@
 //! is what Explorer renders for any file with this extension.
 
 pub fn register() -> Result<(), String> {
-    let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
-    let exe_str = exe
-        .to_str()
-        .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
-
-    let icon_resource = format!("{exe_str},-2");
-    let open_command = format!("\"{exe_str}\" \"%1\"");
+    let exe = association_executable()?;
+    let icon_resource = icon_resource_for(&exe)?;
+    let open_command = open_command_for(&exe)?;
 
     write_string("Software\\Classes\\.580", "", "K580.Snapshot")?;
     write_string(
@@ -41,15 +37,62 @@ pub fn unregister() -> Result<(), String> {
 }
 
 pub fn is_registered() -> bool {
+    let Ok(exe) = association_executable() else {
+        return false;
+    };
+    let Ok(open_command) = open_command_for(&exe) else {
+        return false;
+    };
+    let extension = read_string("Software\\Classes\\.580", "");
+    let command = read_string("Software\\Classes\\K580.Snapshot\\shell\\open\\command", "");
+
+    extension.as_deref() == Some("K580.Snapshot")
+        && command
+            .as_deref()
+            .is_some_and(|value| value.eq_ignore_ascii_case(&open_command))
+}
+
+fn association_executable() -> Result<std::path::PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+    Ok(association_executable_from(exe))
+}
+
+fn association_executable_from(exe: std::path::PathBuf) -> std::path::PathBuf {
+    if exe
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("kr.exe"))
+    {
+        return exe.with_file_name("k580.exe");
+    }
+    exe
+}
+
+fn open_command_for(exe: &std::path::Path) -> Result<String, String> {
+    let exe_str = exe
+        .to_str()
+        .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
+    Ok(format!("\"{exe_str}\" \"%1\""))
+}
+
+fn icon_resource_for(exe: &std::path::Path) -> Result<String, String> {
+    let exe_str = exe
+        .to_str()
+        .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
+    Ok(format!("{exe_str},-2"))
+}
+
+fn read_string(subkey: &str, name: &str) -> Option<String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Foundation::ERROR_SUCCESS;
     use windows_sys::Win32::System::Registry::{
-        HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, RegCloseKey, RegOpenKeyExW,
+        HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, REG_EXPAND_SZ, REG_SZ, RegCloseKey,
+        RegOpenKeyExW, RegQueryValueExW,
     };
 
-    let subkey = "Software\\Classes\\.580";
     let subkey_w: Vec<u16> = OsStr::new(subkey).encode_wide().chain(Some(0)).collect();
+    let name_w: Vec<u16> = OsStr::new(name).encode_wide().chain(Some(0)).collect();
     let mut key: HKEY = std::ptr::null_mut();
     let status = unsafe {
         RegOpenKeyExW(
@@ -60,11 +103,46 @@ pub fn is_registered() -> bool {
             &mut key,
         )
     };
-    if status == ERROR_SUCCESS {
-        unsafe { RegCloseKey(key) };
-        return true;
+    if status != ERROR_SUCCESS {
+        return None;
     }
-    false
+
+    let mut value_type = 0;
+    let mut value_bytes = 0;
+    let status = unsafe {
+        RegQueryValueExW(
+            key,
+            name_w.as_ptr(),
+            std::ptr::null_mut(),
+            &mut value_type,
+            std::ptr::null_mut(),
+            &mut value_bytes,
+        )
+    };
+    if status != ERROR_SUCCESS || !matches!(value_type, REG_SZ | REG_EXPAND_SZ) || value_bytes == 0
+    {
+        unsafe { RegCloseKey(key) };
+        return None;
+    }
+
+    let mut value = vec![0u16; value_bytes as usize / std::mem::size_of::<u16>()];
+    let status = unsafe {
+        RegQueryValueExW(
+            key,
+            name_w.as_ptr(),
+            std::ptr::null_mut(),
+            &mut value_type,
+            value.as_mut_ptr().cast(),
+            &mut value_bytes,
+        )
+    };
+    unsafe { RegCloseKey(key) };
+    if status != ERROR_SUCCESS {
+        return None;
+    }
+
+    let len = value.iter().position(|ch| *ch == 0).unwrap_or(value.len());
+    String::from_utf16(&value[..len]).ok()
 }
 
 fn write_string(subkey: &str, name: &str, value: &str) -> Result<(), String> {
@@ -150,8 +228,35 @@ fn notify_shell() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
+    fn file_association_registered_from_launcher_points_to_gui_binary() {
+        assert_eq!(
+            association_executable_from(PathBuf::from(r"D:\kr-580\target\release\kr.exe")),
+            PathBuf::from(r"D:\kr-580\target\release\k580.exe")
+        );
+    }
+
+    #[test]
+    fn file_association_registered_from_gui_keeps_gui_binary() {
+        assert_eq!(
+            association_executable_from(PathBuf::from(r"D:\kr-580\target\release\k580.exe")),
+            PathBuf::from(r"D:\kr-580\target\release\k580.exe")
+        );
+    }
+
+    #[test]
+    fn open_command_registered_from_launcher_uses_gui_binary() {
+        let exe = association_executable_from(PathBuf::from(r"D:\kr-580\target\release\kr.exe"));
+        assert_eq!(
+            open_command_for(&exe).unwrap(),
+            r#""D:\kr-580\target\release\k580.exe" "%1""#
+        );
+    }
+
+    #[test]
+    #[ignore = "mutates HKCU file association"]
     fn is_registered_follows_register_and_unregister() {
         let was_registered = is_registered();
         let _ = unregister();
