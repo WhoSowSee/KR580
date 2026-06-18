@@ -9,7 +9,14 @@ Static assets shipped with the workspace live under `assets/`.
 | `RobotoMono.ttf` | Embedded Unicode monospace font used by printer PDF output. |
 | `OFL-RobotoMono.txt` | SIL Open Font License for the bundled Roboto Mono file. |
 
-`k580-devices` embeds `RobotoMono.ttf` through `include_bytes!`; PDF export therefore does not depend on fonts installed on the host system and can render CP866-decoded Cyrillic consistently.
+`k580-ui` keeps the platform font routing: `Segoe UI Variable` for
+chrome and labels on Windows, and iced's generic monospace selector for
+register, memory, command, and input readouts. Windows renders a covered
+startup-only warmup layer for both paths while the main window is still
+cloaked, so the renderer pays the cold glyph cost before the first
+visible run. `k580-devices` embeds `RobotoMono.ttf` through
+`include_bytes!`; PDF export therefore does not depend on fonts installed
+on the host system and can render CP866-decoded Cyrillic consistently.
 
 ## `assets/icons/`
 

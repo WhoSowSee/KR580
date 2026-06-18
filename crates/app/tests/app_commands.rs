@@ -1,4 +1,4 @@
-use k580_app::{AppCommand, AppEvent, Emulator, spawn_emulator};
+use k580_app::{AppCommand, AppEvent, Emulator, RunMode, spawn_emulator};
 use k580_core::{Cpu8080State, RegisterName};
 use k580_persistence::{ExportOptions, ExportTextSection, ExportXlsxPage};
 use std::path::PathBuf;
@@ -29,6 +29,31 @@ fn actor_publishes_state_changes() {
     let events = handle.drain_events();
     assert!(events.iter().any(|event| matches!(event, AppEvent::StateChanged(snapshot) if snapshot.cpu.registers.b == 0x33)));
     handle.send(AppCommand::Shutdown).unwrap();
+}
+
+#[test]
+fn actor_paced_run_progresses_when_step_interval_exceeds_device_poll() {
+    let handle = spawn_emulator();
+    std::thread::sleep(Duration::from_millis(20));
+    handle.drain_events();
+
+    handle.send(AppCommand::SetMemory(0, 0x00)).unwrap();
+    handle
+        .send(AppCommand::SetStepInterval(Duration::from_millis(200)))
+        .unwrap();
+    handle.send(AppCommand::SetRunMode(RunMode::Paced)).unwrap();
+    handle.send(AppCommand::Run).unwrap();
+
+    std::thread::sleep(Duration::from_millis(650));
+    let events = handle.drain_events();
+    handle.send(AppCommand::Shutdown).unwrap();
+
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, AppEvent::InstructionBoundaryReached(_))),
+        "paced run must not be starved by the 50 ms device poll, got {events:?}"
+    );
 }
 
 /// Regression for "program keeps running after a register reset":

@@ -30,31 +30,31 @@ pub(super) fn current_command_panel(cpu: &Cpu8080State, lang: Lang) -> Element<'
             lang.t(Key::ColCmdCode),
             fields.code,
             command_column_width(0),
-            true
+            true,
         ),
         command_column(
             lang.t(Key::ColCmdMnemonic),
             fields.command,
             command_column_width(1),
-            true
+            true,
         ),
         command_column(
             lang.t(Key::ColCmdOperand),
             fields.operand,
             command_column_width(2),
-            true
+            true,
         ),
         command_column(
             lang.t(Key::ColCmdLength),
             fields.length,
             command_column_width(3),
-            false
+            false,
         ),
         command_column(
             lang.t(Key::ColCmdKind),
             lang.t(fields.kind),
             command_column_width(4),
-            false
+            false,
         ),
         Space::new().width(Length::Fixed(type_address_gap(
             lang.t(fields.kind),

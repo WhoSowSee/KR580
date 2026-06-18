@@ -1,7 +1,7 @@
 use crate::{AppCommand, AppError, AppEvent, AppSnapshot, Emulator, RunMode};
 use crossbeam_channel::{Receiver, Sender, after, never, select, tick};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub struct EmulatorHandle {
     command_tx: Sender<AppCommand>,
@@ -80,16 +80,10 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
     let mut published_printer = initial.devices.printer.clone();
     publish(&event_tx, AppEvent::StateChanged(Box::new(initial)));
     let device_poll = tick(Duration::from_millis(50));
+    let mut next_run_at: Option<Instant> = None;
     loop {
-        // `never()` parks the timer when paused; otherwise the deadline
-        // is `step_interval` (Paced) or `slice` (Burst). The slice also
-        // bounds `Stop` responsiveness – a press lands within one slice.
-        let tick: Receiver<std::time::Instant> = if emulator.is_running() {
-            let deadline = match emulator.run_mode() {
-                RunMode::Paced => emulator.step_interval(),
-                RunMode::Burst { slice } => slice,
-            };
-            after(deadline)
+        let run_tick: Receiver<Instant> = if let Some(deadline) = next_run_at {
+            after(deadline.saturating_duration_since(Instant::now()))
         } else {
             never()
         };
@@ -104,11 +98,12 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
                     }
                     publish(&event_tx, event);
                 }
+                next_run_at = schedule_run_tick(&emulator);
                 if shutdown {
                     break;
                 }
             }
-            recv(tick) -> _ => {
+            recv(run_tick) -> _ => {
                 for event in emulator.tick() {
                     if let AppEvent::StateChanged(snapshot) = &event {
                         published_network = snapshot.devices.network.clone();
@@ -116,6 +111,7 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
                     }
                     publish(&event_tx, event);
                 }
+                next_run_at = schedule_run_tick(&emulator);
             }
             recv(device_poll) -> _ => {
                 emulator.bus_mut().printer.poll();
@@ -130,6 +126,16 @@ fn run_worker(command_rx: Receiver<AppCommand>, event_tx: Sender<AppEvent>) {
             }
         }
     }
+}
+
+fn schedule_run_tick(emulator: &Emulator) -> Option<Instant> {
+    emulator.is_running().then(|| {
+        let deadline = match emulator.run_mode() {
+            RunMode::Paced => emulator.step_interval(),
+            RunMode::Burst { slice } => slice,
+        };
+        Instant::now() + deadline
+    })
 }
 
 fn publish(event_tx: &Sender<AppEvent>, event: AppEvent) {

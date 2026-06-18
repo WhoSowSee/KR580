@@ -18,23 +18,31 @@ fn detached_storage_matches_attached_dialog_size() {
 
 #[cfg(windows)]
 #[test]
-fn second_startup_frame_prepares_hidden_tool_windows() {
+fn second_startup_frame_does_not_prepare_hidden_tool_windows() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     app.main_window_id = Some(window::Id::unique());
     app.startup_frames_seen = 1;
 
     let _task = app.update(Message::FrameRendered);
 
-    assert!(app.monitor_window.id.is_some());
+    assert!(app.monitor_window.id.is_none());
+    assert!(app.floppy_window.id.is_none());
+    assert!(app.hdd_window.id.is_none());
+    assert!(app.network_window.id.is_none());
+    assert!(app.printer_window.id.is_none());
+}
+
+#[cfg(windows)]
+#[test]
+fn detaching_storage_lazily_opens_native_window() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+
+    let _task = app.update(Message::DetachToolWindow(ToolWindowKind::Floppy));
+
+    assert!(app.floppy_open);
     assert!(app.floppy_window.id.is_some());
-    assert!(app.hdd_window.id.is_some());
-    assert!(app.network_window.id.is_some());
-    assert!(app.printer_window.id.is_some());
-    assert!(!app.monitor_window.ready);
+    assert!(app.floppy_window.detached);
     assert!(!app.floppy_window.ready);
-    assert!(!app.hdd_window.ready);
-    assert!(!app.network_window.ready);
-    assert!(!app.printer_window.ready);
 }
 
 #[cfg(windows)]

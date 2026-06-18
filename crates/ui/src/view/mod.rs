@@ -6,6 +6,7 @@ mod current_command;
 mod cycles;
 mod editors;
 mod export_modal;
+mod font_warmup;
 mod help;
 mod icons;
 mod import_modal;
@@ -172,6 +173,7 @@ impl DesktopApp {
             .height(Length::Fill)
             .style(app_style)
             .into();
+        let app_root = font_warmup::wrap_startup(self.startup_frames_seen, app_root);
 
         let app_with_menu: Element<'_, Message> = if let Some(dropdown) = self.menu_dropdown() {
             let left = match self.open_menu {

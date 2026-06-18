@@ -45,6 +45,8 @@ store emulator state in widgets.
   - `app/handlers.rs` – helper handlers shared with `update`/`subscription`:
     `handle_tick`, `handle_focus_reconciled`, `handle_esc`, plus the
     `tick_interval`, `ctrl_shortcut`, and `plain_shortcut` resolvers.
+  - `app/handlers_tests.rs` – keyboard shortcut regression tests for
+    `handlers.rs`.
   - `app/subscription.rs` – global keyboard / mouse / window listener
     that drives the `Message` stream.
   - `app/keymap.rs` – arrow-key dispatch (`handle_arrow_key`,
@@ -104,6 +106,23 @@ The actor publishes `StateChanged`, `InstructionBoundaryReached`,
 `TactAdvanced`, `PortRead`, `PortWritten`, `HaltStateChanged`,
 `ErrorRaised`, and `Stopped`. Events are notifications only; the latest
 `AppSnapshot` remains the authoritative render source.
+
+## Font routing
+
+`view::theme::UI_FONT` keeps the platform UI family for static chrome
+and labels, while `MONO_FONT` keeps iced's generic monospace selector for
+live readouts and input widgets: PC/SP/T, registers, mux values, RAM
+rows, command fields that were monospace originally, timing counters,
+and the address/value spinners.
+
+The Windows `Segoe UI Variable` face and the generic monospace path both
+have slow cold raster work in the iced text renderer. `view::font_warmup`
+draws a covered startup-only layer during the same two cloaked frames
+that already hide the launch flash. It primes the UI and mono glyph
+sizes used by the main screen before the window is uncloaked, so the
+first open/load/run sequence does not pay that cost inside the running
+emulator. This does not change emulator state, port I/O, monitor buffers,
+or actor pacing.
 
 ## Top menu chrome
 
@@ -307,15 +326,16 @@ are active and dispatch `Message::OpenMonitor`, `Message::OpenFloppy`,
 
 `Message::OpenMonitor` flips `DesktopApp::monitor_open`. In attached mode
 `view::monitor::monitor_window_overlay` paints a fullscreen modal over the
-main app. Monitor, floppy, HDD, network, and printer each own a `ToolWindowState`; on Windows
-their top-level iced windows are created once, invisibly, after the main
-window's startup frames. `Message::DetachToolWindow(kind)` resizes the selected
-window and switches its iced mode to `Windowed`;
-`Message::AttachToolWindow(kind)` switches it to `Hidden` and restores the
-overlay. Keeping visibility changes
-inside iced prevents later level changes such as pin/unpin from restoring a
-stale hidden state. This avoids rebuilding the winit window, renderer state,
-and first UI on every transition. Other platforms keep the ordinary
+main app. Monitor, floppy, HDD, network, and printer each own a
+`ToolWindowState`; on Windows their top-level iced windows are created lazily
+on the first detach instead of during startup. `Message::DetachToolWindow(kind)`
+opens the selected window when needed, or resizes an existing one and switches
+its iced mode to `Windowed`; `Message::AttachToolWindow(kind)` switches it to
+`Hidden` and restores the overlay. Keeping visibility changes inside iced
+prevents later level changes such as pin/unpin from restoring a stale hidden
+state. This avoids rebuilding the winit window, renderer state, and first UI on
+repeated transitions without blocking the first run with hidden-window warmup.
+Other platforms keep the ordinary
 open/close lifecycle. Both presentations share the same
 `MonitorState`, split mode, byte-stream popup, and live updates. The native
 window size is the current main-window size minus the attached modal's two
@@ -348,8 +368,8 @@ Body sections (top to bottom):
 
 | Mode | Section | Source | Render |
 |---|---|---|---|
-| unified (default) | Экран КР580 | `pixels` + `text_cells` composited | one `iced::widget::Canvas` filling the remaining space, anchored to the canvas's top-left corner so absolute (x, y) writes from the program land where they were addressed. The pixel layer is drawn first using the reference KP580 Delphi formula `0xFFFFFF / 127 * (color & 0x7F)` reinterpreted as a `TColor` (LE DWORD, low byte = R) – a 128-step pseudo-coloured palette, not grayscale. The 64×20 text cells are then rasterised on top through the bundled 5×7 ASCII font in `view::monitor_font` using their own scale (the text grid is 448×200 logical px while the graphics raster is 256×256). The section title is overlaid only while the layer is empty; once any pixel or character lands the title disappears and the canvas claims the full surface. |
-| split | Графический слой | `pixels: Vec<(u8,u8,u8)>` | `Canvas` filling the section, pixel-only, top-left anchored, same Delphi-`TColor` palette as unified |
+| unified (default) | Экран КР580 | `pixels` + `text_cells` composited | one `iced::widget::Canvas`. The pixel layer is drawn first using the reference KP580 Delphi formula `0xFFFFFF / 127 * (color & 0x7F)` reinterpreted as a `TColor` (LE DWORD, low byte = R) – a 128-step pseudo-coloured palette, not grayscale. The 64×20 text cells are then rasterised on top through the bundled 5×7 ASCII font in `view::monitor_font` using their own scale (the text grid is 448×200 logical px while the graphics raster is 256×256). The section title is overlaid only while the layer is empty; once any pixel or character lands the title disappears and the Canvas claims the full surface. |
+| split | Графический слой | `pixels: Vec<(u8,u8,u8)>` | Pixel-only `iced::widget::Canvas`, top-left anchored, same Delphi-`TColor` palette as unified |
 | split | Текстовый слой | `text_cells: Vec<TextCell { ch, color }>` | one continuous mono text run in `TOKYO_TEXT` over `TOKYO_BOARD`; framebuffer row boundaries do not insert line breaks, and glyph wrapping occurs only at the actual panel width. Non-printable bytes render as `·`, embedded zero cells as spaces, and trailing zero cells are omitted. |
 
 The byte-stream popup (`hex_buffer: Vec<u8>`) is rendered by
@@ -374,15 +394,15 @@ This is implemented in `DesktopApp::handle_esc` ahead of the menu /
 notice fallbacks.
 
 `Message::SaveMonitorImage` is handled by `DesktopApp::save_monitor_image`
-in `runtime/files.rs`. It calls `view::monitor_image::render_monitor_png`
-to produce an 8-bit RGB PNG at the monitor's native logical resolution
-(no upscaling, no antialiasing) using the `png` crate, then opens an
-`rfd::FileDialog` filtered to `.png` with a default file name of
-`monitor.png`. The dialog defaults to the directory of the currently
-loaded `.580` snapshot when one is available. On success the absolute
-path is surfaced via `set_status_custom`; on render or write failure
-the status falls back to `Key::MonitorImageSaveFailed` and the error
-is logged through `tracing::error`.
+in `runtime/files.rs`. It calls `view::monitor_image::render_monitor_image`
+to produce PNG/JPEG/WebP/BMP output at the monitor's native logical
+resolution (no upscaling, no antialiasing), then opens an `rfd::FileDialog`
+filtered to image formats with a default file name of `monitor.png`. The
+dialog defaults to the directory of the currently loaded `.580` snapshot
+when one is available. On success the absolute path is surfaced via
+`set_status_custom`; on render or write failure the status falls back to
+`Key::MonitorImageSaveFailed` and the error is logged through
+`tracing::error`.
 
 Closing the monitor: `Message::CloseMonitor` (close button, attached
 backdrop click, detached Alt+F4/close request) or `Esc` when the popup is
@@ -417,8 +437,8 @@ shared `icon_button` helper),
 (`PixelCanvas`, `UnifiedCanvas`, the `pixel_color` palette and its
 tests), `hex_popup.rs` (popup overlay, filter, `filtered_hex_bytes`
 and its tests), and `styles.rs` (every container / button style and the
-`framebuffer_padding` helper). PNG export lives next to the view in
-`view::monitor_image`.
+`framebuffer_padding` helper). PNG/JPEG/WebP/BMP export lives next to
+the view in `view::monitor_image`.
 
 ### Окно дисковода (Quick-access → Дисковод)
 
@@ -1069,8 +1089,9 @@ address spinner / inline value buffer) tracks `cpu.pc` automatically.
 Implementation:
 
 - The actor publishes one `StateChanged` per executed instruction.
-- The 100 ms `Message::Tick` subscription folds those snapshots into
-  `DesktopApp` via `pull_events` → `apply_snapshot`.
+- The `Message::Tick` subscription folds those snapshots into
+  `DesktopApp` via `pull_events` → `apply_snapshot`; while running its
+  interval follows the active speed tier.
 - After draining the events, `Tick` calls `follow_pc_during_run` when
   `self.running` is true. The helper compares the spinner's current
   address with `cpu.pc`; if they differ it rewrites the spinner,

@@ -16,7 +16,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
 - `assets/icons/`: pre-rendered icon set consumed at build and run time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
-- `assets/fonts/`: bundled fonts and their licenses. Roboto Mono is embedded into printer PDFs.
+- `assets/fonts/`: bundled fonts and their licenses. Roboto Mono is embedded into printer PDFs; the visible UI keeps the platform UI family and generic monospace selector, with `view::font_warmup` priming both slow Windows font paths during cloaked startup frames.
 - `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `assets/icons/` from the master image.
 - `target/`: cargo build artefacts (gitignored).
 
@@ -66,8 +66,12 @@ simultaneously on the command channel and a timer:
     the responsiveness floor for `Stop`: a press lands within at
     most one slice because the actor still re-checks the command
     channel between bursts.
-  Whichever `select!` arm fires first wins: a command interrupts the
-  wait immediately and is applied without skipping a beat.
+  The run timer is scheduled as an absolute `Instant` and is not rebuilt
+  from scratch when the 50 ms device poll arm fires. That keeps Slow
+  (200 ms) and Medium (50 ms) execution from being starved or jittered by
+  printer/network polling. Whichever `select!` arm fires first wins: a
+  command interrupts the wait immediately and is applied without skipping
+  a beat.
 
 `AppCommand::Run` only flips `Emulator::running = true` and resets the
 per-arming `instructions_since_run` counter. `AppCommand::Stop` clears
@@ -86,8 +90,8 @@ tiers: the previous `Run` implementation called
 worker, which produced exactly one `StateChanged` after the whole
 burst – the user only ever saw the final state. With the selector
 loop and `RunMode::Paced` the UI receives one snapshot per
-instruction, so the highlighted cell, registers, and PC step through
-the program live. `RunMode::Burst` is the explicit opt-out: the user
+instruction, so the selected PC fields, registers, and status step
+through the program live. `RunMode::Burst` is the explicit opt-out: the user
 asks for "доведи программу до конца", and the worker collapses
 thousands of instructions into a single snapshot per slice – *fewer*
 snapshots than Paced, but each one is *farther apart* in program

@@ -245,15 +245,9 @@ impl DesktopApp {
         if self.startup_frames_seen != 2 {
             return Task::none();
         }
-        let reveal = self.main_window_id.map_or_else(Task::none, |id| {
+        self.main_window_id.map_or_else(Task::none, |id| {
             iced::window::run(id, |window| platform::cloak_window(window, false)).discard()
-        });
-        let prepare_windows = if platform::SUPPORTS_HIDDEN_WINDOW_REUSE {
-            Task::batch(TOOL_WINDOWS.map(|kind| self.open_tool_window(kind)))
-        } else {
-            Task::none()
-        };
-        prepare_windows.chain(reveal)
+        })
     }
 
     fn drag_main_window(&mut self) -> Task<Message> {

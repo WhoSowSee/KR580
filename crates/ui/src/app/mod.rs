@@ -5,6 +5,8 @@ mod export_modal_targets;
 #[cfg(test)]
 mod export_modal_tests;
 mod handlers;
+#[cfg(test)]
+mod handlers_tests;
 mod help;
 mod help_routing;
 mod import_modal;
