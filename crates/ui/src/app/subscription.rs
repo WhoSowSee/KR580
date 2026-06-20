@@ -20,8 +20,7 @@ impl DesktopApp {
                     }),
                     _,
                 ) => Some(Message::EscPressed),
-                // Ctrl-modified shortcuts run unconditionally so
-                // Ctrl+S saves even when a text_input has focus.
+                // App shortcuts win over focused text widgets except Ctrl+A, which keeps native Select All.
                 (
                     iced::Event::Keyboard(keyboard::Event::KeyPressed {
                         key,
@@ -29,8 +28,10 @@ impl DesktopApp {
                         modifiers,
                         ..
                     }),
-                    _,
-                ) if modifiers.command() => ctrl_shortcut(&key, physical_key, modifiers),
+                    status,
+                ) if modifiers.command() => {
+                    command_shortcut_message(&key, physical_key, modifiers, status)
+                }
                 (
                     iced::Event::Keyboard(keyboard::Event::KeyPressed {
                         key: keyboard::Key::Named(keyboard::key::Named::Tab),
@@ -124,11 +125,53 @@ fn captured_register_arrow(key: &keyboard::Key, modifiers: keyboard::Modifiers) 
     Some(Message::RegisterArrowKey(direction))
 }
 
+fn command_shortcut_message(
+    key: &keyboard::Key,
+    physical_key: keyboard::key::Physical,
+    modifiers: keyboard::Modifiers,
+    status: event::Status,
+) -> Option<Message> {
+    if matches!(status, event::Status::Captured)
+        && is_text_select_all_shortcut(key, physical_key, modifiers)
+    {
+        return None;
+    }
+    ctrl_shortcut(key, physical_key, modifiers)
+}
+
+fn is_text_select_all_shortcut(
+    key: &keyboard::Key,
+    physical_key: keyboard::key::Physical,
+    modifiers: keyboard::Modifiers,
+) -> bool {
+    if modifiers.shift() || modifiers.alt() {
+        return false;
+    }
+    key.to_latin(physical_key)
+        .is_some_and(|latin| latin.eq_ignore_ascii_case(&'a'))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::captured_register_arrow;
+    use super::{captured_register_arrow, command_shortcut_message};
     use crate::app::{Message, RegisterMove};
     use iced::keyboard;
+    use iced::keyboard::key::{Code, Physical};
+    use iced::{event, keyboard::Modifiers};
+    use std::mem::discriminant;
+
+    fn char_key(value: &str) -> keyboard::Key {
+        keyboard::Key::Character(value.into())
+    }
+
+    fn physical(code: Code) -> Physical {
+        Physical::Code(code)
+    }
+
+    fn assert_message(actual: Option<Message>, expected: Message) {
+        let actual = actual.expect("shortcut should resolve");
+        assert_eq!(discriminant(&actual), discriminant(&expected));
+    }
 
     #[test]
     fn captured_plain_arrows_are_forwarded_to_register_navigation() {
@@ -152,5 +195,46 @@ mod tests {
         assert!(captured_register_arrow(&key, keyboard::Modifiers::SHIFT).is_none());
         assert!(captured_register_arrow(&key, keyboard::Modifiers::CTRL).is_none());
         assert!(captured_register_arrow(&key, keyboard::Modifiers::ALT).is_none());
+    }
+
+    #[test]
+    fn captured_ctrl_a_keeps_text_input_select_all() {
+        for (typed, code) in [("a", Code::KeyA), ("ф", Code::KeyA)] {
+            assert!(
+                command_shortcut_message(
+                    &char_key(typed),
+                    physical(code),
+                    Modifiers::COMMAND,
+                    event::Status::Captured,
+                )
+                .is_none()
+            );
+        }
+    }
+
+    #[test]
+    fn ignored_ctrl_a_still_opens_network_adapter() {
+        assert_message(
+            command_shortcut_message(
+                &char_key("ф"),
+                physical(Code::KeyA),
+                Modifiers::COMMAND,
+                event::Status::Ignored,
+            ),
+            Message::OpenNetwork,
+        );
+    }
+
+    #[test]
+    fn captured_ctrl_s_still_saves_snapshot() {
+        assert_message(
+            command_shortcut_message(
+                &char_key("ы"),
+                physical(Code::KeyS),
+                Modifiers::COMMAND,
+                event::Status::Captured,
+            ),
+            Message::SaveSnapshot,
+        );
     }
 }

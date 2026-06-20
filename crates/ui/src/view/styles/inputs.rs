@@ -18,7 +18,7 @@
 use iced::widget::text_input;
 use iced::{Background, Border, Color, Theme};
 
-use super::super::theme::{TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_TEXT};
+use super::super::theme::{TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, TOKYO_TEXT_SELECTION};
 
 pub(crate) fn input_borderless_style(
     _theme: &Theme,
@@ -34,7 +34,7 @@ pub(crate) fn input_borderless_style(
         icon: TOKYO_MUTED,
         placeholder: TOKYO_MUTED,
         value: TOKYO_TEXT,
-        selection: TOKYO_MAGENTA,
+        selection: TOKYO_TEXT_SELECTION,
     }
 }
 
@@ -70,6 +70,35 @@ pub(crate) fn inline_value_input_style(
         icon: TOKYO_MUTED,
         placeholder: TOKYO_MUTED,
         value: TOKYO_GREEN,
-        selection: TOKYO_MAGENTA,
+        selection: TOKYO_TEXT_SELECTION,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn borderless_inputs_use_readable_gray_selection() {
+        let style = input_borderless_style(
+            &Theme::TokyoNight,
+            text_input::Status::Focused { is_hovered: false },
+        );
+
+        assert_eq!(style.selection, TOKYO_TEXT_SELECTION);
+        assert!(style.selection.a < 0.35);
+        assert!(style.selection.r > 0.6);
+        assert!(style.selection.g > 0.6);
+        assert!(style.selection.b > 0.6);
+    }
+
+    #[test]
+    fn inline_value_inputs_share_readable_selection() {
+        let style = inline_value_input_style(
+            &Theme::TokyoNight,
+            text_input::Status::Focused { is_hovered: false },
+        );
+
+        assert_eq!(style.selection, TOKYO_TEXT_SELECTION);
     }
 }

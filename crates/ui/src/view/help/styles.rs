@@ -5,7 +5,9 @@ use crate::view::styles::input_borderless_style;
 pub(super) use crate::view::styles::{
     large_dialog_style as modal_dialog_style, modal_backdrop_style,
 };
-use crate::view::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT};
+use crate::view::theme::{
+    TOKYO_BORDER, TOKYO_MUTED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT, TOKYO_TEXT_SELECTION,
+};
 
 pub(super) fn sidebar_chip_style(
     status: button::Status,
@@ -55,7 +57,7 @@ pub(super) fn help_search_input_style(
     status: text_input::Status,
 ) -> text_input::Style {
     text_input::Style {
-        selection: TOKYO_SURFACE,
+        selection: TOKYO_TEXT_SELECTION,
         ..input_borderless_style(theme, status)
     }
 }
@@ -73,7 +75,7 @@ pub(super) fn help_text_editor_style(
         },
         placeholder: TOKYO_MUTED,
         value: TOKYO_TEXT,
-        selection: TOKYO_SURFACE,
+        selection: TOKYO_TEXT_SELECTION,
     }
 }
 
@@ -136,13 +138,13 @@ mod tests {
     use iced::Theme;
 
     #[test]
-    fn help_search_input_selection_uses_sidebar_surface() {
+    fn help_search_input_selection_uses_readable_gray_overlay() {
         let style = help_search_input_style(
             &Theme::TokyoNight,
             text_input::Status::Focused { is_hovered: false },
         );
 
-        assert_eq!(style.selection, TOKYO_SURFACE);
+        assert_eq!(style.selection, TOKYO_TEXT_SELECTION);
     }
 
     #[test]
@@ -158,6 +160,6 @@ mod tests {
         let style = help_text_editor_style(&Theme::TokyoNight, text_editor::Status::Active);
 
         assert_eq!(style.background, Background::Color(Color::TRANSPARENT));
-        assert_eq!(style.selection, TOKYO_SURFACE);
+        assert_eq!(style.selection, TOKYO_TEXT_SELECTION);
     }
 }

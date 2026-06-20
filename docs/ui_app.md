@@ -356,7 +356,7 @@ left-to-right order:
 | Монитор | `device_monitor` (`assets/icons/devices/monitor.svg`) | green | Отобразить монитор | `Ctrl+M` |
 | Дисковод | `device_floppy` (`devices/floppy.svg`) | cyan | Отобразить буфер дисковода | `Ctrl+F` |
 | Диск | `device_hdd` (`devices/hdd.svg`) | blue | Отобразить буфер жёсткого диска | - |
-| Адаптер | `device_network` (`devices/network.svg`) | yellow | Отобразить буфер сетевого адаптера | `Ctrl+A` |
+| Адаптер | `device_network` (`devices/network.svg`) | yellow | Отобразить буфер сетевого адаптера | `Ctrl+A` outside text input focus |
 | Принтер | `device_printer` (`devices/printer.svg`) | magenta | Отобразить буфер принтера | `Ctrl+P` |
 
 Each chip is rendered by `view::chips::device_chip`: a tinted SVG
@@ -1922,7 +1922,7 @@ the accumulator. Invalid value input leaves the register field empty.
 | Ctrl+E / Ctrl+У | Open the export settings modal. |
 | Ctrl+M / Ctrl+Ь | Open the monitor window. |
 | Ctrl+F / Ctrl+А | Open the floppy-buffer window. |
-| Ctrl+A / Ctrl+Ф | Open the network-adapter window. |
+| Ctrl+A / Ctrl+Ф | Open the network-adapter window when no focused text input has captured the key; inside text inputs it keeps native Select All. |
 | Ctrl+P / Ctrl+З | Open the printer window. |
 | Ctrl+, | Open the Settings dialog. Implemented as a punctuation-aware branch in `app::handlers::ctrl_shortcut` so the shortcut survives keyboard layouts where `,` is not at QWERTY position. |
 
@@ -2073,6 +2073,11 @@ marker: it is updated whenever the user types into a known input, when
 they explicitly Tab to one, or when they click an inline memory row. This
 drives the same blue/cyan/border colour scheme that iced applies to the
 plain right-hand text input, so both visual styles match.
+
+Regular, inline, help-search, and help-article text selection uses the
+shared `TOKYO_TEXT_SELECTION` token: a semi-transparent gray overlay that
+keeps `TOKYO_TEXT` and `TOKYO_GREEN` values readable instead of washing
+them under the old magenta fill.
 
 Two gestures clear the caret without going through any of the
 acquire-side write paths and so leave `focused_input` stale on their
