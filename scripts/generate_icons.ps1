@@ -6,6 +6,8 @@
 # Sources (in `assets/icons/`):
 #   - `icon.png`     — application icon master.
 #   - `file-580.png` — `.580` file-type icon master.
+#   - `installer-setup.png` — standalone setup icon master.
+#   - `installer-uninstall.png` — installed uninstaller icon master.
 #
 # Outputs (also in `assets/icons/`, all checked into the repository so
 # the application binary does not need to decode or resize the master
@@ -13,6 +15,8 @@
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
+#   - `installer-setup.ico`            — multi-resolution setup `.exe` icon.
+#   - `installer-uninstall.ico`        — multi-resolution uninstaller `.exe` icon.
 
 Add-Type -AssemblyName System.Drawing
 
@@ -30,6 +34,7 @@ $pngSizes = 16, 32, 48, 64, 128, 256
 # Explorer/taskbar/Start-menu DPI scaling combination on Windows 10/11).
 $appIcoSizes  = 16, 20, 24, 32, 40, 48, 64, 96, 256
 $fileIcoSizes = 16, 20, 24, 32, 40, 48, 64, 96, 128, 256
+$installerIcoSizes = 16, 20, 24, 32, 40, 48, 64, 96, 128, 256
 
 function ConvertTo-PngBytes {
     param([System.Drawing.Bitmap]$Bitmap)
@@ -172,3 +177,13 @@ Build-IconSet `
     -SourcePng (Join-Path $outDir 'file-580.png') `
     -IcoPath   (Join-Path $outDir 'file-580.ico') `
     -IcoSizes  $fileIcoSizes
+
+Build-IconSet `
+    -SourcePng (Join-Path $outDir 'installer-setup.png') `
+    -IcoPath   (Join-Path $outDir 'installer-setup.ico') `
+    -IcoSizes  $installerIcoSizes
+
+Build-IconSet `
+    -SourcePng (Join-Path $outDir 'installer-uninstall.png') `
+    -IcoPath   (Join-Path $outDir 'installer-uninstall.ico') `
+    -IcoSizes  $installerIcoSizes

@@ -11,4 +11,4 @@ Speed can be changed anytime via the Speed panel.
 
 - HDD directory: default folder for the virtual hard disk buffer file (`hdd.kpd`). The Browse button opens a system folder picker; the chosen directory is validated for write access. If not set, the user's home directory is used. This setting applies on the next application start, not immediately in the current session.
 
-Reset button restores defaults (Russian, medium speed, home directory for HDD). Settings persist between sessions.
+Reset button restores defaults (system language, medium speed, home directory for HDD). Settings persist between sessions.

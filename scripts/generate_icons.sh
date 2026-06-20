@@ -7,6 +7,8 @@
 # Sources (in `assets/icons/`):
 #   - `icon.png`     — application icon master.
 #   - `file-580.png` — `.580` file-type icon master.
+#   - `installer-setup.png` — standalone setup icon master.
+#   - `installer-uninstall.png` — installed uninstaller icon master.
 #
 # Outputs (also in `assets/icons/`, all checked into the repository so
 # the application binary does not need to decode or resize the master
@@ -14,6 +16,8 @@
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
+#   - `installer-setup.ico`            — multi-resolution setup `.exe` icon.
+#   - `installer-uninstall.ico`        — multi-resolution uninstaller `.exe` icon.
 #
 # Requires ImageMagick (`magick` on v7+, `convert` on v6).
 
@@ -109,3 +113,22 @@ fi
 # 128 size is included because Explorer's "Extra large icons" view uses it.
 file_ico_sizes=(256 128 96 64 48 40 32 24 20 16)
 build_ico "$file_source" "$file_ico" "${file_ico_sizes[@]}"
+
+# ---- Setup / uninstaller icons --------------------------------------------
+installer_ico_sizes=(256 128 96 64 48 40 32 24 20 16)
+
+setup_source="$out_dir/installer-setup.png"
+setup_ico="$out_dir/installer-setup.ico"
+if [ ! -f "$setup_source" ]; then
+    echo "Missing source icon: $setup_source" >&2
+    exit 1
+fi
+build_ico "$setup_source" "$setup_ico" "${installer_ico_sizes[@]}"
+
+uninstall_source="$out_dir/installer-uninstall.png"
+uninstall_ico="$out_dir/installer-uninstall.ico"
+if [ ! -f "$uninstall_source" ]; then
+    echo "Missing source icon: $uninstall_source" >&2
+    exit 1
+fi
+build_ico "$uninstall_source" "$uninstall_ico" "${installer_ico_sizes[@]}"

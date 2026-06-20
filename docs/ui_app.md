@@ -7,8 +7,11 @@
 `WritePort`, `LoadSnapshot`, `SaveSnapshot`, `LoadSubprogram`, and direct
 export commands.
 
-`k580-ui` is an iced multi-window daemon shell. It renders an `AppSnapshot`, sends
-`AppCommand` values to the actor, and drains `AppEvent` notifications.
+`k580-ui` is an iced multi-window daemon shell. It also ships the `kr`
+launcher, the `k580-installer` graphical installer, and the
+`k580-uninstaller` graphical uninstall payload. The daemon renders an
+`AppSnapshot`, sends `AppCommand` values to the actor, and drains `AppEvent`
+notifications.
 Register and memory edits are parsed and validated before commands are
 sent.
 
@@ -25,6 +28,53 @@ store emulator state in widgets.
   app-level theme/style. `app/windows.rs` opens and configures the native
   windows. The binary also pins the Windows subsystem to GUI on release builds (see
   "Console window suppression").
+- `bin/kr.rs` is the terminal launcher. It opens `k580`, registers or removes
+  `.580` file associations, and opens the setup UI through `--install` for
+  developer layouts. New users get the standalone setup artifact produced by
+  `scripts/build_installer.*`; they do not need `kr` first. Installed layouts
+  resolve `bin/kr` to `app/k580`, and `--install` launches `app/uninstaller`
+  with `--setup`, so PATH only exposes the launcher directory.
+- `system_locale.rs` resolves the default UI language from the operating
+  system. A Russian system UI maps to `Language::Ru`; English and every other
+  system language map to `Language::En`.
+- `bin/k580-installer.rs` and `bin/k580-uninstaller.rs` share
+  `bin/installer/entry.rs`. `--setup` opens the setup UI; `--uninstall <root>`
+  opens the compact GUI uninstaller; and an installed binary named
+  `uninstaller` resolves its install root from its own path. Installer
+  operations live under `bin/installer/`: copy layout creation, install
+  manifest writing, platform PATH updates, embedded setup payload extraction,
+  fallback developer binary discovery, Unix executable permissions, system
+  desktop/search integration, and uninstall cleanup. On Windows, System mode
+  writes Start Menu/Desktop shortcuts and an Apps & Features uninstall entry
+  that calls `uninstaller --uninstall <root>`. Both System and Portable mode
+  can optionally associate `.580` files with the installed `app/k580` binary;
+  Portable mode writes no Start Menu, desktop, or uninstall entry. On Windows,
+  the standalone setup binary uses the setup PE icon, while the installed
+  `app/uninstaller.exe` is a separate payload binary with the uninstall PE
+  icon. The setup window is undecorated and renders its own black/white title
+  bar with only `KR580 Setup`, minimize, maximize/restore, close, and drag
+  handling, and on Windows it requests the same DWM rounded-corner preference as
+  the emulator window.
+  Its caption buttons reuse the emulator's window SVG assets and proportions,
+  while installer form controls use fixed heights for proportional rows. The
+  setup content is one black panel with no left information rail. The result
+  panel sizes to its current state, shows a timer-driven progress bar while
+  installation is running, and then centers the checked finish action between
+  the installed report and the pinned `Done` button.
+  Portable installs offer to open the install folder; system installs offer to
+  launch KR580. Portable mode hides the Windows scope selector and defaults to
+  `%USERPROFILE%\KR580`; System mode exposes the desktop-shortcut option, while
+  both modes expose the `.580` association option before installation. Windows
+  shortcut helpers run with `CREATE_NO_WINDOW`, so System installs do not flash
+  a terminal while creating Start Menu or desktop links. The setup view is
+  split into `bin/installer/view.rs` for composition plus
+  `bin/installer/view/chrome.rs`, `bin/installer/view/content.rs`, and
+  `bin/installer/view/finish.rs`. The uninstaller uses
+  `bin/installer/uninstaller.rs` for progress/close workflow and
+  `bin/installer/uninstaller_chrome.rs` for its smaller custom title bar; it
+  removes recorded `.580` associations and the exact launcher PATH entry for
+  both modes, removes system entries only for System installs, then schedules
+  install-folder deletion after the final localized Close/`Закрыть` action.
 - `app/` defines `DesktopApp`, message routing, theme, and the keyboard
   subscription. To stay under the 400-line per-file budget the shell is
   split into focused submodules:
@@ -1933,13 +1983,14 @@ the moment the modal opens.
   hidden scrolling remains the overflow fallback on smaller displays.
 - `Reset` opens a stack-layer sub-modal whose `Cancel` / `Confirm`
   buttons follow `reset_confirm_focus`. `Confirm` writes
-  `Lang::Ru` / `SpeedTier::Medium`, rewrites the dialog's `original_*`
-  snapshot so a follow-up `Cancel` cannot restore the pre-reset values,
-  and persists.
+  the system default language from `system_locale::default_language()` /
+  `SpeedTier::Medium`, rewrites the dialog's `original_*` snapshot so a
+  follow-up `Cancel` cannot restore the pre-reset values, and persists.
 
 The first launch may not have a `settings.json` yet. `load_settings()`
-silently uses defaults for that expected `NotFound` case; permission,
-JSON, and version errors still emit a warning before falling back.
+silently uses defaults for that expected `NotFound` case, including the system
+default language; permission, JSON, and version errors still emit a warning
+before falling back.
 
 `StatusKind` (in `app/status.rs`) tags every canonical status string
 with its provenance (`Ready`, `Stopped`, `SavedTo { display, legacy }`,

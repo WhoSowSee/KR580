@@ -6,6 +6,7 @@ enum CliAction {
     OpenFile(Option<PathBuf>),
     RegisterFileType,
     UnregisterFileType,
+    Install,
     Help,
     Version,
 }
@@ -31,6 +32,12 @@ fn main() {
         CliAction::UnregisterFileType => {
             run_assoc(k580_ui::file_assoc::unregister, "Ассоциация .580 удалена");
         }
+        CliAction::Install => {
+            if let Err(error) = spawn_installer() {
+                eprintln!("error: {error}");
+                std::process::exit(1);
+            }
+        }
         CliAction::OpenFile(path) => {
             if let Err(error) = spawn_k580(path.as_deref()) {
                 eprintln!("error: {error}");
@@ -49,6 +56,7 @@ fn parse_cli_args(args: &mut impl Iterator<Item = String>) -> Result<CliAction, 
         "--version" | "-V" => Ok(CliAction::Version),
         "--register-file-type" | "-r" => Ok(CliAction::RegisterFileType),
         "--unregister-file-type" | "-u" => Ok(CliAction::UnregisterFileType),
+        "--install" | "-i" => Ok(CliAction::Install),
         path => {
             if path.starts_with('-') {
                 return Err(format!("unknown option: {path}"));
@@ -72,7 +80,8 @@ fn print_usage() {
   -h, --help                  Показать справку
   -V, --version               Показать версию
   -r, --register-file-type    Зарегистрировать ассоциацию .580
-  -u, --unregister-file-type  Удалить ассоциацию .580"
+  -u, --unregister-file-type  Удалить ассоциацию .580
+  -i, --install               Открыть установщик KR580"
     );
 }
 
@@ -110,6 +119,20 @@ fn spawn_k580(file: Option<&Path>) -> std::io::Result<()> {
     Ok(())
 }
 
+fn spawn_installer() -> std::io::Result<()> {
+    let installer = installer_executable()?;
+    let mut command = Command::new(&installer);
+    if is_uninstaller_binary(&installer) {
+        command.arg("--setup");
+    }
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    Ok(())
+}
+
 #[cfg(debug_assertions)]
 fn build_k580() -> std::io::Result<()> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
@@ -140,9 +163,12 @@ fn k580_executable() -> std::io::Result<PathBuf> {
     if k580.is_file() {
         return Ok(k580);
     }
+    if let Some(k580) = installed_app_binary_from_launcher(&kr, k580_binary_name())
+        && k580.is_file()
+    {
+        return Ok(k580);
+    }
 
-    // Development fallback: `cargo run --bin kr` only builds `kr`, so look
-    // for `k580` in the workspace target directory next to the manifest.
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let profile = if cfg!(debug_assertions) {
         "debug"
@@ -165,6 +191,66 @@ fn k580_executable() -> std::io::Result<PathBuf> {
     ))
 }
 
+fn installer_executable() -> std::io::Result<PathBuf> {
+    let kr = std::env::current_exe()?;
+    let dir = kr
+        .parent()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no parent directory"))?;
+    let installer = dir.join(installer_binary_name());
+    if installer.is_file() {
+        return Ok(installer);
+    }
+    if let Some(installer) = installed_app_binary_from_launcher(&kr, installer_binary_name())
+        && installer.is_file()
+    {
+        return Ok(installer);
+    }
+    if let Some(uninstaller) = installed_app_binary_from_launcher(&kr, uninstaller_binary_name())
+        && uninstaller.is_file()
+    {
+        return Ok(uninstaller);
+    }
+
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let profile = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
+    let fallback = manifest_dir
+        .join("..")
+        .join("..")
+        .join("target")
+        .join(profile)
+        .join(installer_binary_name());
+    if fallback.is_file() {
+        return Ok(fallback);
+    }
+
+    Err(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        format!("installer executable not found at {}", installer.display()),
+    ))
+}
+
+fn installed_app_binary_from_launcher(launcher: &Path, binary_name: &str) -> Option<PathBuf> {
+    let dir = launcher.parent()?;
+    if !dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case("bin"))
+    {
+        return None;
+    }
+    Some(dir.parent()?.join("app").join(binary_name))
+}
+
+fn is_uninstaller_binary(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.eq_ignore_ascii_case(uninstaller_binary_name()))
+}
+
 #[cfg(target_os = "windows")]
 fn k580_binary_name() -> &'static str {
     "k580.exe"
@@ -175,9 +261,29 @@ fn k580_binary_name() -> &'static str {
     "k580"
 }
 
+#[cfg(target_os = "windows")]
+fn installer_binary_name() -> &'static str {
+    "k580-installer.exe"
+}
+
+#[cfg(not(target_os = "windows"))]
+fn installer_binary_name() -> &'static str {
+    "k580-installer"
+}
+
+#[cfg(target_os = "windows")]
+fn uninstaller_binary_name() -> &'static str {
+    "uninstaller.exe"
+}
+
+#[cfg(not(target_os = "windows"))]
+fn uninstaller_binary_name() -> &'static str {
+    "uninstaller"
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{CliAction, parse_cli_args};
+    use super::{CliAction, installed_app_binary_from_launcher, parse_cli_args};
     use std::path::PathBuf;
 
     #[test]
@@ -208,6 +314,8 @@ mod tests {
             "-r",
             "--unregister-file-type",
             "-u",
+            "--install",
+            "-i",
         ] {
             assert!(
                 parse_cli_args(&mut [flag.to_owned()].into_iter()).is_ok(),
@@ -224,5 +332,15 @@ mod tests {
     #[test]
     fn too_many_arguments_errors() {
         assert!(parse_cli_args(&mut ["a.580".to_owned(), "b.580".to_owned()].into_iter()).is_err());
+    }
+
+    #[test]
+    fn installed_bin_launcher_resolves_gui_under_app() {
+        let root = PathBuf::from("kr580-root");
+        let launcher = root.join("bin").join("kr");
+        assert_eq!(
+            installed_app_binary_from_launcher(&launcher, "k580"),
+            Some(root.join("app").join("k580"))
+        );
     }
 }

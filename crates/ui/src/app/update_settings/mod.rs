@@ -4,9 +4,9 @@ use super::constants::SETTINGS_SEARCH_INPUT_ID;
 use super::messages::{Message, SpeedTier};
 use super::settings_modal::{FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection};
 use super::state::DesktopApp;
-use crate::i18n::{Key, Lang};
+use crate::i18n::Key;
 use crate::settings_storage::{
-    language_from_lang, load_settings, preset_from_speed_tier, save_settings,
+    default_lang, language_from_lang, load_settings, preset_from_speed_tier, save_settings,
 };
 
 impl DesktopApp {
@@ -305,7 +305,7 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SettingsResetConfirmed => {
-                let default_lang = Lang::Ru;
+                let default_lang = default_lang();
                 let default_speed = SpeedTier::Medium;
                 let network = k580_persistence::NetworkSettings::default();
                 if let Some(dialog) = self.settings_dialog.as_mut() {

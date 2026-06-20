@@ -8,7 +8,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `k580-devices`: `IoBus` for ports `00h..04h`, monitor, floppy, HDD, network, printer, device states, non-blocking worker queues, and printer PDF generation through `printpdf` with its `text_layout` font parser enabled.
 - `k580-persistence`: versioned `.580` snapshots, raw `.krs` subprograms, JSON settings, and direct `.txt`/`.xlsx` exporters/importers.
 - `k580-app`: application orchestration, crossbeam command/event actor, top-level dependency wiring, and file/export commands. The emulator state and tick body live under `emulator/` (split into `mod.rs` for the struct + command application and `tick.rs` for the paced/burst tick loop).
-- `k580-ui`: iced multi-window daemon split into app state/update, native window lifecycle, runtime command/event helpers, view rendering, and a small Windows-only platform shim. Monitor, floppy, HDD, network, and printer surfaces share `ToolWindowState` and the same attach/detach/pin lifecycle while keeping device-specific views. It renders snapshots and sends commands. It does not own emulator state.
+- `k580-ui`: iced multi-window daemon split into app state/update, native window lifecycle, runtime command/event helpers, view rendering, installer, and a small Windows-only platform shim. Monitor, floppy, HDD, network, and printer surfaces share `ToolWindowState` and the same attach/detach/pin lifecycle while keeping device-specific views. It renders snapshots and sends commands. It does not own emulator state.
 
 ## Repository layout
 
@@ -17,8 +17,25 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `docs/`: reference documentation (this directory).
 - `assets/icons/`: pre-rendered icon set consumed at build and run time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
 - `assets/fonts/`: bundled fonts and their licenses. Roboto Mono is embedded into printer PDFs; the visible UI keeps the platform UI family and generic monospace selector, with `view::font_warmup` priming both slow Windows font paths during cloaked startup frames.
-- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `assets/icons/` from the master image.
+- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts under `dist/`.
 - `target/`: cargo build artefacts (gitignored).
+
+## Installation Layout
+
+`k580-ui` builds `k580`, `kr`, `k580-installer`, and `k580-uninstaller`. The
+setup builder first builds `k580` and `kr`, then builds `k580-uninstaller` with
+the uninstall icon, then rebuilds `k580-installer` with the setup icon and
+those binaries embedded so a new user can run the setup before any KR580 files
+exist on the machine. The installer writes `install.json` at the install root,
+keeps `k580` under `app/`, keeps the installed maintenance binary as
+`app/uninstaller`, keeps `kr` under `bin/`, and only adds `bin/` to PATH when
+requested.
+Portable installs default to the user's `KR580` folder and store settings under
+`<install root>/data`; both install modes can optionally associate `.580`
+files with `app/k580`. System installs use the platform config directory and
+add OS integration: Start Menu/search launchers, optional desktop launchers,
+and uninstall cleanup where the platform supports them. See
+`docs/installer.md`.
 
 ## Data flow
 

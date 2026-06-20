@@ -28,8 +28,51 @@ pub fn register() -> Result<(), String> {
     register_bundle(&bundle_dir)
 }
 
+pub fn register_for_executable(
+    exe: &Path,
+    _scope: crate::install_mode::InstallScope,
+) -> Result<(), String> {
+    let bundle_dir = applications_dir().join("kr580.app");
+    let contents = bundle_dir.join("Contents");
+    let macos = contents.join("MacOS");
+    let resources = contents.join("Resources");
+
+    std::fs::create_dir_all(&macos).map_err(|e| format!("create MacOS: {e}"))?;
+    std::fs::create_dir_all(&resources).map_err(|e| format!("create Resources: {e}"))?;
+
+    let launcher = macos.join("kr580");
+    std::fs::write(&launcher, target_launcher_script(exe))
+        .map_err(|e| format!("write launcher: {e}"))?;
+    make_executable(&launcher)?;
+
+    std::fs::write(contents.join("Info.plist"), info_plist())
+        .map_err(|e| format!("write Info.plist: {e}"))?;
+
+    if let Some(icon) = super::find_icon() {
+        let _ = std::fs::copy(icon, resources.join("icon.png"));
+    }
+
+    register_bundle(&bundle_dir)
+}
+
 pub fn unregister() -> Result<(), String> {
     let _ = std::fs::remove_dir_all(applications_dir().join("kr580.app"));
+    Ok(())
+}
+
+pub fn unregister_for_executable(
+    exe: &Path,
+    _scope: crate::install_mode::InstallScope,
+) -> Result<(), String> {
+    let launcher = applications_dir()
+        .join("kr580.app")
+        .join("Contents")
+        .join("MacOS")
+        .join("kr580");
+    let current = std::fs::read_to_string(&launcher).unwrap_or_default();
+    if current == target_launcher_script(exe) {
+        unregister()?;
+    }
     Ok(())
 }
 
@@ -46,6 +89,17 @@ fn applications_dir() -> PathBuf {
 
 fn launcher_script() -> &'static str {
     "#!/bin/bash\nDIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nexec \"$DIR/kr\" \"$@\"\n"
+}
+
+fn target_launcher_script(exe: &Path) -> String {
+    format!(
+        "#!/bin/bash\nexec {} \"$@\"\n",
+        shell_single_quote(&exe.display().to_string())
+    )
+}
+
+fn shell_single_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 fn make_executable(path: &Path) -> Result<(), String> {

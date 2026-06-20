@@ -2383,6 +2383,8 @@ dependencies = [
  "libc",
  "png 0.17.16",
  "rfd",
+ "serde",
+ "serde_json",
  "tracing",
  "tracing-subscriber",
  "windows-sys 0.59.0",

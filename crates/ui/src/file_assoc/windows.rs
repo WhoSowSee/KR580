@@ -3,23 +3,36 @@
 //! second icon resource (id `2`) baked into the `.exe` by `build.rs`
 //! is what Explorer renders for any file with this extension.
 
+use crate::install_mode::InstallScope;
+use std::path::{Path, PathBuf};
+use windows_sys::Win32::System::Registry::{HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+
 pub fn register() -> Result<(), String> {
     let exe = association_executable()?;
+    register_for_executable(&exe, InstallScope::User)
+}
+
+pub fn register_for_executable(exe: &Path, scope: InstallScope) -> Result<(), String> {
+    let exe = association_executable_from(exe.to_path_buf());
     let icon_resource = icon_resource_for(&exe)?;
     let open_command = open_command_for(&exe)?;
+    let root = class_root(scope);
 
-    write_string("Software\\Classes\\.580", "", "K580.Snapshot")?;
+    write_string(root, "Software\\Classes\\.580", "", "K580.Snapshot")?;
     write_string(
+        root,
         "Software\\Classes\\K580.Snapshot",
         "",
         "Снимок KR580 (.580)",
     )?;
     write_string(
+        root,
         "Software\\Classes\\K580.Snapshot\\DefaultIcon",
         "",
         &icon_resource,
     )?;
     write_string(
+        root,
         "Software\\Classes\\K580.Snapshot\\shell\\open\\command",
         "",
         &open_command,
@@ -30,8 +43,20 @@ pub fn register() -> Result<(), String> {
 }
 
 pub fn unregister() -> Result<(), String> {
-    delete_tree("Software\\Classes\\.580")?;
-    delete_tree("Software\\Classes\\K580.Snapshot")?;
+    delete_association(class_root(InstallScope::User))
+}
+
+pub fn unregister_for_executable(exe: &Path, scope: InstallScope) -> Result<(), String> {
+    let exe = association_executable_from(exe.to_path_buf());
+    if is_registered_for_executable(&exe, scope) {
+        delete_association(class_root(scope))?;
+    }
+    Ok(())
+}
+
+fn delete_association(root: HKEY) -> Result<(), String> {
+    delete_tree(root, "Software\\Classes\\.580")?;
+    delete_tree(root, "Software\\Classes\\K580.Snapshot")?;
     notify_shell();
     Ok(())
 }
@@ -43,21 +68,36 @@ pub fn is_registered() -> bool {
     let Ok(open_command) = open_command_for(&exe) else {
         return false;
     };
-    let extension = read_string("Software\\Classes\\.580", "");
-    let command = read_string("Software\\Classes\\K580.Snapshot\\shell\\open\\command", "");
+    association_matches(class_root(InstallScope::User), &open_command)
+}
+
+fn is_registered_for_executable(exe: &Path, scope: InstallScope) -> bool {
+    let Ok(open_command) = open_command_for(exe) else {
+        return false;
+    };
+    association_matches(class_root(scope), &open_command)
+}
+
+fn association_matches(root: HKEY, open_command: &str) -> bool {
+    let extension = read_string(root, "Software\\Classes\\.580", "");
+    let command = read_string(
+        root,
+        "Software\\Classes\\K580.Snapshot\\shell\\open\\command",
+        "",
+    );
 
     extension.as_deref() == Some("K580.Snapshot")
         && command
             .as_deref()
-            .is_some_and(|value| value.eq_ignore_ascii_case(&open_command))
+            .is_some_and(|value| value.eq_ignore_ascii_case(open_command))
 }
 
-fn association_executable() -> Result<std::path::PathBuf, String> {
+fn association_executable() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
     Ok(association_executable_from(exe))
 }
 
-fn association_executable_from(exe: std::path::PathBuf) -> std::path::PathBuf {
+fn association_executable_from(exe: PathBuf) -> PathBuf {
     if exe
         .file_name()
         .and_then(|name| name.to_str())
@@ -68,41 +108,39 @@ fn association_executable_from(exe: std::path::PathBuf) -> std::path::PathBuf {
     exe
 }
 
-fn open_command_for(exe: &std::path::Path) -> Result<String, String> {
+fn open_command_for(exe: &Path) -> Result<String, String> {
     let exe_str = exe
         .to_str()
         .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
     Ok(format!("\"{exe_str}\" \"%1\""))
 }
 
-fn icon_resource_for(exe: &std::path::Path) -> Result<String, String> {
+fn icon_resource_for(exe: &Path) -> Result<String, String> {
     let exe_str = exe
         .to_str()
         .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
     Ok(format!("{exe_str},-2"))
 }
 
-fn read_string(subkey: &str, name: &str) -> Option<String> {
+fn class_root(scope: InstallScope) -> HKEY {
+    match scope {
+        InstallScope::User => HKEY_CURRENT_USER,
+        InstallScope::Machine => HKEY_LOCAL_MACHINE,
+    }
+}
+
+fn read_string(root: HKEY, subkey: &str, name: &str) -> Option<String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Foundation::ERROR_SUCCESS;
     use windows_sys::Win32::System::Registry::{
-        HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, REG_EXPAND_SZ, REG_SZ, RegCloseKey,
-        RegOpenKeyExW, RegQueryValueExW,
+        KEY_QUERY_VALUE, REG_EXPAND_SZ, REG_SZ, RegCloseKey, RegOpenKeyExW, RegQueryValueExW,
     };
 
     let subkey_w: Vec<u16> = OsStr::new(subkey).encode_wide().chain(Some(0)).collect();
     let name_w: Vec<u16> = OsStr::new(name).encode_wide().chain(Some(0)).collect();
     let mut key: HKEY = std::ptr::null_mut();
-    let status = unsafe {
-        RegOpenKeyExW(
-            HKEY_CURRENT_USER,
-            subkey_w.as_ptr(),
-            0,
-            KEY_QUERY_VALUE,
-            &mut key,
-        )
-    };
+    let status = unsafe { RegOpenKeyExW(root, subkey_w.as_ptr(), 0, KEY_QUERY_VALUE, &mut key) };
     if status != ERROR_SUCCESS {
         return None;
     }
@@ -145,14 +183,14 @@ fn read_string(subkey: &str, name: &str) -> Option<String> {
     String::from_utf16(&value[..len]).ok()
 }
 
-fn write_string(subkey: &str, name: &str, value: &str) -> Result<(), String> {
+fn write_string(root: HKEY, subkey: &str, name: &str, value: &str) -> Result<(), String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use std::ptr;
     use windows_sys::Win32::Foundation::ERROR_SUCCESS;
     use windows_sys::Win32::System::Registry::{
-        HKEY, HKEY_CURRENT_USER, KEY_SET_VALUE, REG_OPTION_NON_VOLATILE, REG_SZ, RegCloseKey,
-        RegCreateKeyExW, RegSetValueExW,
+        KEY_SET_VALUE, REG_OPTION_NON_VOLATILE, REG_SZ, RegCloseKey, RegCreateKeyExW,
+        RegSetValueExW,
     };
 
     let subkey_w: Vec<u16> = OsStr::new(subkey).encode_wide().chain(Some(0)).collect();
@@ -162,7 +200,7 @@ fn write_string(subkey: &str, name: &str, value: &str) -> Result<(), String> {
     let mut key: HKEY = ptr::null_mut();
     let status = unsafe {
         RegCreateKeyExW(
-            HKEY_CURRENT_USER,
+            root,
             subkey_w.as_ptr(),
             0,
             ptr::null_mut(),
@@ -196,14 +234,14 @@ fn write_string(subkey: &str, name: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn delete_tree(subkey: &str) -> Result<(), String> {
+fn delete_tree(root: HKEY, subkey: &str) -> Result<(), String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
-    use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, RegDeleteTreeW};
+    use windows_sys::Win32::System::Registry::RegDeleteTreeW;
 
     let subkey_w: Vec<u16> = OsStr::new(subkey).encode_wide().chain(Some(0)).collect();
-    let status = unsafe { RegDeleteTreeW(HKEY_CURRENT_USER, subkey_w.as_ptr()) };
+    let status = unsafe { RegDeleteTreeW(root, subkey_w.as_ptr()) };
     if status == ERROR_SUCCESS || status == ERROR_FILE_NOT_FOUND {
         Ok(())
     } else {

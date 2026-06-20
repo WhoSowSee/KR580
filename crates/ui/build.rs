@@ -4,19 +4,72 @@
 //! iced's `window::Settings::icon`; this script is purely about the static
 //! PE resource that Windows reads before our process even starts.
 
-#[cfg(windows)]
 fn main() {
-    use std::path::PathBuf;
+    write_installer_payload_module();
+    embed_windows_resources();
+}
 
+fn write_installer_payload_module() {
+    let out_dir = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
+    let payload_dir = std::env::var_os("KR580_INSTALLER_PAYLOAD_DIR").map(std::path::PathBuf::from);
+    println!("cargo:rerun-if-env-changed=KR580_INSTALLER_PAYLOAD_DIR");
+
+    let code = match payload_dir {
+        Some(dir) => {
+            let kr = dir.join(binary_name("kr"));
+            let k580 = dir.join(binary_name("k580"));
+            let uninstaller = dir.join(binary_name("k580-uninstaller"));
+            if !kr.is_file() || !k580.is_file() || !uninstaller.is_file() {
+                panic!(
+                    "installer payload missing: {}, {}, or {}",
+                    kr.display(),
+                    k580.display(),
+                    uninstaller.display()
+                );
+            }
+            println!("cargo:rerun-if-changed={}", kr.display());
+            println!("cargo:rerun-if-changed={}", k580.display());
+            println!("cargo:rerun-if-changed={}", uninstaller.display());
+            format!(
+                "pub const EMBEDDED_KR: Option<&'static [u8]> = Some(include_bytes!(r#\"{}\"#));\n\
+                 pub const EMBEDDED_K580: Option<&'static [u8]> = Some(include_bytes!(r#\"{}\"#));\n\
+                 pub const EMBEDDED_UNINSTALLER: Option<&'static [u8]> = Some(include_bytes!(r#\"{}\"#));\n",
+                kr.display(),
+                k580.display(),
+                uninstaller.display()
+            )
+        }
+        None => "pub const EMBEDDED_KR: Option<&'static [u8]> = None;\n\
+             pub const EMBEDDED_K580: Option<&'static [u8]> = None;\n\
+             pub const EMBEDDED_UNINSTALLER: Option<&'static [u8]> = None;\n"
+            .to_owned(),
+    };
+
+    std::fs::write(out_dir.join("installer_payload.rs"), code)
+        .expect("installer payload module must be writable");
+}
+
+fn binary_name(name: &str) -> String {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        format!("{name}.exe")
+    } else {
+        name.to_owned()
+    }
+}
+
+#[cfg(windows)]
+fn embed_windows_resources() {
+    use std::path::PathBuf;
     let manifest_dir = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let workspace_root = manifest_dir
         .parent()
         .and_then(|p| p.parent())
         .expect("workspace root must be two levels above crates/ui");
     let icons_dir = workspace_root.join("assets").join("icons");
-    let icon_path = icons_dir.join("icon.ico");
+    let icon_path = windows_main_icon(&icons_dir);
     let file_icon_path = icons_dir.join("file-580.ico");
 
+    println!("cargo:rerun-if-env-changed=KR580_WINDOWS_ICON_KIND");
     println!("cargo:rerun-if-changed={}", icon_path.display());
     println!("cargo:rerun-if-changed={}", file_icon_path.display());
 
@@ -54,5 +107,15 @@ fn main() {
     }
 }
 
+#[cfg(windows)]
+fn windows_main_icon(icons_dir: &std::path::Path) -> std::path::PathBuf {
+    let icon_name = match std::env::var("KR580_WINDOWS_ICON_KIND").as_deref() {
+        Ok("setup") => "installer-setup.ico",
+        Ok("uninstaller") => "installer-uninstall.ico",
+        _ => "icon.ico",
+    };
+    icons_dir.join(icon_name)
+}
+
 #[cfg(not(windows))]
-fn main() {}
+fn embed_windows_resources() {}

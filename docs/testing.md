@@ -36,8 +36,10 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
   `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
   the documented 3-byte graphics command (`prompt/03_peripherals.md`).
 - `k580-ui`: pure view helpers, printer HEX and CP866 text formatting,
-  printer view-mode toggling, PDF path normalization, and detachable
-  tool-window lifecycle.
+  printer view-mode toggling, PDF path normalization, detachable
+  tool-window lifecycle, installer layout helpers, install-mode
+  detection, embedded/fallback installer payload selection, and
+  launcher-to-app path resolution.
 
 External Intel 8080 binary suites are not included in this workspace.
 When available, add them as an additional compatibility gate instead of
@@ -58,11 +60,12 @@ replacing the local semantic tests.
 
 ## Asset prerequisites
 
-The build pipeline embeds `assets/icons/icon-64.png` (runtime window
-icon) and, on Windows, `assets/icons/icon.ico` (PE resource). Both files
-are checked in. If you replace `assets/icons/icon.png` (the master), run
-the matching script before rebuilding so the embedded artefacts stay in
-sync with the source artwork:
+The build pipeline embeds `assets/icons/icon-64.png` (runtime window icon) and,
+on Windows, one of the checked-in PE resources under `assets/icons/*.ico`.
+If you replace `assets/icons/icon.png`, `file-580.png`,
+`installer-setup.png`, or `installer-uninstall.png`, run the matching script
+before rebuilding so the embedded artefacts stay in sync with the source
+artwork:
 
 - Windows: `powershell -File scripts/generate_icons.ps1`
 - Unix/macOS: `./scripts/generate_icons.sh` (requires ImageMagick)
@@ -86,6 +89,47 @@ worth eyeballing after touching `crates/ui`:
   the GUI loads the snapshot and the terminal prompt returns immediately;
 - run `cargo run -p k580-ui --bin kr -- --help` and confirm usage prints
   to stdout;
+- run `cargo run -p k580-ui --bin kr -- --install` and confirm the
+  graphical installer opens for developer or already-installed layouts;
+- run `cargo run -p k580-ui --bin k580-installer` and confirm the native OS
+  title bar is gone, the custom black/white title bar says only `KR580 Setup`,
+  drags the window, and exposes the same SVG minimize / maximize / close glyphs
+  as the emulator; confirm the setup content is one black panel with no left
+  information rail, and System / Portable mode selection, folder browsing,
+  Browse, Install, and the PATH checkbox render with proportional row heights
+  and without drifting or overlapping text; on Windows, confirm the setup window
+  has the same rounded native corners as the emulator; confirm Russian system UI
+  starts with Russian installer text and English/other system UI starts with
+  English installer text; confirm the Ready result card is compact instead of
+  reserving installed-state height; click Install once and confirm the result
+  panel immediately shows an Installing progress bar, then confirm the
+  installed status expands without pushing the bottom action out of its rail and
+  the finish screen centers a checked "Open installation folder" action for
+  portable installs or "Launch KR580" for system installs between the installed
+  status card and a pinned `Done` button; in System mode confirm the
+  "Create desktop shortcut" checkbox is
+  visible, and in Portable mode confirm it is hidden, the Windows scope selector
+  is hidden, and the default folder is `%USERPROFILE%\KR580`; in both modes
+  confirm the "Associate .580 files with KR580" checkbox is visible;
+- after a System-mode smoke install on Windows, confirm `KR580.lnk` exists in
+  the selected Start Menu scope, the optional desktop shortcut follows the
+  checkbox, no terminal window flashes while shortcuts are created, the `.580`
+  association follows its checkbox, the install root contains `app/k580.exe`,
+  `app/uninstaller.exe`, and `bin/kr.exe`, no installed `app/k580-installer.exe`,
+  the setup file shows the setup icon, the installed `app/uninstaller.exe`
+  shows the uninstall icon, and Apps & Features receives a `KR580` uninstall
+  entry whose command points at `uninstaller.exe --uninstall <install root>`;
+  run that uninstall entry and confirm it opens the black/white uninstaller GUI,
+  immediately shows a progress bar while cleanup runs, switches to a completed
+  state with `Close` on English/other systems or `Закрыть` on Russian systems,
+  and removes the install folder only after that button is pressed; after a
+  portable smoke install, confirm none of those OS entries are created and that
+  `.580` is associated only when its checkbox was selected; run the portable
+  `app/uninstaller` and confirm it removes the portable `.580` association and
+  the `<install root>/bin` PATH entry when those checkboxes were selected;
+- run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1`
+  on Windows or `bash scripts/build_installer.sh` on Unix/macOS and confirm
+  a standalone `KR580-Setup-*` artifact appears under `dist/`;
 - run `cargo run -p k580-ui --bin kr -- nonexistent.580` and confirm
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p k580-ui --bin kr -- -r`, then confirm

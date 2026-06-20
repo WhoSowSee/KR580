@@ -5,6 +5,7 @@ use super::focus::{FooterFocus, ResetConfirmFocus, SettingsCategory};
 use crate::app::messages::SpeedTier;
 use crate::app::{DesktopApp, Message, StatusKind};
 use crate::i18n::Lang;
+use crate::settings_storage::default_lang;
 use k580_persistence::NetworkSettings;
 
 static FILE_ASSOC_TEST_MUTEX: Mutex<()> = Mutex::new(());
@@ -161,12 +162,13 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
 
     let _ = app.update(Message::SettingsResetConfirmed);
 
-    assert_eq!(app.lang, Lang::Ru);
+    let expected_lang = default_lang();
+    assert_eq!(app.lang, expected_lang);
     assert_eq!(app.default_speed, SpeedTier::Medium);
     assert_eq!(app.speed_tier, SpeedTier::Medium);
     let dialog = app.settings_dialog.as_ref().unwrap();
     assert!(!dialog.reset_confirm_open);
-    assert_eq!(dialog.original_lang, Lang::Ru);
+    assert_eq!(dialog.original_lang, expected_lang);
     assert_eq!(dialog.original_speed, SpeedTier::Medium);
 }
 
@@ -259,7 +261,7 @@ fn enter_in_reset_confirm_activates_focused_button() {
         ResetConfirmFocus::Confirm
     );
     let _ = app.update(Message::SettingsResetConfirmed);
-    assert_eq!(app.lang, Lang::Ru);
+    assert_eq!(app.lang, default_lang());
     assert_eq!(app.speed_tier, SpeedTier::Medium);
 }
 

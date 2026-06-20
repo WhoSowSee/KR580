@@ -27,15 +27,20 @@ on the host system and can render CP866-decoded Cyrillic consistently.
 | `icon.ico` | Multi-resolution Windows application icon containing `256, 96, 64, 48, 40, 32, 24, 20, 16` frames in that order so default Windows previewers (Photos, Paint, IconViewer) display the 256×256 layer when the file is opened directly. Embedded into the `.exe` PE resource via `winresource`. |
 | `file-580.png` | `.580` file-type icon master. Treated as the source of truth; `file-580.ico` is regenerated from it. |
 | `file-580.ico` | Multi-resolution Windows `.580` file-type icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded into the `.exe` PE resource as resource id `2` via `winresource`, so Explorer can show it for files associated with the application. |
+| `installer-setup.png` | Standalone setup icon master. Treated as the source of truth for `installer-setup.ico`. |
+| `installer-setup.ico` | Multi-resolution Windows setup icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded as the main PE icon when `KR580_WINDOWS_ICON_KIND=setup`. |
+| `installer-uninstall.png` | Installed uninstaller icon master. Treated as the source of truth for `installer-uninstall.ico`. |
+| `installer-uninstall.ico` | Multi-resolution Windows uninstaller icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded as the main PE icon when `KR580_WINDOWS_ICON_KIND=uninstaller`. |
 
 The pre-rendered files are checked into the repository so the binary
 does not have to decode or resize the master image at build or run time.
 
 ## Regenerating the icon set
 
-The scripts read `assets/icons/icon.png` and `assets/icons/file-580.png`
-and rewrite every other file in the directory in one go (a single
-script handles both the application icon and the `.580` file-type icon).
+The scripts read `assets/icons/icon.png`, `assets/icons/file-580.png`,
+`assets/icons/installer-setup.png`, and
+`assets/icons/installer-uninstall.png`, then rewrite every derived PNG/ICO in
+one go.
 
 ### PowerShell (Windows)
 
@@ -72,16 +77,19 @@ to keep the PNG/ICO files small.
   into the PE resource section through the `winresource` crate. This
   drives the `.exe` icon shown by Explorer, the Start menu, pinned
   taskbar shortcuts, and the file picker.
+- `crates/ui/build.rs` switches the main PE icon when
+  `KR580_WINDOWS_ICON_KIND` is set: `setup` embeds
+  `assets/icons/installer-setup.ico`, and `uninstaller` embeds
+  `assets/icons/installer-uninstall.ico`.
 - `crates/ui/build.rs` (Windows only) also embeds
   `assets/icons/file-580.ico` as PE resource id `2`. This drives the
   Explorer icon shown for `.580` files once the file association
   points at the built `.exe`.
 
-When you replace either master (`icon.png` or `file-580.png`), run the
-appropriate script and rebuild. `cargo` re-embeds `icon-64.png`
-automatically because it is an `include_bytes!` source. The build
-script triggers a Windows-resource rebuild via
-`cargo:rerun-if-changed=…/icon.ico` and `cargo:rerun-if-changed=…/file-580.ico`.
+When you replace any master PNG, run the appropriate script and rebuild.
+`cargo` re-embeds `icon-64.png` automatically because it is an
+`include_bytes!` source. The build script triggers a Windows-resource rebuild
+via the selected main ICO and `cargo:rerun-if-changed=…/file-580.ico`.
 
 ## SVG icon sets
 

@@ -3,10 +3,9 @@
 //!
 //! Two responsibilities live here, kept narrow on purpose:
 //!
-//! 1. **Path resolution** – picks a fixed location next to the executable
-//!    so users do not have to hunt for the config file. Falls back to the
-//!    current working directory if `current_exe()` is unavailable
-//!    (sandboxed environments, broken installs).
+//! 1. **Path resolution** – portable installs keep settings under the
+//!    install root, while system installs use the platform config
+//!    directory. Falls back beside the executable for unpacked builds.
 //! 2. **Type translation** – `SpeedPreset` ↔ `SpeedTier`, `Language` ↔
 //!    `Lang`. Persistence has no concept of `SpeedTier` (UI-only) and the
 //!    UI does not pull in serde, so the mapping is centralized here.
@@ -17,24 +16,71 @@
 use crate::app::messages::SpeedTier;
 use crate::i18n::Lang;
 use k580_persistence::{Language, Settings, SettingsError, SettingsStore, SpeedPreset};
-use std::path::PathBuf;
+use k580_ui::install_mode::{InstallMode, manifest_for_executable};
+use std::path::{Path, PathBuf};
 
 const SETTINGS_FILENAME: &str = "settings.json";
 
-/// Picks a stable, predictable location for the settings file.
-///
-/// The executable directory is preferred so the settings travel with a
-/// portable build. We accept the lossy assumption that `current_exe()`
-/// can be canonicalised – on Windows that resolves the long path and on
-/// Linux it follows symlinks, which is the right behaviour for a
-/// portable install.
 pub(crate) fn settings_path() -> PathBuf {
     if let Ok(exe) = std::env::current_exe()
-        && let Some(parent) = exe.parent()
+        && let Some(path) = settings_path_for_executable(&exe)
     {
-        return parent.join(SETTINGS_FILENAME);
+        return path;
     }
     PathBuf::from(SETTINGS_FILENAME)
+}
+
+fn settings_path_for_executable(exe: &Path) -> Option<PathBuf> {
+    match manifest_for_executable(exe) {
+        Ok(Some((root, manifest))) => {
+            return Some(settings_path_for_install(&root, manifest.mode));
+        }
+        Ok(None) => {}
+        Err(error) => tracing::warn!(%error, "install manifest ignored"),
+    }
+    exe.parent().map(|parent| parent.join(SETTINGS_FILENAME))
+}
+
+fn settings_path_for_install(root: &Path, mode: InstallMode) -> PathBuf {
+    match mode {
+        InstallMode::Portable => root.join("data").join(SETTINGS_FILENAME),
+        InstallMode::System => system_settings_path(),
+    }
+}
+
+#[cfg(windows)]
+fn system_settings_path() -> PathBuf {
+    std::env::var_os("APPDATA")
+        .or_else(|| std::env::var_os("LOCALAPPDATA"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("KR580")
+        .join(SETTINGS_FILENAME)
+}
+
+#[cfg(target_os = "macos")]
+fn system_settings_path() -> PathBuf {
+    home_dir()
+        .join("Library")
+        .join("Application Support")
+        .join("KR580")
+        .join(SETTINGS_FILENAME)
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn system_settings_path() -> PathBuf {
+    std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home_dir().join(".config"))
+        .join("kr580")
+        .join(SETTINGS_FILENAME)
+}
+
+#[cfg(any(unix, target_os = "macos"))]
+fn home_dir() -> PathBuf {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 /// Loads settings without panicking. A missing file silently returns
@@ -48,7 +94,7 @@ pub(crate) fn load_settings() -> Settings {
             if should_log_settings_load_error(&error) {
                 tracing::warn!(?path, %error, "settings load failed; using defaults");
             }
-            Settings::default()
+            default_settings()
         }
     }
 }
@@ -62,6 +108,12 @@ fn should_log_settings_load_error(error: &SettingsError) -> bool {
 /// time) and we do not want a popup for IO hiccups.
 pub(crate) fn save_settings(settings: &Settings) {
     let path = settings_path();
+    if let Some(parent) = path.parent()
+        && let Err(error) = std::fs::create_dir_all(parent)
+    {
+        tracing::warn!(?path, %error, "settings directory create failed");
+        return;
+    }
     if let Err(error) = SettingsStore::save(&path, settings) {
         tracing::warn!(?path, %error, "settings save failed");
     }
@@ -93,15 +145,27 @@ pub(crate) fn language_from_lang(lang: Lang) -> Language {
     lang.to_persistence()
 }
 
+pub(crate) fn default_settings() -> Settings {
+    let mut settings = Settings::default();
+    settings.general.language = k580_ui::system_locale::default_language();
+    settings
+}
+
+pub(crate) fn default_lang() -> Lang {
+    lang_from_language(k580_ui::system_locale::default_language())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        lang_from_language, language_from_lang, preset_from_speed_tier,
-        should_log_settings_load_error, speed_tier_from_preset,
+        default_settings, lang_from_language, language_from_lang, preset_from_speed_tier,
+        settings_path_for_install, should_log_settings_load_error, speed_tier_from_preset,
     };
     use crate::app::messages::SpeedTier;
     use crate::i18n::Lang;
     use k580_persistence::{Language, SettingsError, SpeedPreset};
+    use k580_ui::install_mode::InstallMode;
+    use std::path::Path;
 
     #[test]
     fn speed_tier_round_trips_through_preset() {
@@ -136,5 +200,21 @@ mod tests {
         assert!(!should_log_settings_load_error(&missing));
         assert!(should_log_settings_load_error(&denied));
         assert!(should_log_settings_load_error(&unsupported));
+    }
+
+    #[test]
+    fn default_settings_use_supported_language() {
+        assert!(matches!(
+            default_settings().general.language,
+            Language::Ru | Language::En
+        ));
+    }
+
+    #[test]
+    fn portable_install_keeps_settings_under_install_root() {
+        assert_eq!(
+            settings_path_for_install(Path::new("/opt/kr580"), InstallMode::Portable),
+            Path::new("/opt/kr580").join("data").join("settings.json")
+        );
     }
 }

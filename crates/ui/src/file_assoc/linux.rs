@@ -2,12 +2,16 @@ use std::path::{Path, PathBuf};
 
 pub fn register() -> Result<(), String> {
     let kr = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
-    let kr_str = kr
+    register_for_executable(&kr, crate::install_mode::InstallScope::User)
+}
+
+pub fn register_for_executable(
+    exe: &Path,
+    _scope: crate::install_mode::InstallScope,
+) -> Result<(), String> {
+    let exe_str = exe
         .to_str()
-        .ok_or_else(|| "kr path is not valid UTF-8".to_owned())?;
-
-    let icon = super::find_icon().ok_or_else(|| "icon not found".to_owned())?;
-
+        .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
     let mime_dir = mime_dir();
     let apps_dir = apps_dir();
     let hicolor_dir = hicolor_icon_dir();
@@ -21,9 +25,11 @@ pub fn register() -> Result<(), String> {
     let dest_icon = hicolor_dir.join("kr580.png");
 
     std::fs::write(&mime_file, mime_xml()).map_err(|e| format!("write mime file: {e}"))?;
-    std::fs::write(&desktop_file, desktop_entry(kr_str))
+    std::fs::write(&desktop_file, desktop_entry(exe_str))
         .map_err(|e| format!("write desktop file: {e}"))?;
-    std::fs::copy(&icon, &dest_icon).map_err(|e| format!("copy icon: {e}"))?;
+    if let Some(icon) = super::find_icon() {
+        std::fs::copy(&icon, &dest_icon).map_err(|e| format!("copy icon: {e}"))?;
+    }
 
     update_databases();
     Ok(())
@@ -34,6 +40,21 @@ pub fn unregister() -> Result<(), String> {
     let _ = std::fs::remove_file(apps_dir().join("kr580.desktop"));
     let _ = std::fs::remove_file(hicolor_icon_dir().join("kr580.png"));
     update_databases();
+    Ok(())
+}
+
+pub fn unregister_for_executable(
+    exe: &Path,
+    _scope: crate::install_mode::InstallScope,
+) -> Result<(), String> {
+    let exe_str = exe
+        .to_str()
+        .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
+    let desktop_file = apps_dir().join("kr580.desktop");
+    let current = std::fs::read_to_string(&desktop_file).unwrap_or_default();
+    if current.contains(&format!("Exec={exe_str} %f")) {
+        unregister()?;
+    }
     Ok(())
 }
 
