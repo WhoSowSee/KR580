@@ -307,6 +307,7 @@ impl DesktopApp {
             Message::SettingsResetConfirmed => {
                 let default_lang = default_lang();
                 let default_speed = SpeedTier::Medium;
+                let default_follow_pc = false;
                 let network = k580_persistence::NetworkSettings::default();
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_lang = default_lang;
@@ -319,14 +320,14 @@ impl DesktopApp {
                     dialog.draft_network_client_port = network.port.to_string();
                     dialog.draft_network_server_host = network.bind_host;
                     dialog.draft_network_server_port = network.bind_port.to_string();
-                    dialog.draft_follow_pc = true;
+                    dialog.draft_follow_pc = default_follow_pc;
                     dialog.draft_memory_operand_highlighting = false;
-                    dialog.original_follow_pc = true;
+                    dialog.original_follow_pc = default_follow_pc;
                     dialog.original_memory_operand_highlighting = false;
                     dialog.network_error = None;
                     dialog.reset_confirm_open = false;
                 }
-                self.follow_pc = true;
+                self.follow_pc = default_follow_pc;
                 self.memory_operand_highlighting = false;
                 let lang_changed = self.lang != default_lang;
                 self.lang = default_lang;

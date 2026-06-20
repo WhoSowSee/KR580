@@ -3,8 +3,8 @@ use super::super::styles::scrollable_style;
 use super::super::theme::{TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT, ui_text};
 use super::super::widgets::{modal_footer_button, modal_icon_button};
 use super::styles::{
-    badge_style, dropdown_option_style, dropdown_panel_style, error_shell_style,
-    field_button_style, footer_button_style, group_label_style, group_panel_style,
+    badge_style, dropdown_option_style, dropdown_panel_style, field_button_style,
+    footer_button_style, group_label_style, group_panel_style,
 };
 use crate::app::{ImportFileFormat, Message};
 use crate::i18n::{Key, Lang};
@@ -124,9 +124,7 @@ fn no_targets_row(lang: Lang) -> Element<'static, Message> {
 fn error_row(error: &str) -> Element<'_, Message> {
     row![
         Space::new().width(Length::Fixed(LABEL_WIDTH)),
-        container(ui_text(error, 12, TOKYO_RED))
-            .width(Length::Fixed(FIELD_WIDTH))
-            .style(error_shell_style),
+        ui_text(error, 12, TOKYO_RED).width(Length::Fixed(FIELD_WIDTH)),
     ]
     .spacing(8)
     .align_y(alignment::Vertical::Center)

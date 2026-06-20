@@ -185,6 +185,7 @@ fn settings_are_versioned_camel_case_json() {
     let json = SettingsStore::to_json(&settings).unwrap();
     assert!(json.contains("settingsVersion"));
     assert!(json.contains("recentFiles"));
+    assert!(!settings.general.follow_pc);
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
     let unsupported = json.replace("\"settingsVersion\": 2", "\"settingsVersion\": 3");

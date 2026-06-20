@@ -16,7 +16,7 @@ use operands::classify_operands;
 
 pub(crate) use operands::{operand_jump_target, operand_port_number};
 
-use super::opcode_dropdown::opcode_dropdown_overlay;
+use super::opcode_dropdown::{OPCODE_DROPDOWN_HEIGHT, opcode_dropdown_overlay};
 use super::styles::{memory_row_container_style, scrollable_style, solid_style, transparent_style};
 use super::theme::{
     TOKYO_BLUE, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_RED, TOKYO_YELLOW,
@@ -86,9 +86,10 @@ impl DesktopApp {
 
         let memory_body: Element<'_, Message> = if let Some(address) = self.opcode_dropdown_address
         {
-            let top = (((address.saturating_sub(view_start) as f32) * MEMORY_ROW_HEIGHT)
+            let row_top = (((address.saturating_sub(view_start) as f32) * MEMORY_ROW_HEIGHT)
                 - self.memory_scroll_offset)
                 .max(0.0);
+            let top = opcode_dropdown_top(row_top, self.memory_viewport_height);
 
             stack(vec![
                 scrollable_memory,
@@ -142,6 +143,22 @@ fn memory_spacer(rows: usize) -> Element<'static, Message> {
         .width(Length::Fill)
         .height(Length::Fixed(rows as f32 * MEMORY_ROW_HEIGHT))
         .into()
+}
+
+fn opcode_dropdown_top(row_top: f32, viewport_height: f32) -> f32 {
+    if viewport_height <= 0.0 {
+        return row_top;
+    }
+
+    let row_bottom = row_top + MEMORY_ROW_HEIGHT;
+    let space_below = viewport_height - row_top;
+    let max_top = (viewport_height - OPCODE_DROPDOWN_HEIGHT).max(0.0);
+
+    if space_below < OPCODE_DROPDOWN_HEIGHT {
+        (row_bottom - OPCODE_DROPDOWN_HEIGHT).clamp(0.0, max_top)
+    } else {
+        row_top.min(max_top)
+    }
 }
 
 struct MemoryRowVisuals {
@@ -263,4 +280,32 @@ fn parse_hex_u8_preview(input: &str) -> Option<u8> {
         16,
     )
     .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn opcode_dropdown_opens_down_when_it_fits() {
+        assert_eq!(opcode_dropdown_top(32.0, 320.0), 32.0);
+    }
+
+    #[test]
+    fn opcode_dropdown_opens_up_when_bottom_would_clip() {
+        assert_eq!(
+            opcode_dropdown_top(260.0, 320.0),
+            260.0 + MEMORY_ROW_HEIGHT - OPCODE_DROPDOWN_HEIGHT
+        );
+    }
+
+    #[test]
+    fn opcode_dropdown_top_clamps_to_viewport_top() {
+        assert_eq!(opcode_dropdown_top(80.0, 140.0), 0.0);
+    }
+
+    #[test]
+    fn opcode_dropdown_top_clamps_to_viewport_bottom() {
+        assert_eq!(opcode_dropdown_top(500.0, 320.0), 96.0);
+    }
 }

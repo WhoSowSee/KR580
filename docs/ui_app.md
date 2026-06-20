@@ -1359,8 +1359,10 @@ same `CancelDiscard` / `ConfirmDiscard` messages.
 The opcode/mnemonic picker uses `opcode_dropdown_style` with a 7 px
 radius on all four corners. The popup floats over the memory rows, so
 the top edge keeps the same rounding as the bottom edge instead of
-looking clipped against the search field. The search field filters the
-same documented opcode list by hexadecimal byte or mnemonic text. When
+looking clipped against the search field. It opens downward while there
+is room and flips upward inside the RAM viewport when the lower edge
+would clip. The search field filters the same documented opcode list by
+hexadecimal byte or mnemonic text. When
 the filtered list is non-empty, the first row is highlighted; changing
 the search text resets the highlight to that first match. ArrowDown and
 Tab advance the highlight through filtered matches, ArrowUp and
@@ -1398,14 +1400,14 @@ to chase a sweet spot that doesn't exist.
 | Tier | Label | Resolved Hz | Use |
 |---|---|---|---|
 | `SpeedTier::Slow`   | Медленно | `SLOW_TIER_HZ = 5`        | One step every 200 ms – read every memory row as PC walks across it. |
-| `SpeedTier::Medium` | Средне   | `MEDIUM_TIER_HZ = 20`     | Default. Visibly "the program is running" while the eye still keeps up with each PC update. |
+| `SpeedTier::Medium` | Средне   | `MEDIUM_TIER_HZ = 120`    | Default. Quick enough for normal runs without switching to burst mode. |
 | `SpeedTier::High`   | Высоко   | primary monitor's refresh rate, fallback `HIGH_TIER_FALLBACK_HZ = 60`, capped at `HIGH_TIER_CEILING_HZ = 240` | One instruction per painted frame – finishes as fast as the screen can paint without skipping rows. |
 | `SpeedTier::Max`    | Максимум | `MAX_TIER_HZ = 1000`      | Switches the worker to **burst mode** (`RunMode::Burst`). The CPU runs instructions in a tight inner loop bounded by a 16 ms wall-time slice and the per-session budget; the UI sees one coalesced snapshot per slice instead of one per instruction. The opt-in for "доведи программу до конца, мне не нужно смотреть на каждый шаг" – and unlike the earlier "fast slider" attempt, this one is *actually* faster than High, because it stops paying the per-instruction timer + crossbeam + redraw round-trip. |
 
 | Property | Value |
 |---|---|
 | Storage | `DesktopApp::speed_tier: SpeedTier` |
-| Default | `DEFAULT_SPEED_TIER = SpeedTier::Medium` |
+| Default | `DEFAULT_SPEED_TIER = SpeedTier::Medium` (`120` instructions/sec) |
 | Emit | `Message::SpeedTierChanged(SpeedTier)` from left/right chevron buttons |
 | Resolve | `tier_hz(tier) -> u32` (in `app/mod.rs`) |
 | Dispatch | `AppCommand::SetStepInterval(Duration::from_micros(1_000_000 / hz))` followed by `AppCommand::SetRunMode(...)` |
@@ -1616,6 +1618,8 @@ specific worker command for the selected target: `ImportXlsxSheet`,
 clears the undo stack and marks the session clean, matching the previous
 file-import behavior. Esc closes the import modal directly, including
 when the file picker, target selector, or footer button has focus.
+Import validation errors render as a plain red text row inside the
+source group, without the field shell border used by editable inputs.
 
 **State:** `import_modal_open: bool`,
 `import_modal_focus: ImportModalFocus`, `import_file_path`,
@@ -1984,8 +1988,9 @@ the moment the modal opens.
 - `Reset` opens a stack-layer sub-modal whose `Cancel` / `Confirm`
   buttons follow `reset_confirm_focus`. `Confirm` writes
   the system default language from `system_locale::default_language()` /
-  `SpeedTier::Medium`, rewrites the dialog's `original_*` snapshot so a
-  follow-up `Cancel` cannot restore the pre-reset values, and persists.
+  `SpeedTier::Medium` (120 instructions/sec), turns Follow PC off,
+  rewrites the dialog's `original_*` snapshot so a follow-up `Cancel`
+  cannot restore the pre-reset values, and persists.
 
 The first launch may not have a `settings.json` yet. `load_settings()`
 silently uses defaults for that expected `NotFound` case, including the system

@@ -103,7 +103,7 @@ impl Default for GeneralSettings {
         Self {
             language: Language::Ru,
             default_speed: SpeedPreset::Medium,
-            follow_pc: true,
+            follow_pc: false,
             memory_operand_highlighting: false,
             floppy_image_path: None,
             hdd_directory: None,

@@ -170,6 +170,8 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     assert!(!dialog.reset_confirm_open);
     assert_eq!(dialog.original_lang, expected_lang);
     assert_eq!(dialog.original_speed, SpeedTier::Medium);
+    assert!(!app.follow_pc);
+    assert!(!dialog.original_follow_pc);
 }
 
 #[test]

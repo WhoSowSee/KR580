@@ -15,6 +15,8 @@ use super::utils::row_separator;
 use crate::app::{Message, OPCODE_SEARCH_INPUT_ID, OpcodeChoice, filtered_opcode_choices};
 use crate::i18n::{Key, Lang};
 
+pub(super) const OPCODE_DROPDOWN_HEIGHT: f32 = 224.0;
+
 pub(super) fn opcode_dropdown_overlay<'a>(
     address: u16,
     search: &'a str,
