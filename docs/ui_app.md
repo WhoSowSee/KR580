@@ -1842,8 +1842,12 @@ letter shortcuts.
 | ArrowUp / ArrowDown (in value field) | Bump the byte in the value field by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to memory until Enter; ArrowUp on `FF` and ArrowDown on `00` are no-ops. |
 | Tab / Shift+Tab | Cycle focus between the two fields of this panel only. The destination is cleared for replacement while its previous value remains visible as the placeholder. |
 
+While the value field is edited, the selected RAM row and command column preview the pending byte immediately; the stored memory byte is unchanged until Enter.
+
 Pasting two or more whitespace-separated hexadecimal bytes into the
-value field writes them immediately into consecutive addresses. Every
+value field writes them immediately into consecutive addresses. The
+same paste works with a selected RAM row even when the inline editor is
+not focused. Every
 token must contain exactly two hexadecimal digits and the complete
 range must fit in 64 KiB; invalid input leaves the whole range unchanged
 and shows a localized status without echoing the pasted text. A pasted

@@ -143,9 +143,15 @@ fn command_shortcut_message(
     status: event::Status,
 ) -> Option<Message> {
     if matches!(status, event::Status::Captured)
-        && is_text_select_all_shortcut(key, physical_key, modifiers)
+        && (is_text_select_all_shortcut(key, physical_key, modifiers)
+            || is_text_paste_shortcut(key, physical_key, modifiers))
     {
         return None;
+    }
+    if matches!(status, event::Status::Ignored)
+        && is_text_paste_shortcut(key, physical_key, modifiers)
+    {
+        return Some(Message::PasteMemoryBytesRequested);
     }
     ctrl_shortcut(key, physical_key, modifiers)
 }
@@ -155,11 +161,28 @@ fn is_text_select_all_shortcut(
     physical_key: keyboard::key::Physical,
     modifiers: keyboard::Modifiers,
 ) -> bool {
+    text_command_shortcut(key, physical_key, modifiers, 'a')
+}
+
+fn is_text_paste_shortcut(
+    key: &keyboard::Key,
+    physical_key: keyboard::key::Physical,
+    modifiers: keyboard::Modifiers,
+) -> bool {
+    text_command_shortcut(key, physical_key, modifiers, 'v')
+}
+
+fn text_command_shortcut(
+    key: &keyboard::Key,
+    physical_key: keyboard::key::Physical,
+    modifiers: keyboard::Modifiers,
+    expected: char,
+) -> bool {
     if modifiers.shift() || modifiers.alt() {
         return false;
     }
     key.to_latin(physical_key)
-        .is_some_and(|latin| latin.eq_ignore_ascii_case(&'a'))
+        .is_some_and(|latin| latin.eq_ignore_ascii_case(&expected))
 }
 
 #[cfg(test)]
@@ -221,6 +244,34 @@ mod tests {
                 .is_none()
             );
         }
+    }
+
+    #[test]
+    fn captured_ctrl_v_keeps_text_input_paste() {
+        for (typed, code) in [("v", Code::KeyV), ("м", Code::KeyV)] {
+            assert!(
+                command_shortcut_message(
+                    &char_key(typed),
+                    physical(code),
+                    Modifiers::COMMAND,
+                    event::Status::Captured,
+                )
+                .is_none()
+            );
+        }
+    }
+
+    #[test]
+    fn ignored_ctrl_v_requests_memory_paste() {
+        assert_message(
+            command_shortcut_message(
+                &char_key("м"),
+                physical(Code::KeyV),
+                Modifiers::COMMAND,
+                event::Status::Ignored,
+            ),
+            Message::PasteMemoryBytesRequested,
+        );
     }
 
     #[test]

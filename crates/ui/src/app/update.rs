@@ -246,6 +246,18 @@ impl DesktopApp {
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
                 return step.chain(iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID));
             }
+            Message::PasteMemoryBytesRequested if !self.running => {
+                if self.selected_memory_paste_address().is_none() {
+                    return Task::none();
+                }
+                return iced::clipboard::read().map(Message::MemoryBytesPasted);
+            }
+            Message::MemoryBytesPasted(Some(value)) if !self.running => {
+                if let Some(address) = self.selected_memory_paste_address() {
+                    self.paste_memory_bytes(address, value);
+                }
+            }
+            Message::MemoryBytesPasted(None) => {}
             Message::OpcodeDropdownToggled(address) if !self.running => {
                 self.toggle_opcode_dropdown(address)
             }

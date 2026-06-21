@@ -1,4 +1,4 @@
-use crate::app::{DesktopApp, MEMORY_INLINE_INPUT_ID, Message, OPCODE_SEARCH_INPUT_ID};
+use crate::app::{DesktopApp, MEMORY_INLINE_INPUT_ID, Message, OPCODE_SEARCH_INPUT_ID, StatusKind};
 use std::thread;
 use std::time::Duration;
 
@@ -134,6 +134,66 @@ fn value_input_uses_address_zero_when_the_address_field_is_empty() {
 
     assert_eq!(app.memory_address_input, "0000");
     assert_eq!(app.memory_value_input, "3E");
+}
+
+#[test]
+fn value_input_is_shared_with_selected_memory_row_preview() {
+    let (mut app, _) = DesktopApp::with_initial_path(None);
+    app.select_opcode(0x0010, 0x22);
+
+    let _ = app.update(Message::MemoryValueChanged("3E".to_owned()));
+
+    assert_eq!(app.memory_value_input, "3E");
+    assert_eq!(app.memory_inline_value_input, "3E");
+    assert_eq!(app.snapshot.cpu.memory.read(0x0010), 0x22);
+}
+
+#[test]
+fn overlong_memory_value_input_is_ignored_without_status_error() {
+    let (mut app, _) = DesktopApp::with_initial_path(None);
+
+    let _ = app.update(Message::MemoryValueChanged("20".to_owned()));
+    let _ = app.update(Message::MemoryValueChanged("201".to_owned()));
+    let _ = app.update(Message::MemoryValueChanged("20G".to_owned()));
+
+    assert_eq!(app.memory_value_input, "20");
+    assert!(matches!(app.status_kind, StatusKind::Ready));
+}
+
+#[test]
+fn overlong_inline_memory_value_input_is_ignored_without_status_error() {
+    let (mut app, _) = DesktopApp::with_initial_path(None);
+    app.select_opcode(0x0100, 0x20);
+
+    let _ = app.update(Message::InlineMemoryValueChanged(0x0100, "201".to_owned()));
+    let _ = app.update(Message::InlineMemoryValueChanged(0x0100, "20G".to_owned()));
+
+    assert_eq!(app.memory_inline_value_input, "20");
+    assert!(matches!(app.status_kind, StatusKind::Ready));
+}
+
+#[test]
+fn pasted_bytes_use_selected_memory_cell_without_inline_edit_focus() {
+    let mut app = app_with_clean_startup();
+    app.select_memory(0x0100);
+
+    let _ = app.update(Message::MemoryBytesPasted(Some("12 15 16".to_owned())));
+    for _ in 0..10 {
+        if app.snapshot.cpu.memory.read(0x0100) == 0x12 {
+            break;
+        }
+        thread::sleep(Duration::from_millis(5));
+        app.pull_events();
+    }
+
+    assert_eq!(app.focused_input, None);
+    assert_eq!(app.memory_address_input, "0100");
+    assert_eq!(app.memory_value_input, "12");
+    assert_eq!(app.memory_inline_value_input, "12");
+    assert_eq!(
+        &app.snapshot.cpu.memory.as_slice()[0x0100..0x0103],
+        &[0x12, 0x15, 0x16]
+    );
 }
 
 #[test]

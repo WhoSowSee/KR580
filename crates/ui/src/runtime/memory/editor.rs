@@ -8,8 +8,8 @@ use k580_app::AppCommand;
 
 use crate::app::filtered_opcode_choices;
 use crate::runtime::parse::{
-    bounded_hex_input, parse_hex_byte_sequence_edit, parse_hex_u8, parse_hex_u16,
-    saturating_step_u8,
+    bounded_hex_input, parse_hex_byte_sequence, parse_hex_byte_sequence_edit, parse_hex_u8,
+    parse_hex_u16, saturating_step_u8,
 };
 
 impl DesktopApp {
@@ -43,6 +43,7 @@ impl DesktopApp {
                 }
                 return;
             }
+            Err(()) if is_single_byte_edit_overflow(&value, &self.memory_value_input) => return,
             Err(()) => {
                 self.set_status(StatusKind::InvalidMemoryBytes);
                 return;
@@ -55,6 +56,7 @@ impl DesktopApp {
             }
             let before = self.memory_value_input.clone();
             self.memory_value_input = value;
+            self.memory_inline_value_input = self.memory_value_input.clone();
             self.undo_stack.push_text(
                 MEMORY_VALUE_INPUT_ID,
                 before,
@@ -76,6 +78,9 @@ impl DesktopApp {
                 self.write_memory_block(address, values);
                 return;
             }
+            Err(()) if is_single_byte_edit_overflow(&value, &self.memory_inline_value_input) => {
+                return;
+            }
             Err(()) => {
                 self.set_status(StatusKind::InvalidMemoryBytes);
                 return;
@@ -93,6 +98,24 @@ impl DesktopApp {
         // would be interpreted against a different address on
         // Ctrl+Z. The byte mutation lands as a `Cpu` undo pair on
         // Enter.
+    }
+
+    pub(crate) fn selected_memory_paste_address(&self) -> Option<u16> {
+        if self.focused_input.is_none()
+            && self.active_register_target.is_none()
+            && self.inline_register_target.is_none()
+        {
+            return self.selected_memory_address();
+        }
+        None
+    }
+
+    pub(crate) fn paste_memory_bytes(&mut self, address: u16, value: String) {
+        match parse_hex_byte_sequence(&value) {
+            Ok(Some(values)) => self.write_memory_block(address, values),
+            Ok(None) => {}
+            Err(()) => self.set_status(StatusKind::InvalidMemoryBytes),
+        }
     }
 
     pub(crate) fn apply_inline_memory_value(&mut self, address: u16) {
@@ -229,6 +252,19 @@ impl DesktopApp {
         self.memory_value_input = format!("{first:02X}");
         self.memory_inline_value_input = self.memory_value_input.clone();
     }
+}
+
+fn is_single_byte_edit_overflow(input: &str, existing: &str) -> bool {
+    if existing.len() != 2 || input.len() <= 2 || input.chars().any(char::is_whitespace) {
+        return false;
+    }
+    (0..=existing.len()).any(|split| {
+        let (prefix, suffix) = existing.split_at(split);
+        input
+            .strip_prefix(prefix)
+            .and_then(|value| value.strip_suffix(suffix))
+            .is_some_and(|inserted| !inserted.is_empty())
+    })
 }
 
 #[cfg(test)]

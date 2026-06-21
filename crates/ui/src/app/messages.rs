@@ -177,6 +177,8 @@ pub(crate) enum Message {
     MemoryValueChanged(String),
     InlineMemoryValueChanged(u16, String),
     ApplyInlineMemoryValue(u16),
+    PasteMemoryBytesRequested,
+    MemoryBytesPasted(Option<String>),
     OpcodeDropdownToggled(u16),
     OpcodeSearchChanged(String),
     OpcodeSelected(u16, u8),

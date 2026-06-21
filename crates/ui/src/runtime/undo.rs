@@ -53,7 +53,10 @@ impl DesktopApp {
     fn restore_text_field(&mut self, field: &'static str, value: String) {
         match field {
             MEMORY_ADDRESS_INPUT_ID => self.memory_address_input = value,
-            MEMORY_VALUE_INPUT_ID => self.memory_value_input = value,
+            MEMORY_VALUE_INPUT_ID => {
+                self.memory_value_input = value;
+                self.memory_inline_value_input = self.memory_value_input.clone();
+            }
             MEMORY_INLINE_INPUT_ID => self.memory_inline_value_input = value,
             REGISTER_NAME_INPUT_ID => self.register_name_input = value,
             REGISTER_VALUE_INPUT_ID => self.register_value_input = value,
