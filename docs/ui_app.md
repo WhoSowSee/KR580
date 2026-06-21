@@ -1821,8 +1821,10 @@ The UI exposes the following shortcuts. Modifier names follow iced's
 `Modifiers::command()` convention: Ctrl on Windows/Linux, ⌘ on macOS.
 Letter shortcuts are resolved through `Key::to_latin(physical_key)`, so
 the English and Russian layouts use the same physical QWERTY keys:
-`E` and `У` both open the opcode picker, `Ctrl+S` and `Ctrl+Ы` both
-save, and the same rule applies to the rest of the letter shortcuts.
+`E` and `У` both open the opcode picker, `Alt+Q` and `Alt+Й` both
+jump to `0000`, `Alt+E` and `Alt+У` both jump to `FFFF`, `Ctrl+S`
+and `Ctrl+Ы` both save, and the same rule applies to the rest of the
+letter shortcuts.
 
 ### Memory cell editor (address + value pair)
 
@@ -1929,6 +1931,8 @@ the accumulator. Invalid value input leaves the register field empty.
 | Enter | Normal submit / inline-edit recovery; while the unsaved-changes modal is open, activates the focused modal button. While the export modal is open, selects the focused tab, opens/selects the target dropdown, activates add/delete target buttons, toggles the focused checkbox, or activates Cancel / Export. |
 | ArrowUp / ArrowDown | Routed by `DesktopApp::handle_arrow_key` to the editor that currently owns focus (see the panel-specific tables above). With nothing tracked focused they fall back to memory list navigation. |
 | PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
+| Alt+Q / Alt+Й | Jump the memory view to the first RAM cell, `0000`. If stack view is active, exits it first because `0000` is outside the stack range. |
+| Alt+E / Alt+У | Jump the memory view to the last RAM cell, `FFFF`. |
 | E / У | Open the opcode/mnemonic picker for the selected memory cell. |
 | Ctrl+E / Ctrl+У | Open the export settings modal. |
 | Ctrl+M / Ctrl+Ь | Open the monitor window. |

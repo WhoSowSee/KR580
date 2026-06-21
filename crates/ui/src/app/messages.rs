@@ -172,6 +172,7 @@ pub(crate) enum Message {
     RegisterArrowKey(RegisterMove),
     MemoryScrolled(f32, f32),
     JumpMemoryAddress,
+    JumpMemoryTo(u16),
     MemoryAddressChanged(String),
     MemoryValueChanged(String),
     InlineMemoryValueChanged(u16, String),

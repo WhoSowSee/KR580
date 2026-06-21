@@ -1,4 +1,4 @@
-use super::handlers::{ctrl_shortcut, plain_shortcut};
+use super::handlers::{alt_shortcut, ctrl_shortcut, plain_shortcut};
 use crate::app::Message;
 use iced::keyboard;
 use iced::keyboard::key::{Code, Physical};
@@ -15,6 +15,13 @@ fn physical(code: Code) -> Physical {
 fn assert_message(actual: Option<Message>, expected: Message) {
     let actual = actual.expect("shortcut should resolve");
     assert_eq!(discriminant(&actual), discriminant(&expected));
+}
+
+fn assert_jump_message(actual: Option<Message>, expected: u16) {
+    match actual {
+        Some(Message::JumpMemoryTo(address)) => assert_eq!(address, expected),
+        other => panic!("expected JumpMemoryTo({expected:04X}), got {other:?}"),
+    }
 }
 
 #[test]
@@ -60,6 +67,21 @@ fn ctrl_shortcuts_use_physical_key_for_russian_layout() {
     ] {
         assert_message(
             ctrl_shortcut(&char_key(typed), physical(code), ctrl),
+            expected,
+        );
+    }
+}
+
+#[test]
+fn alt_shortcuts_jump_to_memory_boundaries() {
+    for (typed, code, expected) in [
+        ("q", Code::KeyQ, 0x0000),
+        ("й", Code::KeyQ, 0x0000),
+        ("e", Code::KeyE, 0xFFFF),
+        ("у", Code::KeyE, 0xFFFF),
+    ] {
+        assert_jump_message(
+            alt_shortcut(&char_key(typed), physical(code), keyboard::Modifiers::ALT),
             expected,
         );
     }

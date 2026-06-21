@@ -131,6 +131,39 @@ mod tests {
     }
 
     #[test]
+    fn jump_memory_to_first_cell_relocates_view_to_start() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.memory_address_input = "1234".to_owned();
+        app.scroll_memory(0xFFFF as f32);
+
+        let _ = app.update(Message::JumpMemoryTo(0x0000));
+
+        assert_eq!(app.memory_address_input, "0000");
+        assert_eq!(app.memory_scroll_first_row, 0);
+    }
+
+    #[test]
+    fn jump_memory_to_last_cell_relocates_view_to_end() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+
+        let _ = app.update(Message::JumpMemoryTo(0xFFFF));
+
+        assert_eq!(app.memory_address_input, "FFFF");
+        assert_eq!(app.memory_scroll_first_row, u16::MAX);
+    }
+
+    #[test]
+    fn jump_memory_to_first_cell_exits_stack_view() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.enable_stack_view();
+
+        let _ = app.update(Message::JumpMemoryTo(0x0000));
+
+        assert!(!app.stack_view);
+        assert_eq!(app.memory_address_input, "0000");
+    }
+
+    #[test]
     fn alt_enter_on_low_operand_byte_relocates_view_to_target() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
         load_lxi_b_d16(&mut app);

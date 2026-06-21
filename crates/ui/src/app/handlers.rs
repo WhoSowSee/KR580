@@ -285,6 +285,21 @@ pub(crate) fn ctrl_shortcut(
     }
 }
 
+pub(crate) fn alt_shortcut(
+    key: &keyboard::Key,
+    physical_key: keyboard::key::Physical,
+    modifiers: keyboard::Modifiers,
+) -> Option<Message> {
+    if modifiers.command() || modifiers.shift() || !modifiers.alt() {
+        return None;
+    }
+    match key.to_latin(physical_key)?.to_ascii_lowercase() {
+        'q' => Some(Message::JumpMemoryTo(0x0000)),
+        'e' => Some(Message::JumpMemoryTo(0xFFFF)),
+        _ => None,
+    }
+}
+
 pub(crate) fn plain_shortcut(
     key: &keyboard::Key,
     physical_key: keyboard::key::Physical,

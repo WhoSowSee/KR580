@@ -1,6 +1,6 @@
 use iced::{Subscription, event, keyboard, mouse, time};
 
-use super::handlers::{ctrl_shortcut, plain_shortcut, tick_interval};
+use super::handlers::{alt_shortcut, ctrl_shortcut, plain_shortcut, tick_interval};
 use super::messages::Message;
 use super::state::DesktopApp;
 
@@ -31,6 +31,17 @@ impl DesktopApp {
                     status,
                 ) if modifiers.command() => {
                     command_shortcut_message(&key, physical_key, modifiers, status)
+                }
+                (
+                    iced::Event::Keyboard(keyboard::Event::KeyPressed {
+                        key,
+                        physical_key,
+                        modifiers,
+                        ..
+                    }),
+                    _,
+                ) if alt_shortcut(&key, physical_key, modifiers).is_some() => {
+                    alt_shortcut(&key, physical_key, modifiers)
                 }
                 (
                     iced::Event::Keyboard(keyboard::Event::KeyPressed {

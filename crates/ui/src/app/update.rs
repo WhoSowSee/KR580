@@ -3,7 +3,7 @@ use iced::Task;
 use super::constants::{
     MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_SCROLL_VISIBLE_TICKS,
     MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID, REGISTER_INLINE_INPUT_ID,
-    REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
+    REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID, STACK_VIEW_START,
 };
 use super::messages::{Message, RegisterInlineTarget};
 use super::state::{DesktopApp, PendingAction};
@@ -216,6 +216,12 @@ impl DesktopApp {
                     return self.jump_memory_address();
                 }
                 return self.advance_memory_address(self.keyboard_modifiers.shift());
+            }
+            Message::JumpMemoryTo(address) if !self.running => {
+                if self.stack_view && address < STACK_VIEW_START {
+                    self.disable_stack_view();
+                }
+                return self.jump_memory_to(address);
             }
             Message::MemoryAddressChanged(value) if !self.running => {
                 self.change_memory_address(value);
