@@ -9,6 +9,7 @@ mod handlers;
 mod handlers_tests;
 mod help;
 mod help_routing;
+mod hex_stream_filter;
 mod import_modal;
 mod import_modal_state;
 #[cfg(test)]
@@ -23,6 +24,7 @@ mod register_inline;
 pub(crate) mod settings_modal;
 mod speed;
 mod state;
+mod state_helpers;
 mod status;
 mod subscription;
 mod undo;
@@ -48,6 +50,7 @@ pub(crate) use help::{
     HelpDialog, HelpMarkdownHighlight, HelpMarkdownHighlighter, HelpMarkdownLine, HelpNode,
     parse_help_markdown_line,
 };
+pub(crate) use hex_stream_filter::HexStreamFilter;
 pub(crate) use import_modal_state::{ImportFileFormat, ImportModalFocus};
 pub(crate) use messages::{
     ExportFlag, ExportMemoryColumn, ExportRegister, ExportTab, MenuId, Message,
@@ -60,6 +63,6 @@ pub(crate) use settings_modal::{
     ContentFocus, FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection,
 };
 pub(crate) use speed::tier_hz;
-pub(crate) use state::{DesktopApp, HexStreamFilter, PendingAction};
+pub(crate) use state::{DesktopApp, PendingAction};
 pub(crate) use status::{StatusKind, shorten_status_for_width};
 pub(crate) use undo::UndoEntry;

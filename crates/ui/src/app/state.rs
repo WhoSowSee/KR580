@@ -1,10 +1,11 @@
-use iced::{Point, Size, Task, Theme, keyboard};
+use iced::{Point, Size, Task, keyboard};
 use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use k580_core::RegisterName;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use super::help::HelpDialog;
+use super::hex_stream_filter::HexStreamFilter;
 use super::messages::{ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier};
 use super::modal::DiscardModalButton;
 use super::settings_modal::SettingsDialog;
@@ -53,6 +54,7 @@ pub(crate) struct DesktopApp {
     /// Stored separately because every successful match overwrites
     /// `memory_address_input` with the matched 4-digit address.
     pub(crate) memory_search_pattern: Option<String>,
+    pub(crate) memory_operand_return_address: Option<u16>,
     pub(crate) keyboard_modifiers: keyboard::Modifiers,
     /// Cosmetic focus marker – iced 0.14 has no on_focus / on_blur.
     pub(crate) focused_input: Option<&'static str>,
@@ -169,24 +171,6 @@ pub(crate) struct DesktopApp {
     pub(crate) monitor_hex_filter: HexStreamFilter,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum HexStreamFilter {
-    #[default]
-    All,
-    Graphics,
-    Text,
-}
-
-impl HexStreamFilter {
-    pub(crate) fn next(self) -> Self {
-        match self {
-            HexStreamFilter::All => HexStreamFilter::Graphics,
-            HexStreamFilter::Graphics => HexStreamFilter::Text,
-            HexStreamFilter::Text => HexStreamFilter::All,
-        }
-    }
-}
-
 impl DesktopApp {
     pub(crate) fn with_initial_path(initial: Option<PathBuf>) -> (Self, Task<Message>) {
         let handle = spawn_emulator();
@@ -243,6 +227,7 @@ impl DesktopApp {
             opcode_search_input: String::new(),
             opcode_highlight_index: 0,
             memory_search_pattern: None,
+            memory_operand_return_address: None,
             keyboard_modifiers: keyboard::Modifiers::default(),
             focused_input: None,
             replacement_input: None,
@@ -364,78 +349,4 @@ impl DesktopApp {
         (app, startup_task)
     }
 
-    pub(crate) fn theme(&self, _window: iced::window::Id) -> Option<Theme> {
-        Some(Theme::TokyoNight)
-    }
-
-    pub(crate) fn set_status(&mut self, kind: StatusKind) {
-        if let Some(rendered) = kind.render(self.lang) {
-            self.status = rendered;
-            self.status_kind = kind;
-        }
-    }
-
-    pub(crate) fn set_status_custom(&mut self, text: String) {
-        self.status = text;
-        self.status_kind = StatusKind::Custom;
-    }
-
-    pub(crate) fn refresh_localized_status(&mut self) {
-        if let Some(rendered) = self.status_kind.render(self.lang) {
-            self.status = rendered;
-        }
-    }
-
-    pub(crate) fn clear_error_notice(&mut self) {
-        self.error_notice = None;
-        self.error_notice_dismiss_at = None;
-    }
-
-    pub(crate) fn clear_halt_notice(&mut self) {
-        self.halt_notice = None;
-        self.halt_notice_dismiss_at = None;
-    }
-
-    /// Single chokepoint for halt-block sites – both the notice and
-    /// the run-block latch are armed here so callers can't forget
-    /// one half.
-    pub(crate) fn raise_halt_notice(&mut self) {
-        self.halt_notice = Some(self.lang.t(crate::i18n::Key::HaltNotice).to_owned());
-        self.halt_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
-        self.run_blocked_after_halt = true;
-    }
-
-    pub(crate) fn run_new_file(&mut self) {
-        self.dispatch(k580_app::AppCommand::ResetRam);
-        self.dispatch(k580_app::AppCommand::ResetCpu);
-        self.running = false;
-        self.current_snapshot_path = None;
-        self.undo_stack.clear();
-        self.mark_saved();
-        self.speed_tier = self.default_speed;
-        self.set_status(StatusKind::NewFile);
-    }
-
-    pub(crate) fn mark_saved(&mut self) {
-        self.dirty = false;
-        self.saved_cpu = self.snapshot.cpu.clone();
-    }
-
-    pub(crate) fn recompute_dirty(&mut self) {
-        self.dirty = self.snapshot.cpu != self.saved_cpu;
-    }
-
-    pub(crate) fn apply_speed_tier(&mut self, tier: SpeedTier) {
-        self.speed_tier = tier;
-        let hz = super::tier_hz(tier);
-        let interval = Duration::from_micros(1_000_000 / u64::from(hz.max(1)));
-        self.dispatch(k580_app::AppCommand::SetStepInterval(interval));
-        let mode = match tier {
-            SpeedTier::Max => k580_app::RunMode::Burst {
-                slice: Duration::from_millis(16),
-            },
-            _ => k580_app::RunMode::Paced,
-        };
-        self.dispatch(k580_app::AppCommand::SetRunMode(mode));
-    }
 }

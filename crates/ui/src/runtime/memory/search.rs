@@ -38,6 +38,18 @@ impl DesktopApp {
         Task::none()
     }
 
+    pub(crate) fn jump_from_memory_operand(&mut self, origin: u16, target: u16) -> Task<Message> {
+        self.memory_operand_return_address = Some(origin);
+        self.jump_memory_to(target)
+    }
+
+    pub(crate) fn return_to_memory_operand(&mut self) -> Task<Message> {
+        if let Some(address) = self.memory_operand_return_address.take() {
+            return self.jump_memory_to(address);
+        }
+        Task::none()
+    }
+
     pub(crate) fn advance_memory_address(&mut self, backward: bool) -> Task<Message> {
         self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         self.step_address_in_input(backward);
@@ -121,13 +133,18 @@ impl DesktopApp {
 #[cfg(test)]
 mod tests {
     use super::DesktopApp;
-    use crate::app::Message;
+    use crate::app::{MEMORY_INLINE_INPUT_ID, Message};
     use iced::keyboard;
 
     fn load_lxi_b_d16(app: &mut DesktopApp) {
         app.snapshot.cpu.memory.write(0x0000, 0x01); // LXI B,d16
         app.snapshot.cpu.memory.write(0x0001, 0x34);
         app.snapshot.cpu.memory.write(0x0002, 0x12); // -> 0x1234
+    }
+
+    fn select_address(app: &mut DesktopApp, address: u16) {
+        app.memory_address_input = format!("{address:04X}");
+        app.refresh_memory_value(address);
     }
 
     #[test]
@@ -200,6 +217,34 @@ mod tests {
         let _ = app.update(Message::EnterPressed);
 
         assert_eq!(app.memory_address_input, "0000");
+    }
+
+    #[test]
+    fn alt_shift_enter_returns_to_low_address_operand_after_jump() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        load_lxi_b_d16(&mut app);
+        select_address(&mut app, 0x0001);
+        app.keyboard_modifiers = keyboard::Modifiers::ALT;
+
+        let _ = app.update(Message::EnterPressed);
+        app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
+        let _ = app.update(Message::EnterPressed);
+
+        assert_eq!(app.memory_address_input, "0001");
+    }
+
+    #[test]
+    fn alt_shift_enter_returns_to_high_address_operand_after_jump() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        load_lxi_b_d16(&mut app);
+        select_address(&mut app, 0x0002);
+        app.keyboard_modifiers = keyboard::Modifiers::ALT;
+
+        let _ = app.update(Message::EnterPressed);
+        app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
+        let _ = app.update(Message::EnterPressed);
+
+        assert_eq!(app.memory_address_input, "0002");
     }
 
     fn load_out_port(app: &mut DesktopApp, address: u16, port: u8) {
@@ -284,6 +329,33 @@ mod tests {
         let _ = app.update(Message::EnterPressed);
 
         assert!(!app.monitor_open);
+        assert_eq!(app.memory_address_input, "0001");
+    }
+
+    #[test]
+    fn alt_shift_enter_on_port_operand_does_not_open_device() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        load_out_port(&mut app, 0x0000, 0x04);
+        select_address(&mut app, 0x0001);
+        app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
+
+        let _ = app.update(Message::EnterPressed);
+
+        assert!(!app.printer_open);
+        assert_eq!(app.memory_address_input, "0001");
+    }
+
+    #[test]
+    fn alt_shift_enter_on_data_operand_does_not_enter_inline_editor() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.snapshot.cpu.memory.write(0x0000, 0x06); // MVI B
+        app.snapshot.cpu.memory.write(0x0001, 0x42);
+        select_address(&mut app, 0x0001);
+        app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
+
+        let _ = app.update(Message::EnterPressed);
+
+        assert_ne!(app.focused_input, Some(MEMORY_INLINE_INPUT_ID));
         assert_eq!(app.memory_address_input, "0001");
     }
 }

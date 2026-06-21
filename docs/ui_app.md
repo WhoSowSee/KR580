@@ -84,6 +84,8 @@ store emulator state in widgets.
     `with_initial_path`, and the floating-notice helpers
     (`clear_*_notice` / `raise_halt_notice` / `raise_info_notice` /
     `run_new_file`).
+  - `app/hex_stream_filter.rs` – the monitor hex-popup stream filter.
+  - `app/state_helpers.rs` – `DesktopApp` status, dirty-state, new-file, theme, and speed helpers.
   - `app/messages.rs` – the `Message` enum.
   - `app/constants.rs` – widget identifiers, register order, and name
     lookup helpers. Re-exported from `crate::app::*` so the rest of the
@@ -1825,6 +1827,8 @@ the English and Russian layouts use the same physical QWERTY keys:
 jump to `0000`, `Alt+E` and `Alt+У` both jump to `FFFF`, `Ctrl+S`
 and `Ctrl+Ы` both save, and the same rule applies to the rest of the
 letter shortcuts.
+and `Ctrl+Ы` both save, and the same rule applies to the rest of the
+letter shortcuts.
 
 ### Memory cell editor (address + value pair)
 
@@ -1907,6 +1911,7 @@ the accumulator. Invalid value input leaves the register field empty.
 |---|---|
 | Enter | Apply the typed value to the selected address. An empty replacement field keeps the previous byte. |
 | Alt+Enter | Relocate the memory view to the 16-bit address encoded by the operand when the selected cell is the low or high byte of a 3-byte address instruction (`LXI`, `JMP`, `CALL`, `SHLD`, `LHLD`, `STA`, `LDA`, and the conditional `Jcond`/`Ccond` family). Both operand bytes resolve to the same little-endian target, so the jump works from either half. On the operand byte of a 2-byte `IN`/`OUT` instruction, opens the corresponding device window — `0x00` monitor, `0x01` floppy, `0x02` HDD, `0x03` network, `0x04` printer (matches `k580_devices::IoBus` port constants). Unknown ports fall through. Independent of the Highlight memory operands toggle, and only when the inline editor is not focused — the address/value fields below keep their own Alt+Enter behavior. Falls back to the plain inline-edit Enter on non-address, non-port cells (including 8-bit data operands). |
+| Alt+Shift+Enter | Return to the low/high operand cell that launched the last 16-bit address jump. This return slot is written only by 16-bit address-operand jumps; port operands and 8-bit data operands do not create one. |
 | Tab / Shift+Tab | Move the selection to the next/previous address and refocus an empty replacement editor for the new row. |
 | Esc | Discard the unsaved byte typed into the inline editor and restore it to the value currently in memory. With no pending edit, falls through to closing the opcode dropdown. |
 | ArrowUp / ArrowDown (inline editor focused) | Move to the previous/next address and preserve replacement mode: the target editor is empty and its current byte is the placeholder. |
@@ -1931,6 +1936,8 @@ the accumulator. Invalid value input leaves the register field empty.
 | Enter | Normal submit / inline-edit recovery; while the unsaved-changes modal is open, activates the focused modal button. While the export modal is open, selects the focused tab, opens/selects the target dropdown, activates add/delete target buttons, toggles the focused checkbox, or activates Cancel / Export. |
 | ArrowUp / ArrowDown | Routed by `DesktopApp::handle_arrow_key` to the editor that currently owns focus (see the panel-specific tables above). With nothing tracked focused they fall back to memory list navigation. |
 | PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
+| Alt+Q / Alt+Й | Jump the memory view to the first RAM cell, `0000`. If stack view is active, exits it first because `0000` is outside the stack range. |
+| Alt+E / Alt+У | Jump the memory view to the last RAM cell, `FFFF`. |
 | Alt+Q / Alt+Й | Jump the memory view to the first RAM cell, `0000`. If stack view is active, exits it first because `0000` is outside the stack range. |
 | Alt+E / Alt+У | Jump the memory view to the last RAM cell, `FFFF`. |
 | E / У | Open the opcode/mnemonic picker for the selected memory cell. |

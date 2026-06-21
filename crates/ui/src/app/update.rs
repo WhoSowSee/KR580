@@ -278,6 +278,9 @@ impl DesktopApp {
                     return Task::none();
                 };
                 if self.keyboard_modifiers.alt() {
+                    if self.keyboard_modifiers.shift() {
+                        return self.return_to_memory_operand();
+                    }
                     let memory = &self.snapshot.cpu.memory;
                     if let Some(port) = crate::view::operand_port_number(address, memory)
                         && let Some(open) = open_device_message(port)
@@ -286,7 +289,7 @@ impl DesktopApp {
                         return Task::none();
                     }
                     if let Some(target) = crate::view::operand_jump_target(address, memory) {
-                        return self.jump_memory_to(target);
+                        return self.jump_from_memory_operand(address, target);
                     }
                 }
                 return Task::done(Message::MemoryEnter(address));
