@@ -20,6 +20,7 @@ impl DesktopApp {
             | Message::HelpNodeSelected(_)
             | Message::HelpNodeToggled(_)
             | Message::HelpSearchChanged(_)
+            | Message::HelpSearchFinished(_)
             | Message::HelpTextAction(_)
             | Message::HelpToggleExpandAll => None,
             Message::EscPressed => Some(Task::done(Message::CloseHelp)),

@@ -1,6 +1,7 @@
 use crate::i18n::{Key, Lang};
 use iced::widget::text_editor;
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 mod dialog;
 pub(crate) mod markdown;
@@ -11,7 +12,7 @@ mod tests;
 pub(crate) use markdown::{
     HelpMarkdownHighlight, HelpMarkdownHighlighter, HelpMarkdownLine, parse_help_markdown_line,
 };
-pub(crate) use search::HelpSearchResult;
+pub(crate) use search::{HelpSearchResponse, HelpSearchResult, run_help_search};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum HelpNode {
@@ -268,7 +269,10 @@ pub(crate) struct HelpDialog {
     pub(crate) article_highlights: markdown::HelpMarkdownHighlights,
     article_content_node: HelpNode,
     article_content_lang: Lang,
-    search_index: search::HelpSearchIndex,
+    search_index: Arc<search::HelpSearchIndex>,
+    search_generation: u64,
+    pending_search: Option<dialog::PendingHelpSearch>,
+    search_results_query: String,
     search_matches: BTreeSet<HelpNode>,
     search_results: Vec<HelpSearchResult>,
 }

@@ -38,6 +38,11 @@ impl DesktopApp {
                     dialog.update_search_input(query.clone(), self.lang);
                 }
             }
+            Message::HelpSearchFinished(response) => {
+                if let Some(dialog) = self.help_dialog.as_mut() {
+                    dialog.apply_search_response(response.clone(), self.lang);
+                }
+            }
             Message::HelpTextAction(action) => {
                 if let Some(dialog) = self.help_dialog.as_mut() {
                     dialog.perform_text_action(action.clone());

@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use super::HelpNode;
 use crate::i18n::Lang;
@@ -23,6 +24,22 @@ struct HelpSearchRecord {
 pub(crate) struct HelpSearchResult {
     node: HelpNode,
     preview_lines: Vec<String>,
+}
+
+#[derive(Clone)]
+pub(crate) struct HelpSearchRequest {
+    generation: u64,
+    lang: Lang,
+    query: String,
+    index: Arc<HelpSearchIndex>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct HelpSearchResponse {
+    generation: u64,
+    lang: Lang,
+    query: String,
+    results: Vec<HelpSearchResult>,
 }
 
 impl HelpSearchIndex {
@@ -54,6 +71,54 @@ impl HelpSearchIndex {
             })
             .collect()
     }
+}
+
+impl HelpSearchRequest {
+    pub(crate) fn new(
+        generation: u64,
+        lang: Lang,
+        query: String,
+        index: Arc<HelpSearchIndex>,
+    ) -> Self {
+        Self {
+            generation,
+            lang,
+            query,
+            index,
+        }
+    }
+
+    pub(crate) fn resolve(self) -> HelpSearchResponse {
+        let results = self.index.search(&self.query);
+        HelpSearchResponse {
+            generation: self.generation,
+            lang: self.lang,
+            query: self.query,
+            results,
+        }
+    }
+}
+
+impl HelpSearchResponse {
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub(crate) fn lang(&self) -> Lang {
+        self.lang
+    }
+
+    pub(crate) fn query(&self) -> &str {
+        &self.query
+    }
+
+    pub(crate) fn into_results(self) -> Vec<HelpSearchResult> {
+        self.results
+    }
+}
+
+pub(crate) async fn run_help_search(request: HelpSearchRequest) -> HelpSearchResponse {
+    request.resolve()
 }
 
 impl HelpSearchRecord {

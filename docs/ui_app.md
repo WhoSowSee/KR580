@@ -1671,10 +1671,17 @@ tree, and a right content pane displaying static reference text in a
 scrollable container.
 
 Clicking a topic node switches the content. The regular article view is a
-read-only `text_editor`, so the user can select help text with the mouse
-and copy it with Ctrl+C without editing the source text. Inline help
-markdown in the form `**text**` is rendered as bold text and the marker
-characters are stripped before the article is shown or copied. Clicking
+read-only `text_editor`: it keeps `on_action` wired so drag selection,
+double-click word selection, triple-click line selection, Ctrl+A, and
+Ctrl+C still work, but `HelpDialog::perform_text_action` rejects edit and
+caret-move actions. A single left click is applied as `Click`, then the
+article cursor is moved to the same position with an empty selection anchor;
+iced renders that as a zero-width selection range instead of a visible
+insertion caret. A no-op `Drag` immediately after the click is normalized the
+same way, because iced can emit it from pointer jitter before the button is
+released. Inline help markdown in the form `**text**` is
+rendered as bold text and the marker characters are stripped before the
+article is shown or copied. Clicking
 the backdrop or pressing Esc closes the dialog. Help search filters the
 sidebar, keeps the expand/collapse-all button authoritative for visible
 branches, and renders matching topics in the content pane as clickable
@@ -1686,21 +1693,25 @@ breadcrumb only raises the text colour and does not paint its own
 background. Matching letters are rendered as rich-text spans with the same
 grey surface as the selected sidebar row; surrounding text keeps the
 normal help colour, inline bold formatting is preserved, and no textual
-marker characters are inserted. The search text input uses the same grey
-surface for its native selection colour. The text input writes directly to
-`HelpDialog::search`; a per-language search index precomputes lowercased
-topic content plus breadcrumb labels, and result rendering uses cached
-matching nodes and bounded preview snippets instead of rebuilding full
-article rich text on every keystroke.
+marker characters are inserted. The search text input uses the shared
+gray translucent selection overlay. The text input writes directly to
+`HelpDialog::search`; result state lives separately in
+`search_results_query`, `search_matches`, and `search_results`. Search is
+debounced from the 100 ms idle `Tick`, run through an iced `Task`, and
+applied only when the response generation, language, and trimmed query
+still match the current input. This keeps typing and deletion responsive
+while the sidebar and result pane are allowed to lag behind by one
+debounced search.
 
 All text comes from the i18n system (`Key::Hn*` and `Key::Hc*`) and is
 localised for Russian and English. Long `Key::Hc*` article bodies are
 included from `crates/ui/src/i18n/help/{ru,en}/`.
 
 **State:** `help_dialog: Option<HelpDialog>`. `HelpDialog` holds the
-selected `HelpNode`, expanded tree nodes, search input, per-language
-search index, cached matching nodes, cached preview results, and
-read-only article editor content.
+selected `HelpNode`, expanded tree nodes, visible search input,
+per-language search index, pending search generation/deadline, applied
+result query, cached matching nodes, cached preview results, and read-only
+article editor content.
 
 **Routing:** `app/help_routing.rs` – `route_help_dialog_message()`.
 

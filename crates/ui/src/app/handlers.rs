@@ -5,6 +5,7 @@ use super::constants::{
     MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, OPCODE_SEARCH_INPUT_ID,
     REGISTER_INLINE_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID,
 };
+use super::help::run_help_search;
 use super::messages::{Message, SpeedTier};
 use super::speed::tier_hz;
 use super::state::DesktopApp;
@@ -12,6 +13,8 @@ use super::state::DesktopApp;
 impl DesktopApp {
     pub(crate) fn handle_tick(&mut self) -> Task<Message> {
         self.pull_events();
+        let now = Instant::now();
+        let help_search_task = self.due_help_search_task(now);
         let registered = k580_ui::file_assoc::is_registered();
         if registered != self.file_association_last_registered {
             self.file_association_last_registered = registered;
@@ -24,7 +27,6 @@ impl DesktopApp {
             self.monitor_hex_scroll_visible_ticks.saturating_sub(1);
         self.import_target_scroll_visible_ticks =
             self.import_target_scroll_visible_ticks.saturating_sub(1);
-        let now = Instant::now();
         if let Some(deadline) = self.error_notice_dismiss_at
             && now >= deadline
         {
@@ -42,14 +44,25 @@ impl DesktopApp {
             let was_pending = self.pending_follow_pc;
             self.pending_follow_pc = false;
             if was_pending {
-                return self.follow_pc_during_run();
+                return batch_optional(help_search_task, self.follow_pc_during_run());
             }
             if self.follow_pc {
-                return self.follow_pc_during_run();
+                return batch_optional(help_search_task, self.follow_pc_during_run());
             }
             self.track_pc_in_place();
         }
-        Task::none()
+        help_search_task.unwrap_or_else(Task::none)
+    }
+
+    fn due_help_search_task(&mut self, now: Instant) -> Option<Task<Message>> {
+        let request = self
+            .help_dialog
+            .as_mut()?
+            .take_due_search_request(self.lang, now)?;
+        Some(Task::perform(
+            run_help_search(request),
+            Message::HelpSearchFinished,
+        ))
     }
 
     pub(crate) fn handle_focus_reconciled(
@@ -206,6 +219,13 @@ impl DesktopApp {
         }
         self.hide_opcode_dropdown();
         resolve
+    }
+}
+
+fn batch_optional(optional: Option<Task<Message>>, task: Task<Message>) -> Task<Message> {
+    match optional {
+        Some(optional) => Task::batch([optional, task]),
+        None => task,
     }
 }
 

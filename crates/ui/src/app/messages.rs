@@ -86,7 +86,7 @@ pub(crate) enum ExportFlag {
     Carry,
 }
 
-pub(crate) use super::help::HelpNode;
+pub(crate) use super::help::{HelpNode, HelpSearchResponse};
 pub(crate) use super::settings_modal::SettingsCategory;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -240,6 +240,7 @@ pub(crate) enum Message {
     HelpNodeSelected(HelpNode),
     HelpNodeToggled(HelpNode),
     HelpSearchChanged(String),
+    HelpSearchFinished(HelpSearchResponse),
     HelpTextAction(text_editor::Action),
     HelpToggleExpandAll,
     OpenUrl(&'static str),
