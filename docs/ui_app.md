@@ -1858,6 +1858,7 @@ sequence.
 | Shortcut | Effect |
 |---|---|
 | Enter | Apply the typed value to the typed register. |
+| Esc | Discard the typed register value, clear the register editor inputs, and release focus. |
 | ArrowUp / ArrowDown (in name field) | Cycle to the previous/next register in `A B C D E H L`. |
 | ArrowUp / ArrowDown (in value field) | Bump the byte in the value field by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to the register until Enter; ArrowUp on `FF` and ArrowDown on `00` are no-ops. |
 | Tab / Shift+Tab | Cycle focus between the two fields of this panel only. The destination is cleared for replacement while its previous value remains visible as the placeholder. |

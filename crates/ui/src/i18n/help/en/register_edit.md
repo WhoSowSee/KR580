@@ -10,6 +10,7 @@ Register editing methods:
 - Enter value in input field
 - +/- buttons for step changes
 - Press Enter to apply
+- Esc discards the typed value, clears the fields, and releases focus
 
 3. Keyboard navigation:
 - Tab / Shift+Tab - next/previous register on schematic

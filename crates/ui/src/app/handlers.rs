@@ -197,6 +197,18 @@ impl DesktopApp {
         if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
             return self.cancel_inline_memory_edit().chain(resolve);
         }
+        if matches!(
+            self.focused_input,
+            Some(REGISTER_NAME_INPUT_ID | REGISTER_VALUE_INPUT_ID)
+        ) {
+            self.finish_replacement();
+            self.active_register_target = None;
+            self.inline_register_target = None;
+            self.register_name_input.clear();
+            self.register_value_input.clear();
+            self.focused_input = None;
+            return resolve;
+        }
         if self.stack_view {
             self.disable_stack_view();
             return Task::none();

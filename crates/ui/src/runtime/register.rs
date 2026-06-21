@@ -285,7 +285,9 @@ impl DesktopApp {
 #[cfg(test)]
 mod tests {
     use super::DesktopApp;
-    use crate::app::{REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID, RegisterInlineTarget};
+    use crate::app::{
+        Message, REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID, RegisterInlineTarget,
+    };
     use k580_core::RegisterName;
 
     #[test]
@@ -340,11 +342,34 @@ mod tests {
     }
 
     #[test]
+    fn esc_in_register_value_discards_pending_value_and_clears_editor() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.selected_register = RegisterName::B;
+        app.snapshot.cpu.registers.b = 0x22;
+        app.register_name_input = "B".to_owned();
+        app.register_value_input = "22".to_owned();
+        let memory_address_before = app.memory_address_input.clone();
+        let memory_value_before = app.memory_value_input.clone();
+
+        let _ = app.update(Message::RegisterValueChanged("41".to_owned()));
+
+        assert_eq!(app.active_register_target, None);
+
+        let _ = app.update(Message::EscPressed);
+
+        assert_eq!(app.snapshot.cpu.registers.b, 0x22);
+        assert!(app.register_name_input.is_empty());
+        assert!(app.register_value_input.is_empty());
+        assert_eq!(app.memory_address_input, memory_address_before);
+        assert_eq!(app.memory_value_input, memory_value_before);
+    }
+
+    #[test]
     fn invalid_value_does_not_fill_an_empty_register_field() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
         app.register_name_input.clear();
 
-        let _ = app.update(crate::app::Message::RegisterValueChanged("GG".to_owned()));
+        let _ = app.update(Message::RegisterValueChanged("GG".to_owned()));
 
         assert!(app.register_name_input.is_empty());
     }

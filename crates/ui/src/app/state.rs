@@ -348,5 +348,4 @@ impl DesktopApp {
 
         (app, startup_task)
     }
-
 }
