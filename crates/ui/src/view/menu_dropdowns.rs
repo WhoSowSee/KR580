@@ -197,11 +197,11 @@ pub(super) fn view_dropdown(stack_view: bool, lang: Lang) -> Element<'static, Me
         ),
         menu_separator(),
         menu_item(
-            lang.t(Key::ViewStackArea),
+            stack_view_label(stack_view, lang),
             shortcut_hint(&Message::ToggleStackView).unwrap_or(""),
             icons::stack(),
             Message::ToggleStackView,
-            !stack_view,
+            true,
         ),
     ];
 
@@ -210,6 +210,10 @@ pub(super) fn view_dropdown(stack_view: bool, lang: Lang) -> Element<'static, Me
         .width(Length::Fixed(VIEW_DROPDOWN_WIDTH))
         .style(opcode_dropdown_style)
         .into()
+}
+
+fn stack_view_label(stack_view: bool, lang: Lang) -> &'static str {
+    lang.stack_view_area_label(stack_view)
 }
 
 fn menu_item(
@@ -293,4 +297,22 @@ fn menu_separator() -> Element<'static, Message> {
     .padding([4, 8])
     .width(Length::Fill)
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::stack_view_label;
+    use crate::i18n::Lang;
+
+    #[test]
+    fn stack_view_menu_label_tracks_mode() {
+        assert_eq!(
+            stack_view_label(false, Lang::Ru),
+            "Показать стековую область памяти"
+        );
+        assert_eq!(
+            stack_view_label(true, Lang::Ru),
+            "Скрыть стековую область памяти"
+        );
+    }
 }

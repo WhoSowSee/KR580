@@ -17,6 +17,7 @@ mod keys;
 mod network;
 mod printer;
 mod ru;
+mod view;
 
 pub(crate) use keys::Key;
 pub(crate) use network::NetworkKey;
@@ -54,6 +55,10 @@ impl Lang {
             Self::En => en::translate(key),
         }
     }
+
+    pub(crate) fn stack_view_area_label(self, active: bool) -> &'static str {
+        view::stack_view_area_label(self, active)
+    }
 }
 
 #[cfg(test)]
@@ -65,6 +70,22 @@ mod tests {
     fn russian_and_english_resolve_distinct_strings() {
         assert_eq!(Lang::Ru.t(Key::MenuSettings), "Настройки");
         assert_eq!(Lang::En.t(Key::MenuSettings), "Settings");
+        assert_eq!(
+            Lang::Ru.stack_view_area_label(false),
+            "Показать стековую область памяти"
+        );
+        assert_eq!(
+            Lang::Ru.stack_view_area_label(true),
+            "Скрыть стековую область памяти"
+        );
+        assert_eq!(
+            Lang::En.stack_view_area_label(false),
+            "Show stack memory area"
+        );
+        assert_eq!(
+            Lang::En.stack_view_area_label(true),
+            "Hide stack memory area"
+        );
     }
 
     #[test]

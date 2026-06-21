@@ -200,3 +200,30 @@ fn step_address(current: u16, delta: i32) -> u16 {
         current.saturating_add(delta as u16)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stack_view_toggle_restores_previous_memory_view() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.select_memory(0x1234);
+        app.memory_scroll_offset = 84.0;
+        app.memory_scroll_first_row = 3;
+
+        let _ = app.update(Message::ToggleStackView);
+
+        assert!(app.stack_view);
+        assert_eq!(app.memory_address_input, "FF00");
+        assert_eq!(app.memory_scroll_offset, 0.0);
+        assert_eq!(app.memory_scroll_first_row, 0);
+
+        let _ = app.update(Message::ToggleStackView);
+
+        assert!(!app.stack_view);
+        assert_eq!(app.memory_address_input, "1234");
+        assert_eq!(app.memory_scroll_offset, 84.0);
+        assert_eq!(app.memory_scroll_first_row, 3);
+    }
+}

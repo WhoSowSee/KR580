@@ -192,11 +192,11 @@ The visible top-level categories are localized as `Файл`,
 (opens the About dialog). `Вид` now opens a dropdown with the five
 peripheral windows (Monitor, Floppy, HDD, Network, Printer) and a
 «Показать стековую область памяти» item. Selecting the stack view
-restricts the RAM list to the last 256 bytes (`0xFF00..=0xFFFF`);
-pressing `Esc` or `Ctrl+Shift+C` exits stack view and restores the
-previous list position. The stack-view item is disabled while the mode is active,
-matching the disabled-state pattern used for `Сбросить флаг HLT` in
-`МП-Система`. `Настройки` opens the Settings dialog.
+restricts the RAM list to the last 256 bytes (`0xFF00..=0xFFFF`) and
+renames the same item to «Скрыть стековую область памяти». Pressing
+`Esc`, `Ctrl+Shift+C`, or the renamed menu item exits stack view and
+restores the previous list position. `Настройки` opens the Settings
+dialog.
 
 Legacy `.580` rows in the file dropdown keep the primary action as the
 main label (`Открыть` / `Сохранить`) and render `старый формат` as a
