@@ -2,7 +2,7 @@
 //!
 //! - `schematic_readout` – fixed-footprint label + 20 px hex value.
 //! - `schematic_wide_readout` – same idea, full-width.
-//! - `schematic_mnemonic_readout` – 16 px value for full mnemonics.
+//! - `schematic_mnemonic_readout` – 20 px value, shrinking only for long mnemonics.
 //! - `flag_strip` / `flag_dot` – Z/S/P/C/AC dot row.
 //! - `device_chip` – peripheral chip on the bottom strip.
 //! - `functional_block` – clickable register chip.
@@ -38,6 +38,15 @@ const FUNCTIONAL_BLOCK_INPUT_PADDING: Padding = Padding {
     bottom: 0.0,
     left: 0.0,
 };
+const SCHEMATIC_READOUT_WIDTH: f32 = 134.0;
+const SCHEMATIC_READOUT_HEIGHT: f32 = 60.0;
+const SCHEMATIC_READOUT_PADDING: f32 = 8.0;
+const SCHEMATIC_READOUT_VALUE_FONT_SIZE: u32 = 20;
+const SCHEMATIC_READOUT_VALUE_SLOT_HEIGHT: f32 = 24.0;
+const SCHEMATIC_MNEMONIC_MIN_FONT_SIZE: u32 = 16;
+const SCHEMATIC_MNEMONIC_WIDTH_FACTOR: f32 = 0.62;
+const SCHEMATIC_MNEMONIC_INNER_WIDTH: f32 =
+    SCHEMATIC_READOUT_WIDTH - SCHEMATIC_READOUT_PADDING * 2.0;
 
 #[derive(Clone, Copy)]
 pub(super) struct FunctionalBlockState {
@@ -58,15 +67,15 @@ pub(super) fn schematic_readout(
     let face = container(
         column![
             ui_text(label, 11, TOKYO_MUTED),
-            mono_text(value, 20, accent),
+            readout_value(value, SCHEMATIC_READOUT_VALUE_FONT_SIZE, accent),
         ]
         .spacing(2)
         .width(Length::Fill)
         .align_x(alignment::Horizontal::Center),
     )
-    .padding(8)
-    .width(Length::Fixed(134.0))
-    .height(Length::Fixed(60.0))
+    .padding(SCHEMATIC_READOUT_PADDING)
+    .width(Length::Fixed(SCHEMATIC_READOUT_WIDTH))
+    .height(Length::Fixed(SCHEMATIC_READOUT_HEIGHT))
     .align_x(alignment::Horizontal::Center)
     .style(schematic_block_style)
     .into();
@@ -86,7 +95,7 @@ pub(super) fn schematic_wide_readout(
     let face = container(
         column![
             ui_text(label, 11, TOKYO_MUTED),
-            mono_text(value, 20, accent),
+            readout_value(value, SCHEMATIC_READOUT_VALUE_FONT_SIZE, accent),
         ]
         .spacing(2)
         .width(Length::Fill)
@@ -105,26 +114,26 @@ pub(super) fn schematic_wide_readout(
     }
 }
 
-/// 16 px value (vs 20 px for `schematic_readout`) so 10-character
-/// mnemonics like `LXI SP,d16` fit inside the 134 px capsule.
 pub(super) fn schematic_mnemonic_readout(
     label: impl Into<String>,
     value: impl Into<String>,
     accent: Color,
     tooltip_hint: Option<&'static str>,
 ) -> Element<'static, Message> {
+    let value = value.into();
+    let value_size = schematic_mnemonic_font_size(&value);
     let face = container(
         column![
             ui_text(label, 11, TOKYO_MUTED),
-            mono_text(value, 16, accent),
+            readout_value(value, value_size, accent),
         ]
         .spacing(2)
         .width(Length::Fill)
         .align_x(alignment::Horizontal::Center),
     )
-    .padding(8)
-    .width(Length::Fixed(134.0))
-    .height(Length::Fixed(60.0))
+    .padding(SCHEMATIC_READOUT_PADDING)
+    .width(Length::Fixed(SCHEMATIC_READOUT_WIDTH))
+    .height(Length::Fixed(SCHEMATIC_READOUT_HEIGHT))
     .align_x(alignment::Horizontal::Center)
     .style(schematic_block_style)
     .into();
@@ -133,6 +142,41 @@ pub(super) fn schematic_mnemonic_readout(
         Some(hint) => wrap_tooltip(face, hint),
         None => face,
     }
+}
+
+fn readout_value(
+    value: impl Into<String>,
+    font_size: u32,
+    accent: Color,
+) -> Element<'static, Message> {
+    container(
+        mono_text(value, font_size, accent)
+            .align_x(alignment::Horizontal::Center)
+            .wrapping(iced::widget::text::Wrapping::None),
+    )
+    .width(Length::Fill)
+    .height(Length::Fixed(SCHEMATIC_READOUT_VALUE_SLOT_HEIGHT))
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center)
+    .into()
+}
+
+fn schematic_mnemonic_font_size(value: &str) -> u32 {
+    let glyph_count = value.chars().count();
+    let visual_size = match glyph_count {
+        0..=5 => SCHEMATIC_READOUT_VALUE_FONT_SIZE,
+        6..=7 => 19,
+        8..=9 => 18,
+        10..=11 => 17,
+        _ => SCHEMATIC_MNEMONIC_MIN_FONT_SIZE,
+    };
+    let fitted = (SCHEMATIC_MNEMONIC_INNER_WIDTH
+        / (glyph_count.max(1) as f32 * SCHEMATIC_MNEMONIC_WIDTH_FACTOR))
+        .floor() as u32;
+    fitted.min(visual_size).clamp(
+        SCHEMATIC_MNEMONIC_MIN_FONT_SIZE,
+        SCHEMATIC_READOUT_VALUE_FONT_SIZE,
+    )
 }
 
 pub(super) fn flag_strip(cpu: &Cpu8080State) -> Element<'static, Message> {
@@ -293,7 +337,9 @@ fn functional_block_style(theme: &Theme, selected: bool, active: bool) -> contai
 #[cfg(test)]
 mod tests {
     use super::{
-        FUNCTIONAL_BLOCK_INPUT_PADDING, FUNCTIONAL_BLOCK_VALUE_HEIGHT, FUNCTIONAL_BLOCK_VALUE_WIDTH,
+        FUNCTIONAL_BLOCK_INPUT_PADDING, FUNCTIONAL_BLOCK_VALUE_HEIGHT,
+        FUNCTIONAL_BLOCK_VALUE_WIDTH, SCHEMATIC_MNEMONIC_MIN_FONT_SIZE,
+        SCHEMATIC_READOUT_VALUE_FONT_SIZE, schematic_mnemonic_font_size,
     };
 
     #[test]
@@ -302,5 +348,31 @@ mod tests {
         assert!((FUNCTIONAL_BLOCK_VALUE_HEIGHT - 28.0).abs() < f32::EPSILON);
         assert!((FUNCTIONAL_BLOCK_INPUT_PADDING.top - 4.0).abs() < f32::EPSILON);
         assert_eq!(FUNCTIONAL_BLOCK_INPUT_PADDING.bottom, 0.0);
+    }
+
+    #[test]
+    fn mnemonic_readout_keeps_base_size_until_text_needs_shrink() {
+        assert_eq!(
+            schematic_mnemonic_font_size("NOP"),
+            SCHEMATIC_READOUT_VALUE_FONT_SIZE
+        );
+        assert_eq!(
+            schematic_mnemonic_font_size("INR A"),
+            SCHEMATIC_READOUT_VALUE_FONT_SIZE
+        );
+        assert_eq!(
+            schematic_mnemonic_font_size("SUB B"),
+            SCHEMATIC_READOUT_VALUE_FONT_SIZE
+        );
+        assert_eq!(schematic_mnemonic_font_size("MVI D,d8"), 18);
+        assert_eq!(schematic_mnemonic_font_size("LXI SP,d16"), 17);
+    }
+
+    #[test]
+    fn mnemonic_readout_has_minimum_size_floor() {
+        assert_eq!(
+            schematic_mnemonic_font_size("0123456789ABCDEF"),
+            SCHEMATIC_MNEMONIC_MIN_FONT_SIZE
+        );
     }
 }
