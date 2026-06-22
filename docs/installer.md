@@ -27,6 +27,9 @@ title bar. The custom chrome owns drag, minimize, maximize/restore, and close
 actions instead of relying on the native OS title bar. The caption buttons use
 the same `window-minimize`, `window-maximize`, `window-restore`, and
 `window-close` SVG assets and `32x24` button metrics as the emulator chrome.
+The setup and uninstall windows also subscribe to native close requests, so
+platform close shortcuts such as Windows Alt+F4 route through the same close
+path as the custom caption button.
 On Windows, the installer also applies the same DWM rounded-corner preference
 as the emulator window when the window opens.
 

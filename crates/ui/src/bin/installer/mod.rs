@@ -6,6 +6,7 @@ mod platform;
 mod style;
 mod uninstaller;
 mod view;
+mod window_events;
 
 use iced::{Element, Settings, Size, Subscription, Task, Theme, time, window};
 use k580_ui::install_mode::{InstallMode, InstallScope};
@@ -285,7 +286,12 @@ impl Installer {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let window_events = window::open_events().map(Message::WindowOpened);
+        let window_events = Subscription::batch([
+            window::open_events().map(Message::WindowOpened),
+            iced::event::listen_with(|event, _status, _window| {
+                window_events::close_request(event).then_some(Message::WindowClose)
+            }),
+        ]);
         if self.installing {
             Subscription::batch([
                 window_events,

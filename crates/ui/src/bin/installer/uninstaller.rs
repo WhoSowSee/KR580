@@ -1,5 +1,5 @@
 use super::locale::{Locale, Text as T};
-use super::{operations, platform, style};
+use super::{operations, platform, style, window_events};
 use iced::widget::{Space, button, column, container, progress_bar, text};
 use iced::{Element, Length, Settings, Size, Subscription, Task, Theme, alignment, theme};
 use std::path::PathBuf;
@@ -146,7 +146,12 @@ impl Uninstaller {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let window_events = iced::window::open_events().map(Message::WindowOpened);
+        let window_events = Subscription::batch([
+            iced::window::open_events().map(Message::WindowOpened),
+            iced::event::listen_with(|event, _status, _window| {
+                window_events::close_request(event).then_some(Message::WindowClose)
+            }),
+        ]);
         if self.uninstalling {
             Subscription::batch([
                 window_events,
