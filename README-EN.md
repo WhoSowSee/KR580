@@ -84,6 +84,15 @@ cargo install kr580
 
 This path is for the published crates.io release. Until the package is published, use the source build or the standalone setup artifact.
 
+### Install on NixOS
+
+```bash
+nix run github:WhoSowSee/KR580
+nix profile install github:WhoSowSee/KR580
+```
+
+The NixOS package installs ready-to-run `k580` and `kr` binaries, the desktop entry, icons, and the `.580` MIME type directly through the Nix store. The standalone setup wizard is not used for this path.
+
 ### Run from source
 
 ```bash

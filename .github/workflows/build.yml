@@ -189,6 +189,22 @@ jobs:
           name: kr580-snap-${{ matrix.arch }}
           path: artifacts/*
 
+  nix:
+    name: Nix package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Evaluate flake outputs
+        run: nix flake check --no-build --print-build-logs
+
+      - name: Build Nix package
+        run: nix build .#packages.x86_64-linux.default --print-build-logs
+
   release:
     name: Publish GitHub release
     runs-on: ubuntu-latest
@@ -197,6 +213,7 @@ jobs:
       - macos
       - windows
       - snap
+      - nix
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout sources

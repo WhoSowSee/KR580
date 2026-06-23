@@ -84,6 +84,15 @@ cargo install kr580
 
 Этот вариант рассчитан на опубликованный релиз в crates.io. Пока пакет не опубликован, используй сборку из исходников или standalone-установщик.
 
+### Установка на NixOS
+
+```bash
+nix run github:WhoSowSee/KR580
+nix profile install github:WhoSowSee/KR580
+```
+
+NixOS-пакет ставит готовые `k580` и `kr`, desktop entry, иконки и MIME-тип `.580` напрямую через Nix store. Standalone-установщик для этого сценария не используется.
+
 ### Запуск из исходников
 
 ```bash

@@ -115,6 +115,18 @@ script writes the same setup under a numbered suffix such as
 `KR580-Setup-<version>-windows-<arch>-1.exe` instead of failing after the
 release build has already completed.
 
+## NixOS Package
+
+`flake.nix` exposes a Nix package for `x86_64-linux` and `aarch64-linux`.
+That package installs the ready-to-run `k580` and `kr` binaries, desktop entry,
+icons, and `.580` MIME metadata into the Nix store. It does not run the
+graphical setup flow because NixOS owns PATH, desktop integration, and package
+activation declaratively.
+
+The release workflow runs `nix flake check --no-build` and builds
+`.#packages.x86_64-linux.default`; tagged releases wait for that job before the
+GitHub release is published.
+
 ## Installed Layout
 
 The setup writes a split layout under the selected root:
