@@ -89,19 +89,27 @@ Windows:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1 -Target x86_64-pc-windows-msvc
 ```
 
 Unix/macOS:
 
 ```sh
 bash scripts/build_installer.sh
+bash scripts/build_installer.sh release --target x86_64-unknown-linux-gnu
 ```
 
-The scripts produce:
+The scripts produce standalone setup executables:
 
-- Windows: `dist/KR580-Setup-<version>-windows-<arch>.exe`
-- Unix/macOS: `dist/KR580-Setup-<version>-<os>-<arch>`
+- Windows host builds: `dist/KR580-Setup-<version>-windows-<arch>.exe`
+- Targeted Windows builds: `dist/KR580-Setup-<version>-<target>.exe`
+- Unix/macOS host builds: `dist/KR580-Setup-<version>-<os>-<arch>`
+- Targeted Unix/macOS builds: `dist/KR580-Setup-<version>-<target>`
 
+`KR580_CARGO=cross` makes the Unix script invoke `cross build` for Linux target
+matrices. `scripts/package_installer_deb.sh` wraps a built Linux setup
+executable in a Debian package, and `snap/snapcraft.yaml` builds the Snap setup
+package used by CI.
 If the Windows target artifact is locked by a running installer, the PowerShell
 script writes the same setup under a numbered suffix such as
 `KR580-Setup-<version>-windows-<arch>-1.exe` instead of failing after the

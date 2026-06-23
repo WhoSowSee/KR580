@@ -2,6 +2,7 @@
 param(
     [ValidateSet("debug", "release")]
     [string]$Profile = "release",
+    [string]$Target = "",
     [string]$DistDir = ""
 )
 
@@ -10,8 +11,15 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $ManifestPath = Join-Path $RepoRoot "Cargo.toml"
 $ProfileArgs = @()
+$TargetArgs = @()
+
 if ($Profile -eq "release") {
     $ProfileArgs += "--release"
+}
+
+if (-not [string]::IsNullOrWhiteSpace($Target)) {
+    $TargetArgs += "--target"
+    $TargetArgs += $Target
 }
 
 if ([string]::IsNullOrWhiteSpace($DistDir)) {
@@ -20,15 +28,26 @@ if ([string]::IsNullOrWhiteSpace($DistDir)) {
 
 Remove-Item Env:\KR580_WINDOWS_ICON_KIND -ErrorAction SilentlyContinue
 
-& cargo build @ProfileArgs -p k580-ui --bin k580 --bin kr --manifest-path $ManifestPath
+& cargo build @ProfileArgs @TargetArgs -p k580-ui --bin k580 --bin kr --manifest-path $ManifestPath
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-$PayloadDir = Join-Path $RepoRoot "target\$Profile"
+$TargetRoot = if ([string]::IsNullOrWhiteSpace($env:CARGO_TARGET_DIR)) {
+    Join-Path $RepoRoot "target"
+} else {
+    $env:CARGO_TARGET_DIR
+}
+
+$PayloadDir = if ([string]::IsNullOrWhiteSpace($Target)) {
+    Join-Path $TargetRoot $Profile
+} else {
+    Join-Path (Join-Path $TargetRoot $Target) $Profile
+}
+
 $env:KR580_WINDOWS_ICON_KIND = "uninstaller"
 try {
-    & cargo build @ProfileArgs -p k580-ui --bin k580-uninstaller --manifest-path $ManifestPath
+    & cargo build @ProfileArgs @TargetArgs -p k580-ui --bin k580-uninstaller --manifest-path $ManifestPath
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
@@ -40,7 +59,7 @@ finally {
 $env:KR580_INSTALLER_PAYLOAD_DIR = $PayloadDir
 $env:KR580_WINDOWS_ICON_KIND = "setup"
 try {
-    & cargo build @ProfileArgs -p k580-ui --bin k580-installer --manifest-path $ManifestPath
+    & cargo build @ProfileArgs @TargetArgs -p k580-ui --bin k580-installer --manifest-path $ManifestPath
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
@@ -57,9 +76,14 @@ if ($CargoToml -notmatch '(?m)^version\s*=\s*"([^"]+)"') {
     throw "workspace version not found in $ManifestPath"
 }
 $Version = $Matches[1]
-$Arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+$Platform = if ([string]::IsNullOrWhiteSpace($Target)) {
+    $Arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+    "windows-$Arch"
+} else {
+    $Target
+}
 $Source = Join-Path $PayloadDir "k580-installer.exe"
-$Target = Join-Path $DistDir "KR580-Setup-$Version-windows-$Arch.exe"
+$TargetPath = Join-Path $DistDir "KR580-Setup-$Version-$Platform.exe"
 
 function Copy-InstallerArtifact {
     param(
@@ -98,5 +122,5 @@ function Copy-InstallerArtifact {
     throw "installer target is locked and no free numbered target is available"
 }
 
-$Written = Copy-InstallerArtifact -SourcePath $Source -TargetPath $Target
+$Written = Copy-InstallerArtifact -SourcePath $Source -TargetPath $TargetPath
 Write-Host "Built installer: $Written"

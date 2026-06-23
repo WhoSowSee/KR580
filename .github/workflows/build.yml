@@ -1,0 +1,316 @@
+name: Build installer packages
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+env:
+  PROJECT_NAME: KR580-Setup
+
+permissions:
+  contents: write
+
+jobs:
+  linux:
+    name: Linux installer ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - i686-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
+          - sparc64-unknown-linux-gnu
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache cargo build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: false
+          save-if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
+
+      - name: Clean target before cross build
+        run: rm -rf target
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg-dev zip
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+
+      - name: Build installer
+        env:
+          KR580_CARGO: cross
+        run: bash scripts/build_installer.sh release --target ${{ matrix.target }} --dist-dir dist
+
+      - name: Package installer zip
+        run: |
+          mkdir -p artifacts
+          installer=$(ls dist/KR580-Setup-*-${{ matrix.target }})
+          zip -j "artifacts/${PROJECT_NAME}-${{ matrix.target }}.zip" "$installer"
+
+      - name: Build deb package
+        run: |
+          installer=$(ls dist/KR580-Setup-*-${{ matrix.target }})
+          bash scripts/package_installer_deb.sh \
+            --installer "$installer" \
+            --target ${{ matrix.target }} \
+            --output "artifacts/${PROJECT_NAME}-${{ matrix.target }}.deb"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kr580-linux-${{ matrix.target }}
+          path: artifacts/*
+
+  macos:
+    name: macOS installer ${{ matrix.target }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build installer
+        run: bash scripts/build_installer.sh release --target ${{ matrix.target }} --dist-dir dist
+
+      - name: Package installer zip
+        run: |
+          mkdir -p artifacts
+          installer=$(ls dist/KR580-Setup-*-${{ matrix.target }})
+          zip -j "artifacts/${PROJECT_NAME}-${{ matrix.target }}.zip" "$installer"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kr580-macos-${{ matrix.target }}
+          path: artifacts/*
+
+  windows:
+    name: Windows installer ${{ matrix.target }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+          - aarch64-pc-windows-msvc
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build installer
+        shell: pwsh
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1 -Profile release -Target ${{ matrix.target }} -DistDir dist
+
+      - name: Package installer zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          $installer = Get-ChildItem -Path dist -Filter "KR580-Setup-*-${{ matrix.target }}.exe" | Select-Object -First 1
+          if ($null -eq $installer) { throw "installer artifact not found" }
+          Compress-Archive -Path $installer.FullName -DestinationPath "artifacts/${env:PROJECT_NAME}-${{ matrix.target }}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kr580-windows-${{ matrix.target }}
+          path: artifacts/*
+
+  snap:
+    name: Snap installer ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Build snaps
+        uses: snapcore/action-build@v1
+        with:
+          snapcraft-channel: 7.x/stable
+          snapcraft-args: --destructive-mode --target-arch=${{ matrix.arch }}
+
+      - name: Collect snaps
+        run: |
+          mkdir -p artifacts
+          snap_name=$(ls *.snap)
+          mv "$snap_name" "artifacts/${PROJECT_NAME}-${{ matrix.arch }}.snap"
+
+      - name: Upload snaps
+        uses: actions/upload-artifact@v4
+        with:
+          name: kr580-snap-${{ matrix.arch }}
+          path: artifacts/*
+
+  release:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - linux
+      - macos
+      - windows
+      - snap
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Set version
+        run: echo "VERSION=${GITHUB_REF##*/}" >> "$GITHUB_ENV"
+
+      - name: Extract tag metadata
+        id: tag_meta
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          COMMIT=$(git rev-list -n 1 "$TAG")
+          TAG_MESSAGE=$(git for-each-ref "refs/tags/$TAG" --format='%(contents)')
+          if [ -z "${TAG_MESSAGE//[$'\r\n\t ']/}" ]; then
+            TAG_MESSAGE=$(git tag -l "$TAG" --format='%(contents)')
+          fi
+          COMMIT_MESSAGE=$(git show -s --format=%B "$COMMIT")
+          CHANGELOG_SECTION=""
+          if [ -f CHANGELOG.md ]; then
+            CHANGELOG_SECTION=$(awk -v ver="$VERSION" '
+              function trim(str) {
+                sub(/^[[:space:]]+/, "", str)
+                sub(/[[:space:]]+$/, "", str)
+                return str
+              }
+              /^## \[/ {
+                if (match($0, /^## \[([^\]]+)\]/, m)) {
+                  heading = trim(m[1])
+                  if (found && heading != ver) {
+                    exit
+                  }
+                  if (!found && heading == ver) {
+                    found = 1
+                    next
+                  }
+                }
+              }
+              found {
+                if (!printed) {
+                  if ($0 ~ /^[[:space:]]*$/) {
+                    next
+                  }
+                  printed = 1
+                  print
+                  next
+                }
+                print
+              }
+            ' CHANGELOG.md)
+          fi
+          if [ -n "$(printf '%s' "$CHANGELOG_SECTION" | tr -d $'\r\n\t ')" ]; then
+            MESSAGE="$CHANGELOG_SECTION"
+          elif [ -n "$(printf '%s' "$TAG_MESSAGE" | tr -d $'\r\n\t ')" ]; then
+            MESSAGE="$TAG_MESSAGE"
+          else
+            MESSAGE="$COMMIT_MESSAGE"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          printf 'message<<EOF\n%s\nEOF\n' "$MESSAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Generate GitHub release notes
+        id: gh_notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          response=$(gh api repos/${GITHUB_REPOSITORY}/releases/generate-notes \
+            -f tag_name="${{ steps.tag_meta.outputs.tag }}" \
+            -f target_commitish="${{ steps.tag_meta.outputs.commit }}")
+          body=$(echo "$response" | jq -r '.body // ""')
+          printf 'body<<EOF\n%s\nEOF\n' "$body" >> "$GITHUB_OUTPUT"
+
+      - name: Rename artifacts with version
+        run: |
+          shopt -s nullglob
+          for file in dist/*; do
+            base=$(basename "$file")
+            new_base=${base/${PROJECT_NAME}/${PROJECT_NAME}-${VERSION}}
+            mv "$file" "dist/${new_base}"
+          done
+
+      - name: Compose release body
+        run: |
+          {
+            printf '%s\n\n' "$TAG_MESSAGE";
+            echo '---';
+            echo;
+            printf '%s\n' "$GENERATED_NOTES";
+          } > release-notes.md
+        env:
+          TAG_MESSAGE: ${{ steps.tag_meta.outputs.message }}
+          GENERATED_NOTES: ${{ steps.gh_notes.outputs.body }}
+
+      - name: List packaged files
+        run: ls -R dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+          body_path: release-notes.md
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

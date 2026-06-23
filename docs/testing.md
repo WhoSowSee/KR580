@@ -131,7 +131,8 @@ worth eyeballing after touching `crates/ui`:
   the `<install root>/bin` PATH entry when those checkboxes were selected;
 - run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1`
   on Windows or `bash scripts/build_installer.sh` on Unix/macOS and confirm
-  a standalone `KR580-Setup-*` artifact appears under `dist/`;
+  a standalone `KR580-Setup-*` artifact appears under `dist/`; for release
+  packaging, also smoke-check `--target` builds and `scripts/package_installer_deb.sh` for one Linux target;
 - run `cargo run -p k580-ui --bin kr -- nonexistent.580` and confirm
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p k580-ui --bin kr -- -r`, then confirm

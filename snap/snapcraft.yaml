@@ -1,0 +1,62 @@
+name: kr580
+base: core22
+version: git
+summary: KR580 desktop emulator installer
+description: |
+  KR580 is a desktop emulator for a KR580VM80 / Intel 8080-style system.
+  This snap ships the graphical KR580 setup program.
+grade: stable
+confinement: strict
+
+apps:
+  kr580-setup:
+    command: bin/k580-installer
+    desktop: usr/share/applications/kr580-setup.desktop
+    plugs:
+      - desktop
+      - desktop-legacy
+      - home
+      - network
+      - opengl
+      - wayland
+      - x11
+
+parts:
+  kr580-setup:
+    plugin: rust
+    source: .
+    rust-channel: stable
+    build-packages:
+      - pkg-config
+      - libxkbcommon-dev
+      - libwayland-dev
+      - libgl1-mesa-dev
+      - libegl1-mesa-dev
+      - libfontconfig1-dev
+      - libfreetype6-dev
+    stage-packages:
+      - libxkbcommon0
+      - libwayland-client0
+      - libwayland-cursor0
+      - libwayland-egl1
+      - libfontconfig1
+      - libfreetype6
+      - libgl1
+      - libegl1
+    override-build: |
+      set -eu
+      cargo build --release -p k580-ui --bin k580 --bin kr
+      KR580_WINDOWS_ICON_KIND=uninstaller cargo build --release -p k580-ui --bin k580-uninstaller
+      KR580_INSTALLER_PAYLOAD_DIR="$CRAFT_PART_BUILD/target/release" KR580_WINDOWS_ICON_KIND=setup cargo build --release -p k580-ui --bin k580-installer
+      install -Dm755 target/release/k580-installer "$CRAFT_PART_INSTALL/bin/k580-installer"
+      install -Dm644 assets/icons/icon-256.png "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/kr580.png"
+      install -Dm644 /dev/stdin "$CRAFT_PART_INSTALL/usr/share/applications/kr580-setup.desktop" <<'DESKTOP'
+      [Desktop Entry]
+      Type=Application
+      Name=KR580 Setup
+      Comment=Install KR580 emulator
+      Exec=kr580-setup
+      Icon=kr580
+      Terminal=false
+      Categories=Development;Emulator;
+      DESKTOP
