@@ -23,11 +23,17 @@ use super::theme::{
     TOKYO_YELLOW, mono_text, ui_text,
 };
 use super::tooltips::shortcut_hint;
-use super::widgets::legend_panel_left;
+use super::widgets::{LEGEND_LINE_OFFSET, legend_panel_left};
 use crate::app::{DesktopApp, Message, RegisterInlineTarget};
 use crate::i18n::Key;
 
 const MAIN_TO_BOTTOM_SPACING: f32 = 8.0;
+const LEFT_BOARD_SECTION_SPACING: f32 = 12.0;
+const CENTRAL_COLUMN_SECTION_SPACING: f32 = LEFT_BOARD_SECTION_SPACING + LEGEND_LINE_OFFSET;
+const CENTRAL_STATUS_REGISTER_SPACING_TRIM: f32 = 4.0;
+const CENTRAL_STATUS_REGISTER_SPACING: f32 =
+    CENTRAL_COLUMN_SECTION_SPACING - CENTRAL_STATUS_REGISTER_SPACING_TRIM;
+const SCHEMATIC_MAIN_ROW_ALIGNMENT: alignment::Vertical = alignment::Vertical::Top;
 
 impl DesktopApp {
     pub(super) fn schematic_panel(&self) -> Element<'_, Message> {
@@ -185,7 +191,7 @@ impl DesktopApp {
             signals_panel,
             current_command_panel
         ]
-        .spacing(12)
+        .spacing(LEFT_BOARD_SECTION_SPACING)
         .width(Length::Fixed(520.0));
 
         let status_register_block = super::status_register::status_register_tooltip(
@@ -243,29 +249,33 @@ impl DesktopApp {
                 TOKYO_GREEN,
                 Some(lang.t(Key::FlagsRegisterTooltip)),
             ),
-            super::mux::mux_panel(
-                cpu,
-                self.selected_register,
-                self.inline_register_target,
-                self.active_register_target,
-                self.hovered_register_target,
-                &self.register_value_input,
-                inline_placeholder,
-                MuxRegisterValues {
-                    b: self.display_register_value(RegisterName::B),
-                    c: self.display_register_value(RegisterName::C),
-                    d: self.display_register_value(RegisterName::D),
-                    e: self.display_register_value(RegisterName::E),
-                    h: self.display_register_value(RegisterName::H),
-                    l: self.display_register_value(RegisterName::L),
-                },
-                lang,
-                !self.register_name_input.is_empty(),
-                self.running,
-            ),
-            status_register_block,
+            column![
+                super::mux::mux_panel(
+                    cpu,
+                    self.selected_register,
+                    self.inline_register_target,
+                    self.active_register_target,
+                    self.hovered_register_target,
+                    &self.register_value_input,
+                    inline_placeholder,
+                    MuxRegisterValues {
+                        b: self.display_register_value(RegisterName::B),
+                        c: self.display_register_value(RegisterName::C),
+                        d: self.display_register_value(RegisterName::D),
+                        e: self.display_register_value(RegisterName::E),
+                        h: self.display_register_value(RegisterName::H),
+                        l: self.display_register_value(RegisterName::L),
+                    },
+                    lang,
+                    !self.register_name_input.is_empty(),
+                    self.running,
+                ),
+                status_register_block,
+            ]
+            .spacing(CENTRAL_STATUS_REGISTER_SPACING)
+            .width(Length::Fill),
         ]
-        .spacing(12)
+        .spacing(CENTRAL_COLUMN_SECTION_SPACING)
         .width(Length::Fixed(240.0));
 
         let top = container(
@@ -273,6 +283,7 @@ impl DesktopApp {
                 header_row,
                 row![left_board, Space::new().width(Length::Fill), central_column]
                     .spacing(20)
+                    .align_y(SCHEMATIC_MAIN_ROW_ALIGNMENT)
                     .height(Length::Fill),
             ]
             .spacing(12)
@@ -354,5 +365,26 @@ impl DesktopApp {
             .height(Length::Fill)
             .style(schematic_board_style)
             .into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn central_column_status_gap_and_height_are_fixed() {
+        assert_eq!(
+            super::CENTRAL_COLUMN_SECTION_SPACING,
+            super::LEFT_BOARD_SECTION_SPACING + super::LEGEND_LINE_OFFSET
+        );
+        assert_eq!(
+            super::CENTRAL_STATUS_REGISTER_SPACING,
+            super::CENTRAL_COLUMN_SECTION_SPACING - super::CENTRAL_STATUS_REGISTER_SPACING_TRIM
+        );
+        assert_eq!(super::CENTRAL_STATUS_REGISTER_SPACING_TRIM, 4.0);
+        assert_eq!(super::super::chips::SCHEMATIC_WIDE_READOUT_HEIGHT, 60.0);
+        assert_eq!(
+            super::SCHEMATIC_MAIN_ROW_ALIGNMENT,
+            iced::alignment::Vertical::Top
+        );
     }
 }

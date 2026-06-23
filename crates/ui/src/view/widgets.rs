@@ -20,6 +20,8 @@ use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, u
 use super::tooltips::hover_tooltip;
 use crate::app::Message;
 
+pub(super) const LEGEND_LINE_OFFSET: f32 = 9.0;
+
 /// Frames `content` with a border that has a centred title cut into it.
 /// `height` controls how much vertical space the framed area takes.
 pub(super) fn legend_panel<'a>(
@@ -27,8 +29,6 @@ pub(super) fn legend_panel<'a>(
     content: impl Into<Element<'a, Message>>,
     height: Length,
 ) -> Element<'a, Message> {
-    const LEGEND_LINE_OFFSET: f32 = 9.0;
-
     let panel: Element<'a, Message> = container(content)
         .padding(Padding {
             top: 18.0,
@@ -69,8 +69,6 @@ pub(super) fn legend_panel_left<'a>(
     content: impl Into<Element<'a, Message>>,
     height: Length,
 ) -> Element<'a, Message> {
-    const LEGEND_LINE_OFFSET: f32 = 9.0;
-
     let panel: Element<'a, Message> = container(content)
         .padding(Padding {
             top: 18.0,

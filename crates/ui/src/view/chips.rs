@@ -1,11 +1,4 @@
 //! Reusable chip helpers for the left schematic plate.
-//!
-//! - `schematic_readout` – fixed-footprint label + 20 px hex value.
-//! - `schematic_wide_readout` – same idea, full-width.
-//! - `schematic_mnemonic_readout` – 20 px value, shrinking only for long mnemonics.
-//! - `flag_strip` / `flag_dot` – Z/S/P/C/AC dot row.
-//! - `device_chip` – peripheral chip on the bottom strip.
-//! - `functional_block` – clickable register chip.
 
 use iced::widget::{Space, button, column, container, mouse_area, row, svg, text_input, tooltip};
 use iced::{Background, Color, Element, Length, Padding, Theme, alignment};
@@ -41,6 +34,7 @@ const FUNCTIONAL_BLOCK_INPUT_PADDING: Padding = Padding {
 const SCHEMATIC_READOUT_WIDTH: f32 = 134.0;
 const SCHEMATIC_READOUT_HEIGHT: f32 = 60.0;
 const SCHEMATIC_READOUT_PADDING: f32 = 8.0;
+pub(super) const SCHEMATIC_WIDE_READOUT_HEIGHT: f32 = SCHEMATIC_READOUT_HEIGHT;
 const SCHEMATIC_READOUT_VALUE_FONT_SIZE: u32 = 20;
 const SCHEMATIC_READOUT_VALUE_SLOT_HEIGHT: f32 = 24.0;
 const SCHEMATIC_MNEMONIC_MIN_FONT_SIZE: u32 = 16;
@@ -101,9 +95,9 @@ pub(super) fn schematic_wide_readout(
         .width(Length::Fill)
         .align_x(alignment::Horizontal::Center),
     )
-    .padding(8)
+    .padding(SCHEMATIC_READOUT_PADDING)
     .width(Length::Fill)
-    .height(Length::Fixed(54.0))
+    .height(Length::Fixed(SCHEMATIC_WIDE_READOUT_HEIGHT))
     .align_x(alignment::Horizontal::Center)
     .style(schematic_block_style)
     .into();
@@ -336,11 +330,7 @@ fn functional_block_style(theme: &Theme, selected: bool, active: bool) -> contai
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        FUNCTIONAL_BLOCK_INPUT_PADDING, FUNCTIONAL_BLOCK_VALUE_HEIGHT,
-        FUNCTIONAL_BLOCK_VALUE_WIDTH, SCHEMATIC_MNEMONIC_MIN_FONT_SIZE,
-        SCHEMATIC_READOUT_VALUE_FONT_SIZE, schematic_mnemonic_font_size,
-    };
+    use super::*;
 
     #[test]
     fn functional_block_value_slot_keeps_edit_and_readout_metrics_stable() {
@@ -348,6 +338,11 @@ mod tests {
         assert!((FUNCTIONAL_BLOCK_VALUE_HEIGHT - 28.0).abs() < f32::EPSILON);
         assert!((FUNCTIONAL_BLOCK_INPUT_PADDING.top - 4.0).abs() < f32::EPSILON);
         assert_eq!(FUNCTIONAL_BLOCK_INPUT_PADDING.bottom, 0.0);
+    }
+
+    #[test]
+    fn wide_readout_keeps_same_vertical_metrics_as_standard_readout() {
+        assert_eq!(SCHEMATIC_WIDE_READOUT_HEIGHT, SCHEMATIC_READOUT_HEIGHT);
     }
 
     #[test]

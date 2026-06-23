@@ -677,9 +677,10 @@ with a wide remaining row.
   `Мультиплексор` / `Регистр состояния`) справа, затем нижний ряд
   `Быстрый доступ` + speed switch. `mux_panel` и
   `speed_panel` остаются one-liner-делегатами в свои модули.
-- `view/chips.rs` (~250 строк) – чистые widget-билдеры под одиночные
+- `view/chips.rs` (~350 строк) – чистые widget-билдеры под одиночные
   плашки на плате: `schematic_readout` (134×60, 20 px hex value),
-  `schematic_wide_readout` для растянутого блока признаков,
+  `schematic_wide_readout` для растянутых блоков с той же высотой и
+  вертикальными padding-метриками,
   `schematic_mnemonic_readout`, `flag_strip` / `flag_dot`,
   `device_chip` и `functional_block`.
 - `view/mux.rs` (~300 строк) – мультиплексор: внешний заголовок,
@@ -757,7 +758,17 @@ the older English/abbreviated set. Russian words run longer, so
 `schematic_readout` and `functional_block` were resized from `110×56`
 to `134×60` and the caption font dropped from 12 px to 11 px so
 «Буферный регистр 1», «Регистр команд», и «Буфер данных» fit without
-truncation. The 24 px / 20 px monospace value rows are unchanged.
+truncation. `schematic_wide_readout` uses the same 60 px height and
+8 px vertical padding for `Буфер данных`, `Регистр признаков`, and
+`Регистр состояния`. The central column also adds the legend-line offset
+to its vertical spacing, so the gaps between `Буфер данных`, `Регистр
+признаков`, and `Мультиплексор` visually match the framed gaps between
+the left-side schematic panels. Only the final `Мультиплексор` →
+`Регистр состояния` gap is trimmed by 4 px; the status readout itself
+keeps the same internal padding and 60 px height in regular and
+fullscreen windows. The main schematic row is top-aligned so fullscreen
+height does not push the right column lower than the left board. The
+24 px / 20 px monospace value rows are unchanged.
 
 | Слот | Старая подпись | Новая подпись |
 |---|---|---|
