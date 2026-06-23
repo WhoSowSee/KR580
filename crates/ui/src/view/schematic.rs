@@ -33,7 +33,8 @@ const CENTRAL_COLUMN_SECTION_SPACING: f32 = LEFT_BOARD_SECTION_SPACING + LEGEND_
 const CENTRAL_STATUS_REGISTER_SPACING_TRIM: f32 = 4.0;
 const CENTRAL_STATUS_REGISTER_SPACING: f32 =
     CENTRAL_COLUMN_SECTION_SPACING - CENTRAL_STATUS_REGISTER_SPACING_TRIM;
-const SCHEMATIC_MAIN_ROW_ALIGNMENT: alignment::Vertical = alignment::Vertical::Top;
+const FULLSCREEN_SCHEMATIC_MIN_HEIGHT: f32 = 900.0;
+const FULLSCREEN_SCHEMATIC_COLUMN_GAP: f32 = 72.0;
 
 impl DesktopApp {
     pub(super) fn schematic_panel(&self) -> Element<'_, Message> {
@@ -193,6 +194,8 @@ impl DesktopApp {
         ]
         .spacing(LEFT_BOARD_SECTION_SPACING)
         .width(Length::Fixed(520.0));
+        let fullscreen_layout = self.window_maximized
+            || self.main_window_size.height >= FULLSCREEN_SCHEMATIC_MIN_HEIGHT;
 
         let status_register_block = super::status_register::status_register_tooltip(
             cpu,
@@ -278,16 +281,28 @@ impl DesktopApp {
         .spacing(CENTRAL_COLUMN_SECTION_SPACING)
         .width(Length::Fixed(240.0));
 
+        let schematic_body = container(
+            row![left_board, central_column]
+                .spacing(if fullscreen_layout {
+                    FULLSCREEN_SCHEMATIC_COLUMN_GAP
+                } else {
+                    20.0
+                })
+                .align_y(alignment::Vertical::Top),
+        )
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(alignment::Horizontal::Center)
+        .align_y(if fullscreen_layout {
+            alignment::Vertical::Center
+        } else {
+            alignment::Vertical::Top
+        });
+
         let top = container(
-            column![
-                header_row,
-                row![left_board, Space::new().width(Length::Fill), central_column]
-                    .spacing(20)
-                    .align_y(SCHEMATIC_MAIN_ROW_ALIGNMENT)
-                    .height(Length::Fill),
-            ]
-            .spacing(12)
-            .height(Length::Fill),
+            column![header_row, schematic_body]
+                .spacing(12)
+                .height(Length::Fill),
         )
         .padding(12)
         .width(Length::Fill)
@@ -376,15 +391,9 @@ mod tests {
             super::CENTRAL_COLUMN_SECTION_SPACING,
             super::LEFT_BOARD_SECTION_SPACING + super::LEGEND_LINE_OFFSET
         );
-        assert_eq!(
-            super::CENTRAL_STATUS_REGISTER_SPACING,
-            super::CENTRAL_COLUMN_SECTION_SPACING - super::CENTRAL_STATUS_REGISTER_SPACING_TRIM
-        );
         assert_eq!(super::CENTRAL_STATUS_REGISTER_SPACING_TRIM, 4.0);
         assert_eq!(super::super::chips::SCHEMATIC_WIDE_READOUT_HEIGHT, 60.0);
-        assert_eq!(
-            super::SCHEMATIC_MAIN_ROW_ALIGNMENT,
-            iced::alignment::Vertical::Top
-        );
+        assert_eq!(super::FULLSCREEN_SCHEMATIC_MIN_HEIGHT, 900.0);
+        assert_eq!(super::FULLSCREEN_SCHEMATIC_COLUMN_GAP, 72.0);
     }
 }

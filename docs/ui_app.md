@@ -766,9 +766,11 @@ to its vertical spacing, so the gaps between `Буфер данных`, `Рег�
 the left-side schematic panels. Only the final `Мультиплексор` →
 `Регистр состояния` gap is trimmed by 4 px; the status readout itself
 keeps the same internal padding and 60 px height in regular and
-fullscreen windows. The main schematic row is top-aligned so fullscreen
-height does not push the right column lower than the left board. The
-24 px / 20 px monospace value rows are unchanged.
+fullscreen windows. In maximized windows, or when the main window is at
+least 900 px tall, the left CPU stack and the right mux/status column are
+kept as one compact group, centered in the available schematic area with a
+wider 72 px gap instead of being pushed to the panel edges. The 24 px / 20 px
+monospace value rows are unchanged.
 
 | Слот | Старая подпись | Новая подпись |
 |---|---|---|
