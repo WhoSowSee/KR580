@@ -102,7 +102,7 @@ impl Default for GeneralSettings {
     fn default() -> Self {
         Self {
             language: Language::Ru,
-            default_speed: SpeedPreset::Medium,
+            default_speed: SpeedPreset::High,
             follow_pc: false,
             memory_operand_highlighting: false,
             floppy_image_path: None,

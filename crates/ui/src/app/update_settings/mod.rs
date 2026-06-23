@@ -306,7 +306,7 @@ impl DesktopApp {
             }
             Message::SettingsResetConfirmed => {
                 let default_lang = default_lang();
-                let default_speed = SpeedTier::Medium;
+                let default_speed = SpeedTier::High;
                 let default_follow_pc = false;
                 let network = k580_persistence::NetworkSettings::default();
                 if let Some(dialog) = self.settings_dialog.as_mut() {

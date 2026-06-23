@@ -12,7 +12,9 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
 
 - `k580-core`: opcode classification, documented-opcode smoke execution,
   modular executor families, flags, conditionals, stack, interrupts, I/O
-  routing, and exact `RunForTStates` accounting.
+  routing, exact `RunForTStates` accounting, and `tact_execution`
+  regressions proving that partial T-state walks do not commit PC,
+  memory, or device I/O before the instruction boundary.
 - `k580-devices`: port routing, invalid-port typed errors, monitor
   framebuffer/attribute state, storage worker queueing, storage visible
   buffer clearing, storage debug-buffer acceptance without an attached

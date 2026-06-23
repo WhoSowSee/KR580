@@ -164,12 +164,12 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
 
     let expected_lang = default_lang();
     assert_eq!(app.lang, expected_lang);
-    assert_eq!(app.default_speed, SpeedTier::Medium);
-    assert_eq!(app.speed_tier, SpeedTier::Medium);
+    assert_eq!(app.default_speed, SpeedTier::High);
+    assert_eq!(app.speed_tier, SpeedTier::High);
     let dialog = app.settings_dialog.as_ref().unwrap();
     assert!(!dialog.reset_confirm_open);
     assert_eq!(dialog.original_lang, expected_lang);
-    assert_eq!(dialog.original_speed, SpeedTier::Medium);
+    assert_eq!(dialog.original_speed, SpeedTier::High);
     assert!(!app.follow_pc);
     assert!(!dialog.original_follow_pc);
 }
@@ -264,7 +264,7 @@ fn enter_in_reset_confirm_activates_focused_button() {
     );
     let _ = app.update(Message::SettingsResetConfirmed);
     assert_eq!(app.lang, default_lang());
-    assert_eq!(app.speed_tier, SpeedTier::Medium);
+    assert_eq!(app.speed_tier, SpeedTier::High);
 }
 
 #[test]

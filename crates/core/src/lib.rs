@@ -11,6 +11,7 @@ pub mod timing;
 
 mod execute;
 mod ops;
+mod tact;
 
 pub use bus::{NullBus, PortBus};
 pub use command::{CoreCommand, CoreEvent};

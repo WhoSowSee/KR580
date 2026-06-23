@@ -11,13 +11,21 @@ Implemented behavior follows standard Intel 8080/KR580 semantics from `prompt/`:
 - conditional branches use normal 8080 meanings;
 - `EI` enables interrupts after the following instruction boundary;
 - accepted interrupt vectors are modeled as single-byte `RST n` opcodes.
+  The accepted vector also updates `last_fetched_opcode`, so the
+  instruction-register mirror is identical after `StepInstruction` and
+  after an 11T interrupt-ack tact walk.
 
-`tact` stepping keeps exact T-state accounting. Architectural instruction effects are committed by the instruction executor; devices are not called at sub-instruction T-state granularity, matching the prompt rule that device effects are instruction-boundary level.
+`tact.rs` owns the debug T-state walk. It prepares the active opcode,
+branch choice, and total T-state count without committing architectural
+effects; registers, memory, PC, and device I/O are committed by the same
+instruction-boundary executor on the final T-state. This keeps
+`StepTact` faithful to the original emulator's one-tact control flow
+while preserving the stable `StepInstruction` / `Run` execution path.
 
 ## Execution API
 
 - `step_instruction(bus)` executes one instruction boundary or accepts one pending `RST n` interrupt vector.
-- `step_tact(bus)` advances exactly one T-state in the debug tact model and keeps `cycle_count` exact.
+- `step_tact(bus)` advances exactly one T-state in the debug tact model, keeps `cycle_count` exact, and commits the instruction only on its boundary.
 - `run_for_t_states(bus, n)` calls `step_tact` exactly `n` times, so it never overshoots the requested T-state quantum.
 - `run_until_halt(bus, max_instructions)` executes instruction boundaries until `HLT` or the explicit safety cap.
 
@@ -38,6 +46,10 @@ Implemented behavior follows standard Intel 8080/KR580 semantics from `prompt/`:
 - `machine_cycle/mod.rs` – public types: `MachineCycleLengths`, `MachineCycleLayout`, `MachineCyclePosition`, `MachineCycleKind`, `MachineCycleKinds`, plus `position_for` and the `status_byte()` / `label_ru()` helpers on `MachineCycleKind`.
 - `machine_cycle/tables.rs` – opcode → M-cycle layout (`layout_for`) and opcode → M-cycle types (`kinds_for` / `kind_at`). For conditional instructions both `taken` and `not_taken` branches are covered; HLT layout is `[4]` (only the visible M1, school convention) while `decode.rs` keeps the datasheet 7T total.
 - `machine_cycle/tests.rs` – invariants pinning the tables to `decode.rs` timing for all 244 documented opcodes and to the Intel 8080A datasheet status-byte raster.
+- `tests/tact_execution.rs` – regression tests proving that partial
+  tact walks do not advance PC or fire I/O early, while a complete tact
+  walk reaches the same CPU/device result as `step_instruction`,
+  including interrupt-acknowledge vectors.
 
 ## Tested opcode areas
 

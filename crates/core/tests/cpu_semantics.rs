@@ -413,7 +413,7 @@ fn run_for_t_states_advances_exact_quantum() {
     let mut bus = NullBus::default();
     cpu.run_for_t_states(&mut bus, 3).unwrap();
     assert_eq!(cpu.cycle_count, 3);
-    assert_eq!(cpu.pc, 1);
+    assert_eq!(cpu.pc, 0);
     assert_eq!(cpu.tact_phase, Some(3));
 
     cpu.run_for_t_states(&mut bus, 1).unwrap();

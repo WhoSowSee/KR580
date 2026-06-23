@@ -14,21 +14,7 @@ use crate::app::Message;
 use crate::i18n::{Key, Lang};
 use iced::widget::{Space, column, container, row, tooltip};
 use iced::{Element, Length, Padding, alignment};
-use k580_core::{
-    Cpu8080State, MachineCycleKind, MachineCycleLayout, kind_at, layout_for, position_for,
-};
-
-/// For conditional opcodes the taken/not-taken branches differ in
-/// length, so the current `phase` uniquely identifies the branch.
-fn branch_taken_from_phase(layout: MachineCycleLayout, phase: u8) -> bool {
-    if let Some(not_taken) = layout.not_taken {
-        let not_taken_total: u8 = not_taken.iter().sum();
-        if phase < not_taken_total {
-            return false;
-        }
-    }
-    true
-}
+use k580_core::{Cpu8080State, MachineCycleKind, kind_at, layout_for, position_for};
 
 pub(super) fn derive_status_kind(cpu: &Cpu8080State) -> MachineCycleKind {
     // INTA before HLT: an INT raised while halted lifts HLT on the next
@@ -46,14 +32,19 @@ pub(super) fn derive_status_kind(cpu: &Cpu8080State) -> MachineCycleKind {
         return MachineCycleKind::M1Fetch;
     };
 
-    let layout = layout_for(cpu.last_fetched_opcode);
-    let taken = branch_taken_from_phase(layout, phase);
+    let opcode = cpu.timing_opcode();
+    if cpu.tact_walk_active() && opcode == 0x76 && phase >= 4 {
+        return MachineCycleKind::HaltAck;
+    }
+
+    let layout = layout_for(opcode);
+    let taken = cpu.timing_branch_taken(layout, phase);
     let Some(position) = position_for(layout, taken, phase) else {
         return MachineCycleKind::M1Fetch;
     };
 
     let m_cycle_idx = (position.m_cycle - 1) as usize;
-    kind_at(cpu.last_fetched_opcode, m_cycle_idx, taken).unwrap_or(MachineCycleKind::M1Fetch)
+    kind_at(opcode, m_cycle_idx, taken).unwrap_or(MachineCycleKind::M1Fetch)
 }
 
 fn status_bits(byte: u8) -> String {
@@ -241,5 +232,17 @@ mod tests {
     fn pop_reads_from_stack() {
         let cpu = cpu_with(0xC1, Some(4));
         assert_eq!(derive_status_kind(&cpu), MachineCycleKind::StackRead);
+    }
+
+    #[test]
+    fn active_hlt_second_machine_cycle_reads_as_halt_ack() {
+        let mut cpu = Cpu8080State::default();
+        cpu.memory.write(0, 0x76);
+        let mut bus = k580_core::NullBus::default();
+        for _ in 0..5 {
+            cpu.step_tact(&mut bus).unwrap();
+        }
+
+        assert_eq!(derive_status_kind(&cpu), MachineCycleKind::HaltAck);
     }
 }

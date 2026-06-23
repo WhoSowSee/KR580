@@ -40,6 +40,7 @@ impl Cpu8080State {
         if vector & 0xC7 != 0xC7 {
             return Err(DecodeError::InvalidInterruptVector(vector).into());
         }
+        self.last_fetched_opcode = vector;
         self.interrupt_enable = false;
         self.interrupt_enable_pending = false;
         self.interrupt_request_pending = false;

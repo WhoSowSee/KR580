@@ -203,6 +203,14 @@ mod tests {
     }
 
     #[test]
+    fn default_settings_use_high_speed_preset() {
+        assert_eq!(
+            speed_tier_from_preset(default_settings().general.default_speed),
+            SpeedTier::High
+        );
+    }
+
+    #[test]
     fn default_settings_use_supported_language() {
         assert!(matches!(
             default_settings().general.language,

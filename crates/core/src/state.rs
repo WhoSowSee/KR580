@@ -1,4 +1,7 @@
-use crate::{CoreError, Flags, Memory64K, PortBus, RegisterName, Registers, ValidationError};
+use crate::{
+    CoreError, Flags, MachineCycleLayout, Memory64K, PortBus, RegisterName, Registers,
+    ValidationError,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cpu8080State {
@@ -21,6 +24,8 @@ pub struct Cpu8080State {
     pub last_completed_tact_phase: Option<u8>,
     pub(crate) active_tacts_remaining: u8,
     pub(crate) active_tacts_total: u8,
+    pub(crate) active_opcode: Option<u8>,
+    pub(crate) active_branch_taken: bool,
     /// Mirror of the chip's IR: holds the last opcode fetched on M1
     /// until the next M1. After `HLT` a `memory.read(pc)` look-ahead
     /// would show NOP from blank RAM; the IR still reads `0x76`.
@@ -53,6 +58,8 @@ impl Default for Cpu8080State {
             last_completed_tact_phase: None,
             active_tacts_remaining: 0,
             active_tacts_total: 0,
+            active_opcode: None,
+            active_branch_taken: true,
             last_fetched_opcode: 0,
             last_data_bus_byte: 0,
             last_address_bus: 0,
@@ -161,22 +168,15 @@ impl Cpu8080State {
         bus: &mut B,
     ) -> Result<InstructionOutcome, CoreError> {
         if self.active_tacts_remaining > 0 {
-            self.cycle_count += u64::from(self.active_tacts_remaining);
-            if self.active_tacts_total > 0 {
-                self.last_completed_tact_phase = Some(self.active_tacts_total - 1);
+            let remaining = self.active_tacts_remaining;
+            let total = self.active_tacts_total;
+            let outcome = self.execute_instruction_boundary(bus)?;
+            self.cycle_count += u64::from(remaining);
+            if total > 0 {
+                self.last_completed_tact_phase = Some(total - 1);
             }
-            self.active_tacts_remaining = 0;
-            self.active_tacts_total = 0;
-            self.tact_phase = None;
-            return Ok(InstructionOutcome {
-                opcode: None,
-                mnemonic: "TACT-COMPLETE".to_owned(),
-                pc_before: self.pc,
-                pc_after: self.pc,
-                t_states: 0,
-                halted: self.halted,
-                interrupt_accepted: false,
-            });
+            self.clear_active_tact();
+            return Ok(outcome);
         }
 
         let outcome = self.execute_instruction_boundary(bus)?;
@@ -187,30 +187,33 @@ impl Cpu8080State {
         Ok(outcome)
     }
 
-    pub fn step_tact<B: PortBus>(&mut self, bus: &mut B) -> Result<TactOutcome, CoreError> {
-        if self.active_tacts_remaining == 0 {
-            let t_states = if self.halted && !self.can_accept_interrupt() {
-                1
-            } else {
-                self.execute_instruction_boundary(bus)?.t_states.max(1)
-            };
-            self.active_tacts_total = t_states;
-            self.active_tacts_remaining = t_states;
-            self.tact_phase = Some(0);
+    pub(crate) fn clear_active_tact(&mut self) {
+        self.active_tacts_remaining = 0;
+        self.active_tacts_total = 0;
+        self.active_opcode = None;
+        self.active_branch_taken = true;
+        self.tact_phase = None;
+    }
+
+    pub fn timing_opcode(&self) -> u8 {
+        self.active_opcode.unwrap_or(self.last_fetched_opcode)
+    }
+
+    pub fn timing_branch_taken(&self, layout: MachineCycleLayout, phase: u8) -> bool {
+        if self.active_tacts_remaining > 0 {
+            return self.active_branch_taken;
         }
+        if let Some(not_taken) = layout.not_taken {
+            let not_taken_total: u8 = not_taken.iter().sum();
+            if phase < not_taken_total {
+                return false;
+            }
+        }
+        true
+    }
 
-        let phase = self.active_tacts_total - self.active_tacts_remaining;
-        self.active_tacts_remaining -= 1;
-        self.cycle_count += 1;
-        let boundary = self.active_tacts_remaining == 0;
-        self.tact_phase = if boundary { None } else { Some(phase + 1) };
-        self.last_completed_tact_phase = Some(phase);
-
-        Ok(TactOutcome {
-            tact_phase: phase,
-            instruction_boundary: boundary,
-            cycle_count: self.cycle_count,
-        })
+    pub fn tact_walk_active(&self) -> bool {
+        self.active_tacts_remaining > 0
     }
 
     pub fn run_for_t_states<B: PortBus>(

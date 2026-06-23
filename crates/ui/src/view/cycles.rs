@@ -39,7 +39,7 @@ fn position_at(
     phase_source: Option<u8>,
     use_full_duration: bool,
 ) -> Option<MachineCyclePosition> {
-    let opcode = cpu.last_fetched_opcode;
+    let opcode = cpu.timing_opcode();
     decode_opcode(opcode).ok()?;
     let layout = if use_full_duration {
         full_duration_layout(opcode)
@@ -47,12 +47,10 @@ fn position_at(
         layout_for(opcode)
     };
     let phase = phase_source?;
-    let taken_total = layout.total_t_states(true);
-    let not_taken_total = layout.total_t_states(false);
-    let clamped_taken = phase.min(taken_total.saturating_sub(1));
-    let clamped_not_taken = phase.min(not_taken_total.saturating_sub(1));
-    position_for(layout, true, clamped_taken)
-        .or_else(|| position_for(layout, false, clamped_not_taken))
+    let taken = cpu.timing_branch_taken(layout, phase);
+    let total = layout.total_t_states(taken);
+    let clamped = phase.min(total.saturating_sub(1));
+    position_for(layout, taken, clamped)
 }
 
 fn labeled_row_with_tooltip(

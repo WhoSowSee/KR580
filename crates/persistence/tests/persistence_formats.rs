@@ -1,6 +1,7 @@
 use k580_core::{Cpu8080State, Memory64K};
 use k580_persistence::{
     LEGACY_LENGTH, ProgramError, ProgramSerializer, Settings, SettingsError, SettingsStore,
+    SpeedPreset,
 };
 
 #[test]
@@ -186,6 +187,7 @@ fn settings_are_versioned_camel_case_json() {
     assert!(json.contains("settingsVersion"));
     assert!(json.contains("recentFiles"));
     assert!(!settings.general.follow_pc);
+    assert_eq!(settings.general.default_speed, SpeedPreset::High);
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
     let unsupported = json.replace("\"settingsVersion\": 2", "\"settingsVersion\": 3");

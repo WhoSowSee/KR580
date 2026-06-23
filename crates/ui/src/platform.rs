@@ -69,33 +69,3 @@ pub(crate) fn cloak_window(_window: &dyn iced::window::Window, _cloaked: bool) {
 pub(crate) fn set_rounded_corners(_window: &dyn iced::window::Window) {}
 
 pub(crate) const SUPPORTS_HIDDEN_WINDOW_REUSE: bool = cfg!(windows);
-
-/// `Some(2..=480)` on Windows when the OS reports a believable refresh
-/// rate. Callers fall back to 60 Hz on `None`.
-#[cfg(windows)]
-pub(crate) fn primary_monitor_refresh_hz() -> Option<u32> {
-    use windows_sys::Win32::Graphics::Gdi::{
-        DEVMODEW, ENUM_CURRENT_SETTINGS, EnumDisplaySettingsW,
-    };
-
-    // SAFETY: `DEVMODEW` is a POD struct the Win32 API fills in;
-    // zero-init is the documented way to query current settings.
-    let mut mode: DEVMODEW = unsafe { std::mem::zeroed() };
-    mode.dmSize = std::mem::size_of::<DEVMODEW>() as u16;
-    let ok = unsafe { EnumDisplaySettingsW(std::ptr::null(), ENUM_CURRENT_SETTINGS, &mut mode) };
-    if ok == 0 {
-        return None;
-    }
-    let hz = mode.dmDisplayFrequency;
-    // 0/1 = virtual displays; 480 caps stuck-driver garbage.
-    if (2..=480).contains(&hz) {
-        Some(hz)
-    } else {
-        None
-    }
-}
-
-#[cfg(not(windows))]
-pub(crate) fn primary_monitor_refresh_hz() -> Option<u32> {
-    None
-}

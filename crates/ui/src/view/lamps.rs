@@ -1,13 +1,11 @@
-//! Control-lamp strip on the schematic plate (F1, F2, SYNC, READY, …).
+//! Control-lamp strip on the schematic plate (F1, F2, SYNC, READY, ...).
 //!
-//! Idle (`tact_phase == None`) mirrors the reference KR-580 emulator's
-//! at-rest silhouette: F2 / SYNC / READY / INTE / WR lit. Pins flip to
-//! phase-driven values only during a `step_tact` walk. HOLD / HLDA /
-//! DBIN stay dark – we don't model the machine-cycle pins.
+//! The lamps are derived from the active T-state and machine-cycle kind.
+//! HOLD stays dark because DMA requests are not part of the core model.
 
 use iced::widget::{Row, column, tooltip};
 use iced::{Element, Length, alignment};
-use k580_core::Cpu8080State;
+use k580_core::{Cpu8080State, MachineCycleKind, kind_at, layout_for, position_for};
 
 use super::theme::{TOKYO_RED, TOKYO_TEXT, mono_text};
 use crate::app::Message;
@@ -30,20 +28,56 @@ const LAMP_ORDER: [(&str, Key); 11] = [
 ];
 
 fn lamp_states(cpu: &Cpu8080State) -> [bool; 11] {
-    let phase = cpu.tact_phase;
-    let idle = phase.is_none();
-    let f2 = idle || matches!(phase, Some(p) if p % 2 == 1);
-    let f1 = matches!(phase, Some(p) if p % 2 == 0);
-    let sync = idle || phase == Some(0);
-    let ready = !cpu.halted;
-    let wait = cpu.halted;
+    let cycle = active_cycle(cpu);
+    let active_phase = cpu
+        .last_completed_tact_phase
+        .filter(|_| cpu.tact_walk_active());
+    let idle = cycle.is_none();
+    let f2 = idle || active_phase.is_some_and(|phase| phase % 2 == 1);
+    let f1 = active_phase.is_some_and(|phase| phase % 2 == 0);
+    let sync = idle || cycle.is_some_and(|(_, t_in_cycle)| t_in_cycle == 1);
+    let wait = cpu.halted || cycle.is_some_and(|(kind, _)| kind == MachineCycleKind::HaltAck);
+    let ready = !wait;
     let hold = false;
     let int = cpu.interrupt_request_pending;
-    let inte = idle || cpu.interrupt_enable;
-    let dbin = false;
-    let wr = idle;
-    let hlda = false;
+    let inte = cpu.interrupt_enable;
+    let dbin = cycle.is_some_and(|(kind, t_in_cycle)| is_read_cycle(kind) && t_in_cycle >= 2);
+    let wr = cycle.is_some_and(|(kind, t_in_cycle)| is_write_cycle(kind) && t_in_cycle >= 2);
+    let hlda = wait;
     [f2, f1, sync, ready, wait, hold, int, inte, dbin, wr, hlda]
+}
+
+fn active_cycle(cpu: &Cpu8080State) -> Option<(MachineCycleKind, u8)> {
+    let phase = cpu
+        .last_completed_tact_phase
+        .filter(|_| cpu.tact_walk_active())?;
+    let opcode = cpu.timing_opcode();
+    if opcode == 0x76 && phase >= 4 {
+        return Some((MachineCycleKind::HaltAck, phase - 3));
+    }
+    let layout = layout_for(opcode);
+    let taken = cpu.timing_branch_taken(layout, phase);
+    let position = position_for(layout, taken, phase)?;
+    let kind = kind_at(opcode, (position.m_cycle - 1) as usize, taken)?;
+    Some((kind, position.t_in_cycle))
+}
+
+fn is_read_cycle(kind: MachineCycleKind) -> bool {
+    matches!(
+        kind,
+        MachineCycleKind::M1Fetch
+            | MachineCycleKind::MemoryRead
+            | MachineCycleKind::StackRead
+            | MachineCycleKind::IoRead
+            | MachineCycleKind::InterruptAck
+    )
+}
+
+fn is_write_cycle(kind: MachineCycleKind) -> bool {
+    matches!(
+        kind,
+        MachineCycleKind::MemoryWrite | MachineCycleKind::StackWrite | MachineCycleKind::IoWrite
+    )
 }
 
 pub(super) fn control_lamps(cpu: &Cpu8080State, lang: Lang) -> Element<'_, Message> {
@@ -86,4 +120,59 @@ fn control_lamp(
     .delay(super::tooltips::EXPLANATORY_TOOLTIP_DELAY)
     .snap_within_viewport(true)
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lamp_states;
+    use k580_core::{Cpu8080State, NullBus};
+
+    fn step_tacts(cpu: &mut Cpu8080State, bus: &mut NullBus, count: u8) {
+        for _ in 0..count {
+            cpu.step_tact(bus).unwrap();
+        }
+    }
+
+    #[test]
+    fn cold_start_shows_t1_fetch_baseline_without_fake_bus_strobes() {
+        let cpu = Cpu8080State::default();
+        assert_eq!(
+            lamp_states(&cpu),
+            [
+                true, false, true, true, false, false, false, false, false, false, false,
+            ]
+        );
+    }
+
+    #[test]
+    fn read_and_write_strobes_follow_machine_cycles() {
+        let mut cpu = Cpu8080State::default();
+        cpu.memory.write(0, 0xD3);
+        cpu.memory.write(1, 0x04);
+        let mut bus = NullBus::default();
+
+        step_tacts(&mut cpu, &mut bus, 7);
+        assert!(lamp_states(&cpu)[8]);
+        assert!(!lamp_states(&cpu)[9]);
+
+        cpu.step_tact(&mut bus).unwrap();
+        assert!(lamp_states(&cpu)[2]);
+        assert!(!lamp_states(&cpu)[9]);
+
+        cpu.step_tact(&mut bus).unwrap();
+        assert!(lamp_states(&cpu)[9]);
+    }
+
+    #[test]
+    fn hlt_second_cycle_lights_wait_and_hlda() {
+        let mut cpu = Cpu8080State::default();
+        cpu.memory.write(0, 0x76);
+        let mut bus = NullBus::default();
+
+        step_tacts(&mut cpu, &mut bus, 5);
+        let states = lamp_states(&cpu);
+        assert!(!states[3]);
+        assert!(states[4]);
+        assert!(states[10]);
+    }
 }
