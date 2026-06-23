@@ -2,6 +2,14 @@
 
 Static assets shipped with the workspace live under `assets/`.
 
+## `assets/brand/`
+
+| File | Purpose |
+|---|---|
+| `logo.svg` | Vector KR580 wordmark used by `README.md` and `README-EN.md`. |
+
+The brand SVG is documentation-facing and is not embedded into the application binary.
+
 ## `assets/fonts/`
 
 | File | Purpose |
@@ -17,6 +25,16 @@ cloaked, so the renderer pays the cold glyph cost before the first
 visible run. `k580-devices` embeds `RobotoMono.ttf` through
 `include_bytes!`; PDF export therefore does not depend on fonts installed
 on the host system and can render CP866-decoded Cyrillic consistently.
+
+## `assets/screenshots/`
+
+| File | Purpose |
+|---|---|
+| `ru/emulator.png`, `en/emulator.png` | Full-emulator screenshots used by the default Russian `README.md` and English `README-EN.md`. |
+| `ru/monitor.png`, `ru/floppy.png`, `ru/hdd.png`, `ru/network.png`, `ru/printer.png` | Russian external-device screenshots used by `README.md`. |
+| `en/monitor.png`, `en/floppy.png`, `en/hdd.png`, `en/network.png`, `en/printer.png` | English external-device screenshots used by `README-EN.md`. |
+
+These files are documentation screenshots. They are not embedded into the application binary.
 
 ## `assets/icons/`
 
