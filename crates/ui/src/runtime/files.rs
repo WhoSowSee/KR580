@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use crate::app::{DesktopApp, ExportTab, StatusKind};
+use crate::backend::AppCommand;
 use crate::i18n::Key;
 use crate::view::monitor_image::MonitorImageFormat;
-use k580_app::AppCommand;
 
 use super::parse::parse_hex_u16;
 
@@ -101,7 +101,7 @@ impl DesktopApp {
     pub(crate) fn export_selected_file(
         &mut self,
         format: ExportTab,
-        options: k580_persistence::ExportOptions,
+        options: crate::persistence::ExportOptions,
     ) {
         self.commit_pending_inline_edit();
         let filter = match format {

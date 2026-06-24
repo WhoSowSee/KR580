@@ -1,4 +1,4 @@
-use k580_app::NetworkMode;
+use crate::backend::NetworkMode;
 
 use super::DesktopApp;
 use crate::i18n::{Key, NetworkKey};
@@ -48,7 +48,7 @@ impl DesktopApp {
                 }
             };
 
-        self.dispatch_sync(k580_app::AppCommand::ConfigureNetwork {
+        self.dispatch_sync(crate::backend::AppCommand::ConfigureNetwork {
             mode: self.network_mode_draft,
             host,
             port,

@@ -15,29 +15,25 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
   routing, exact `RunForTStates` accounting, and `tact_execution`
   regressions proving that partial T-state walks do not commit PC,
   memory, or device I/O before the instruction boundary.
-- `k580-devices`: port routing, invalid-port typed errors, monitor
-  framebuffer/attribute state, storage worker queueing, storage visible
-  buffer clearing, storage debug-buffer acceptance without an attached
-  file, network no-data handling, Tokio TCP worker roundtrip, CP866
-  decoding, and asynchronous printer PDF export with spool preservation.
-  The PDF regression test parses the generated file, verifies that the
-  embedded font resource exists, and extracts the expected CP866-decoded
-  Cyrillic text.
-- `k580-persistence`: `.580` roundtrip/determinism/header validation,
-  raw `.krs` behavior, settings JSON versioning, `.txt`/`.xlsx`
-  direct exporters, and `.txt`/`.xlsx` importers (round-trip an
-  `ExportModel` back into a `Cpu8080State`).
-- `k580-app`: command-mediated state mutation, including floppy image
-  attachment, floppy debug-buffer mode, floppy-buffer clearing, printer
+- `kr580` internal modules: port routing, invalid-port typed errors,
+  monitor framebuffer/attribute state, storage worker queueing, storage
+  visible-buffer clearing, storage debug-buffer acceptance without an
+  attached file, network no-data handling, Tokio TCP worker roundtrip,
+  CP866 decoding, asynchronous printer PDF export with spool preservation,
+  `.580` roundtrip/determinism/header validation, raw `.krs` behavior,
+  settings JSON versioning, `.txt`/`.xlsx` direct exporters/importers,
+  command-mediated state mutation, floppy image attachment, printer
   clearing/export, and actor publication of completed printer jobs. The
-  `square_program` integration test generates a
+  PDF regression test parses the generated file, verifies that the
+  embedded font resource exists, and extracts the expected CP866-decoded
+  Cyrillic text. The `square_program` integration test synthesizes a
   temporary `square.580` snapshot, loads it, runs it to HLT through the
   `Emulator`, and asserts the monitor pixel layer contains exactly
   the 28-pixel outline of an 8×8 square (corners included, interior
   untouched, every pixel at colour `0x7F`) – a smoke check that
   `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
   the documented 3-byte graphics command (`prompt/03_peripherals.md`).
-- `k580-ui`: pure view helpers, printer HEX and CP866 text formatting,
+- `kr580` UI and installer: pure view helpers, printer HEX and CP866 text formatting,
   printer view-mode toggling, PDF path normalization, detachable
   tool-window lifecycle, installer layout helpers, install-mode
   detection, embedded/fallback installer payload selection, and
@@ -76,7 +72,7 @@ The Windows build script does not regenerate `icon.ico` automatically –
 it only embeds it. A stale `icon.ico` will be silently shipped if you
 forget to rerun the generator.
 
-Printer PDF tests also require the checked-in `assets/fonts/RobotoMono.ttf` because `k580-devices` embeds it at compile time. The font has no generated derivative that needs regeneration.
+Printer PDF tests also require the checked-in `assets/fonts/RobotoMono.ttf` because the internal `kr580` printer module embeds it at compile time. The font is mirrored into the crate-local assets tree and has no generated derivative.
 
 ## Manual smoke checks for the UI
 
@@ -85,15 +81,15 @@ worth eyeballing after touching `crates/ui`:
 
 - launch the `k580` binary and confirm there is no white flash on
   Windows (cloak/uncloak via DWM, see `docs/ui_app.md`);
-- run `cargo build --release -p k580-ui` and double-click
+- run `cargo build --release -p kr580` and double-click
   `target/release/k580.exe`: no console window should pop up;
-- run `cargo run -p k580-ui --bin kr -- <path/to/file.580>` and confirm
+- run `cargo run -p kr580 --bin kr -- <path/to/file.580>` and confirm
   the GUI loads the snapshot and the terminal prompt returns immediately;
-- run `cargo run -p k580-ui --bin kr -- --help` and confirm usage prints
+- run `cargo run -p kr580 --bin kr -- --help` and confirm usage prints
   to stdout;
-- run `cargo run -p k580-ui --bin kr -- --install` and confirm the
+- run `cargo run -p kr580 --bin kr -- --install` and confirm the
   graphical installer opens for developer or already-installed layouts;
-- run `cargo run -p k580-ui --bin k580-installer` and confirm the native OS
+- run `cargo run -p kr580 --bin k580-installer` and confirm the native OS
   title bar is gone, the custom black/white title bar says only `KR580 Setup`,
   drags the window, and exposes the same SVG minimize / maximize / close glyphs
   as the emulator; confirm the setup content is one black panel with no left
@@ -133,13 +129,13 @@ worth eyeballing after touching `crates/ui`:
   on Windows or `bash scripts/build_installer.sh` on Unix/macOS and confirm
   a standalone `KR580-Setup-*` artifact appears under `dist/`; for release
   packaging, also smoke-check `--target` builds and `scripts/package_installer_deb.sh` for one Linux target;
-- run `cargo run -p k580-ui --bin kr -- nonexistent.580` and confirm
+- run `cargo run -p kr580 --bin kr -- nonexistent.580` and confirm
   the GUI launches with a localized "Файл не найден" error notice;
-- on Linux, run `cargo run -p k580-ui --bin kr -- -r`, then confirm
+- on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/.local/share/mime/packages/application-x-kr580.xml` and
   `~/.local/share/applications/kr580.desktop` were created and a `.580`
   file opens with `kr` from the file manager;
-- on macOS, run `cargo run -p k580-ui --bin kr -- -r`, then confirm
+- on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/Applications/kr580.app` exists and `lsregister` reports it;
 - open the in-app Settings dialog (`,`), go to General, and confirm the
   `.580 file association` row shows `Add` when the association is

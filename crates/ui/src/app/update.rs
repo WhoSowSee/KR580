@@ -62,12 +62,12 @@ impl DesktopApp {
             Message::ToggleRun => self.toggle_run(),
             Message::ResetCpu => {
                 self.run_blocked_after_halt = false;
-                self.dispatch_with_undo(k580_app::AppCommand::ResetCpu);
+                self.dispatch_with_undo(crate::backend::AppCommand::ResetCpu);
                 self.pending_follow_pc = true;
             }
             Message::ResetRam => {
                 self.run_blocked_after_halt = false;
-                self.dispatch_with_undo(k580_app::AppCommand::ResetRam);
+                self.dispatch_with_undo(crate::backend::AppCommand::ResetRam);
             }
             Message::ClearHalt => {
                 // Shortcut bypasses the menu's enabled gate; guard
@@ -76,15 +76,15 @@ impl DesktopApp {
                     return Task::none();
                 }
                 self.run_blocked_after_halt = false;
-                self.dispatch_with_undo(k580_app::AppCommand::ClearHalt);
+                self.dispatch_with_undo(crate::backend::AppCommand::ClearHalt);
                 self.pending_follow_pc = false;
             }
             Message::ToggleHalt => {
                 if self.snapshot.cpu.halted {
                     self.run_blocked_after_halt = false;
-                    self.dispatch_with_undo(k580_app::AppCommand::ClearHalt);
+                    self.dispatch_with_undo(crate::backend::AppCommand::ClearHalt);
                 } else {
-                    self.dispatch_with_undo(k580_app::AppCommand::SetHalted(true));
+                    self.dispatch_with_undo(crate::backend::AppCommand::SetHalted(true));
                 }
                 self.pending_follow_pc = false;
             }
@@ -382,7 +382,7 @@ impl DesktopApp {
 }
 
 fn open_device_message(port: u8) -> Option<Message> {
-    use k580_app::IoBus;
+    use crate::backend::IoBus;
     match port {
         IoBus::MONITOR_PORT => Some(Message::OpenMonitor),
         IoBus::FLOPPY_PORT => Some(Message::OpenFloppy),

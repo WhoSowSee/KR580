@@ -1,6 +1,6 @@
 use super::{DesktopApp, ImportFileFormat, ImportModalFocus};
 use crate::app::{MEMORY_SCROLL_VISIBLE_TICKS, Message};
-use k580_persistence::{ExportModel, ExportOptions, Exporters};
+use crate::persistence::{ExportModel, ExportOptions, Exporters};
 use std::path::PathBuf;
 
 #[test]

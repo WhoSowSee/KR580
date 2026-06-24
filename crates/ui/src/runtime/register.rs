@@ -3,9 +3,9 @@ use crate::app::{
     REGISTER_VALUE_INPUT_ID, RegisterInlineTarget, RegisterMove, parse_register_name,
     register_name,
 };
+use crate::backend::AppCommand;
 use iced::Task;
 use iced::widget::operation;
-use k580_app::AppCommand;
 use k580_core::RegisterName;
 
 use super::parse::{

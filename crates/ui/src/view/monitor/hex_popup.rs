@@ -1,6 +1,6 @@
+use crate::backend::MonitorState;
 use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
 use iced::{Element, Length};
-use k580_app::MonitorState;
 
 use crate::app::{HexStreamFilter, Message};
 use crate::i18n::{Key, Lang};

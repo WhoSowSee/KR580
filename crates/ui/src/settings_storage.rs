@@ -1,4 +1,4 @@
-//! Bridge between `k580_persistence::Settings` on disk and the runtime
+//! Bridge between `crate::persistence::Settings` on disk and the runtime
 //! state used by `DesktopApp`.
 //!
 //! Two responsibilities live here, kept narrow on purpose:
@@ -15,7 +15,7 @@
 
 use crate::app::messages::SpeedTier;
 use crate::i18n::Lang;
-use k580_persistence::{Language, Settings, SettingsError, SettingsStore, SpeedPreset};
+use crate::persistence::{Language, Settings, SettingsError, SettingsStore, SpeedPreset};
 use k580_ui::install_mode::{InstallMode, manifest_for_executable};
 use std::path::{Path, PathBuf};
 
@@ -147,12 +147,12 @@ pub(crate) fn language_from_lang(lang: Lang) -> Language {
 
 pub(crate) fn default_settings() -> Settings {
     let mut settings = Settings::default();
-    settings.general.language = k580_ui::system_locale::default_language();
+    settings.general.language = crate::system_locale::default_language();
     settings
 }
 
 pub(crate) fn default_lang() -> Lang {
-    lang_from_language(k580_ui::system_locale::default_language())
+    lang_from_language(crate::system_locale::default_language())
 }
 
 #[cfg(test)]
@@ -163,7 +163,7 @@ mod tests {
     };
     use crate::app::messages::SpeedTier;
     use crate::i18n::Lang;
-    use k580_persistence::{Language, SettingsError, SpeedPreset};
+    use crate::persistence::{Language, SettingsError, SpeedPreset};
     use k580_ui::install_mode::InstallMode;
     use std::path::Path;
 

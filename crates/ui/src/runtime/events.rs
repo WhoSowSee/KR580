@@ -2,8 +2,8 @@ use std::time::{Duration, Instant};
 
 use crate::app::DesktopApp;
 use crate::app::StatusKind;
+use crate::backend::{AppEvent, AppSnapshot};
 use crate::i18n::Key;
-use k580_app::{AppEvent, AppSnapshot};
 
 use super::humanize_error;
 use super::parse::parse_hex_u16;

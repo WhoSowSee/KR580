@@ -1,9 +1,6 @@
 [workspace]
 members = [
     "crates/core",
-    "crates/devices",
-    "crates/persistence",
-    "crates/app",
     "crates/ui",
 ]
 resolver = "3"
@@ -13,6 +10,11 @@ edition = "2024"
 license = "MIT"
 version = "1.0.0"
 rust-version = "1.95"
+repository = "https://github.com/WhoSowSee/KR580"
+homepage = "https://github.com/WhoSowSee/KR580"
+readme = "README-EN.md"
+keywords = ["emulator", "8080", "kr580", "desktop"]
+categories = ["emulators"]
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

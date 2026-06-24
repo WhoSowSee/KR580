@@ -17,14 +17,17 @@ The brand SVG is documentation-facing and is not embedded into the application b
 | `RobotoMono.ttf` | Embedded Unicode monospace font used by printer PDF output. |
 | `OFL-RobotoMono.txt` | SIL Open Font License for the bundled Roboto Mono file. |
 
-`k580-ui` keeps the platform font routing: `Segoe UI Variable` for
+`kr580` keeps the platform font routing: `Segoe UI Variable` for
 chrome and labels on Windows, and iced's generic monospace selector for
 register, memory, command, and input readouts. Windows renders a covered
 startup-only warmup layer for both paths while the main window is still
 cloaked, so the renderer pays the cold glyph cost before the first
-visible run. `k580-devices` embeds `RobotoMono.ttf` through
-`include_bytes!`; PDF export therefore does not depend on fonts installed
+visible run. The internal `kr580` printer module embeds `RobotoMono.ttf`
+through `include_bytes!`; PDF export therefore does not depend on fonts installed
 on the host system and can render CP866-decoded Cyrillic consistently.
+
+The font file is mirrored under `crates/ui/assets/fonts/` for the same reason
+as the icon mirror: the published `kr580` crate must be self-contained.
 
 ## `assets/screenshots/`
 
@@ -52,6 +55,14 @@ These files are documentation screenshots. They are not embedded into the applic
 
 The pre-rendered files are checked into the repository so the binary
 does not have to decode or resize the master image at build or run time.
+
+The same icon tree is mirrored under `crates/ui/assets/icons/`. The derived
+PNG/ICO/SVG files are consumed by compile-time `include_bytes!` calls and by
+the Windows resource build script, because a crates.io package cannot rely on
+files outside the `kr580` crate root. The four large master PNGs are kept in
+the repository mirror for regeneration but excluded from the published crate.
+Regenerate icons through the scripts below instead of editing the mirror by
+hand.
 
 ## Regenerating the icon set
 
@@ -87,22 +98,22 @@ to keep the PNG/ICO files small.
 
 ## Where the assets are consumed
 
-- `crates/ui/src/main.rs` embeds `assets/icons/icon-64.png` via
+- `crates/ui/src/app/windows.rs` embeds `crates/ui/assets/icons/icon-64.png` via
   `include_bytes!` and hands the bytes to
   `iced::window::icon::from_file_data`. This drives the title-bar /
   Alt-Tab / taskbar icon for the running application.
-- `crates/ui/build.rs` (Windows only) embeds `assets/icons/icon.ico`
+- `crates/ui/build.rs` (Windows only) embeds `crates/ui/assets/icons/icon.ico`
   into the PE resource section through the `winresource` crate. This
   drives the `.exe` icon shown by Explorer, the Start menu, pinned
   taskbar shortcuts, and the file picker.
 - `crates/ui/build.rs` switches the main PE icon when
   `KR580_WINDOWS_ICON_KIND` is set: `setup` embeds
-  `assets/icons/installer-setup.ico`, and `uninstaller` embeds
-  `assets/icons/installer-uninstall.ico`.
+  `crates/ui/assets/icons/installer-setup.ico`, and `uninstaller` embeds
+  `crates/ui/assets/icons/installer-uninstall.ico`.
 - `crates/ui/build.rs` (Windows only) also embeds
-  `assets/icons/file-580.ico` as PE resource id `2`. This drives the
-  Explorer icon shown for `.580` files once the file association
-  points at the built `.exe`.
+  `crates/ui/assets/icons/file-580.ico` as PE resource id `2`. This drives the
+  Explorer icon shown for `.580` files once the file association points at the
+  built `.exe`.
 
 When you replace any master PNG, run the appropriate script and rebuild.
 `cargo` re-embeds `icon-64.png` automatically because it is an

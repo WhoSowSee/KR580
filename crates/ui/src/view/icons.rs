@@ -10,13 +10,13 @@ use iced::widget::svg;
 
 macro_rules! action_icon_bytes {
     ($name:literal) => {
-        include_bytes!(concat!("../../../../assets/icons/actions/", $name, ".svg"))
+        include_bytes!(concat!("../../assets/icons/actions/", $name, ".svg"))
     };
 }
 
 macro_rules! device_icon_bytes {
     ($name:literal) => {
-        include_bytes!(concat!("../../../../assets/icons/devices/", $name, ".svg"))
+        include_bytes!(concat!("../../assets/icons/devices/", $name, ".svg"))
     };
 }
 
@@ -134,9 +134,7 @@ static GITHUB: LazyLock<svg::Handle> =
 /// About-dialog plate (64×64 px logical) downscales without visible
 /// pixelation on HiDPI displays.
 static APP_ICON: LazyLock<iced_image::Handle> = LazyLock::new(|| {
-    iced_image::Handle::from_bytes(
-        include_bytes!("../../../../assets/icons/icon-128.png").as_slice(),
-    )
+    iced_image::Handle::from_bytes(include_bytes!("../../assets/icons/icon-128.png").as_slice())
 });
 
 pub(super) fn play() -> svg::Handle {

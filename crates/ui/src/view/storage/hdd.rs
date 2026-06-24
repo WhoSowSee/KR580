@@ -1,6 +1,6 @@
+use crate::backend::StorageState;
 use iced::widget::{Space, row};
 use iced::{Element, Length, alignment};
-use k580_app::StorageState;
 
 use super::super::icons;
 use super::super::tooltips::shortcut_hint;

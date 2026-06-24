@@ -1,7 +1,7 @@
+use crate::backend::{MonitorState, TextCell};
 use iced::widget::canvas::Cache;
 use iced::widget::{Canvas, container, stack, text::Wrapping};
 use iced::{Element, Length, Padding};
-use k580_app::{MonitorState, TextCell};
 
 use crate::app::Message;
 use crate::i18n::{Key, Lang};

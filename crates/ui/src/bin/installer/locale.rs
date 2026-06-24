@@ -64,8 +64,8 @@ pub enum Text {
 impl Locale {
     pub fn system() -> Self {
         match k580_ui::system_locale::default_language() {
-            k580_persistence::Language::Ru => Self::Ru,
-            k580_persistence::Language::En => Self::En,
+            k580_ui::persistence::Language::Ru => Self::Ru,
+            k580_ui::persistence::Language::En => Self::En,
         }
     }
 

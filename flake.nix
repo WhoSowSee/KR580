@@ -56,7 +56,7 @@
             buildInputs = runtimeLibs;
             cargoBuildFlags = [
               "-p"
-              "k580-ui"
+              "kr580"
               "--bin"
               "k580"
               "--bin"

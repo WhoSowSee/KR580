@@ -45,9 +45,9 @@ parts:
       - libegl1
     override-build: |
       set -eu
-      cargo build --release -p k580-ui --bin k580 --bin kr
-      KR580_WINDOWS_ICON_KIND=uninstaller cargo build --release -p k580-ui --bin k580-uninstaller
-      KR580_INSTALLER_PAYLOAD_DIR="$CRAFT_PART_BUILD/target/release" KR580_WINDOWS_ICON_KIND=setup cargo build --release -p k580-ui --bin k580-installer
+      cargo build --release -p kr580 --bin k580 --bin kr
+      KR580_WINDOWS_ICON_KIND=uninstaller cargo build --release -p kr580 --bin k580-uninstaller
+      KR580_INSTALLER_PAYLOAD_DIR="$CRAFT_PART_BUILD/target/release" KR580_WINDOWS_ICON_KIND=setup cargo build --release -p kr580 --bin k580-installer
       install -Dm755 target/release/k580-installer "$CRAFT_PART_INSTALL/bin/k580-installer"
       install -Dm644 assets/icons/icon-256.png "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/kr580.png"
       install -Dm644 /dev/stdin "$CRAFT_PART_INSTALL/usr/share/applications/kr580-setup.desktop" <<'DESKTOP'

@@ -28,7 +28,7 @@ if ([string]::IsNullOrWhiteSpace($DistDir)) {
 
 Remove-Item Env:\KR580_WINDOWS_ICON_KIND -ErrorAction SilentlyContinue
 
-& cargo build @ProfileArgs @TargetArgs -p k580-ui --bin k580 --bin kr --manifest-path $ManifestPath
+& cargo build @ProfileArgs @TargetArgs -p kr580 --bin k580 --bin kr --manifest-path $ManifestPath
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
@@ -47,7 +47,7 @@ $PayloadDir = if ([string]::IsNullOrWhiteSpace($Target)) {
 
 $env:KR580_WINDOWS_ICON_KIND = "uninstaller"
 try {
-    & cargo build @ProfileArgs @TargetArgs -p k580-ui --bin k580-uninstaller --manifest-path $ManifestPath
+    & cargo build @ProfileArgs @TargetArgs -p kr580 --bin k580-uninstaller --manifest-path $ManifestPath
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
@@ -59,7 +59,7 @@ finally {
 $env:KR580_INSTALLER_PAYLOAD_DIR = $PayloadDir
 $env:KR580_WINDOWS_ICON_KIND = "setup"
 try {
-    & cargo build @ProfileArgs @TargetArgs -p k580-ui --bin k580-installer --manifest-path $ManifestPath
+    & cargo build @ProfileArgs @TargetArgs -p kr580 --bin k580-installer --manifest-path $ManifestPath
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

@@ -1,6 +1,6 @@
+use crate::backend::{GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorState, TEXT_COLS, TEXT_ROWS};
 use iced::widget::canvas::{Cache, Geometry, Path, Program};
 use iced::{Color, Rectangle, Renderer, Theme};
-use k580_app::{GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorState, TEXT_COLS, TEXT_ROWS};
 
 use crate::app::Message;
 use crate::view::monitor_font::{CELL_HEIGHT, CELL_WIDTH, GLYPH_HEIGHT, GLYPH_WIDTH, pixel_lit};

@@ -3,7 +3,7 @@ use super::focus::{
 };
 use crate::app::messages::SpeedTier;
 use crate::i18n::Lang;
-use k580_persistence::NetworkSettings;
+use crate::persistence::NetworkSettings;
 
 /// Draft state edited by the dialog. Live language and speed (the
 /// fields on `DesktopApp`) are kept in sync with the draft so the user

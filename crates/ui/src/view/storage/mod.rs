@@ -6,9 +6,9 @@ mod text;
 pub(in crate::view) use floppy::{floppy_window, floppy_window_overlay};
 pub(in crate::view) use hdd::{hdd_window, hdd_window_overlay};
 
+use crate::backend::{DeviceStatus, StorageState};
 use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
 use iced::{Element, Length, Padding, alignment};
-use k580_app::{DeviceStatus, StorageState};
 
 use self::chrome::{device_backdrop_style, device_buffer_style};
 use super::styles::{panel_style as dialog_style, scrollable_style};

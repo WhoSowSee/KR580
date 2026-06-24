@@ -1,7 +1,7 @@
 use super::export_modal_state::parse_hex_u16_or;
 use super::{DesktopApp, ExportModalFocus, ExportTab, ExportTargetSettings};
 use crate::i18n::Key;
-use k580_persistence::{ExportTextSection, ExportXlsxPage};
+use crate::persistence::{ExportTextSection, ExportXlsxPage};
 
 impl DesktopApp {
     pub(crate) fn export_target_input(&self) -> &str {

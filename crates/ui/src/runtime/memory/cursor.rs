@@ -2,8 +2,8 @@ use crate::app::{
     DesktopApp, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_VISIBLE_TICKS, Message, STACK_VIEW_SIZE,
     STACK_VIEW_START,
 };
+use crate::backend::AppCommand;
 use iced::Task;
-use k580_app::AppCommand;
 
 use crate::runtime::parse::{parse_hex_u16, scroll_memory_to};
 

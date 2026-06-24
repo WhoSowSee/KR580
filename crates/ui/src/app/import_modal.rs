@@ -2,10 +2,10 @@ use super::{
     DesktopApp, ImportFileFormat, ImportModalFocus, MEMORY_SCROLL_VISIBLE_TICKS, Message,
     StatusKind,
 };
+use crate::backend::AppCommand;
 use crate::i18n::Key;
+use crate::persistence::Importers;
 use iced::Task;
-use k580_app::AppCommand;
-use k580_persistence::Importers;
 use std::path::PathBuf;
 
 impl DesktopApp {

@@ -99,7 +99,7 @@ impl DesktopApp {
                 self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }
             Message::ClearMonitorBuffer => {
-                self.dispatch(k580_app::AppCommand::ClearMonitorBuffer);
+                self.dispatch(crate::backend::AppCommand::ClearMonitorBuffer);
             }
             Message::SaveMonitorImage => {
                 self.save_monitor_image();
@@ -137,7 +137,7 @@ impl DesktopApp {
                 self.open_floppy_image();
             }
             Message::DetachFloppyImage => {
-                self.dispatch_sync(k580_app::AppCommand::DetachFloppyImage);
+                self.dispatch_sync(crate::backend::AppCommand::DetachFloppyImage);
                 self.set_status_custom(
                     self.lang
                         .t(crate::i18n::Key::FloppyImageDetached)
@@ -152,7 +152,7 @@ impl DesktopApp {
             }
             Message::ToggleFloppyDebugBuffer => {
                 let enabled = !self.snapshot.devices.floppy.debug_buffer;
-                self.dispatch_sync(k580_app::AppCommand::SetFloppyDebugBuffer(enabled));
+                self.dispatch_sync(crate::backend::AppCommand::SetFloppyDebugBuffer(enabled));
             }
             Message::OpenHdd => {
                 self.open_menu = None;
@@ -183,7 +183,7 @@ impl DesktopApp {
             }
             Message::ToggleHddDebugBuffer => {
                 let enabled = !self.snapshot.devices.hdd.debug_buffer;
-                self.dispatch_sync(k580_app::AppCommand::SetHddDebugBuffer(enabled));
+                self.dispatch_sync(crate::backend::AppCommand::SetHddDebugBuffer(enabled));
             }
             Message::CreateHddFile => {
                 self.create_hdd_file();
@@ -198,10 +198,10 @@ impl DesktopApp {
                 self.open_discard_modal(PendingAction::DeleteHdd);
             }
             Message::ClearHddBuffer => {
-                self.dispatch(k580_app::AppCommand::ClearHddBuffer);
+                self.dispatch(crate::backend::AppCommand::ClearHddBuffer);
             }
             Message::ClearFloppyBuffer => {
-                self.dispatch(k580_app::AppCommand::ClearFloppyBuffer);
+                self.dispatch(crate::backend::AppCommand::ClearFloppyBuffer);
             }
             Message::OpenNetwork => {
                 self.open_menu = None;
@@ -239,7 +239,7 @@ impl DesktopApp {
             }
             Message::ApplyNetworkSettings => self.apply_network_settings(),
             Message::ClearNetworkBuffers => {
-                self.dispatch(k580_app::AppCommand::ClearNetworkBuffers);
+                self.dispatch(crate::backend::AppCommand::ClearNetworkBuffers);
             }
             Message::ToggleNetworkBufferView => {
                 self.network_text_view = !self.network_text_view;
@@ -266,7 +266,7 @@ impl DesktopApp {
                 self.printer_text_view = !self.printer_text_view;
             }
             Message::ClearPrinterBuffer => {
-                self.dispatch(k580_app::AppCommand::ClearPrinterBuffer);
+                self.dispatch(crate::backend::AppCommand::ClearPrinterBuffer);
             }
             Message::PrintPrinterPdf => self.print_printer_pdf(),
             _ => return None,

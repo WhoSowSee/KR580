@@ -1,16 +1,32 @@
 [package]
-name = "k580-ui"
+name = "kr580"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
 rust-version.workspace = true
+description = "Desktop KR580VM80 / Intel 8080 emulator."
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 build = "build.rs"
 default-run = "kr"
+exclude = [
+    "assets/icons/icon.png",
+    "assets/icons/file-580.png",
+    "assets/icons/installer-setup.png",
+    "assets/icons/installer-uninstall.png",
+]
 
 [dependencies]
-k580-app = { path = "../app" }
-k580-core = { path = "../core" }
-k580-persistence = { path = "../persistence" }
+k580-core = { version = "1.0.0", path = "../core" }
+crossbeam-channel.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+printpdf.workspace = true
+rust_xlsxwriter.workspace = true
+calamine.workspace = true
 iced = { workspace = true, features = ["image", "svg", "canvas", "advanced"] }
 rfd.workspace = true
 png.workspace = true

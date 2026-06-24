@@ -6,7 +6,7 @@ use super::{DesktopApp, Message, PendingAction, ToolWindowKind};
 use crate::i18n::Key;
 use crate::platform;
 
-const ICON_PNG: &[u8] = include_bytes!("../../../../assets/icons/icon-64.png");
+const ICON_PNG: &[u8] = include_bytes!("../../assets/icons/icon-64.png");
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ToolWindowState {
     pub(crate) id: Option<iced::window::Id>,

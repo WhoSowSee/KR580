@@ -10,9 +10,9 @@
 #   - `installer-setup.png` — standalone setup icon master.
 #   - `installer-uninstall.png` — installed uninstaller icon master.
 #
-# Outputs (also in `assets/icons/`, all checked into the repository so
-# the application binary does not need to decode or resize the master
-# images at build time or at run time):
+# Outputs in `assets/icons/`, then mirrors the complete icon tree into
+# `crates/ui/assets/icons/` so the published crates.io package is
+# self-contained:
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
@@ -25,6 +25,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 out_dir="$repo_root/assets/icons"
+crate_out_dir="$repo_root/crates/ui/assets/icons"
 
 if command -v magick >/dev/null 2>&1; then
     convert_cmd=(magick)
@@ -132,3 +133,8 @@ if [ ! -f "$uninstall_source" ]; then
     exit 1
 fi
 build_ico "$uninstall_source" "$uninstall_ico" "${installer_ico_sizes[@]}"
+
+rm -rf "$crate_out_dir"
+mkdir -p "$(dirname "$crate_out_dir")"
+cp -R "$out_dir" "$crate_out_dir"
+echo "Synced $crate_out_dir"

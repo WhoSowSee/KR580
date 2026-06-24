@@ -3,9 +3,9 @@ use super::{
     DesktopApp, ExportFlagSelection, ExportMemoryColumns, ExportModalFocus,
     ExportRegisterSelection, ExportTab, Message,
 };
+use crate::persistence::ExportOptions;
 use iced::Task;
 use iced::advanced::widget::{Id, operate};
-use k580_persistence::ExportOptions;
 
 impl DesktopApp {
     pub(crate) fn open_export_modal(&mut self) {

@@ -3,7 +3,7 @@ use super::{
     ExportRegister, ExportRegisterSelection, ExportTab,
 };
 use crate::app::Message;
-use k580_persistence::{ExportFlagKind, ExportRegisterKind};
+use crate::persistence::{ExportFlagKind, ExportRegisterKind};
 
 #[test]
 fn export_opens_excel_tab_with_full_range_defaults() {

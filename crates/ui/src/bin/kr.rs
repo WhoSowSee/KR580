@@ -137,7 +137,7 @@ fn spawn_installer() -> std::io::Result<()> {
 fn build_k580() -> std::io::Result<()> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
     let status = std::process::Command::new(cargo)
-        .args(["build", "-p", "k580-ui", "--bin", "k580"])
+        .args(["build", "-p", "kr580", "--bin", "k580"])
         .status()
         .map_err(|e| {
             std::io::Error::new(
@@ -149,7 +149,7 @@ fn build_k580() -> std::io::Result<()> {
         Ok(())
     } else {
         Err(std::io::Error::other(
-            "cargo build -p k580-ui --bin k580 failed",
+            "cargo build -p kr580 --bin k580 failed",
         ))
     }
 }

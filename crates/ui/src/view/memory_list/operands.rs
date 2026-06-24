@@ -91,7 +91,7 @@ pub(crate) fn operand_jump_target(address: u16, memory: &Memory64K) -> Option<u1
 /// byte at `address` is the port-number half of a 2-byte `IN`/`OUT`
 /// instruction. Returns `None` for opcode bytes, data operands, and
 /// address operands. The caller maps the returned port to the device
-/// window it opens (see `k580_devices::IoBus` port constants).
+/// window it opens (see `crate::devices::IoBus` port constants).
 pub(crate) fn operand_port_number(address: u16, memory: &Memory64K) -> Option<u8> {
     let boundary = find_scan_boundary(address, memory);
     let mut cursor = boundary;

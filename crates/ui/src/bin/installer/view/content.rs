@@ -17,11 +17,7 @@ const BUTTON_ICON_SIZE: f32 = 14.0;
 
 macro_rules! action_icon_bytes {
     ($name:literal) => {
-        include_bytes!(concat!(
-            "../../../../../../assets/icons/actions/",
-            $name,
-            ".svg"
-        ))
+        include_bytes!(concat!("../../../../assets/icons/actions/", $name, ".svg"))
     };
 }
 

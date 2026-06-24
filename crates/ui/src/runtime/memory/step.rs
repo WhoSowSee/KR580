@@ -1,6 +1,6 @@
 use crate::app::{DesktopApp, MEMORY_SCROLL_VISIBLE_TICKS, Message};
+use crate::backend::AppCommand;
 use iced::Task;
-use k580_app::AppCommand;
 
 use crate::runtime::parse::{parse_hex_u16, scroll_memory_to};
 

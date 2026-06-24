@@ -21,9 +21,9 @@ impl DesktopApp {
         let Some(path) = dialog.save_file() else {
             return;
         };
-        self.dispatch_sync(k580_app::AppCommand::PrintPrinterPdf(printer_pdf_path(
-            &path,
-        )));
+        self.dispatch_sync(crate::backend::AppCommand::PrintPrinterPdf(
+            printer_pdf_path(&path),
+        ));
     }
 }
 

@@ -98,13 +98,13 @@ The NixOS package installs ready-to-run `k580` and `kr` binaries, the desktop en
 ```bash
 git clone https://github.com/WhoSowSee/KR580.git
 cd KR580
-cargo run -p k580-ui --bin k580
+cargo run -p kr580 --bin k580
 ```
 
 ### Build the GUI binary
 
 ```bash
-cargo build --release -p k580-ui --bin k580
+cargo build --release -p kr580 --bin k580
 ```
 
 The built application is placed under `target/release/` as `k580` or `k580.exe`.
@@ -129,13 +129,13 @@ The setup artifact is written to `dist/`.
 
 ```bash
 # Launch the emulator from source
-cargo run -p k580-ui --bin k580
+cargo run -p kr580 --bin k580
 
 # Open a snapshot through the launcher
-cargo run -p k580-ui --bin kr -- path/to/program.580
+cargo run -p kr580 --bin kr -- path/to/program.580
 
 # Show launcher help
-cargo run -p k580-ui --bin kr -- --help
+cargo run -p kr580 --bin kr -- --help
 ```
 
 After installation, `kr` can open `.580` snapshots from the terminal and can register or remove the file association when the platform supports it.
@@ -154,11 +154,8 @@ After installation, `kr` can open `.580` snapshots from the terminal and can reg
 
 | Crate | Responsibility |
 |---|---|
-| `k580-core` | CPU state, opcode decode/execute, timing, interrupts, and `PortBus`. |
-| `k580-devices` | Monitor, floppy, HDD, network, printer, workers, and printer PDF output. |
-| `k580-persistence` | Snapshots, settings, subprograms, TXT/XLSX import and export. |
-| `k580-app` | Emulator actor, command/event wiring, state snapshots, and file commands. |
-| `k580-ui` | Desktop UI, launcher, installer, uninstaller, and platform shims. |
+| `k580-core` | Public CPU core: state, opcode decode/execute, timing, interrupts, and `PortBus`. |
+| `kr580` | Public installable crate: desktop UI, launcher, installer, uninstaller, platform shims, and internal `backend`, `devices`, and `persistence` modules. |
 
 ## Development
 

@@ -1,5 +1,5 @@
 pub(super) fn storage_buffer_text(buffer: &[u8]) -> String {
-    k580_app::decode_oem_text(buffer)
+    crate::backend::decode_oem_text(buffer)
 }
 
 #[cfg(test)]

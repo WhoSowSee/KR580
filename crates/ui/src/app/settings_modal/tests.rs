@@ -5,8 +5,8 @@ use super::focus::{FooterFocus, ResetConfirmFocus, SettingsCategory};
 use crate::app::messages::SpeedTier;
 use crate::app::{DesktopApp, Message, StatusKind};
 use crate::i18n::Lang;
+use crate::persistence::NetworkSettings;
 use crate::settings_storage::default_lang;
-use k580_persistence::NetworkSettings;
 
 static FILE_ASSOC_TEST_MUTEX: Mutex<()> = Mutex::new(());
 

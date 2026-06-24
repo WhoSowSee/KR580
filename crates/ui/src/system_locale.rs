@@ -1,4 +1,4 @@
-use k580_persistence::Language;
+use crate::persistence::Language;
 
 pub fn default_language() -> Language {
     if system_locale_is_russian() {

@@ -308,7 +308,7 @@ impl DesktopApp {
                 let default_lang = default_lang();
                 let default_speed = SpeedTier::High;
                 let default_follow_pc = false;
-                let network = k580_persistence::NetworkSettings::default();
+                let network = crate::persistence::NetworkSettings::default();
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_lang = default_lang;
                     dialog.draft_speed = default_speed;

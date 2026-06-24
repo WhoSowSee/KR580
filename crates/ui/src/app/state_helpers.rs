@@ -46,8 +46,8 @@ impl DesktopApp {
     }
 
     pub(crate) fn run_new_file(&mut self) {
-        self.dispatch(k580_app::AppCommand::ResetRam);
-        self.dispatch(k580_app::AppCommand::ResetCpu);
+        self.dispatch(crate::backend::AppCommand::ResetRam);
+        self.dispatch(crate::backend::AppCommand::ResetCpu);
         self.running = false;
         self.current_snapshot_path = None;
         self.undo_stack.clear();
@@ -69,13 +69,13 @@ impl DesktopApp {
         self.speed_tier = tier;
         let hz = super::tier_hz(tier);
         let interval = Duration::from_micros(1_000_000 / u64::from(hz.max(1)));
-        self.dispatch(k580_app::AppCommand::SetStepInterval(interval));
+        self.dispatch(crate::backend::AppCommand::SetStepInterval(interval));
         let mode = match tier {
-            SpeedTier::Max => k580_app::RunMode::Burst {
+            SpeedTier::Max => crate::backend::RunMode::Burst {
                 slice: Duration::from_millis(16),
             },
-            _ => k580_app::RunMode::Paced,
+            _ => crate::backend::RunMode::Paced,
         };
-        self.dispatch(k580_app::AppCommand::SetRunMode(mode));
+        self.dispatch(crate::backend::AppCommand::SetRunMode(mode));
     }
 }

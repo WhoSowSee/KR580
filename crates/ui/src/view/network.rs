@@ -1,8 +1,8 @@
 use std::fmt::Write;
 
+use crate::backend::{ConnectionState, DeviceStatus, NetworkMode, NetworkState, decode_oem_text};
 use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
 use iced::{Element, Length, Padding, alignment};
-use k580_app::{ConnectionState, DeviceStatus, NetworkMode, NetworkState, decode_oem_text};
 
 use super::icons;
 use super::storage::chrome::{
@@ -294,8 +294,8 @@ mod tests {
     use super::{
         format_last_transmitted_value, format_network_buffer, format_network_text, network_status,
     };
+    use crate::backend::{ConnectionState, DeviceStatus, NetworkMode, NetworkState};
     use crate::i18n::Lang;
-    use k580_app::{ConnectionState, DeviceStatus, NetworkMode, NetworkState};
 
     #[test]
     fn network_buffer_uses_hex_offsets_and_sixteen_bytes_per_line() {

@@ -4,6 +4,12 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 rust-version.workspace = true
+description = "KR580VM80 / Intel 8080 CPU core for KR580."
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 serde.workspace = true

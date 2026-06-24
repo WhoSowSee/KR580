@@ -1,13 +1,13 @@
 # App and UI
 
-`k580-app` owns the emulator and exposes PascalCase commands such as
+`kr580`'s internal backend owns the emulator and exposes PascalCase commands such as
 `ResetCpu`, `StepTact`, `RunForTStates`, `StepInstruction`, `Run`, `Stop`,
 `SetStepInterval`, `SetRunMode`, `SetRegister`, `SetMemory`,
 `SetMemoryBlock`, `ReadPort`,
 `WritePort`, `LoadSnapshot`, `SaveSnapshot`, `LoadSubprogram`, and direct
 export commands.
 
-`k580-ui` is an iced multi-window daemon shell. It also ships the `kr`
+`kr580` is an iced multi-window daemon shell. It also ships the `kr`
 launcher, the `k580-installer` graphical installer, and the
 `k580-uninstaller` graphical uninstall payload. The daemon renders an
 `AppSnapshot`, sends `AppCommand` values to the actor, and drains `AppEvent`
@@ -395,7 +395,7 @@ window size is the current main-window size minus the attached modal's two
 switching to a separate fixed size.
 
 The window is a pure read-only view over `AppSnapshot.devices.monitor`
-(`MonitorState` from `k580-devices`, re-exported through `k580-app`);
+(`MonitorState`, re-exported through the internal backend module);
 nothing in the window mutates device state.
 
 The custom header contains an empty drag band and six icon-only buttons in
@@ -507,7 +507,7 @@ band is draggable outside the emulator window and the pin uses the shared
 `ToolWindowState.always_on_top`.
 
 The window is a pure view over `AppSnapshot.devices.floppy`
-(`StorageState`, re-exported through `k580-app`). It shows accepted
+(`StorageState`, re-exported through the internal backend module). It shows accepted
 `visible_buffer` bytes as terminal text using CP866 decoding for bytes
 `80h..FFh`, preserves CR/LF and tabs, and renders other control bytes
 as `·`; `NotReady`/`Disconnected` writes report an error without
@@ -584,7 +584,7 @@ most recent PDF target.
 | `brush-cleaning` | «Очистить буфер принтера» | dispatches `AppCommand::ClearPrinterBuffer`; remains available for an empty spool and during PDF generation |
 | `x` | «Закрыть» / `Close` | `Message::ClosePrinter` |
 
-PDF generation belongs to `k580-devices`, not the UI. The UI selects the
+PDF generation belongs to the internal printer device module, not the UI. The UI selects the
 path and dispatches a command; the device copies the spool, enters `Busy`,
 and renders CP866-decoded text asynchronously with the bundled Roboto Mono
 font. Completion returns through the actor's 50 ms device poll. Printing
@@ -1459,7 +1459,7 @@ panel border colour left unchanged. The handler in `app/mod.rs`
 stashes the tier on `DesktopApp::speed_tier`, resolves it through
 `tier_hz`, and ships `SetStepInterval` + `SetRunMode` to the worker.
 The worker clamps once more at `MIN_STEP_INTERVAL = 1ms` (re-exported
-from `k580_app::actor`) before it overwrites `Emulator::step_interval`.
+from `backend::actor`) before it overwrites `Emulator::step_interval`.
 The next `select!` iteration re-arms the timer with the new interval
 (paced) or slice (burst), so clicking a chevron while a program is
 running adjusts the visible animation rate immediately – without
@@ -1488,7 +1488,7 @@ parking inside the inner loop.
 
 ### Run modes (`RunMode`)
 
-`k580_app::RunMode` controls how the worker dispatches CPU work
+`RunMode` controls how the worker dispatches CPU work
 during a paced `Run`. Two variants:
 
 - `RunMode::Paced` – the default, used by the Slow / Medium / High
@@ -1922,7 +1922,7 @@ the accumulator. Invalid value input leaves the register field empty.
 | Shortcut | Effect |
 |---|---|
 | Enter | Apply the typed value to the selected address. An empty replacement field keeps the previous byte. |
-| Alt+Enter | Relocate the memory view to the 16-bit address encoded by the operand when the selected cell is the low or high byte of a 3-byte address instruction (`LXI`, `JMP`, `CALL`, `SHLD`, `LHLD`, `STA`, `LDA`, and the conditional `Jcond`/`Ccond` family). Both operand bytes resolve to the same little-endian target, so the jump works from either half. On the operand byte of a 2-byte `IN`/`OUT` instruction, opens the corresponding device window — `0x00` monitor, `0x01` floppy, `0x02` HDD, `0x03` network, `0x04` printer (matches `k580_devices::IoBus` port constants). Unknown ports fall through. Independent of the Highlight memory operands toggle, and only when the inline editor is not focused — the address/value fields below keep their own Alt+Enter behavior. Falls back to the plain inline-edit Enter on non-address, non-port cells (including 8-bit data operands). |
+| Alt+Enter | Relocate the memory view to the 16-bit address encoded by the operand when the selected cell is the low or high byte of a 3-byte address instruction (`LXI`, `JMP`, `CALL`, `SHLD`, `LHLD`, `STA`, `LDA`, and the conditional `Jcond`/`Ccond` family). Both operand bytes resolve to the same little-endian target, so the jump works from either half. On the operand byte of a 2-byte `IN`/`OUT` instruction, opens the corresponding device window — `0x00` monitor, `0x01` floppy, `0x02` HDD, `0x03` network, `0x04` printer (matches the internal `IoBus` port constants). Unknown ports fall through. Independent of the Highlight memory operands toggle, and only when the inline editor is not focused — the address/value fields below keep their own Alt+Enter behavior. Falls back to the plain inline-edit Enter on non-address, non-port cells (including 8-bit data operands). |
 | Alt+Shift+Enter | Return to the low/high operand cell that launched the last 16-bit address jump. This return slot is written only by 16-bit address-operand jumps; port operands and 8-bit data operands do not create one. |
 | Tab / Shift+Tab | Move the selection to the next/previous address and refocus an empty replacement editor for the new row. |
 | Esc | Discard the unsaved byte typed into the inline editor and restore it to the value currently in memory. With no pending edit, falls through to closing the opcode dropdown. |
@@ -2183,10 +2183,10 @@ The UI ships two binaries:
 kr [OPTION] [FILE]
 ```
 
-When building from source, `cargo run -p k580-ui` starts the `kr` CLI
+When building from source, `cargo run -p kr580` starts the `kr` CLI
 launcher by default. In debug builds `kr` automatically builds the
-`k580` GUI binary if it is missing, so `cargo run -p k580-ui` works
-without a manual `cargo build` step. Use `cargo run -p k580-ui --bin k580`
+`k580` GUI binary if it is missing, so `cargo run -p kr580` works
+without a manual `cargo build` step. Use `cargo run -p kr580 --bin k580`
 to start the GUI binary directly.
 
 - `kr` – launch the GUI with an empty snapshot.

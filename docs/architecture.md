@@ -4,15 +4,13 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 
 ## Crates
 
-- `k580-core`: deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, typed command/event contracts, and the `PortBus` trait. Opcode execution is split by instruction family under `ops/`.
-- `k580-devices`: `IoBus` for ports `00h..04h`, monitor, floppy, HDD, network, printer, device states, non-blocking worker queues, and printer PDF generation through `printpdf` with its `text_layout` font parser enabled.
-- `k580-persistence`: versioned `.580` snapshots, raw `.krs` subprograms, JSON settings, and direct `.txt`/`.xlsx` exporters/importers.
-- `k580-app`: application orchestration, crossbeam command/event actor, top-level dependency wiring, and file/export commands. The emulator state and tick body live under `emulator/` (split into `mod.rs` for the struct + command application and `tick.rs` for the paced/burst tick loop).
-- `k580-ui`: iced multi-window daemon split into app state/update, native window lifecycle, runtime command/event helpers, view rendering, installer, and a small Windows-only platform shim. Monitor, floppy, HDD, network, and printer surfaces share `ToolWindowState` and the same attach/detach/pin lifecycle while keeping device-specific views. It renders snapshots and sends commands. It does not own emulator state.
+- `k580-core`: public deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, typed command/event contracts, and the `PortBus` trait. Opcode execution is split by instruction family under `ops/`.
+- `kr580`: public installable desktop package. It contains the iced multi-window daemon, launcher, installer, uninstaller, platform shims, and internal `backend`, `devices`, and `persistence` modules. The internal modules own the emulator actor, `IoBus`, monitor, floppy, HDD, network, printer, snapshots, settings, and direct `.txt`/`.xlsx` import/export paths.
 
 ## Repository layout
 
-- `crates/`: the workspace crates listed above.
+- `crates/core/`: public `k580-core` library crate.
+- `crates/ui/`: public `kr580` package with private app, device, persistence, UI, launcher, and installer modules.
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
 - `assets/icons/`: pre-rendered icon set consumed at build and run time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
@@ -22,7 +20,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 
 ## Installation Layout
 
-`k580-ui` builds `k580`, `kr`, `k580-installer`, and `k580-uninstaller`. The
+`kr580` builds `k580`, `kr`, `k580-installer`, and `k580-uninstaller`. The
 setup builder first builds `k580` and `kr`, then builds `k580-uninstaller` with
 the uninstall icon, then rebuilds `k580-installer` with the setup icon and
 those binaries embedded so a new user can run the setup before any KR580 files
@@ -39,23 +37,23 @@ and uninstall cleanup where the platform supports them. See
 
 ## Data flow
 
-UI messages become `AppCommand` values. The app actor owns `Cpu8080State` and `IoBus`, applies commands, and publishes typed `AppEvent` values. The UI stores only display/input state and can always re-render from `AppSnapshot`.
+UI messages become `AppCommand` values. The internal backend actor owns `Cpu8080State` and `IoBus`, applies commands, and publishes typed `AppEvent` values. The UI stores only display/input state and can always re-render from `AppSnapshot`.
 
 ## Invariants
 
 - `prompt/` is the source of truth for behavior, file formats, and quality gates.
-- CPU state is owned by `k580-core` and the app actor, never by UI widgets.
-- Device state is owned by `k580-devices`; `IN`/`OUT` route through `PortBus`.
-- Persistence reads from `Cpu8080State` or explicit export view models, never from UI labels or grids.
+- CPU state is owned by `k580-core` and the internal backend actor, never by UI widgets.
+- Device state is owned by the internal `devices` module; `IN`/`OUT` route through `PortBus`.
+- The internal `persistence` module reads from `Cpu8080State` or explicit export view models, never from UI labels or grids.
 - `.krs` remains a raw byte slice with caller-provided base address; no secondary subprogram format is introduced.
 
 ## Runtime shape
 
-`k580-ui` sends commands through a crossbeam channel to the emulator actor in `k580-app`. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage, network, and printer PDF workers, so file, TCP, and PDF operations stay outside the UI thread. The actor polls network state and printer export completion every 50 ms and publishes a snapshot only when either state differs from the last published one, allowing received bytes, connection changes, and completed PDF jobs to reach an idle UI without causing continuous redraws. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
+`kr580` sends commands through a crossbeam channel to its internal backend emulator actor. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage, network, and printer PDF workers, so file, TCP, and PDF operations stay outside the UI thread. The actor polls network state and printer export completion every 50 ms and publishes a snapshot only when either state differs from the last published one, allowing received bytes, connection changes, and completed PDF jobs to reach an idle UI without causing continuous redraws. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
 
 ## Actor pacing loop
 
-The worker thread in `k580-app::actor::run_worker` does not block on
+The worker thread in `backend::actor::run_worker` does not block on
 `recv()`. Instead it uses `crossbeam_channel::select!` to wait
 simultaneously on the command channel and a timer:
 

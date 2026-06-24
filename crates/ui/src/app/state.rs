@@ -1,5 +1,5 @@
+use crate::backend::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use iced::{Point, Size, Task, keyboard};
-use k580_app::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use k580_core::RegisterName;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -156,7 +156,7 @@ pub(crate) struct DesktopApp {
     pub(crate) stack_view_saved_address: Option<u16>,
     pub(crate) stack_view_saved_scroll_offset: f32,
     pub(crate) network_settings_open: bool,
-    pub(crate) network_mode_draft: k580_app::NetworkMode,
+    pub(crate) network_mode_draft: crate::backend::NetworkMode,
     pub(crate) network_host_input: String,
     pub(crate) network_port_input: String,
     pub(crate) network_settings_error: Option<String>,
@@ -180,18 +180,18 @@ impl DesktopApp {
         };
         let settings = load_settings();
         let lang = lang_from_language(settings.general.language);
-        let _ = handle.send(k580_app::AppCommand::AttachHddFile(
+        let _ = handle.send(crate::backend::AppCommand::AttachHddFile(
             crate::runtime::storage_files::hdd_default_path(),
         ));
         if let Some(ref path) = settings.general.floppy_image_path
             && path.is_file()
         {
-            let _ = handle.send(k580_app::AppCommand::AttachFloppyImage(path.clone()));
+            let _ = handle.send(crate::backend::AppCommand::AttachFloppyImage(path.clone()));
         }
-        let network_mode = k580_app::NetworkMode::Client;
+        let network_mode = crate::backend::NetworkMode::Client;
         let network_host = settings.network.host.clone();
         let network_port = settings.network.port;
-        let _ = handle.send(k580_app::AppCommand::ConfigureNetwork {
+        let _ = handle.send(crate::backend::AppCommand::ConfigureNetwork {
             mode: network_mode,
             host: network_host.clone(),
             port: network_port,

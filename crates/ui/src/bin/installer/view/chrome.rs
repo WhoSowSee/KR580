@@ -10,11 +10,7 @@ const CAPTION_BUTTON_HEIGHT: f32 = 24.0;
 
 macro_rules! action_icon_bytes {
     ($name:literal) => {
-        include_bytes!(concat!(
-            "../../../../../../assets/icons/actions/",
-            $name,
-            ".svg"
-        ))
+        include_bytes!(concat!("../../../../assets/icons/actions/", $name, ".svg"))
     };
 }
 

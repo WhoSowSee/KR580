@@ -59,13 +59,8 @@ fn binary_name(name: &str) -> String {
 
 #[cfg(windows)]
 fn embed_windows_resources() {
-    use std::path::PathBuf;
-    let manifest_dir = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let workspace_root = manifest_dir
-        .parent()
-        .and_then(|p| p.parent())
-        .expect("workspace root must be two levels above crates/ui");
-    let icons_dir = workspace_root.join("assets").join("icons");
+    let manifest_dir = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let icons_dir = manifest_dir.join("assets").join("icons");
     let icon_path = windows_main_icon(&icons_dir);
     let file_icon_path = icons_dir.join("file-580.ico");
 

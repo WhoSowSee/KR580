@@ -2,9 +2,9 @@ use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message,
     StatusKind,
 };
+use crate::backend::AppCommand;
 use iced::Task;
 use iced::widget::operation;
-use k580_app::AppCommand;
 
 use crate::app::filtered_opcode_choices;
 use crate::runtime::parse::{

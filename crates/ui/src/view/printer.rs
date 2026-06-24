@@ -1,8 +1,8 @@
 use std::fmt::Write;
 
+use crate::backend::{DeviceStatus, PrinterState, decode_oem_text};
 use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
 use iced::{Element, Length, Padding, alignment};
-use k580_app::{DeviceStatus, PrinterState, decode_oem_text};
 
 use super::icons;
 use super::storage::chrome::{
@@ -241,7 +241,7 @@ fn format_printer_text(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{format_printer_buffer, format_printer_text, printer_actions_enabled};
-    use k580_app::{DeviceStatus, PrinterState};
+    use crate::backend::{DeviceStatus, PrinterState};
     use std::path::PathBuf;
 
     #[test]

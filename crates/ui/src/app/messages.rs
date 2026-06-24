@@ -278,7 +278,7 @@ pub(crate) enum Message {
     CloseNetwork,
     OpenNetworkSettings,
     CloseNetworkSettings,
-    NetworkModeChanged(k580_app::NetworkMode),
+    NetworkModeChanged(crate::backend::NetworkMode),
     NetworkHostChanged(String),
     NetworkPortChanged(String),
     ApplyNetworkSettings,

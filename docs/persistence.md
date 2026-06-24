@@ -44,8 +44,8 @@ ignores the comment column and, when section entries are present, writes
 each entry as `[Section name]` followed by its own `[Registers]`,
 `[Flags]`, and `[Memory]` block.
 
-The UI exposes both export actions, and `k580-app` routes them through the same `ExportModel` built from core state.
+The UI exposes both export actions, and the internal `kr580` backend routes them through the same `ExportModel` built from core state.
 
 ## Imports
 
-`k580-persistence::Importers` round-trips the same two formats back into an `ExportModel`, and `ExportModel::apply_to(&mut Cpu8080State)` writes the parsed registers, flags, and memory cells into a CPU state. The XLSX reader uses `calamine`; by default it imports the first worksheet, while `xlsx_sheet_names()` and `read_xlsx_sheet()` let the UI present and import a specific worksheet from a multi-page export. The TXT reader parses the same `[Registers]`, `[Flags]`, and `[Memory]` sections that the exporter emits. Plain TXT files still import as one model; multi-section text exports expose their named blocks through `txt_section_names()` and `read_txt_section()`.
+`persistence::Importers` round-trips the same two formats back into an `ExportModel`, and `ExportModel::apply_to(&mut Cpu8080State)` writes the parsed registers, flags, and memory cells into a CPU state. The XLSX reader uses `calamine`; by default it imports the first worksheet, while `xlsx_sheet_names()` and `read_xlsx_sheet()` let the UI present and import a specific worksheet from a multi-page export. The TXT reader parses the same `[Registers]`, `[Flags]`, and `[Memory]` sections that the exporter emits. Plain TXT files still import as one model; multi-section text exports expose their named blocks through `txt_section_names()` and `read_txt_section()`.

@@ -106,7 +106,7 @@ fn read_path_value(
         unsafe { RegCloseKey(key) };
         return Ok(String::new());
     }
-    if status != ERROR_SUCCESS || !matches!(value_type, REG_SZ | REG_EXPAND_SZ) {
+    if status != ERROR_SUCCESS || (value_type != REG_SZ && value_type != REG_EXPAND_SZ) {
         // SAFETY: `key` was opened by `RegOpenKeyExW` above.
         unsafe { RegCloseKey(key) };
         return Err(format!("query PATH length failed: {status}"));

@@ -1,5 +1,5 @@
 use super::{ExportFlag, ExportMemoryColumn, ExportRegister, ExportTab};
-use k580_persistence::{ExportFlagKind, ExportRegisterKind};
+use crate::persistence::{ExportFlagKind, ExportRegisterKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ExportModalFocus {

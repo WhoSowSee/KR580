@@ -98,13 +98,13 @@ NixOS-пакет ставит готовые `k580` и `kr`, desktop entry, ик
 ```bash
 git clone https://github.com/WhoSowSee/KR580.git
 cd KR580
-cargo run -p k580-ui --bin k580
+cargo run -p kr580 --bin k580
 ```
 
 ### Сборка GUI-бинарника
 
 ```bash
-cargo build --release -p k580-ui --bin k580
+cargo build --release -p kr580 --bin k580
 ```
 
 Готовое приложение появится в `target/release/` как `k580` или `k580.exe`.
@@ -129,13 +129,13 @@ bash scripts/build_installer.sh
 
 ```bash
 # Запуск эмулятора из исходников
-cargo run -p k580-ui --bin k580
+cargo run -p kr580 --bin k580
 
 # Открыть snapshot через launcher
-cargo run -p k580-ui --bin kr -- path/to/program.580
+cargo run -p kr580 --bin kr -- path/to/program.580
 
 # Показать справку launcher
-cargo run -p k580-ui --bin kr -- --help
+cargo run -p kr580 --bin kr -- --help
 ```
 
 После установки `kr` может открывать `.580`-снимки из терминала и регистрировать или удалять ассоциацию файлов там, где это поддерживает платформа.
@@ -154,11 +154,8 @@ cargo run -p k580-ui --bin kr -- --help
 
 | Crate | Ответственность |
 |---|---|
-| `k580-core` | CPU state, opcode decode/execute, timing, interrupts и `PortBus`. |
-| `k580-devices` | Монитор, дисковод, HDD, сеть, принтер, workers и PDF принтера. |
-| `k580-persistence` | Snapshots, settings, subprograms, TXT/XLSX import/export. |
-| `k580-app` | Actor эмулятора, команды/события, snapshots состояния и файловые команды. |
-| `k580-ui` | Desktop UI, launcher, installer, uninstaller и platform shims. |
+| `k580-core` | Публичное ядро CPU: state, opcode decode/execute, timing, interrupts и `PortBus`. |
+| `kr580` | Публичный installable crate: desktop UI, launcher, installer, uninstaller, platform shims и внутренние modules `backend`, `devices`, `persistence`. |
 
 ## Разработка
 

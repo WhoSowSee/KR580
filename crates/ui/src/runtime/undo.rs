@@ -2,9 +2,9 @@ use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message,
     OPCODE_SEARCH_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID, UndoEntry,
 };
+use crate::backend::AppCommand;
 use iced::Task;
 use iced::widget::operation;
-use k580_app::AppCommand;
 use k580_core::{Cpu8080State, RegisterName};
 
 impl DesktopApp {

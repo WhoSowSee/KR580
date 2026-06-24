@@ -1,6 +1,6 @@
+use crate::backend::NetworkMode;
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length, alignment};
-use k580_app::NetworkMode;
 
 use super::icons;
 use super::network::{NetworkViewState, center};

@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use k580_app::{GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorState, TEXT_COLS, TEXT_ROWS};
+use crate::backend::{GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorState, TEXT_COLS, TEXT_ROWS};
 
 use super::monitor_font::{CELL_HEIGHT, CELL_WIDTH, GLYPH_HEIGHT, GLYPH_WIDTH, pixel_lit};
 
@@ -175,7 +175,7 @@ fn encode_bmp(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use k580_app::{DeviceStatus, MonitorPhase, TextCell};
+    use crate::backend::{DeviceStatus, MonitorPhase, TextCell};
 
     fn empty_state() -> MonitorState {
         MonitorState {

@@ -2326,69 +2326,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "k580-app"
-version = "1.0.0"
-dependencies = [
- "crossbeam-channel",
- "k580-core",
- "k580-devices",
- "k580-persistence",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "k580-core"
 version = "1.0.0"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "k580-devices"
-version = "1.0.0"
-dependencies = [
- "k580-core",
- "printpdf",
- "serde",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "k580-persistence"
-version = "1.0.0"
-dependencies = [
- "calamine",
- "k580-core",
- "k580-devices",
- "rust_xlsxwriter",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "k580-ui"
-version = "1.0.0"
-dependencies = [
- "iced",
- "image",
- "k580-app",
- "k580-core",
- "k580-persistence",
- "libc",
- "png 0.17.16",
- "rfd",
- "serde",
- "serde_json",
- "tracing",
- "tracing-subscriber",
- "windows-sys 0.59.0",
- "winresource",
 ]
 
 [[package]]
@@ -2416,6 +2358,30 @@ name = "khronos_api"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
+
+[[package]]
+name = "kr580"
+version = "1.0.0"
+dependencies = [
+ "calamine",
+ "crossbeam-channel",
+ "iced",
+ "image",
+ "k580-core",
+ "libc",
+ "png 0.17.16",
+ "printpdf",
+ "rfd",
+ "rust_xlsxwriter",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "windows-sys 0.59.0",
+ "winresource",
+]
 
 [[package]]
 name = "kurbo"

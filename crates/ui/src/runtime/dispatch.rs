@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::app::DesktopApp;
-use k580_app::AppCommand;
+use crate::backend::AppCommand;
 
 pub(super) const SYNC_DISPATCH_TIMEOUT: Duration = Duration::from_millis(50);
 

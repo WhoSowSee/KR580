@@ -51,7 +51,7 @@ graphics command (3 bytes): [1 ccccccc] [x] [y]
 
 ## Monitor inspection window
 
-`MonitorState`, `MonitorPhase`, `TextCell` and the geometry constants (`TEXT_COLS`, `TEXT_ROWS`, `GRAPHICS_WIDTH`, `GRAPHICS_HEIGHT`) are re-exported from `k580-app`. The Монитор chip in the bottom «Быстрый доступ» strip dispatches `Message::OpenMonitor`; the resulting modal renders pure views over the live `AppSnapshot.devices.monitor`.
+`MonitorState`, `MonitorPhase`, `TextCell` and the geometry constants (`TEXT_COLS`, `TEXT_ROWS`, `GRAPHICS_WIDTH`, `GRAPHICS_HEIGHT`) are re-exported from the internal `kr580` backend module. The Монитор chip in the bottom «Быстрый доступ» strip dispatches `Message::OpenMonitor`; the resulting modal renders pure views over the live `AppSnapshot.devices.monitor`.
 
 The window has two visual modes, toggled from the header button:
 
@@ -62,7 +62,7 @@ Both modes share the meta strip (phase, text cursor, pixel count, last command) 
 
 ## Storage inspection windows
 
-`StorageState` is re-exported from `k580-app` for UI rendering. The
+`StorageState` is re-exported from the internal `kr580` backend module for UI rendering. The
 Дисковод quick-access chip opens a modal over
 `AppSnapshot.devices.floppy`; it renders accepted `visible_buffer`
 bytes as terminal text and displays the configured file path, status,

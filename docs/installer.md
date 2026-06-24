@@ -1,6 +1,6 @@
 # Installer
 
-`k580-ui` builds four desktop-facing binaries:
+`kr580` builds four desktop-facing binaries:
 
 - `k580` - the GUI emulator.
 - `kr` - the terminal launcher and file-association helper.

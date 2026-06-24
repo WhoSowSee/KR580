@@ -18,7 +18,7 @@ pub(super) fn parse_network_defaults(
 }
 
 pub(super) fn apply_network_defaults(
-    settings: &mut k580_persistence::NetworkSettings,
+    settings: &mut crate::persistence::NetworkSettings,
     ((client_host, client_port), (server_host, server_port)): NetworkDefaults,
 ) {
     settings.host = client_host;

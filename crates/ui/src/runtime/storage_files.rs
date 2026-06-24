@@ -1,7 +1,7 @@
 use crate::app::{DesktopApp, StatusKind};
+use crate::backend::AppCommand;
 use crate::i18n::Key;
 use crate::settings_storage::{load_settings, save_settings};
-use k580_app::AppCommand;
 use std::path::{Path, PathBuf};
 
 impl DesktopApp {
@@ -179,7 +179,7 @@ impl DesktopApp {
         self.clear_error_notice();
         let hdd_path = folder.join("hdd.kpd");
         self.hdd_file_exists = true;
-        self.dispatch_sync(k580_app::AppCommand::AttachHddFile(hdd_path.clone()));
+        self.dispatch_sync(crate::backend::AppCommand::AttachHddFile(hdd_path.clone()));
         if self.error_notice.is_some() {
             self.hdd_file_exists = false;
             return;
@@ -201,7 +201,7 @@ impl DesktopApp {
             return;
         }
         self.hdd_file_exists = false;
-        self.dispatch_sync(k580_app::AppCommand::DetachHddFile);
+        self.dispatch_sync(crate::backend::AppCommand::DetachHddFile);
         self.set_status_custom(format!(
             "{}: {}",
             self.lang.t(Key::HddFileDeleted),
@@ -217,7 +217,7 @@ impl DesktopApp {
             .path
             .clone()
             .unwrap_or_else(hdd_default_path);
-        self.dispatch_sync(k580_app::AppCommand::AttachHddFile(path.clone()));
+        self.dispatch_sync(crate::backend::AppCommand::AttachHddFile(path.clone()));
         if self.error_notice.is_some() {
             return;
         }

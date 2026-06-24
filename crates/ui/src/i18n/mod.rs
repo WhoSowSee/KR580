@@ -5,7 +5,7 @@
 //! `Lang` enum is owned by `DesktopApp` so the whole UI redraws once
 //! the user picks a different language in the Settings dialog.
 //!
-//! Persistence stores the user's choice as `k580_persistence::Language`
+//! Persistence stores the user's choice as `crate::persistence::Language`
 //! and the two enums map to each other via [`Lang::from_persistence`] and
 //! [`Lang::to_persistence`]. Keeping the on-disk type separate from the
 //! UI type means the persistence crate never has to know about strings.
@@ -23,9 +23,9 @@ pub(crate) use keys::Key;
 pub(crate) use network::NetworkKey;
 pub(crate) use printer::PrinterKey;
 
-use k580_persistence::Language as PersistedLanguage;
+use crate::persistence::Language as PersistedLanguage;
 
-/// Active UI language. Mirrors `k580_persistence::Language` so the two
+/// Active UI language. Mirrors `crate::persistence::Language` so the two
 /// can be converted explicitly without persistence depending on UI.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Lang {
@@ -64,7 +64,7 @@ impl Lang {
 #[cfg(test)]
 mod tests {
     use super::{Key, Lang};
-    use k580_persistence::Language as PersistedLanguage;
+    use crate::persistence::Language as PersistedLanguage;
 
     #[test]
     fn russian_and_english_resolve_distinct_strings() {

@@ -7,9 +7,9 @@ mod styles;
 
 use std::time::Duration;
 
+use crate::backend::MonitorState;
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack, svg};
 use iced::{Element, Length};
-use k580_app::MonitorState;
 
 use crate::app::{HexStreamFilter, Message, ToolWindowKind};
 use crate::i18n::{Key, Lang};
