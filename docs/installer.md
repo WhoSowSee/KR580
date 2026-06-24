@@ -108,8 +108,11 @@ The scripts produce standalone setup executables:
 
 `KR580_CARGO=cross` makes the Unix script invoke `cross build` for Linux target
 matrices. `scripts/package_installer_deb.sh` wraps a built Linux setup
-executable in a Debian package, and `snap/snapcraft.yaml` builds the Snap setup
-package used by CI.
+executable in a Debian package. `snap/snapcraft.yaml` builds the Snap setup
+package used by CI on native `ubuntu-24.04` and `ubuntu-24.04-arm` runners;
+the workflow filters the core22 `architectures` build plan with `--build-for`
+and builds through LXD instead of destructive mode.
+The `kr580-setup` snap part uses `plugin: nil` and installs the stable Rust toolchain itself via rustup inside its `override-build`, which assembles the multi-binary installer. The snapcraft rust plugin provisions its toolchain in the pull phase, which runs before any part's build and cannot cooperate with a custom `override-build`, so the part manages the toolchain directly.
 If the Windows target artifact is locked by a running installer, the PowerShell
 script writes the same setup under a numbered suffix such as
 `KR580-Setup-<version>-windows-<arch>-1.exe` instead of failing after the
@@ -125,7 +128,9 @@ activation declaratively.
 
 The release workflow runs `nix flake check --no-build` and builds
 `.#packages.x86_64-linux.default`; tagged releases wait for that job before the
-GitHub release is published.
+GitHub release is published. The derivation installs from Cargo's
+target-specific output directory because the nixpkgs Cargo hook passes
+`--target` even for native Linux builds.
 
 ## Installed Layout
 

@@ -8,6 +8,12 @@ description: |
 grade: stable
 confinement: strict
 
+architectures:
+  - build-on: [amd64]
+    build-for: [amd64]
+  - build-on: [arm64]
+    build-for: [arm64]
+
 apps:
   kr580-setup:
     command: bin/k580-installer
@@ -23,11 +29,14 @@ apps:
 
 parts:
   kr580-setup:
-    plugin: rust
+    plugin: nil
     source: .
-    rust-channel: stable
     build-packages:
+      - curl
+      - gcc
+      - git
       - pkg-config
+      - findutils
       - libxkbcommon-dev
       - libwayland-dev
       - libgl1-mesa-dev
@@ -45,9 +54,12 @@ parts:
       - libegl1
     override-build: |
       set -eu
+      cd "$CRAFT_PART_SRC"
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+      . "$HOME/.cargo/env"
       cargo build --release -p kr580 --bin k580 --bin kr
       KR580_WINDOWS_ICON_KIND=uninstaller cargo build --release -p kr580 --bin k580-uninstaller
-      KR580_INSTALLER_PAYLOAD_DIR="$CRAFT_PART_BUILD/target/release" KR580_WINDOWS_ICON_KIND=setup cargo build --release -p kr580 --bin k580-installer
+      KR580_INSTALLER_PAYLOAD_DIR="$CRAFT_PART_SRC/target/release" KR580_WINDOWS_ICON_KIND=setup cargo build --release -p kr580 --bin k580-installer
       install -Dm755 target/release/k580-installer "$CRAFT_PART_INSTALL/bin/k580-installer"
       install -Dm644 assets/icons/icon-256.png "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/kr580.png"
       install -Dm644 /dev/stdin "$CRAFT_PART_INSTALL/usr/share/applications/kr580-setup.desktop" <<'DESKTOP'

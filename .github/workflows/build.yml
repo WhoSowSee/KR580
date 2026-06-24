@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -74,7 +74,7 @@ jobs:
             --output "artifacts/${PROJECT_NAME}-${{ matrix.target }}.deb"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kr580-linux-${{ matrix.target }}
           path: artifacts/*
@@ -91,7 +91,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -112,7 +112,7 @@ jobs:
           zip -j "artifacts/${PROJECT_NAME}-${{ matrix.target }}.zip" "$installer"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kr580-macos-${{ matrix.target }}
           path: artifacts/*
@@ -129,7 +129,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -153,38 +153,47 @@ jobs:
           Compress-Archive -Path $installer.FullName -DestinationPath "artifacts/${env:PROJECT_NAME}-${{ matrix.target }}.zip"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kr580-windows-${{ matrix.target }}
           path: artifacts/*
 
   snap:
     name: Snap installer ${{ matrix.arch }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        arch:
-          - amd64
-          - arm64
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Build snaps
-        uses: snapcore/action-build@v1
-        with:
-          snapcraft-channel: 7.x/stable
-          snapcraft-args: --destructive-mode --target-arch=${{ matrix.arch }}
+      - name: Install LXD and Snapcraft
+        run: |
+          sudo groupadd --force --system lxd
+          sudo usermod --append --groups lxd runner
+          sudo snap install lxd
+          sudo lxd init --auto
+          sudo iptables -P FORWARD ACCEPT
+          sudo snap install --channel 8.x/stable --classic snapcraft
+
+      - name: Build snap
+        run: sudo -u runner -E snapcraft --use-lxd --build-for=${{ matrix.arch }}
 
       - name: Collect snaps
         run: |
+          set -euo pipefail
           mkdir -p artifacts
-          snap_name=$(ls *.snap)
+          snap_name=$(ls *_${{ matrix.arch }}.snap)
           mv "$snap_name" "artifacts/${PROJECT_NAME}-${{ matrix.arch }}.snap"
 
       - name: Upload snaps
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kr580-snap-${{ matrix.arch }}
           path: artifacts/*
@@ -194,7 +203,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Nix
         uses: cachix/install-nix-action@v31
@@ -217,14 +226,14 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
           fetch-tags: true
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
@@ -324,7 +333,7 @@ jobs:
         run: ls -R dist
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*
           body_path: release-notes.md
