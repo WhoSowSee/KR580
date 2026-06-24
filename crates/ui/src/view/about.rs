@@ -46,7 +46,15 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
         .align_y(alignment::Vertical::Center);
 
     let app_name = ui_text(lang.t(Key::AppName), 18, TOKYO_TEXT);
-    let version = ui_text(lang.t(Key::AboutVersion), 13, TOKYO_MUTED);
+    let version = ui_text(
+        format!(
+            "{} {}",
+            lang.t(Key::AboutVersion),
+            env!("CARGO_PKG_VERSION")
+        ),
+        13,
+        TOKYO_MUTED,
+    );
 
     let identity_row = row![
         app_icon_plate,

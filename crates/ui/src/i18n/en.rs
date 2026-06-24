@@ -110,7 +110,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::AboutTitle => "About",
         Key::AppName => "KR580",
         Key::AboutDescription => "Microprocessor system emulator based on the KR580VM80 chip",
-        Key::AboutVersion => "Version 1.0.0",
+        Key::AboutVersion => "Version",
         Key::AboutGithubLabel => "GitHub",
         Key::FileNew => "New file",
         Key::FileOpen => "Open",

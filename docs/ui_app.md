@@ -1664,8 +1664,9 @@ Cancel or committed on Save.
 
 ### About dialog
 
-A small centred card with app icon, name, version, description, and
-GitHub button. No keyboard navigation beyond Esc to close.
+A small centred card with app icon, name, Cargo package version,
+description, and GitHub button. No keyboard navigation beyond Esc
+to close.
 
 **State:** `about_dialog_open: bool`.
 

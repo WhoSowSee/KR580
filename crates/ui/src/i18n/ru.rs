@@ -111,7 +111,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::AboutDescription => {
             "Программа-эмулятор микропроцессорной системы на базе микропроцессора КР580ВМ80"
         }
-        Key::AboutVersion => "Версия 1.0.0",
+        Key::AboutVersion => "Версия",
         Key::AboutGithubLabel => "GitHub",
         Key::FileNew => "Новый файл",
         Key::FileOpen => "Открыть",
