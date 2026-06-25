@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/logo.svg" width="360" alt="Логотип KR580" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/brand/logo.svg" width="360" alt="Логотип KR580" />
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 <h2 align="center">Настольный эмулятор КР580 на Rust</h2>
 
 <p align="center">
-  <img src="assets/screenshots/ru/emulator.png" width="800" alt="Скриншот эмулятора KR580" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/ru/emulator.png" width="800" alt="Скриншот эмулятора KR580" />
 </p>
 
 > [!TIP]
@@ -40,19 +40,19 @@ KR580 — современный настольный эмулятор сист�
 
 <p align="center"><strong>Монитор</strong> · <strong>Дисковод</strong></p>
 <p align="center">
-  <img src="assets/screenshots/ru/monitor.png" width="400" alt="Скриншот окна монитора" />
-  <img src="assets/screenshots/ru/floppy.png" width="400" alt="Скриншот окна дисковода" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/ru/monitor.png" width="400" alt="Скриншот окна монитора" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/ru/floppy.png" width="400" alt="Скриншот окна дисковода" />
 </p>
 
 <p align="center"><strong>Жёсткий диск</strong> · <strong>Сетевой адаптер</strong></p>
 <p align="center">
-  <img src="assets/screenshots/ru/hdd.png" width="400" alt="Скриншот окна жёсткого диска" />
-  <img src="assets/screenshots/ru/network.png" width="400" alt="Скриншот окна сетевого адаптера" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/ru/hdd.png" width="400" alt="Скриншот окна жёсткого диска" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/ru/network.png" width="400" alt="Скриншот окна сетевого адаптера" />
 </p>
 
 <p align="center"><strong>Принтер</strong></p>
 <p align="center">
-  <img src="assets/screenshots/ru/printer.png" width="520" alt="Скриншот окна принтера" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/ru/printer.png" width="520" alt="Скриншот окна принтера" />
 </p>
 
 ## Внешние устройства

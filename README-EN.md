@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/logo.svg" width="360" alt="KR580 logo" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/brand/logo.svg" width="360" alt="KR580 logo" />
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 <h2 align="center">Desktop KR580 emulator written in Rust</h2>
 
 <p align="center">
-  <img src="assets/screenshots/en/emulator.png" width="800" alt="KR580 emulator overview screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/emulator.png" width="800" alt="KR580 emulator overview screenshot" />
 </p>
 
 > [!TIP]
@@ -40,19 +40,19 @@ The project focuses on inspectable execution: edit RAM and registers, step by in
 
 <p align="center"><strong>Monitor</strong> · <strong>Floppy</strong></p>
 <p align="center">
-  <img src="assets/screenshots/en/monitor.png" width="400" alt="Monitor window screenshot" />
-  <img src="assets/screenshots/en/floppy.png" width="400" alt="Floppy window screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/monitor.png" width="400" alt="Monitor window screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/floppy.png" width="400" alt="Floppy window screenshot" />
 </p>
 
 <p align="center"><strong>HDD</strong> · <strong>Network adapter</strong></p>
 <p align="center">
-  <img src="assets/screenshots/en/hdd.png" width="400" alt="HDD window screenshot" />
-  <img src="assets/screenshots/en/network.png" width="400" alt="Network adapter window screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/hdd.png" width="400" alt="HDD window screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/network.png" width="400" alt="Network adapter window screenshot" />
 </p>
 
 <p align="center"><strong>Printer</strong></p>
 <p align="center">
-  <img src="assets/screenshots/en/printer.png" width="520" alt="Printer window screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/printer.png" width="520" alt="Printer window screenshot" />
 </p>
 
 ## External devices
