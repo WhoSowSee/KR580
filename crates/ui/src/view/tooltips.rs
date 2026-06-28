@@ -5,6 +5,7 @@ use std::time::Duration;
 use super::styles::inset_style;
 use super::theme::{TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use crate::app::Message;
+use crate::persistence::ShortcutSettings;
 
 const LONG_TOOLTIP_WIDTH: f32 = 220.0;
 
@@ -28,43 +29,20 @@ pub(super) const SNAPPED_TOOLTIP_GAP: f32 = VISIBLE_GAP - VIEWPORT_PADDING;
 /// the schematic plate, while keeping button/shortcut tooltips snappy.
 pub(super) const EXPLANATORY_TOOLTIP_DELAY: Duration = Duration::from_millis(1200);
 
-pub(super) fn shortcut_hint(message: &Message) -> Option<&'static str> {
+pub(super) fn shortcut_hint(settings: &ShortcutSettings, message: &Message) -> Option<String> {
     match message {
-        Message::NewFile => Some("Ctrl+N"),
-        Message::OpenSnapshot => Some("Ctrl+O"),
-        Message::SaveSnapshot => Some("Ctrl+S"),
-        Message::SaveSnapshotAs => Some("Ctrl+Shift+S"),
-        Message::Import => Some("Ctrl+I"),
-        Message::Export => Some("Ctrl+E"),
-        Message::OpenFloppy => Some("Ctrl+F"),
-        Message::ToggleRun => Some("Ctrl+R"),
-        Message::StepInstruction => Some("Ctrl+T"),
-        Message::StepTact => Some("Ctrl+Y"),
-        Message::ResetRam => Some("Ctrl+Shift+R"),
-        Message::ResetCpu => Some("Ctrl+Shift+G"),
-        Message::ClearHalt => Some("Ctrl+Shift+H"),
-        Message::OpenHelp => Some("Ctrl+H"),
-        Message::OpenMonitor => Some("Ctrl+M"),
-        Message::OpenHdd => Some("Ctrl+D"),
-        Message::OpenNetwork => Some("Ctrl+A"),
-        Message::OpenPrinter => Some("Ctrl+P"),
-        Message::ToggleStackView => Some("Ctrl+Shift+C"),
-        Message::OpenSettings => Some("Ctrl+,"),
-        Message::Undo => Some("Ctrl+Z"),
-        Message::Redo => Some("Ctrl+Shift+Z"),
-        Message::OpenOpcodePicker => Some("E"),
         Message::CloseMonitor
         | Message::CloseFloppy
         | Message::CloseHdd
-        | Message::CloseNetwork => Some("Esc"),
-        _ => None,
+        | Message::CloseNetwork => Some("Esc".to_owned()),
+        _ => crate::app::shortcuts::shortcut_label(settings, message),
     }
 }
 
 pub(super) fn hover_tooltip(
     face: Element<'static, Message>,
     hint: &'static str,
-    shortcut: Option<&'static str>,
+    shortcut: Option<String>,
     position: tooltip::Position,
     delay: Duration,
 ) -> Element<'static, Message> {
@@ -101,21 +79,58 @@ pub(super) fn hover_tooltip(
 mod tests {
     use super::{SNAPPED_TOOLTIP_GAP, VIEWPORT_PADDING, VISIBLE_GAP, shortcut_hint};
     use crate::app::Message;
+    use crate::persistence::{ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings};
 
     #[test]
     fn shortcut_hints_cover_icon_buttons_with_global_shortcuts() {
-        assert_eq!(shortcut_hint(&Message::ToggleRun), Some("Ctrl+R"));
-        assert_eq!(shortcut_hint(&Message::StepInstruction), Some("Ctrl+T"));
-        assert_eq!(shortcut_hint(&Message::ResetCpu), Some("Ctrl+Shift+G"));
-        assert_eq!(shortcut_hint(&Message::OpenMonitor), Some("Ctrl+M"));
-        assert_eq!(shortcut_hint(&Message::OpenFloppy), Some("Ctrl+F"));
-        assert_eq!(shortcut_hint(&Message::OpenNetwork), Some("Ctrl+A"));
-        assert_eq!(shortcut_hint(&Message::OpenPrinter), Some("Ctrl+P"));
+        let settings = ShortcutSettings::default();
         assert_eq!(
-            shortcut_hint(&Message::ToggleStackView),
-            Some("Ctrl+Shift+C")
+            shortcut_hint(&settings, &Message::ToggleRun),
+            Some("Ctrl+R".to_owned())
         );
-        assert_eq!(shortcut_hint(&Message::RestartProgram), None);
+        assert_eq!(
+            shortcut_hint(&settings, &Message::StepInstruction),
+            Some("Ctrl+T".to_owned())
+        );
+        assert_eq!(
+            shortcut_hint(&settings, &Message::ResetCpu),
+            Some("Ctrl+Shift+G".to_owned())
+        );
+        assert_eq!(
+            shortcut_hint(&settings, &Message::OpenMonitor),
+            Some("Ctrl+M".to_owned())
+        );
+        assert_eq!(
+            shortcut_hint(&settings, &Message::OpenFloppy),
+            Some("Ctrl+F".to_owned())
+        );
+        assert_eq!(
+            shortcut_hint(&settings, &Message::OpenNetwork),
+            Some("Ctrl+A".to_owned())
+        );
+        assert_eq!(
+            shortcut_hint(&settings, &Message::OpenPrinter),
+            Some("Ctrl+P".to_owned())
+        );
+        assert_eq!(
+            shortcut_hint(&settings, &Message::ToggleStackView),
+            Some("Ctrl+Shift+C".to_owned())
+        );
+        assert_eq!(shortcut_hint(&settings, &Message::RestartProgram), None);
+    }
+
+    #[test]
+    fn shortcut_hints_track_custom_shortcut_settings() {
+        let mut settings = ShortcutSettings::default();
+        settings.assign(
+            ShortcutAction::OpenMonitor,
+            ShortcutBinding::new(true, true, true, ShortcutKey::M),
+        );
+
+        assert_eq!(
+            shortcut_hint(&settings, &Message::OpenMonitor),
+            Some("Ctrl+Shift+Alt+M".to_owned())
+        );
     }
 
     #[test]

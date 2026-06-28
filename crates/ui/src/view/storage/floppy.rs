@@ -3,7 +3,6 @@ use iced::widget::{Space, row};
 use iced::{Element, Length, alignment};
 
 use super::super::icons;
-use super::super::tooltips::shortcut_hint;
 use super::chrome::{icon_button, window_controls};
 use super::{FLOPPY_KEYS, storage_window, storage_window_overlay};
 use crate::app::{Message, ToolWindowKind};
@@ -114,7 +113,7 @@ fn floppy_header<'a>(
             Some(Message::CloseFloppy),
             lang.t(Key::MonitorClose),
             false,
-            shortcut_hint(&Message::CloseFloppy),
+            Some("Esc".to_owned()),
         ),
     ]
     .align_y(alignment::Vertical::Center)

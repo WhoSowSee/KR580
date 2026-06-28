@@ -199,7 +199,7 @@ impl DesktopApp {
         let step_shortcut = if self.running {
             None
         } else {
-            shortcut_hint(&Message::StepInstruction)
+            shortcut_hint(&self.shortcut_settings, &Message::StepInstruction)
         };
 
         let execution_strip = row![
@@ -208,7 +208,7 @@ impl DesktopApp {
                 gate(Message::ToggleRun),
                 run_accent,
                 run_tooltip,
-                shortcut_hint(&Message::ToggleRun),
+                shortcut_hint(&self.shortcut_settings, &Message::ToggleRun),
             ),
             icon_action_button(
                 step_icon,
@@ -222,7 +222,7 @@ impl DesktopApp {
                 gate(Message::StepTact),
                 TOKYO_YELLOW,
                 self.lang.t(Key::ActionStepTact),
-                shortcut_hint(&Message::StepTact),
+                shortcut_hint(&self.shortcut_settings, &Message::StepTact),
             ),
         ]
         .spacing(CHIP_SPACING)
@@ -234,14 +234,14 @@ impl DesktopApp {
                 Some(Message::ResetRam),
                 TOKYO_RED,
                 self.lang.t(Key::ActionResetRam),
-                shortcut_hint(&Message::ResetRam),
+                shortcut_hint(&self.shortcut_settings, &Message::ResetRam),
             ),
             icon_action_button(
                 icons::reset_registers(),
                 Some(Message::ResetCpu),
                 TOKYO_MAGENTA,
                 self.lang.t(Key::ActionResetCpu),
-                shortcut_hint(&Message::ResetCpu),
+                shortcut_hint(&self.shortcut_settings, &Message::ResetCpu),
             ),
         ]
         .spacing(CHIP_SPACING)

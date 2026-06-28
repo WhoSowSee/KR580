@@ -159,10 +159,18 @@ impl DesktopApp {
 
     pub(super) fn menu_dropdown(&self) -> Option<Element<'_, Message>> {
         match self.open_menu? {
-            MenuId::File => Some(file_dropdown(self.lang)),
-            MenuId::Mp => Some(mp_dropdown(self.snapshot.cpu.halted, self.lang)),
-            MenuId::View => Some(view_dropdown(self.stack_view, self.lang)),
-            MenuId::Help => Some(help_dropdown(self.lang)),
+            MenuId::File => Some(file_dropdown(self.lang, &self.shortcut_settings)),
+            MenuId::Mp => Some(mp_dropdown(
+                self.snapshot.cpu.halted,
+                self.lang,
+                &self.shortcut_settings,
+            )),
+            MenuId::View => Some(view_dropdown(
+                self.stack_view,
+                self.lang,
+                &self.shortcut_settings,
+            )),
+            MenuId::Help => Some(help_dropdown(self.lang, &self.shortcut_settings)),
         }
     }
 }

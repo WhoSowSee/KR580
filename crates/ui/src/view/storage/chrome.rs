@@ -106,7 +106,7 @@ pub(in crate::view) fn icon_button(
     on_press: Option<Message>,
     hint: &'static str,
     active: bool,
-    shortcut: Option<&'static str>,
+    shortcut: Option<String>,
 ) -> Element<'static, Message> {
     let is_disabled = on_press.is_none() && !active;
     let glyph_color = if active {

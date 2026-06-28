@@ -15,7 +15,7 @@ use crate::app::{HexStreamFilter, Message, ToolWindowKind};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
 use crate::view::theme::{TOKYO_BLUE, TOKYO_TEXT};
-use crate::view::tooltips::{hover_tooltip, shortcut_hint};
+use crate::view::tooltips::hover_tooltip;
 
 use hex_popup::hex_popup_overlay;
 use sections::{pixel_layer_section, text_layer_section, unified_screen_section};
@@ -249,7 +249,7 @@ fn monitor_header<'a>(
             icons::window_close(),
             Message::CloseMonitor,
             lang.t(Key::MonitorClose),
-            shortcut_hint(&Message::CloseMonitor),
+            Some("Esc".to_owned()),
             false,
         ),
     ]
@@ -262,7 +262,7 @@ fn icon_button(
     handle: svg::Handle,
     on_press: Message,
     hint: &'static str,
-    shortcut: Option<&'static str>,
+    shortcut: Option<String>,
     active: bool,
 ) -> Element<'static, Message> {
     let glyph_color = if active { TOKYO_BLUE } else { TOKYO_TEXT };

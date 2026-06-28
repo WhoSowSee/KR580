@@ -1,4 +1,5 @@
 use crate::i18n::Key;
+use crate::persistence::ShortcutAction;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SettingsCategory {
@@ -32,6 +33,7 @@ impl SettingsCategory {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FooterFocus {
     Reset,
+    ShortcutReset,
     Cancel,
     Save,
 }
@@ -40,6 +42,7 @@ impl FooterFocus {
     pub(crate) fn next(self) -> Self {
         match self {
             Self::Reset => Self::Cancel,
+            Self::ShortcutReset => Self::Cancel,
             Self::Cancel => Self::Save,
             Self::Save => Self::Reset,
         }
@@ -48,7 +51,32 @@ impl FooterFocus {
     pub(crate) fn previous(self) -> Self {
         match self {
             Self::Reset => Self::Save,
+            Self::ShortcutReset => Self::Reset,
             Self::Cancel => Self::Reset,
+            Self::Save => Self::Cancel,
+        }
+    }
+
+    pub(crate) fn next_with_shortcuts(self, shortcuts: bool) -> Self {
+        if !shortcuts {
+            return self.next();
+        }
+        match self {
+            Self::Reset => Self::ShortcutReset,
+            Self::ShortcutReset => Self::Cancel,
+            Self::Cancel => Self::Save,
+            Self::Save => Self::Reset,
+        }
+    }
+
+    pub(crate) fn previous_with_shortcuts(self, shortcuts: bool) -> Self {
+        if !shortcuts {
+            return self.previous();
+        }
+        match self {
+            Self::Reset => Self::Save,
+            Self::ShortcutReset => Self::Reset,
+            Self::Cancel => Self::ShortcutReset,
             Self::Save => Self::Cancel,
         }
     }
@@ -114,7 +142,7 @@ pub(crate) enum ContentFocus {
     NetworkDefaults,
     FileAssociation,
     Theme,
-    Shortcuts,
+    Shortcut(ShortcutAction),
 }
 
 impl ContentFocus {

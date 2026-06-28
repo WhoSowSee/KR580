@@ -1,4 +1,6 @@
-use iced::{Task, keyboard};
+use iced::Task;
+#[cfg(test)]
+use iced::keyboard;
 use std::time::{Duration, Instant};
 
 use super::constants::{
@@ -253,6 +255,7 @@ pub(crate) fn tick_interval(running: bool, tier: SpeedTier) -> Duration {
 
 /// `to_latin(physical_key)` makes Russian-layout keys resolve to the same
 /// shortcut as the QWERTY positions.
+#[cfg(test)]
 pub(crate) fn ctrl_shortcut(
     key: &keyboard::Key,
     physical_key: keyboard::key::Physical,
@@ -266,74 +269,41 @@ pub(crate) fn ctrl_shortcut(
             backward: modifiers.shift(),
         });
     }
-    if !modifiers.shift() && !modifiers.alt() && is_comma_key(key, physical_key) {
-        return Some(Message::OpenSettings);
-    }
-    let latin = key.to_latin(physical_key)?;
-    let alt = modifiers.alt();
-    match (latin, modifiers.shift(), alt) {
-        ('n', false, false) => Some(Message::NewFile),
-        ('o', false, false) => Some(Message::OpenSnapshot),
-        ('s', false, false) => Some(Message::SaveSnapshot),
-        ('s', true, false) => Some(Message::SaveSnapshotAs),
-        ('i', false, false) => Some(Message::Import),
-        ('e', false, false) => Some(Message::Export),
-        ('a', false, false) => Some(Message::OpenNetwork),
-        ('d', false, false) => Some(Message::OpenHdd),
-        ('f', false, false) => Some(Message::OpenFloppy),
-        ('p', false, false) => Some(Message::OpenPrinter),
-        ('c', true, false) => Some(Message::ToggleStackView),
-        ('r', false, false) => Some(Message::ToggleRun),
-        ('t', false, false) => Some(Message::StepInstruction),
-        ('y', false, false) => Some(Message::StepTact),
-        ('r', true, false) => Some(Message::ResetRam),
-        ('g', true, false) => Some(Message::ResetCpu),
-        ('h', false, false) => Some(Message::OpenHelp),
-        ('h', true, false) => Some(Message::ClearHalt),
-        ('m', false, false) => Some(Message::OpenMonitor),
-        ('z', false, false) => Some(Message::Undo),
-        ('z', true, false) => Some(Message::Redo),
-        _ => None,
-    }
+    crate::app::shortcuts::shortcut_message(
+        &crate::persistence::ShortcutSettings::default(),
+        physical_key,
+        modifiers,
+    )
 }
 
+#[cfg(test)]
 pub(crate) fn alt_shortcut(
-    key: &keyboard::Key,
+    _key: &keyboard::Key,
     physical_key: keyboard::key::Physical,
     modifiers: keyboard::Modifiers,
 ) -> Option<Message> {
     if modifiers.command() || modifiers.shift() || !modifiers.alt() {
         return None;
     }
-    match key.to_latin(physical_key)?.to_ascii_lowercase() {
-        'q' => Some(Message::JumpMemoryTo(0x0000)),
-        'e' => Some(Message::JumpMemoryTo(0xFFFF)),
-        _ => None,
-    }
+    crate::app::shortcuts::shortcut_message(
+        &crate::persistence::ShortcutSettings::default(),
+        physical_key,
+        modifiers,
+    )
 }
 
+#[cfg(test)]
 pub(crate) fn plain_shortcut(
-    key: &keyboard::Key,
+    _key: &keyboard::Key,
     physical_key: keyboard::key::Physical,
     modifiers: keyboard::Modifiers,
 ) -> Option<Message> {
     if modifiers.command() || modifiers.alt() {
         return None;
     }
-    match key.to_latin(physical_key)?.to_ascii_lowercase() {
-        'e' => Some(Message::OpenOpcodePicker),
-        _ => None,
-    }
-}
-
-fn is_comma_key(key: &keyboard::Key, physical_key: keyboard::key::Physical) -> bool {
-    if let keyboard::Key::Character(c) = key
-        && c.as_str() == ","
-    {
-        return true;
-    }
-    matches!(
+    crate::app::shortcuts::shortcut_message(
+        &crate::persistence::ShortcutSettings::default(),
         physical_key,
-        keyboard::key::Physical::Code(keyboard::key::Code::Comma)
+        modifiers,
     )
 }

@@ -159,6 +159,11 @@ worth eyeballing after touching `crates/ui`:
   still resolve: `У` opens the opcode picker, `Ctrl+Ы` saves, `Ctrl+У`
   exports, `Ctrl+Ь` opens the monitor, and `Ctrl+А` opens the floppy
   buffer;
+- open Settings → Shortcuts, click the current shortcut for Monitor,
+  press `Ctrl+Shift+Alt+M`, save, and confirm that chord opens the monitor
+  while the Quick Access tooltip and View menu row show `Ctrl+Shift+Alt+M`;
+- reopen Settings → Shortcuts, press `Reset shortcuts`, save, and confirm the
+  Monitor shortcut returns to `Ctrl+M`;
 - hover the execution buttons and Quick Access chips and confirm
   shortcuts render as muted same-line tooltip text (`Ctrl+R`, `Ctrl+T`,
   `Ctrl+Y`, `Ctrl+M`, `Ctrl+F`) where the action actually has one, and

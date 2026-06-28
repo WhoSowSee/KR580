@@ -44,6 +44,10 @@ impl DesktopApp {
             | Message::SettingsNetworkServerHostChanged(_)
             | Message::SettingsNetworkServerPortChanged(_)
             | Message::SettingsLanguageDropdownToggled
+            | Message::SettingsShortcutCaptureStarted(_)
+            | Message::SettingsShortcutCaptured(_)
+            | Message::SettingsShortcutCaptureCancelled
+            | Message::SettingsShortcutsReset
             | Message::SettingsResetRequested
             | Message::SettingsResetConfirmed
             | Message::SettingsResetCancelled
@@ -51,7 +55,9 @@ impl DesktopApp {
             | Message::SettingsFileAssociationRegister
             | Message::SettingsFileAssociationUnregister => None,
             Message::EscPressed => {
-                if reset_open {
+                if dialog.recording_shortcut.is_some() {
+                    Some(Task::done(Message::SettingsShortcutCaptureCancelled))
+                } else if reset_open {
                     Some(Task::done(Message::SettingsResetCancelled))
                 } else if dialog.language_dropdown_open {
                     Some(Task::done(Message::SettingsLanguageDropdownToggled))
@@ -93,6 +99,13 @@ impl DesktopApp {
             SettingsSection::Footer => {
                 let action = match dialog.footer_focus {
                     FooterFocus::Reset => Message::SettingsResetRequested,
+                    FooterFocus::ShortcutReset => {
+                        if dialog.category == SettingsCategory::Shortcuts {
+                            Message::SettingsShortcutsReset
+                        } else {
+                            Message::SettingsResetRequested
+                        }
+                    }
                     FooterFocus::Cancel => Message::CloseSettings,
                     FooterFocus::Save => Message::SaveSettings,
                 };
@@ -142,7 +155,9 @@ impl DesktopApp {
                 })
             }
             ContentFocus::Theme => Task::none(),
-            ContentFocus::Shortcuts => Task::none(),
+            ContentFocus::Shortcut(action) => {
+                Task::done(Message::SettingsShortcutCaptureStarted(action))
+            }
         }
     }
 
@@ -188,10 +203,11 @@ impl DesktopApp {
                 }));
             }
             SettingsSection::Footer => {
+                let shortcuts = dialog.category == SettingsCategory::Shortcuts;
                 dialog.footer_focus = if backward {
-                    dialog.footer_focus.previous()
+                    dialog.footer_focus.previous_with_shortcuts(shortcuts)
                 } else {
-                    dialog.footer_focus.next()
+                    dialog.footer_focus.next_with_shortcuts(shortcuts)
                 };
             }
         }

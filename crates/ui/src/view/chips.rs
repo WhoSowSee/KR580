@@ -213,7 +213,7 @@ pub(super) fn device_chip(
     accent: Color,
     hint: &'static str,
     on_press: Option<Message>,
-    shortcut: Option<&'static str>,
+    shortcut: Option<String>,
 ) -> Element<'static, Message> {
     const CHIP_WIDTH: f32 = 38.0;
     const CHIP_HEIGHT: f32 = 38.0;

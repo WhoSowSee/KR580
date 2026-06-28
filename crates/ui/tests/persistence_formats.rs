@@ -1,7 +1,7 @@
 use k580_core::{Cpu8080State, Memory64K};
 use k580_ui::persistence::{
     LEGACY_LENGTH, ProgramError, ProgramSerializer, Settings, SettingsError, SettingsStore,
-    SpeedPreset,
+    ShortcutAction, SpeedPreset,
 };
 
 #[test]
@@ -190,11 +190,31 @@ fn settings_are_versioned_camel_case_json() {
     assert_eq!(settings.general.default_speed, SpeedPreset::High);
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
-    let unsupported = json.replace("\"settingsVersion\": 2", "\"settingsVersion\": 3");
+    let unsupported = json.replace("\"settingsVersion\": 3", "\"settingsVersion\": 4");
     assert!(matches!(
         SettingsStore::from_json(&unsupported),
-        Err(SettingsError::UnsupportedVersion(3))
+        Err(SettingsError::UnsupportedVersion(4))
     ));
+}
+
+#[test]
+fn version_two_settings_gain_default_shortcuts() {
+    let mut value = serde_json::to_value(Settings::default()).unwrap();
+    value["settingsVersion"] = serde_json::json!(2);
+    value.as_object_mut().unwrap().remove("shortcuts");
+    let json = serde_json::to_string_pretty(&value).unwrap();
+
+    let migrated = SettingsStore::from_json(&json).unwrap();
+
+    assert_eq!(migrated.settings_version, 3);
+    assert_eq!(
+        migrated
+            .shortcuts
+            .binding(ShortcutAction::OpenSettings)
+            .unwrap()
+            .label(),
+        "Ctrl+,"
+    );
 }
 
 #[test]
@@ -213,6 +233,6 @@ fn version_one_settings_reset_legacy_runtime_network_endpoints() {
 
     let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
 
-    assert_eq!(migrated.settings_version, 2);
+    assert_eq!(migrated.settings_version, 3);
     assert_eq!(migrated.network, Default::default());
 }

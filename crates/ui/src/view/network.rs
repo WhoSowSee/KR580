@@ -10,7 +10,6 @@ use super::storage::chrome::{
 };
 use super::styles::{panel_style, scrollable_style};
 use super::theme::{MONO_FONT, TOKYO_MUTED, TOKYO_TEXT, ui_text};
-use super::tooltips::shortcut_hint;
 use crate::app::{Message, ToolWindowKind};
 use crate::i18n::{Key, Lang, NetworkKey};
 
@@ -151,7 +150,7 @@ fn header(
             Some(Message::CloseNetwork),
             lang.t(Key::MonitorClose),
             false,
-            shortcut_hint(&Message::CloseNetwork),
+            Some("Esc".to_owned()),
         ),
     ]
     .align_y(alignment::Vertical::Center)

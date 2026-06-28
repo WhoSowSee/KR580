@@ -3,13 +3,11 @@ use super::focus::{
 };
 use crate::app::messages::SpeedTier;
 use crate::i18n::Lang;
-use crate::persistence::NetworkSettings;
+use crate::persistence::{NetworkSettings, ShortcutAction, ShortcutSettings};
 
-/// Draft state edited by the dialog. Live language and speed (the
-/// fields on `DesktopApp`) are kept in sync with the draft so the user
-/// sees changes apply immediately; `original_*` snapshots remember the
-/// values at the time the dialog was opened so Cancel / backdrop click
-/// can roll the live state back to that snapshot.
+/// Draft state edited by the dialog. Live language, speed, and shortcut
+/// fields on `DesktopApp` are kept in sync for immediate preview;
+/// `original_*` snapshots let Cancel / backdrop click roll that back.
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsDialog {
     pub(crate) category: SettingsCategory,
@@ -24,6 +22,9 @@ pub(crate) struct SettingsDialog {
     pub(crate) draft_network_client_port: String,
     pub(crate) draft_network_server_host: String,
     pub(crate) draft_network_server_port: String,
+    pub(crate) draft_shortcuts: ShortcutSettings,
+    pub(crate) original_shortcuts: ShortcutSettings,
+    pub(crate) recording_shortcut: Option<ShortcutAction>,
     pub(crate) network_error: Option<String>,
     pub(crate) language_dropdown_open: bool,
     /// Keyboard highlight inside the open language dropdown. `None`
@@ -43,6 +44,7 @@ pub(crate) struct SettingsDialog {
 }
 
 impl SettingsDialog {
+    #[cfg(test)]
     pub(crate) fn new(
         lang: Lang,
         speed: SpeedTier,
@@ -51,6 +53,29 @@ impl SettingsDialog {
         floppy_image_path: Option<std::path::PathBuf>,
         hdd_directory: Option<std::path::PathBuf>,
         network: NetworkSettings,
+    ) -> Self {
+        Self::new_with_shortcuts(
+            lang,
+            speed,
+            follow_pc,
+            memory_operand_highlighting,
+            floppy_image_path,
+            hdd_directory,
+            network,
+            ShortcutSettings::default(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new_with_shortcuts(
+        lang: Lang,
+        speed: SpeedTier,
+        follow_pc: bool,
+        memory_operand_highlighting: bool,
+        floppy_image_path: Option<std::path::PathBuf>,
+        hdd_directory: Option<std::path::PathBuf>,
+        network: NetworkSettings,
+        shortcuts: ShortcutSettings,
     ) -> Self {
         Self {
             category: SettingsCategory::General,
@@ -65,6 +90,9 @@ impl SettingsDialog {
             draft_network_client_port: network.port.to_string(),
             draft_network_server_host: network.bind_host,
             draft_network_server_port: network.bind_port.to_string(),
+            draft_shortcuts: shortcuts.clone(),
+            original_shortcuts: shortcuts,
+            recording_shortcut: None,
             network_error: None,
             language_dropdown_open: false,
             dropdown_highlight: None,
@@ -89,7 +117,7 @@ impl SettingsDialog {
             SettingsCategory::General => ContentFocus::LanguageAnchor,
             SettingsCategory::ExternalDevices => ContentFocus::FloppyImage,
             SettingsCategory::Appearance => ContentFocus::Theme,
-            SettingsCategory::Shortcuts => ContentFocus::Shortcuts,
+            SettingsCategory::Shortcuts => ContentFocus::Shortcut(ShortcutAction::ALL[0]),
         }
     }
 
@@ -98,7 +126,9 @@ impl SettingsDialog {
             SettingsCategory::General => ContentFocus::MemoryOperandHighlighting,
             SettingsCategory::ExternalDevices => ContentFocus::NetworkDefaults,
             SettingsCategory::Appearance => ContentFocus::Theme,
-            SettingsCategory::Shortcuts => ContentFocus::Shortcuts,
+            SettingsCategory::Shortcuts => {
+                ContentFocus::Shortcut(ShortcutAction::ALL[ShortcutAction::ALL.len() - 1])
+            }
         }
     }
 
@@ -125,10 +155,7 @@ impl SettingsDialog {
                 ContentFocus::Theme => None,
                 _ => Some(self.first_content_focus()),
             },
-            SettingsCategory::Shortcuts => match current {
-                ContentFocus::Shortcuts => None,
-                _ => Some(self.first_content_focus()),
-            },
+            SettingsCategory::Shortcuts => next_shortcut_focus(current),
         }
     }
 
@@ -155,10 +182,35 @@ impl SettingsDialog {
                 ContentFocus::Theme => None,
                 _ => Some(self.last_content_focus()),
             },
-            SettingsCategory::Shortcuts => match current {
-                ContentFocus::Shortcuts => None,
-                _ => Some(self.last_content_focus()),
-            },
+            SettingsCategory::Shortcuts => previous_shortcut_focus(current),
         }
     }
+}
+
+fn next_shortcut_focus(current: ContentFocus) -> Option<ContentFocus> {
+    let ContentFocus::Shortcut(action) = current else {
+        return Some(ContentFocus::Shortcut(ShortcutAction::ALL[0]));
+    };
+    let current = ShortcutAction::ALL
+        .iter()
+        .position(|candidate| *candidate == action)?;
+    ShortcutAction::ALL
+        .get(current + 1)
+        .copied()
+        .map(ContentFocus::Shortcut)
+}
+
+fn previous_shortcut_focus(current: ContentFocus) -> Option<ContentFocus> {
+    let ContentFocus::Shortcut(action) = current else {
+        return Some(ContentFocus::Shortcut(
+            ShortcutAction::ALL[ShortcutAction::ALL.len() - 1],
+        ));
+    };
+    let current = ShortcutAction::ALL
+        .iter()
+        .position(|candidate| *candidate == action)?;
+    current
+        .checked_sub(1)
+        .and_then(|idx| ShortcutAction::ALL.get(idx).copied())
+        .map(ContentFocus::Shortcut)
 }

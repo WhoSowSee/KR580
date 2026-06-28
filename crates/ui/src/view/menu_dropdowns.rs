@@ -7,6 +7,7 @@ use super::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
 use super::tooltips::shortcut_hint;
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
+use crate::persistence::ShortcutSettings;
 
 /// Width of the floating File dropdown. Picked wide enough that the
 /// legacy-format note and shortcut fit beside the base action label.
@@ -25,46 +26,46 @@ pub(super) const VIEW_DROPDOWN_WIDTH: f32 = 360.0;
 /// Edge length of the icon square that prefixes every dropdown row.
 pub(super) const MENU_ICON_SIZE: f32 = 16.0;
 
-pub(super) fn file_dropdown(lang: Lang) -> Element<'static, Message> {
+pub(super) fn file_dropdown(lang: Lang, shortcuts: &ShortcutSettings) -> Element<'static, Message> {
     let items: Vec<Element<'static, Message>> = vec![
         menu_item(
             lang.t(Key::FileNew),
-            "Ctrl+N",
+            shortcut_text(shortcuts, &Message::NewFile),
             icons::file(),
             Message::NewFile,
             true,
         ),
         menu_item(
             lang.t(Key::FileOpen),
-            "Ctrl+O",
+            shortcut_text(shortcuts, &Message::OpenSnapshot),
             icons::folder_open(),
             Message::OpenSnapshot,
             true,
         ),
         menu_item(
             lang.t(Key::FileSave),
-            "Ctrl+S",
+            shortcut_text(shortcuts, &Message::SaveSnapshot),
             icons::save(),
             Message::SaveSnapshot,
             true,
         ),
         menu_item(
             lang.t(Key::FileSaveAs),
-            "Ctrl+Shift+S",
+            shortcut_text(shortcuts, &Message::SaveSnapshotAs),
             icons::save_as(),
             Message::SaveSnapshotAs,
             true,
         ),
         menu_item(
             lang.t(Key::FileImport),
-            "Ctrl+I",
+            shortcut_text(shortcuts, &Message::Import),
             icons::file_down(),
             Message::Import,
             true,
         ),
         menu_item(
             lang.t(Key::FileExport),
-            "Ctrl+E",
+            shortcut_text(shortcuts, &Message::Export),
             icons::file_up(),
             Message::Export,
             true,
@@ -78,25 +79,29 @@ pub(super) fn file_dropdown(lang: Lang) -> Element<'static, Message> {
         .into()
 }
 
-pub(super) fn mp_dropdown(halted: bool, lang: Lang) -> Element<'static, Message> {
+pub(super) fn mp_dropdown(
+    halted: bool,
+    lang: Lang,
+    shortcuts: &ShortcutSettings,
+) -> Element<'static, Message> {
     let items: Vec<Element<'static, Message>> = vec![
         menu_item(
             lang.t(Key::MpRunProgram),
-            "Ctrl+R",
+            shortcut_text(shortcuts, &Message::ToggleRun),
             icons::play(),
             Message::ToggleRun,
             true,
         ),
         menu_item(
             lang.t(Key::MpRunInstruction),
-            "Ctrl+T",
+            shortcut_text(shortcuts, &Message::StepInstruction),
             icons::step_forward(),
             Message::StepInstruction,
             true,
         ),
         menu_item(
             lang.t(Key::MpRunTact),
-            "Ctrl+Y",
+            shortcut_text(shortcuts, &Message::StepTact),
             icons::redo_dot(),
             Message::StepTact,
             true,
@@ -104,21 +109,21 @@ pub(super) fn mp_dropdown(halted: bool, lang: Lang) -> Element<'static, Message>
         menu_separator(),
         menu_item(
             lang.t(Key::MpResetRam),
-            "Ctrl+Shift+R",
+            shortcut_text(shortcuts, &Message::ResetRam),
             icons::reset_ram(),
             Message::ResetRam,
             true,
         ),
         menu_item(
             lang.t(Key::MpResetCpu),
-            "Ctrl+Shift+G",
+            shortcut_text(shortcuts, &Message::ResetCpu),
             icons::reset_registers(),
             Message::ResetCpu,
             true,
         ),
         menu_item(
             lang.t(Key::MpClearHalt),
-            "Ctrl+Shift+H",
+            shortcut_text(shortcuts, &Message::ClearHalt),
             icons::clear_halt(),
             Message::ClearHalt,
             halted,
@@ -132,11 +137,11 @@ pub(super) fn mp_dropdown(halted: bool, lang: Lang) -> Element<'static, Message>
         .into()
 }
 
-pub(super) fn help_dropdown(lang: Lang) -> Element<'static, Message> {
+pub(super) fn help_dropdown(lang: Lang, shortcuts: &ShortcutSettings) -> Element<'static, Message> {
     let items: Vec<Element<'static, Message>> = vec![
         menu_item(
             lang.t(Key::HelpShowDocs),
-            "Ctrl+H",
+            shortcut_text(shortcuts, &Message::OpenHelp),
             icons::book_marked(),
             Message::OpenHelp,
             true,
@@ -144,7 +149,7 @@ pub(super) fn help_dropdown(lang: Lang) -> Element<'static, Message> {
         menu_separator(),
         menu_item(
             lang.t(Key::HelpAbout),
-            "",
+            String::new(),
             icons::info(),
             Message::OpenAbout,
             true,
@@ -158,39 +163,43 @@ pub(super) fn help_dropdown(lang: Lang) -> Element<'static, Message> {
         .into()
 }
 
-pub(super) fn view_dropdown(stack_view: bool, lang: Lang) -> Element<'static, Message> {
+pub(super) fn view_dropdown(
+    stack_view: bool,
+    lang: Lang,
+    shortcuts: &ShortcutSettings,
+) -> Element<'static, Message> {
     let items: Vec<Element<'static, Message>> = vec![
         menu_item(
             lang.t(Key::DeviceMonitor),
-            shortcut_hint(&Message::OpenMonitor).unwrap_or(""),
+            shortcut_text(shortcuts, &Message::OpenMonitor),
             icons::device_monitor(),
             Message::OpenMonitor,
             true,
         ),
         menu_item(
             lang.t(Key::DeviceFloppy),
-            shortcut_hint(&Message::OpenFloppy).unwrap_or(""),
+            shortcut_text(shortcuts, &Message::OpenFloppy),
             icons::device_floppy(),
             Message::OpenFloppy,
             true,
         ),
         menu_item(
             lang.t(Key::DeviceHdd),
-            shortcut_hint(&Message::OpenHdd).unwrap_or(""),
+            shortcut_text(shortcuts, &Message::OpenHdd),
             icons::device_hdd(),
             Message::OpenHdd,
             true,
         ),
         menu_item(
             lang.t(Key::DeviceNetwork),
-            shortcut_hint(&Message::OpenNetwork).unwrap_or(""),
+            shortcut_text(shortcuts, &Message::OpenNetwork),
             icons::device_network(),
             Message::OpenNetwork,
             true,
         ),
         menu_item(
             lang.t(Key::DevicePrinter),
-            shortcut_hint(&Message::OpenPrinter).unwrap_or(""),
+            shortcut_text(shortcuts, &Message::OpenPrinter),
             icons::device_printer(),
             Message::OpenPrinter,
             true,
@@ -198,7 +207,7 @@ pub(super) fn view_dropdown(stack_view: bool, lang: Lang) -> Element<'static, Me
         menu_separator(),
         menu_item(
             stack_view_label(stack_view, lang),
-            shortcut_hint(&Message::ToggleStackView).unwrap_or(""),
+            shortcut_text(shortcuts, &Message::ToggleStackView),
             icons::stack(),
             Message::ToggleStackView,
             true,
@@ -218,7 +227,7 @@ fn stack_view_label(stack_view: bool, lang: Lang) -> &'static str {
 
 fn menu_item(
     label: &'static str,
-    shortcut: &'static str,
+    shortcut: String,
     icon: svg::Handle,
     action: Message,
     enabled: bool,
@@ -229,7 +238,7 @@ fn menu_item(
 fn menu_item_with_note(
     label: &'static str,
     note: Option<&'static str>,
-    shortcut: &'static str,
+    shortcut: String,
     icon: svg::Handle,
     action: Message,
     enabled: bool,
@@ -281,6 +290,10 @@ fn menu_item_with_note(
     btn.into()
 }
 
+fn shortcut_text(shortcuts: &ShortcutSettings, message: &Message) -> String {
+    shortcut_hint(shortcuts, message).unwrap_or_default()
+}
+
 fn menu_separator() -> Element<'static, Message> {
     container(
         container(Space::new())
@@ -301,8 +314,10 @@ fn menu_separator() -> Element<'static, Message> {
 
 #[cfg(test)]
 mod tests {
-    use super::stack_view_label;
+    use super::{shortcut_text, stack_view_label};
+    use crate::app::Message;
     use crate::i18n::Lang;
+    use crate::persistence::{ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings};
 
     #[test]
     fn stack_view_menu_label_tracks_mode() {
@@ -313,6 +328,20 @@ mod tests {
         assert_eq!(
             stack_view_label(true, Lang::Ru),
             "Скрыть стековую область памяти"
+        );
+    }
+
+    #[test]
+    fn menu_shortcut_text_tracks_custom_settings() {
+        let mut settings = ShortcutSettings::default();
+        settings.assign(
+            ShortcutAction::OpenMonitor,
+            ShortcutBinding::new(true, true, true, ShortcutKey::M),
+        );
+
+        assert_eq!(
+            shortcut_text(&settings, &Message::OpenMonitor),
+            "Ctrl+Shift+Alt+M"
         );
     }
 }

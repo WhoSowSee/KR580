@@ -96,13 +96,15 @@ store emulator state in widgets.
     drag, close-request routing, and daemon shutdown.
   - `app/handlers.rs` – helper handlers shared with `update`/`subscription`:
     `handle_tick`, `handle_focus_reconciled`, `handle_esc`, plus the
-    `tick_interval`, `ctrl_shortcut`, and `plain_shortcut` resolvers.
+    `tick_interval` helper and default shortcut compatibility resolvers.
   - `app/handlers_tests.rs` – keyboard shortcut regression tests for
     `handlers.rs`.
   - `app/subscription.rs` – global keyboard / mouse / window listener
     that drives the `Message` stream.
   - `app/keymap.rs` – arrow-key dispatch (`handle_arrow_key`,
     `handle_horizontal_arrow_key`).
+  - `app/shortcuts.rs` – physical-key shortcut matching, action labels,
+    and `Message` mapping for configurable shortcuts.
   - `app/speed.rs` – speed-tier constants and the `tier_hz` resolver.
   - `app/modal.rs` – discard modal focus state and routing.
   - `app/export_modal.rs` and `app/export_modal_state.rs` – export
@@ -338,6 +340,9 @@ reading as a raised light card. Tooltip bodies use
 `Регистр состояния` tooltip, so all hover tips now use one surface tone.
 When a button has a keyboard shortcut, `view::tooltips::hover_tooltip`
 adds a same-line `TOKYO_MUTED` shortcut suffix after the action label.
+Configurable actions render that suffix from `DesktopApp::shortcut_settings`,
+so tooltips and menu rows track the current shortcut map instead of a
+hard-coded string.
 Snapped hover tips keep `12px` of viewport padding so wide tooltips near
 the left/right edge do not sit flush against the window border while the
 visible gap to the trigger stays at `6px`.
@@ -1645,7 +1650,7 @@ ring.
 
 ### Settings dialog
 
-Opened via `Ctrl+,` or the menu bar. Four categories (General,
+Opened via default `Ctrl+,` or the menu bar. Four categories (General,
 External Devices, Appearance, Shortcuts) with keyboard-navigable
 sidebar chips. General holds language, speed, follow-PC, memory operand
    highlighting, and the `.580` file association; External Devices holds the floppy image, HDD directory
@@ -1826,16 +1831,14 @@ buffer, status, byte count, PDF target, and error state come from
 
 ## Keyboard shortcuts
 
-The UI exposes the following shortcuts. Modifier names follow iced's
-`Modifiers::command()` convention: Ctrl on Windows/Linux, ⌘ on macOS.
-Letter shortcuts are resolved through `Key::to_latin(physical_key)`, so
-the English and Russian layouts use the same physical QWERTY keys:
-`E` and `У` both open the opcode picker, `Alt+Q` and `Alt+Й` both
-jump to `0000`, `Alt+E` and `Alt+У` both jump to `FFFF`, `Ctrl+S`
-and `Ctrl+Ы` both save, and the same rule applies to the rest of the
-letter shortcuts.
-and `Ctrl+Ы` both save, and the same rule applies to the rest of the
-letter shortcuts.
+The defaults below can be changed in Settings → Shortcuts. Modifier names
+follow iced's `Modifiers::command()` convention: Ctrl on Windows/Linux,
+⌘ on macOS. Shortcuts are stored by physical QWERTY key code, so the
+English and Russian layouts use the same positions: `E` and `У` both open
+the opcode picker, `Alt+Q` and `Alt+Й` both jump to `0000`, `Ctrl+S` and
+`Ctrl+Ы` both save, and the same rule applies to the rest of the letter
+shortcuts. Reassigning a shortcut already used by another action unbinds the
+older action so one key chord resolves to one command.
 
 ### Memory cell editor (address + value pair)
 
@@ -1950,15 +1953,13 @@ the accumulator. Invalid value input leaves the register field empty.
 | PageUp / PageDown | Move the highlighted address by 16, regardless of focus. |
 | Alt+Q / Alt+Й | Jump the memory view to the first RAM cell, `0000`. If stack view is active, exits it first because `0000` is outside the stack range. |
 | Alt+E / Alt+У | Jump the memory view to the last RAM cell, `FFFF`. |
-| Alt+Q / Alt+Й | Jump the memory view to the first RAM cell, `0000`. If stack view is active, exits it first because `0000` is outside the stack range. |
-| Alt+E / Alt+У | Jump the memory view to the last RAM cell, `FFFF`. |
 | E / У | Open the opcode/mnemonic picker for the selected memory cell. |
 | Ctrl+E / Ctrl+У | Open the export settings modal. |
 | Ctrl+M / Ctrl+Ь | Open the monitor window. |
 | Ctrl+F / Ctrl+А | Open the floppy-buffer window. |
 | Ctrl+A / Ctrl+Ф | Open the network-adapter window when no focused text input has captured the key; inside text inputs it keeps native Select All. |
 | Ctrl+P / Ctrl+З | Open the printer window. |
-| Ctrl+, | Open the Settings dialog. Implemented as a punctuation-aware branch in `app::handlers::ctrl_shortcut` so the shortcut survives keyboard layouts where `,` is not at QWERTY position. |
+| Ctrl+, | Open the Settings dialog. The comma is stored as physical `Code::Comma`, so the binding survives layouts where `,` is not typed by that key. |
 
 ### Settings dialog (sectioned keyboard navigation)
 
@@ -1975,23 +1976,38 @@ dialog is open and turns it into one of four section-aware actions.
   - `content_focus: Option<ContentFocus>` is the per-row focus inside
     the right-hand pane (`LanguageAnchor`, `SpeedSlow`, `SpeedMedium`,
     `SpeedFast`, `SpeedMax`, `FollowPc`, `FloppyImage`, `HddDirectory`,
-    `NetworkDefaults`, `FileAssociation`, `Theme`),
-  - `footer_focus: FooterFocus::{Reset, Cancel, Save}` is the bottom
-    bar focus.
+    `NetworkDefaults`, `FileAssociation`, `Theme`,
+    `Shortcut(ShortcutAction)`),
+  - `footer_focus: FooterFocus::{Reset, ShortcutReset, Cancel, Save}` is the
+    bottom bar focus; `ShortcutReset` is rendered only on the Shortcuts page.
 
 | Shortcut | Effect |
 |---|---|
 | Ctrl+Tab / Ctrl+Shift+Tab | Cycle between sections. The keyboard subscription routes `Ctrl+Tab` to `Message::SettingsSectionCycle { backward }` before `to_latin` runs, so the shortcut does not depend on layout. Entering a section seeds its local focus: Content lands on the first / last interactive item, Footer lands on `Cancel` / `Save`, Sidebar leaves the existing category active, Search additionally focuses the text input through `iced::widget::operation::focus(SETTINGS_SEARCH_INPUT_ID)` so typing routes into the field; on every other section the dialog focuses a dummy id no widget owns to blur the search input and keep Tab/Enter from being eaten by it. |
-| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPc → MemoryOperandHighlighting → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → NetworkDefaults`; and on Appearance/Shortcuts it is the single `Theme`/`Shortcuts` row. Each category wraps at both ends. In `Footer` the three buttons cycle as a ring (`Reset → Cancel → Save → Reset`). In `Sidebar` Tab walks the categories as a ring (`General → External Devices → Appearance → Shortcuts → General`) – same role as Up/Down, just reachable from the layout-agnostic key. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
+| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPc → MemoryOperandHighlighting → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → NetworkDefaults`; on Appearance it is `Theme`; and on Shortcuts it walks every `ShortcutAction` row in table order. Each category wraps at both ends. In `Footer` the normal ring is `Reset → Cancel → Save → Reset`; on Shortcuts it becomes `Reset → ShortcutReset → Cancel → Save → Reset`. In `Sidebar` Tab walks the categories as a ring (`General → External Devices → Appearance → Shortcuts → General`) – same role as Up/Down, just reachable from the layout-agnostic key. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
 | ArrowUp / ArrowDown | Inside `Sidebar` walks the categories `General ↔ External Devices ↔ Appearance ↔ Shortcuts` (and applies the category change), stopping at the ends instead of wrapping. With the language dropdown open they only **highlight** the next/previous option without committing – `dropdown_highlight: Option<Lang>` on `SettingsDialog` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
 | ArrowLeft / ArrowRight | Inside the speed segment row of `Content` walks the four chips. Wraps at the ends. Has no effect outside the speed row. |
-| Enter | When the language dropdown is open, applies `dropdown_highlight` (or the current draft if nothing was highlighted) and closes the panel. Otherwise activates the focused item: opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier when one of the speed chips does, and triggers `SettingsResetRequested` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
+| Enter | When the language dropdown is open, applies `dropdown_highlight` (or the current draft if nothing was highlighted) and closes the panel. Otherwise activates the focused item: opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier when one of the speed chips does, starts shortcut capture when a `ShortcutAction` row has focus, and triggers `SettingsResetRequested` / `SettingsShortcutsReset` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
 | Esc | Closes the language dropdown if it is open, otherwise closes the reset-confirm sub-modal if it is open, otherwise closes the dialog. |
 
 The two arrow handlers and the section-aware Tab handler all early-out
 with `Task::none()` instead of falling back to the global routes, so
 arrow / Tab presses inside the modal can never reach the schematic
 panel underneath.
+
+The Shortcuts category renders an unlabeled two-column list: action name and
+current shortcut. Clicking a shortcut capsule, or pressing Enter while its row has
+`ContentFocus::Shortcut(action)`, sets `recording_shortcut` on the dialog.
+The next physical key press is converted into `ShortcutBinding { ctrl, shift,
+alt, key }` and assigned to that action in `draft_shortcuts`. Pressing Esc
+while recording emits `SettingsShortcutCaptureCancelled` and leaves the draft
+unchanged. Shortcut edits live-preview through `DesktopApp::shortcut_settings`,
+so open menus and button tooltips render the new label immediately; closing the
+dialog without saving restores `original_shortcuts`. The footer `Reset shortcuts`
+button replaces the dialog draft with defaults and previews those defaults
+through the same live map; it is rendered next to the regular Reset button only
+while the Shortcuts page is active. The footer `Reset` replaces both the app map
+and the dialog draft with defaults.
 
 ### Settings dialog: live preview, sub-modal, persistence
 
@@ -2012,8 +2028,9 @@ the moment the modal opens.
 - `Save` keeps the live state and dispatches `Message::PersistSettings`
   to write the JSON. The General page also stores a default floppy image path
   (loaded on startup) and separate startup address/port pairs for the network
-  client and server; these are draft-only until `Save`. Their compact fields
-  use the same control scale as the segmented buttons.
+  client and server; the Shortcuts page stores the draft shortcut overrides.
+  These are draft-only until `Save`. Their compact fields use the same control
+  scale as the segmented buttons.
 - The settings content pane scrolls vertically when its rows exceed the fixed
   dialog height. It uses `scrollable::Scrollbar::hidden()`, so wheel scrolling
   remains available without a visible rail or reserved scrollbar width.
@@ -2023,6 +2040,7 @@ the moment the modal opens.
   buttons follow `reset_confirm_focus`. `Confirm` writes
   the system default language from `system_locale::default_language()` /
   `SpeedTier::High` (120 instructions/sec), turns Follow PC off,
+  restores the default shortcut map,
   rewrites the dialog's `original_*` snapshot so a follow-up `Cancel`
   cannot restore the pre-reset values, and persists.
 
@@ -2049,26 +2067,28 @@ each file under the 400-line ceiling:
 - `app/settings_modal/focus.rs` – the focus enums + `next/previous`
   helpers (sections, footer ring, content order, two-button confirm
   toggle).
-- `app/settings_modal/dialog.rs` – `SettingsDialog` struct,
-  `SettingsCategory`, `first_content_focus` / `last_content_focus`,
-  `next_content_focus` / `previous_content_focus`.
+- `app/settings_modal/dialog.rs` – `SettingsDialog` struct, shortcut draft
+  state, `first_content_focus` / `last_content_focus`, `next_content_focus` /
+  `previous_content_focus`.
 - `app/settings_modal/routing.rs` – `route_settings_modal_message` plus
   the section-aware Enter / Tab / arrow handlers.
 - `app/settings_modal/tests.rs` – focus / live-preview / reset-confirm
   regression tests.
-- `app/update_settings/{mod,network}.rs` – `dispatch_settings_message` lives in
-  `mod.rs` and is called from the main `update` loop before the big `match` so every
-  `Message::Settings*` is handled in one focused module; network parsing
-  helpers and the directory-writability check live in `network.rs`.
+- `app/update_settings/{mod,network,shortcuts}.rs` –
+  `dispatch_settings_message` lives in `mod.rs` and is called from the main
+  `update` loop before the big `match` so every `Message::Settings*` is
+  handled in one focused module; network parsing helpers and the
+  directory-writability check live in `network.rs`, while shortcut capture
+  messages live in `shortcuts.rs`.
 - `app/update_overlays.rs` – `dispatch_overlay_message`, called from
   the main `update` loop for About, Help, external URL, and monitor
   overlay messages.
 - `app/status.rs` – `StatusKind` and its `render(lang)` so language
   changes re-render the status bar.
 - `view/settings_dialog/{mod,consts,header,sidebar,content,language,
-  network,speed,theme_row,footer,setting_row,reset_confirm,styles}.rs` – the
-  view layer split per zone. `mod.rs` composes the four-zone modal
-  and stacks the reset-confirm overlay on top when armed.
+  network,speed,theme_row,shortcuts_row,footer,setting_row,reset_confirm,
+  styles}.rs` – the view layer split per zone. `mod.rs` composes the
+  four-zone modal and stacks the reset-confirm overlay on top when armed.
 - `i18n/{mod,keys,ru,en,help_ru,help_en}.rs` – translation registry
   split out of the monolithic `i18n.rs`. `Lang::t(Key)` thin-wraps
   `ru::translate(key)` / `en::translate(key)`; adding a short string

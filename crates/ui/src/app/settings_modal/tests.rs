@@ -5,8 +5,11 @@ use super::focus::{FooterFocus, ResetConfirmFocus, SettingsCategory};
 use crate::app::messages::SpeedTier;
 use crate::app::{DesktopApp, Message, StatusKind};
 use crate::i18n::Lang;
-use crate::persistence::NetworkSettings;
+use crate::persistence::{NetworkSettings, ShortcutAction, ShortcutBinding, ShortcutKey};
 use crate::settings_storage::default_lang;
+
+mod general;
+mod shortcuts;
 
 static FILE_ASSOC_TEST_MUTEX: Mutex<()> = Mutex::new(());
 
@@ -98,6 +101,26 @@ fn footer_focus_cycles_in_a_ring() {
 }
 
 #[test]
+fn shortcut_footer_focus_includes_shortcut_reset() {
+    assert_eq!(
+        FooterFocus::Reset.next_with_shortcuts(true),
+        FooterFocus::ShortcutReset
+    );
+    assert_eq!(
+        FooterFocus::ShortcutReset.next_with_shortcuts(true),
+        FooterFocus::Cancel
+    );
+    assert_eq!(
+        FooterFocus::Cancel.previous_with_shortcuts(true),
+        FooterFocus::ShortcutReset
+    );
+    assert_eq!(
+        FooterFocus::ShortcutReset.previous_with_shortcuts(true),
+        FooterFocus::Reset
+    );
+}
+
+#[test]
 fn live_speed_change_updates_active_tier_immediately() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     app.speed_tier = SpeedTier::Slow;
@@ -172,6 +195,10 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     assert_eq!(dialog.original_speed, SpeedTier::High);
     assert!(!app.follow_pc);
     assert!(!dialog.original_follow_pc);
+    assert_eq!(
+        app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
+        Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))
+    );
 }
 
 #[test]
@@ -349,44 +376,4 @@ fn tick_bumps_file_association_revision_on_external_change() {
     if was_registered {
         k580_ui::file_assoc::register().unwrap();
     }
-}
-
-#[test]
-fn memory_operand_highlighting_live_change_updates_app_state() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.memory_operand_highlighting = false;
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        false,
-        None,
-        None,
-        NetworkSettings::default(),
-    ));
-
-    let _ = app.update(Message::SettingsDraftMemoryOperandHighlightingSet(true));
-
-    assert!(app.memory_operand_highlighting);
-}
-
-#[test]
-fn cancel_rolls_back_memory_operand_highlighting_to_pre_open_snapshot() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.memory_operand_highlighting = false;
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        false,
-        None,
-        None,
-        NetworkSettings::default(),
-    ));
-
-    let _ = app.update(Message::SettingsDraftMemoryOperandHighlightingSet(true));
-    let _ = app.update(Message::CloseSettings);
-
-    assert!(!app.memory_operand_highlighting);
-    assert!(app.settings_dialog.is_none());
 }

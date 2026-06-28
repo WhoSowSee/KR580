@@ -22,6 +22,7 @@ mod opcode_picker;
 mod printer;
 mod register_inline;
 pub(crate) mod settings_modal;
+pub(crate) mod shortcuts;
 mod speed;
 mod state;
 mod state_helpers;

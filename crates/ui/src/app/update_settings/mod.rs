@@ -2,7 +2,9 @@ use iced::Task;
 
 use super::constants::SETTINGS_SEARCH_INPUT_ID;
 use super::messages::{Message, SpeedTier};
-use super::settings_modal::{FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection};
+use super::settings_modal::{
+    FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsDialog, SettingsSection,
+};
 use super::state::DesktopApp;
 use crate::i18n::Key;
 use crate::settings_storage::{
@@ -16,12 +18,15 @@ impl DesktopApp {
     /// settings message, `None` otherwise so the main `update` loop
     /// can fall through to the rest of the match arms.
     pub(super) fn dispatch_settings_message(&mut self, message: Message) -> Option<Task<Message>> {
+        if let Some(task) = self.dispatch_shortcut_settings_message(&message) {
+            return Some(task);
+        }
         match message {
             Message::OpenSettings => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
                 let settings = load_settings();
-                self.settings_dialog = Some(SettingsDialog::new(
+                self.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
                     self.lang,
                     self.default_speed,
                     self.follow_pc,
@@ -29,6 +34,7 @@ impl DesktopApp {
                     settings.general.floppy_image_path,
                     settings.general.hdd_directory,
                     settings.network,
+                    settings.shortcuts,
                 ));
                 Some(Task::none())
             }
@@ -41,6 +47,7 @@ impl DesktopApp {
                     self.default_speed = dialog.original_speed;
                     self.follow_pc = dialog.original_follow_pc;
                     self.memory_operand_highlighting = dialog.original_memory_operand_highlighting;
+                    self.shortcut_settings = dialog.original_shortcuts;
                     if speed_changed {
                         self.apply_speed_tier(dialog.original_speed);
                     }
@@ -69,6 +76,7 @@ impl DesktopApp {
                         return Some(Task::none());
                     }
                 };
+                let shortcuts = dialog.draft_shortcuts.clone();
                 let mut settings = load_settings();
                 settings.general.follow_pc = dialog.draft_follow_pc;
                 settings.general.memory_operand_highlighting =
@@ -76,7 +84,9 @@ impl DesktopApp {
                 settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
                 settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
                 apply_network_defaults(&mut settings.network, network);
+                settings.shortcuts = shortcuts.clone();
                 save_settings(&settings);
+                self.shortcut_settings = shortcuts;
                 if self.settings_dialog.take().is_some() {
                     Some(Task::done(Message::PersistSettings))
                 } else {
@@ -91,6 +101,7 @@ impl DesktopApp {
                     settings.general.follow_pc = dialog.draft_follow_pc;
                     settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
                     settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
+                    settings.shortcuts = dialog.draft_shortcuts.clone();
                     if let Ok(network) = parse_network_defaults(dialog) {
                         apply_network_defaults(&mut settings.network, network);
                     }
@@ -101,6 +112,12 @@ impl DesktopApp {
             Message::SettingsCategorySelected(category) => {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.category = category;
+                    if category != SettingsCategory::Shortcuts
+                        && dialog.footer_focus == FooterFocus::ShortcutReset
+                    {
+                        dialog.footer_focus = FooterFocus::Cancel;
+                    }
+                    dialog.recording_shortcut = None;
                 }
                 Some(Task::none())
             }
@@ -109,6 +126,7 @@ impl DesktopApp {
                     dialog.search = query;
                     dialog.language_dropdown_open = false;
                     dialog.dropdown_highlight = None;
+                    dialog.recording_shortcut = None;
                 }
                 Some(Task::none())
             }
@@ -261,6 +279,7 @@ impl DesktopApp {
             Message::SettingsLanguageDropdownToggled => {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.language_dropdown_open = !dialog.language_dropdown_open;
+                    dialog.recording_shortcut = None;
                     dialog.dropdown_highlight = if dialog.language_dropdown_open {
                         Some(dialog.draft_lang)
                     } else {
@@ -295,6 +314,7 @@ impl DesktopApp {
                     dialog.reset_confirm_focus = ResetConfirmFocus::Cancel;
                     dialog.language_dropdown_open = false;
                     dialog.dropdown_highlight = None;
+                    dialog.recording_shortcut = None;
                 }
                 Some(Task::none())
             }
@@ -309,6 +329,7 @@ impl DesktopApp {
                 let default_speed = SpeedTier::High;
                 let default_follow_pc = false;
                 let network = crate::persistence::NetworkSettings::default();
+                let shortcuts = crate::persistence::ShortcutSettings::default();
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_lang = default_lang;
                     dialog.draft_speed = default_speed;
@@ -320,6 +341,9 @@ impl DesktopApp {
                     dialog.draft_network_client_port = network.port.to_string();
                     dialog.draft_network_server_host = network.bind_host;
                     dialog.draft_network_server_port = network.bind_port.to_string();
+                    dialog.draft_shortcuts = shortcuts.clone();
+                    dialog.original_shortcuts = shortcuts.clone();
+                    dialog.recording_shortcut = None;
                     dialog.draft_follow_pc = default_follow_pc;
                     dialog.draft_memory_operand_highlighting = false;
                     dialog.original_follow_pc = default_follow_pc;
@@ -329,6 +353,7 @@ impl DesktopApp {
                 }
                 self.follow_pc = default_follow_pc;
                 self.memory_operand_highlighting = false;
+                self.shortcut_settings = shortcuts;
                 let lang_changed = self.lang != default_lang;
                 self.lang = default_lang;
                 self.default_speed = default_speed;
@@ -365,33 +390,8 @@ impl DesktopApp {
     }
 }
 
-fn cycle_section(dialog: &mut SettingsDialog, backward: bool) {
-    dialog.language_dropdown_open = false;
-    dialog.dropdown_highlight = None;
-    let next = if backward {
-        dialog.section.previous()
-    } else {
-        dialog.section.next()
-    };
-    dialog.section = next;
-    match next {
-        SettingsSection::Search | SettingsSection::Sidebar => {}
-        SettingsSection::Content => {
-            dialog.content_focus = Some(if backward {
-                dialog.last_content_focus()
-            } else {
-                dialog.first_content_focus()
-            });
-        }
-        SettingsSection::Footer => {
-            dialog.footer_focus = if backward {
-                FooterFocus::Save
-            } else {
-                FooterFocus::Cancel
-            };
-        }
-    }
-}
-
 mod network;
+mod section;
+mod shortcuts;
 use network::{apply_network_defaults, is_directory_writable, parse_network_defaults};
+use section::cycle_section;

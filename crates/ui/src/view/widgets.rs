@@ -295,7 +295,7 @@ pub(super) fn icon_action_button(
     message: Option<Message>,
     accent: Color,
     hint: &'static str,
-    shortcut: Option<&'static str>,
+    shortcut: Option<String>,
 ) -> Element<'static, Message> {
     const BUTTON_SIZE: f32 = 38.0;
     const GLYPH_SIZE: f32 = 20.0;

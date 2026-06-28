@@ -3,7 +3,6 @@ use iced::widget::{Space, row};
 use iced::{Element, Length, alignment};
 
 use super::super::icons;
-use super::super::tooltips::shortcut_hint;
 use super::chrome::{icon_button, window_controls};
 use super::{HDD_KEYS, storage_window, storage_window_overlay};
 use crate::app::{Message, ToolWindowKind};
@@ -125,7 +124,7 @@ fn hdd_header<'a>(
             Some(Message::CloseHdd),
             lang.t(Key::HddClose),
             false,
-            shortcut_hint(&Message::CloseHdd),
+            Some("Esc".to_owned()),
         ),
     ]
     .align_y(alignment::Vertical::Center)

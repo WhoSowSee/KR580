@@ -17,6 +17,7 @@ use super::{
     ExportTargetSettings, ImportFileFormat, ImportModalFocus,
 };
 use crate::i18n::{Key, Lang};
+use crate::persistence::ShortcutSettings;
 use crate::settings_storage::{lang_from_language, load_settings, speed_tier_from_preset};
 
 #[derive(Clone, Debug)]
@@ -135,6 +136,7 @@ pub(crate) struct DesktopApp {
     pub(crate) import_error: Option<String>,
     pub(crate) lang: Lang,
     pub(crate) default_speed: SpeedTier,
+    pub(crate) shortcut_settings: ShortcutSettings,
     pub(crate) settings_dialog: Option<SettingsDialog>,
     /// Bumped whenever the OS file-association state changes so the
     /// settings overlay re-renders even when the dialog struct itself
@@ -296,6 +298,7 @@ impl DesktopApp {
             import_error: None,
             lang,
             default_speed,
+            shortcut_settings: settings.shortcuts.clone(),
             settings_dialog: None,
             file_association_toggle_revision: 0,
             file_association_last_registered: k580_ui::file_assoc::is_registered(),

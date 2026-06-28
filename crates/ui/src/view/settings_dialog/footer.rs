@@ -4,7 +4,7 @@ use iced::{Element, Length, alignment};
 use super::super::theme::{TOKYO_TEXT, ui_text};
 use super::consts::FOOTER_HEIGHT;
 use super::styles::footer_button_style;
-use crate::app::{FooterFocus, Message, SettingsDialog, SettingsSection};
+use crate::app::{FooterFocus, Message, SettingsCategory, SettingsDialog, SettingsSection};
 use crate::i18n::{Key, Lang};
 
 pub(super) fn settings_footer(dialog: &SettingsDialog, lang: Lang) -> Element<'static, Message> {
@@ -15,6 +15,11 @@ pub(super) fn settings_footer(dialog: &SettingsDialog, lang: Lang) -> Element<'s
         lang.t(Key::SettingsReset),
         Message::SettingsResetRequested,
         footer_active && focus == FooterFocus::Reset,
+    );
+    let reset_shortcuts = footer_button(
+        reset_shortcuts_label(lang),
+        Message::SettingsShortcutsReset,
+        footer_active && focus == FooterFocus::ShortcutReset,
     );
     let cancel = footer_button(
         lang.t(Key::DiscardCancel),
@@ -27,25 +32,35 @@ pub(super) fn settings_footer(dialog: &SettingsDialog, lang: Lang) -> Element<'s
         footer_active && focus == FooterFocus::Save,
     );
 
-    container(
-        row![
-            reset,
-            Space::new().width(Length::Fill),
-            cancel,
-            Space::new().width(Length::Fixed(8.0)),
-            save,
-        ]
-        .align_y(alignment::Vertical::Center),
-    )
-    .padding(iced::Padding {
-        top: 0.0,
-        right: 16.0,
-        bottom: 0.0,
-        left: 16.0,
-    })
-    .height(Length::Fixed(FOOTER_HEIGHT))
-    .align_y(alignment::Vertical::Center)
-    .into()
+    let mut buttons = row![reset].align_y(alignment::Vertical::Center);
+    if dialog.category == SettingsCategory::Shortcuts {
+        buttons = buttons
+            .push(Space::new().width(Length::Fixed(8.0)))
+            .push(reset_shortcuts);
+    }
+    buttons = buttons
+        .push(Space::new().width(Length::Fill))
+        .push(cancel)
+        .push(Space::new().width(Length::Fixed(8.0)))
+        .push(save);
+
+    container(buttons)
+        .padding(iced::Padding {
+            top: 0.0,
+            right: 16.0,
+            bottom: 0.0,
+            left: 16.0,
+        })
+        .height(Length::Fixed(FOOTER_HEIGHT))
+        .align_y(alignment::Vertical::Center)
+        .into()
+}
+
+fn reset_shortcuts_label(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ru => "Сбросить сочетания",
+        Lang::En => "Reset shortcuts",
+    }
 }
 
 fn footer_button(label: &'static str, action: Message, focused: bool) -> Element<'static, Message> {

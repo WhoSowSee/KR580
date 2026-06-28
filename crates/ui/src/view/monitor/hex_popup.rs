@@ -74,7 +74,7 @@ pub(super) fn hex_popup_overlay<'a>(
             icons::window_close(),
             Message::ToggleMonitorHexPopup,
             lang.t(Key::MonitorClose),
-            Some("Esc"),
+            Some("Esc".to_owned()),
             false,
         ),
     ]

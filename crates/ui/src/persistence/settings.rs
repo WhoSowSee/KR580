@@ -1,8 +1,8 @@
-use crate::persistence::SettingsError;
+use crate::persistence::{SettingsError, ShortcutSettings};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-const SETTINGS_VERSION: u32 = 2;
+const SETTINGS_VERSION: u32 = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -13,6 +13,8 @@ pub struct Settings {
     pub export: ExportSettings,
     pub ui: UiSettings,
     pub general: GeneralSettings,
+    #[serde(default)]
+    pub shortcuts: ShortcutSettings,
     pub recent_files: Vec<PathBuf>,
 }
 
@@ -93,6 +95,7 @@ impl Default for Settings {
             export: ExportSettings::default(),
             ui: UiSettings::default(),
             general: GeneralSettings::default(),
+            shortcuts: ShortcutSettings::default(),
             recent_files: Vec::new(),
         }
     }
@@ -159,12 +162,16 @@ impl SettingsStore {
         let mut settings: Settings = serde_json::from_str(json)?;
         match settings.settings_version {
             SETTINGS_VERSION => {}
+            2 => {
+                settings.settings_version = SETTINGS_VERSION;
+            }
             1 => {
                 settings.settings_version = SETTINGS_VERSION;
                 settings.network = NetworkSettings::default();
             }
             version => return Err(SettingsError::UnsupportedVersion(version)),
         }
+        settings.shortcuts.normalize();
         Ok(settings)
     }
 

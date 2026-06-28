@@ -1,5 +1,6 @@
 use super::register_inline::RegisterMove;
 use crate::i18n::Lang;
+use crate::persistence::{ShortcutAction, ShortcutBinding};
 use iced::Point;
 use iced::keyboard;
 use iced::widget::text_editor;
@@ -201,6 +202,11 @@ pub(crate) enum Message {
         backward: bool,
     },
     CursorMoved(Point),
+    RuntimeEvent {
+        event: iced::Event,
+        status: iced::event::Status,
+        window: iced::window::Id,
+    },
     MousePressed,
     MousePressedIgnored,
     FocusReconciled {
@@ -306,6 +312,10 @@ pub(crate) enum Message {
     SettingsNetworkServerHostChanged(String),
     SettingsNetworkServerPortChanged(String),
     SettingsLanguageDropdownToggled,
+    SettingsShortcutCaptureStarted(ShortcutAction),
+    SettingsShortcutCaptured(ShortcutBinding),
+    SettingsShortcutCaptureCancelled,
+    SettingsShortcutsReset,
     SettingsResetRequested,
     SettingsResetConfirmed,
     SettingsResetCancelled,

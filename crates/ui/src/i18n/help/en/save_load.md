@@ -6,8 +6,7 @@ Saving and loading full emulator state:
 - Open (Ctrl+O): auto-detects format (.kr580 or .sav). Updates schematic and RAM table.
 File path shown in status bar.
 
-- Legacy format: Ctrl+Alt+S / Ctrl+Alt+O for .sav files.
-Compatible with original emulator files.
+- Legacy files are auto-detected by Open and written through Save As when the selected path uses that format.
 
 - New file (Ctrl+N): clears RAM and registers. Warns if unsaved changes exist.
 

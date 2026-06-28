@@ -1,5 +1,5 @@
 use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
-use iced::{Element, Length};
+use iced::{Element, Length, Padding};
 
 use super::super::theme::{TOKYO_MUTED, ui_text};
 use super::consts::{CONTENT_PADDING, SETTING_ROW_HEIGHT};
@@ -49,12 +49,23 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         );
     }
 
+    let content_padding = if !searching && dialog.category == SettingsCategory::Shortcuts {
+        Padding {
+            top: 14.0,
+            right: CONTENT_PADDING,
+            bottom: CONTENT_PADDING,
+            left: CONTENT_PADDING,
+        }
+    } else {
+        Padding::from(CONTENT_PADDING)
+    };
+
     let body: Element<'a, Message> = if rows.is_empty() {
         container(ui_text(lang.t(Key::SettingsNoMatches), 13, TOKYO_MUTED))
-            .padding(CONTENT_PADDING)
+            .padding(content_padding)
             .into()
     } else {
-        column(rows).spacing(20).padding(CONTENT_PADDING).into()
+        column(rows).spacing(20).padding(content_padding).into()
     };
 
     let body: Element<'a, Message> = scrollable(body)
@@ -217,7 +228,8 @@ fn collect_category_rows<'a>(
                 &[Key::SettingsShortcutsLabel, Key::SettingsShortcutsHint],
                 lang,
                 lower_query,
-            ) {
+            ) || crate::app::shortcuts::shortcut_search_matches(lang, lower_query)
+            {
                 out.push(shortcuts_setting_row(dialog, lang));
             }
         }

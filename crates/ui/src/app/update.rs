@@ -10,6 +10,14 @@ use super::state::{DesktopApp, PendingAction};
 
 impl DesktopApp {
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
+        let message = match message {
+            Message::RuntimeEvent {
+                event,
+                status,
+                window,
+            } => return self.handle_runtime_event(event, status, window),
+            message => message,
+        };
         if let Some(task) = self.dispatch_window_message(&message) {
             return task;
         }
@@ -70,8 +78,6 @@ impl DesktopApp {
                 self.dispatch_with_undo(crate::backend::AppCommand::ResetRam);
             }
             Message::ClearHalt => {
-                // Shortcut bypasses the menu's enabled gate; guard
-                // against pushing an empty undo entry.
                 if !self.snapshot.cpu.halted {
                     return Task::none();
                 }
