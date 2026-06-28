@@ -98,16 +98,16 @@ The NixOS package installs ready-to-run `k580` and `kr` binaries, the desktop en
 ```bash
 git clone https://github.com/WhoSowSee/KR580.git
 cd KR580
-cargo run -p kr580 --bin k580
+cargo run -p kr580
 ```
 
-### Build the GUI binary
+### Build the GUI and launcher
 
 ```bash
-cargo build --release -p kr580 --bin k580
+cargo build --release -p kr580 --bin k580 --bin kr
 ```
 
-The built application is placed under `target/release/` as `k580` or `k580.exe`.
+The built binaries are placed under `target/release/` as `k580` / `kr` or `k580.exe` / `kr.exe`.
 
 ### Build the standalone setup artifact
 
@@ -129,7 +129,7 @@ The setup artifact is written to `dist/`.
 
 ```bash
 # Launch the emulator from source
-cargo run -p kr580 --bin k580
+cargo run -p kr580
 
 # Open a snapshot through the launcher
 cargo run -p kr580 --bin kr -- path/to/program.580

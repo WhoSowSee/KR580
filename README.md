@@ -98,16 +98,16 @@ NixOS-пакет ставит готовые `k580` и `kr`, desktop entry, ик
 ```bash
 git clone https://github.com/WhoSowSee/KR580.git
 cd KR580
-cargo run -p kr580 --bin k580
+cargo run -p kr580
 ```
 
-### Сборка GUI-бинарника
+### Сборка GUI и launcher
 
 ```bash
-cargo build --release -p kr580 --bin k580
+cargo build --release -p kr580 --bin k580 --bin kr
 ```
 
-Готовое приложение появится в `target/release/` как `k580` или `k580.exe`.
+Готовые бинарники появятся в `target/release/` как `k580` / `kr` или `k580.exe` / `kr.exe`.
 
 ### Сборка standalone-установщика
 
@@ -129,7 +129,7 @@ bash scripts/build_installer.sh
 
 ```bash
 # Запуск эмулятора из исходников
-cargo run -p kr580 --bin k580
+cargo run -p kr580
 
 # Открыть snapshot через launcher
 cargo run -p kr580 --bin kr -- path/to/program.580
