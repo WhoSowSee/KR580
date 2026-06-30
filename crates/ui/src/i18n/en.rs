@@ -349,7 +349,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::DeviceNetwork => "Show network buffer",
         Key::DevicePrinter => "Show printer buffer",
         Key::ViewStackArea => "Show stack memory area",
-        Key::MonitorUnifiedScreen => "KR580 screen",
+        Key::MonitorUnifiedScreen => "Screen",
         Key::MonitorTextLayer => "Text layer",
         Key::MonitorPixelLayer => "Graphics layer",
         Key::MonitorHexBuffer => "Byte stream",
