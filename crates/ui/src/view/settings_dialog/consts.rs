@@ -18,4 +18,11 @@ pub(super) const CONTENT_PADDING: f32 = 20.0;
 /// directly under the anchor without re-measuring the row.
 pub(super) const SETTING_ROW_HEIGHT: f32 = 44.0;
 pub(super) const SPEED_SEGMENT_WIDTH: f32 = 68.0;
-pub(super) const TOGGLE_SEGMENT_WIDTH: f32 = 96.0;
+
+/// Toggle labels differ in length across locales.
+pub(super) fn toggle_segment_width(lang: crate::i18n::Lang) -> f32 {
+    match lang {
+        crate::i18n::Lang::En => 60.0,
+        crate::i18n::Lang::Ru => 96.0,
+    }
+}

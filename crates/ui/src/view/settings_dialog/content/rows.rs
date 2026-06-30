@@ -1,7 +1,7 @@
 use iced::widget::{Space, button, container, row, svg};
 use iced::{Background, Border, Color, Element, Length, alignment};
 
-use super::super::consts::TOGGLE_SEGMENT_WIDTH;
+use super::super::consts::toggle_segment_width;
 use super::super::setting_row::setting_row;
 use super::super::speed::segmented_button_width;
 use crate::app::{ContentFocus, Message, SettingsDialog, SettingsSection};
@@ -25,14 +25,14 @@ pub(super) fn follow_pc_toggle_row<'a>(
             dialog.draft_follow_pc,
             kb_focused,
             Message::SettingsDraftFollowPcSet(true),
-            TOGGLE_SEGMENT_WIDTH,
+            toggle_segment_width(lang),
         ),
         segmented_button_width(
             lang.t(Key::SettingsToggleOff),
             !dialog.draft_follow_pc,
             false,
             Message::SettingsDraftFollowPcSet(false),
-            TOGGLE_SEGMENT_WIDTH,
+            toggle_segment_width(lang),
         ),
     ]
     .spacing(6);
@@ -60,14 +60,14 @@ pub(super) fn memory_operand_highlighting_row<'a>(
             dialog.draft_memory_operand_highlighting,
             kb_focused,
             Message::SettingsDraftMemoryOperandHighlightingSet(true),
-            TOGGLE_SEGMENT_WIDTH,
+            toggle_segment_width(lang),
         ),
         segmented_button_width(
             lang.t(Key::SettingsToggleOff),
             !dialog.draft_memory_operand_highlighting,
             false,
             Message::SettingsDraftMemoryOperandHighlightingSet(false),
-            TOGGLE_SEGMENT_WIDTH,
+            toggle_segment_width(lang),
         ),
     ]
     .spacing(6);
