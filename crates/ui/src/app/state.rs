@@ -56,6 +56,7 @@ pub(crate) struct DesktopApp {
     /// `memory_address_input` with the matched 4-digit address.
     pub(crate) memory_search_pattern: Option<String>,
     pub(crate) memory_operand_return_address: Option<u16>,
+    pub(crate) memory_operand_return_scroll_offset: Option<f32>,
     pub(crate) keyboard_modifiers: keyboard::Modifiers,
     /// Cosmetic focus marker – iced 0.14 has no on_focus / on_blur.
     pub(crate) focused_input: Option<&'static str>,
@@ -230,6 +231,7 @@ impl DesktopApp {
             opcode_highlight_index: 0,
             memory_search_pattern: None,
             memory_operand_return_address: None,
+            memory_operand_return_scroll_offset: None,
             keyboard_modifiers: keyboard::Modifiers::default(),
             focused_input: None,
             replacement_input: None,

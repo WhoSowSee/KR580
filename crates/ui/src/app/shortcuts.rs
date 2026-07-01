@@ -72,6 +72,14 @@ pub(crate) fn shortcut_action_label(action: ShortcutAction, lang: Lang) -> &'sta
             Lang::Ru => "Выбор команды",
             Lang::En => "Opcode picker",
         },
+        ShortcutAction::MemoryCellAction => match lang {
+            Lang::Ru => "Действие с ячейкой ОЗУ",
+            Lang::En => "Memory cell action",
+        },
+        ShortcutAction::MemoryCellReturn => match lang {
+            Lang::Ru => "Вернуться к ячейке операнда ОЗУ",
+            Lang::En => "Return to memory operand cell",
+        },
         ShortcutAction::JumpMemoryStart => match lang {
             Lang::Ru => "Перейти к 0000",
             Lang::En => "Jump to 0000",
@@ -116,6 +124,8 @@ pub(crate) fn message_for_action(action: ShortcutAction) -> Message {
         ShortcutAction::Undo => Message::Undo,
         ShortcutAction::Redo => Message::Redo,
         ShortcutAction::OpenOpcodePicker => Message::OpenOpcodePicker,
+        ShortcutAction::MemoryCellAction => Message::MemoryCellAction,
+        ShortcutAction::MemoryCellReturn => Message::MemoryCellReturn,
         ShortcutAction::JumpMemoryStart => Message::JumpMemoryTo(0x0000),
         ShortcutAction::JumpMemoryEnd => Message::JumpMemoryTo(0xFFFF),
     }
@@ -146,6 +156,8 @@ fn action_for_message(message: &Message) -> Option<ShortcutAction> {
         Message::Undo => Some(ShortcutAction::Undo),
         Message::Redo => Some(ShortcutAction::Redo),
         Message::OpenOpcodePicker => Some(ShortcutAction::OpenOpcodePicker),
+        Message::MemoryCellAction => Some(ShortcutAction::MemoryCellAction),
+        Message::MemoryCellReturn => Some(ShortcutAction::MemoryCellReturn),
         Message::JumpMemoryTo(0x0000) => Some(ShortcutAction::JumpMemoryStart),
         Message::JumpMemoryTo(0xFFFF) => Some(ShortcutAction::JumpMemoryEnd),
         _ => None,
@@ -204,6 +216,7 @@ fn shortcut_key_from_physical(physical_key: Physical) -> Option<ShortcutKey> {
         Code::Minus => ShortcutKey::Minus,
         Code::Equal => ShortcutKey::Equal,
         Code::Backquote => ShortcutKey::Backquote,
+        Code::Enter | Code::NumpadEnter => ShortcutKey::Enter,
         _ => return None,
     })
 }
@@ -237,6 +250,103 @@ mod tests {
                 keyboard::Modifiers::COMMAND,
             ),
             Message::OpenMonitor,
+        );
+    }
+
+    #[test]
+    fn default_alt_enter_runs_memory_cell_shortcut() {
+        assert_message(
+            shortcut_message(
+                &ShortcutSettings::default(),
+                physical(Code::Enter),
+                keyboard::Modifiers::ALT,
+            ),
+            Message::MemoryCellAction,
+        );
+    }
+
+    #[test]
+    fn default_alt_shift_enter_runs_memory_cell_return_shortcut() {
+        assert_message(
+            shortcut_message(
+                &ShortcutSettings::default(),
+                physical(Code::Enter),
+                keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT,
+            ),
+            Message::MemoryCellReturn,
+        );
+    }
+
+    #[test]
+    fn default_memory_cell_return_shortcut_label_is_alt_shift_enter() {
+        assert_eq!(
+            default_binding(ShortcutAction::MemoryCellReturn).map(ShortcutBinding::label),
+            Some("Shift+Alt+Enter".to_owned())
+        );
+    }
+
+    #[test]
+    fn default_memory_cell_shortcut_label_is_alt_enter() {
+        assert_eq!(
+            default_binding(ShortcutAction::MemoryCellAction).map(ShortcutBinding::label),
+            Some("Alt+Enter".to_owned())
+        );
+    }
+
+    #[test]
+    fn custom_memory_cell_shortcut_resolves_without_alt_modifier() {
+        let mut settings = ShortcutSettings::default();
+        settings.assign(
+            ShortcutAction::MemoryCellAction,
+            ShortcutBinding::new(true, false, false, ShortcutKey::J),
+        );
+
+        assert_message(
+            shortcut_message(
+                &settings,
+                physical(Code::KeyJ),
+                keyboard::Modifiers::COMMAND,
+            ),
+            Message::MemoryCellAction,
+        );
+        assert!(
+            shortcut_message(&settings, physical(Code::Enter), keyboard::Modifiers::ALT).is_none()
+        );
+    }
+
+    #[test]
+    fn custom_memory_cell_shortcut_resolves_alt_letter_binding() {
+        let mut settings = ShortcutSettings::default();
+        settings.assign(
+            ShortcutAction::MemoryCellAction,
+            ShortcutBinding::new(false, false, true, ShortcutKey::L),
+        );
+
+        assert_message(
+            shortcut_message(&settings, physical(Code::KeyL), keyboard::Modifiers::ALT),
+            Message::MemoryCellAction,
+        );
+    }
+
+    #[test]
+    fn custom_memory_cell_return_shortcut_resolves_alt_letter_binding() {
+        let mut settings = ShortcutSettings::default();
+        settings.assign(
+            ShortcutAction::MemoryCellReturn,
+            ShortcutBinding::new(false, false, true, ShortcutKey::K),
+        );
+
+        assert_message(
+            shortcut_message(&settings, physical(Code::KeyK), keyboard::Modifiers::ALT),
+            Message::MemoryCellReturn,
+        );
+        assert!(
+            shortcut_message(
+                &settings,
+                physical(Code::Enter),
+                keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT,
+            )
+            .is_none()
         );
     }
 
@@ -297,5 +407,13 @@ mod tests {
         assert!(binding.modifiers.shift);
         assert!(binding.modifiers.alt);
         assert_eq!(binding.key, ShortcutKey::M);
+    }
+
+    #[test]
+    fn captured_binding_supports_enter_key() {
+        let binding = binding_from_event(physical(Code::Enter), keyboard::Modifiers::ALT).unwrap();
+
+        assert!(binding.modifiers.alt);
+        assert_eq!(binding.key, ShortcutKey::Enter);
     }
 }

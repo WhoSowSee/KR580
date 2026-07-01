@@ -26,12 +26,15 @@ pub enum ShortcutAction {
     Undo,
     Redo,
     OpenOpcodePicker,
+    #[serde(alias = "memoryOperandAction")]
+    MemoryCellAction,
+    MemoryCellReturn,
     JumpMemoryStart,
     JumpMemoryEnd,
 }
 
 impl ShortcutAction {
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 27] = [
         Self::NewFile,
         Self::OpenSnapshot,
         Self::SaveSnapshot,
@@ -55,6 +58,8 @@ impl ShortcutAction {
         Self::Undo,
         Self::Redo,
         Self::OpenOpcodePicker,
+        Self::MemoryCellAction,
+        Self::MemoryCellReturn,
         Self::JumpMemoryStart,
         Self::JumpMemoryEnd,
     ];
@@ -110,6 +115,7 @@ pub enum ShortcutKey {
     Minus,
     Equal,
     Backquote,
+    Enter,
 }
 
 impl ShortcutKey {
@@ -162,6 +168,7 @@ impl ShortcutKey {
             Self::Minus => "-",
             Self::Equal => "=",
             Self::Backquote => "`",
+            Self::Enter => "Enter",
         }
     }
 }
@@ -304,6 +311,8 @@ pub fn default_binding(action: ShortcutAction) -> Option<ShortcutBinding> {
         Action::Redo => Some(ShortcutBinding::new(true, true, false, Key::Z)),
         Action::OpenOpcodePicker => Some(ShortcutBinding::new(false, false, false, Key::E)),
         Action::JumpMemoryStart => Some(ShortcutBinding::new(false, false, true, Key::Q)),
+        Action::MemoryCellAction => Some(ShortcutBinding::new(false, false, true, Key::Enter)),
+        Action::MemoryCellReturn => Some(ShortcutBinding::new(false, true, true, Key::Enter)),
         Action::JumpMemoryEnd => Some(ShortcutBinding::new(false, false, true, Key::E)),
     }
 }

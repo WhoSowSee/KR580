@@ -295,22 +295,38 @@ impl DesktopApp {
                 let Some(address) = self.selected_memory_address() else {
                     return Task::none();
                 };
-                if self.keyboard_modifiers.alt() {
-                    if self.keyboard_modifiers.shift() {
-                        return self.return_to_memory_operand();
-                    }
-                    let memory = &self.snapshot.cpu.memory;
-                    if let Some(port) = crate::view::operand_port_number(address, memory)
-                        && let Some(open) = open_device_message(port)
-                    {
-                        let _ = self.update(open);
-                        return Task::none();
-                    }
-                    if let Some(target) = crate::view::operand_jump_target(address, memory) {
-                        return self.jump_from_memory_operand(address, target);
-                    }
+                return Task::done(Message::MemoryEnter(address));
+            }
+            Message::MemoryCellAction => {
+                if self.running {
+                    return Task::none();
+                }
+                if self.focused_input == Some(MEMORY_ADDRESS_INPUT_ID) {
+                    return self.jump_memory_address();
+                }
+                if self.focused_input == Some(MEMORY_VALUE_INPUT_ID) {
+                    return self.apply_memory_and_jump();
+                }
+                let Some(address) = self.selected_memory_address() else {
+                    return Task::none();
+                };
+                let memory = &self.snapshot.cpu.memory;
+                if let Some(port) = crate::view::operand_port_number(address, memory)
+                    && let Some(open) = open_device_message(port)
+                {
+                    let _ = self.update(open);
+                    return Task::none();
+                }
+                if let Some(target) = crate::view::operand_jump_target(address, memory) {
+                    return self.jump_from_memory_operand(address, target);
                 }
                 return Task::done(Message::MemoryEnter(address));
+            }
+            Message::MemoryCellReturn => {
+                if self.running {
+                    return Task::none();
+                }
+                return self.return_to_memory_operand();
             }
             Message::OpenOpcodePicker if !self.running => {
                 let Some(address) = self.selected_memory_address() else {

@@ -34,10 +34,10 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
   `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
   the documented 3-byte graphics command (`prompt/03_peripherals.md`).
 - `kr580` UI and installer: pure view helpers, printer HEX and CP866 text formatting,
-  printer view-mode toggling, PDF path normalization, detachable
-  tool-window lifecycle, installer layout helpers, install-mode
-  detection, embedded/fallback installer payload selection, and
-  launcher-to-app path resolution.
+  printer view-mode toggling, memory-cell action and return shortcut
+  rebinding, PDF path normalization, detachable tool-window lifecycle,
+  installer layout helpers, install-mode detection, embedded/fallback
+  installer payload selection, and launcher-to-app path resolution.
 
 External Intel 8080 binary suites are not included in this workspace.
 When available, add them as an additional compatibility gate instead of
@@ -159,11 +159,12 @@ worth eyeballing after touching `crates/ui`:
   still resolve: `У` opens the opcode picker, `Ctrl+Ы` saves, `Ctrl+У`
   exports, `Ctrl+Ь` opens the monitor, and `Ctrl+А` opens the floppy
   buffer;
-- open Settings → Shortcuts, click the current shortcut for Monitor,
+- open Settings → Shortcuts, confirm `Memory cell action` / `Действие с ячейкой ОЗУ` shows `Alt+Enter` and `Return to memory operand cell` / `Вернуться к ячейке операнда ОЗУ` shows `Shift+Alt+Enter`, click the current shortcut for Monitor,
   press `Ctrl+Shift+Alt+M`, save, and confirm that chord opens the monitor
   while the Quick Access tooltip and View menu row show `Ctrl+Shift+Alt+M`;
 - reopen Settings → Shortcuts, press `Reset shortcuts`, save, and confirm the
-  Monitor shortcut returns to `Ctrl+M`;
+  Monitor shortcut returns to `Ctrl+M`, the memory cell action returns to
+  `Alt+Enter`, and the memory return action returns to `Shift+Alt+Enter`;
 - hover the execution buttons and Quick Access chips and confirm
   shortcuts render as muted same-line tooltip text (`Ctrl+R`, `Ctrl+T`,
   `Ctrl+Y`, `Ctrl+M`, `Ctrl+F`) where the action actually has one, and

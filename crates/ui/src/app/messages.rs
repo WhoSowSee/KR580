@@ -191,6 +191,8 @@ pub(crate) enum Message {
     ToggleHalt,
     EscPressed,
     EnterPressed,
+    MemoryCellAction,
+    MemoryCellReturn,
     OpenOpcodePicker,
     ApplyMemory,
     ModifiersChanged(keyboard::Modifiers),

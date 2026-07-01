@@ -40,13 +40,21 @@ impl DesktopApp {
 
     pub(crate) fn jump_from_memory_operand(&mut self, origin: u16, target: u16) -> Task<Message> {
         self.memory_operand_return_address = Some(origin);
+        self.memory_operand_return_scroll_offset = Some(self.memory_scroll_offset);
         self.jump_memory_to(target)
     }
 
     pub(crate) fn return_to_memory_operand(&mut self) -> Task<Message> {
         if let Some(address) = self.memory_operand_return_address.take() {
+            self.memory_address_input = format!("{address:04X}");
+            self.refresh_memory_value(address);
+            if let Some(offset) = self.memory_operand_return_scroll_offset.take() {
+                self.scroll_memory(offset);
+                return scroll_memory_to(self.memory_scroll_offset);
+            }
             return self.jump_memory_to(address);
         }
+        self.memory_operand_return_scroll_offset = None;
         Task::none()
     }
 
@@ -133,7 +141,7 @@ impl DesktopApp {
 #[cfg(test)]
 mod tests {
     use super::DesktopApp;
-    use crate::app::{MEMORY_INLINE_INPUT_ID, Message};
+    use crate::app::{MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, Message};
     use iced::keyboard;
 
     fn load_lxi_b_d16(app: &mut DesktopApp) {
@@ -188,7 +196,7 @@ mod tests {
         app.refresh_memory_value(0x0001);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellAction);
 
         assert_eq!(app.memory_address_input, "1234");
     }
@@ -201,7 +209,7 @@ mod tests {
         app.refresh_memory_value(0x0002);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellAction);
 
         assert_eq!(app.memory_address_input, "1234");
     }
@@ -214,7 +222,7 @@ mod tests {
         app.refresh_memory_value(0x0000);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellAction);
 
         assert_eq!(app.memory_address_input, "0000");
     }
@@ -226,11 +234,31 @@ mod tests {
         select_address(&mut app, 0x0001);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellAction);
         app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellReturn);
 
         assert_eq!(app.memory_address_input, "0001");
+    }
+
+    #[test]
+    fn alt_shift_enter_restores_operand_view_position_after_jump() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        let instruction = 0x0104;
+        app.snapshot.cpu.memory.write(instruction, 0x01); // LXI B,d16
+        app.snapshot.cpu.memory.write(instruction + 1, 0x34);
+        app.snapshot.cpu.memory.write(instruction + 2, 0x12); // -> 0x1234
+        app.scroll_memory(0x0100 as f32 * crate::app::MEMORY_ROW_HEIGHT);
+        select_address(&mut app, instruction + 1);
+        let original_scroll_offset = app.memory_scroll_offset;
+        let original_first_row = app.memory_scroll_first_row;
+
+        let _ = app.update(Message::MemoryCellAction);
+        let _ = app.update(Message::MemoryCellReturn);
+
+        assert_eq!(app.memory_address_input, "0105");
+        assert_eq!(app.memory_scroll_offset, original_scroll_offset);
+        assert_eq!(app.memory_scroll_first_row, original_first_row);
     }
 
     #[test]
@@ -240,9 +268,9 @@ mod tests {
         select_address(&mut app, 0x0002);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellAction);
         app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellReturn);
 
         assert_eq!(app.memory_address_input, "0002");
     }
@@ -269,7 +297,7 @@ mod tests {
             app.refresh_memory_value(operand);
             app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-            let _ = app.update(Message::EnterPressed);
+            let _ = app.update(Message::MemoryCellAction);
 
             match label {
                 "monitor" => assert!(app.monitor_open, "monitor not opened for port 0x{port:02X}"),
@@ -294,7 +322,7 @@ mod tests {
         app.refresh_memory_value(0x0001);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellAction);
 
         assert!(!app.monitor_open);
         assert!(!app.floppy_open);
@@ -312,7 +340,7 @@ mod tests {
         app.refresh_memory_value(0x0000);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellAction);
 
         assert!(!app.printer_open);
     }
@@ -326,7 +354,7 @@ mod tests {
         app.refresh_memory_value(0x0001);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellAction);
 
         assert!(!app.monitor_open);
         assert_eq!(app.memory_address_input, "0001");
@@ -339,7 +367,7 @@ mod tests {
         select_address(&mut app, 0x0001);
         app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellReturn);
 
         assert!(!app.printer_open);
         assert_eq!(app.memory_address_input, "0001");
@@ -353,9 +381,21 @@ mod tests {
         select_address(&mut app, 0x0001);
         app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
 
-        let _ = app.update(Message::EnterPressed);
+        let _ = app.update(Message::MemoryCellReturn);
 
         assert_ne!(app.focused_input, Some(MEMORY_INLINE_INPUT_ID));
         assert_eq!(app.memory_address_input, "0001");
+    }
+
+    #[test]
+    fn memory_cell_action_from_address_input_jumps_to_typed_cell() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.memory_address_input = "1000".to_owned();
+        app.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
+
+        let _ = app.update(Message::MemoryCellAction);
+
+        assert_eq!(app.memory_address_input, "1000");
+        assert_eq!(app.memory_scroll_first_row, 0x1000);
     }
 }

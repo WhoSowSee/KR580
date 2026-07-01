@@ -240,6 +240,12 @@ order, top to bottom:
    memory view to the address the two operand bytes encode, and on
    the operand byte of an `IN`/`OUT` instruction opens the matching
    device window. Both behaviours are independent of the toggle.
+   Settings → Shortcuts lists the selected-cell action as `Alt+Enter`
+   and the operand-return action as `Shift+Alt+Enter`; rebinding those
+   rows changes the selected-operand command, return command, and focused
+   address-field shortcut independently.
+   The return command restores the previous memory scroll offset, so
+   the source operand keeps the same visible row position after a round trip.
 2. **«Ячейка ОЗУ и ее значение»** – address spinner + value field +
    `↵` apply button.
 3. **«Регистр и его значение»** – register name spinner + value field +

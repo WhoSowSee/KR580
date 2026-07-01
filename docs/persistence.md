@@ -21,7 +21,7 @@ Subprograms are raw byte slices. The base address is supplied by the caller and 
 
 ## Settings
 
-Settings are UTF-8 JSON with `settingsVersion: 3` and top-level `network`, `storage`, `export`, `ui`, `general`, `shortcuts`, and `recentFiles` fields. Loading version 1 preserves non-network preferences but resets the legacy runtime-written client/server endpoints to `127.0.0.1:5800`; version 2 is upgraded by adding the default shortcut map. Version 3 stores customizable keyboard shortcut overrides under `shortcuts.bindings`; an empty list means the built-in Ctrl/Shift/Alt layout is active.
+Settings are UTF-8 JSON with `settingsVersion: 3` and top-level `network`, `storage`, `export`, `ui`, `general`, `shortcuts`, and `recentFiles` fields. Loading version 1 preserves non-network preferences but resets the legacy runtime-written client/server endpoints to `127.0.0.1:5800`; version 2 is upgraded by adding the default shortcut map. Version 3 stores customizable keyboard shortcut overrides under `shortcuts.bindings`; an empty list means the built-in Ctrl/Shift/Alt layout is active, including the default `Alt+Enter` memory-cell action and `Shift+Alt+Enter` memory-cell return action.
 
 ## Exports
 
