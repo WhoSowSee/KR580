@@ -329,6 +329,7 @@ impl DesktopApp {
                 let default_lang = default_lang();
                 let default_speed = SpeedTier::High;
                 let default_follow_pc = false;
+                let default_memory_operand_highlighting = true;
                 let network = crate::persistence::NetworkSettings::default();
                 let shortcuts = crate::persistence::ShortcutSettings::default();
                 if let Some(dialog) = self.settings_dialog.as_mut() {
@@ -346,14 +347,14 @@ impl DesktopApp {
                     dialog.original_shortcuts = shortcuts.clone();
                     dialog.recording_shortcut = None;
                     dialog.draft_follow_pc = default_follow_pc;
-                    dialog.draft_memory_operand_highlighting = false;
+                    dialog.draft_memory_operand_highlighting = default_memory_operand_highlighting;
                     dialog.original_follow_pc = default_follow_pc;
-                    dialog.original_memory_operand_highlighting = false;
+                    dialog.original_memory_operand_highlighting = default_memory_operand_highlighting;
                     dialog.network_error = None;
                     dialog.reset_confirm_open = false;
                 }
                 self.follow_pc = default_follow_pc;
-                self.memory_operand_highlighting = false;
+                self.memory_operand_highlighting = default_memory_operand_highlighting;
                 self.shortcut_settings = shortcuts;
                 let lang_changed = self.lang != default_lang;
                 self.lang = default_lang;

@@ -107,7 +107,7 @@ impl Default for GeneralSettings {
             language: Language::Ru,
             default_speed: SpeedPreset::High,
             follow_pc: false,
-            memory_operand_highlighting: false,
+            memory_operand_highlighting: true,
             floppy_image_path: None,
             hdd_directory: None,
         }

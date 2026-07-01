@@ -210,6 +210,8 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     assert_eq!(dialog.original_speed, SpeedTier::High);
     assert!(!app.follow_pc);
     assert!(!dialog.original_follow_pc);
+    assert!(app.memory_operand_highlighting);
+    assert!(dialog.original_memory_operand_highlighting);
     assert_eq!(
         app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))

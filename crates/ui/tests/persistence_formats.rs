@@ -188,6 +188,7 @@ fn settings_are_versioned_camel_case_json() {
     assert!(json.contains("recentFiles"));
     assert!(!settings.general.follow_pc);
     assert_eq!(settings.general.default_speed, SpeedPreset::High);
+    assert!(settings.general.memory_operand_highlighting);
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
     let unsupported = json.replace("\"settingsVersion\": 3", "\"settingsVersion\": 4");
