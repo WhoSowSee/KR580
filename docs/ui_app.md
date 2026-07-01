@@ -199,6 +199,11 @@ renames the same item to «Скрыть стековую область памя
 `Esc`, `Ctrl+Shift+C`, or the renamed menu item exits stack view and
 restores the previous list position. `Настройки` opens the Settings
 dialog.
+Opening `Настройки`, the Help dialog, or the About dialog dismisses any
+currently open attached peripheral panel first: the dialog and the
+peripheral window occupy the same overlay slot in `main_view`, so the
+panel would otherwise reappear when the dialog is closed. Detached
+peripheral windows are separate OS windows and are left untouched.
 
 Legacy `.580` rows in the file dropdown keep the primary action as the
 main label (`Открыть` / `Сохранить`) and render `старый формат` as a

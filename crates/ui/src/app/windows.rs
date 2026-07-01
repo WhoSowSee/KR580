@@ -304,6 +304,25 @@ impl DesktopApp {
         }
     }
 
+    fn device_open(&self, kind: ToolWindowKind) -> bool {
+        match kind {
+            ToolWindowKind::Monitor => self.monitor_open,
+            ToolWindowKind::Floppy => self.floppy_open,
+            ToolWindowKind::Hdd => self.hdd_open,
+            ToolWindowKind::Network => self.network_open,
+            ToolWindowKind::Printer => self.printer_open,
+        }
+    }
+
+    /// Closes the open attached device panel; modals and device panels share one overlay slot.
+    pub(crate) fn close_open_device_panel(&mut self) {
+        for kind in TOOL_WINDOWS {
+            if self.device_open(kind) && !self.tool_window(kind).detached {
+                self.reset_tool_window_presentation(kind);
+            }
+        }
+    }
+
     fn tool_window_kind(&self, id: window::Id) -> Option<ToolWindowKind> {
         TOOL_WINDOWS
             .into_iter()

@@ -165,6 +165,21 @@ fn cancel_rolls_back_live_speed_to_pre_open_snapshot() {
 }
 
 #[test]
+fn opening_settings_dismisses_open_device_panel() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let _ = app.update(Message::OpenMonitor);
+    assert!(app.monitor_open);
+
+    let _ = app.update(Message::OpenSettings);
+    assert!(app.settings_dialog.is_some());
+    assert!(!app.monitor_open);
+
+    let _ = app.update(Message::CloseSettings);
+    assert!(app.settings_dialog.is_none());
+    assert!(!app.monitor_open);
+}
+
+#[test]
 fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     app.lang = Lang::En;

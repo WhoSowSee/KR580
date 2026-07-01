@@ -10,6 +10,7 @@ impl DesktopApp {
         match message {
             Message::OpenAbout => {
                 self.open_menu = None;
+                self.close_open_device_panel();
                 self.about_dialog_open = true;
             }
             Message::CloseAbout => {
@@ -18,6 +19,7 @@ impl DesktopApp {
             Message::OpenHelp => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
+                self.close_open_device_panel();
                 self.help_dialog = Some(HelpDialog::new(self.lang));
             }
             Message::CloseHelp => {

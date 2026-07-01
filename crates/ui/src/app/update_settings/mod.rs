@@ -25,6 +25,7 @@ impl DesktopApp {
             Message::OpenSettings => {
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
+                self.close_open_device_panel();
                 let settings = load_settings();
                 self.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
                     self.lang,
