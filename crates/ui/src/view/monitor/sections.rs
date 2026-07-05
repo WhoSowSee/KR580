@@ -5,7 +5,7 @@ use iced::{Element, Length, Padding};
 
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
-use crate::view::theme::{TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
+use crate::view::theme::{mono_text, tokyo_muted, tokyo_text, ui_text};
 
 use super::canvas::{PixelCanvas, UnifiedCanvas};
 use super::styles::{framebuffer_padding, framebuffer_style};
@@ -57,7 +57,7 @@ pub(super) fn text_layer_section<'a>(state: &MonitorState, lang: Lang) -> Elemen
     let (text, empty) = text_layer_text(&state.text_cells);
 
     let body: Element<'_, Message> = container(
-        mono_text(text, 13, TOKYO_TEXT)
+        mono_text(text, 13, tokyo_text())
             .width(Length::Fill)
             .wrapping(Wrapping::Glyph),
     )
@@ -100,7 +100,7 @@ fn framed_layer<'a>(canvas: Element<'a, Message>, title: Option<&'a str>) -> Ele
         return canvas;
     };
 
-    let labels = container(ui_text(title, 11, TOKYO_MUTED))
+    let labels = container(ui_text(title, 11, tokyo_muted()))
         .padding(Padding {
             top: 8.0,
             right: 12.0,

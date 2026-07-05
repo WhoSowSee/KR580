@@ -2,20 +2,20 @@ use iced::widget::{Space, button, container, row, svg};
 use iced::{Element, Length, alignment};
 
 use super::super::icons;
-use super::super::theme::{TOKYO_TEXT, ui_text};
+use super::super::theme::{tokyo_text, ui_text};
 use super::consts::HEADER_HEIGHT;
 use super::styles::header_close_button_style;
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
 
 pub(super) fn settings_header(lang: Lang) -> Element<'static, Message> {
-    let title = ui_text(lang.t(Key::SettingsTitle), 16, TOKYO_TEXT);
+    let title = ui_text(lang.t(Key::SettingsTitle), 16, tokyo_text());
 
     let close_glyph = svg(icons::window_close())
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
+            color: Some(tokyo_text()),
         });
 
     let close_button = button(

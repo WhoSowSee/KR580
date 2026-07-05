@@ -7,7 +7,7 @@ use super::super::speed::segmented_button_width;
 use crate::app::{ContentFocus, Message, SettingsDialog, SettingsSection};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
-use crate::view::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_SURFACE, TOKYO_TEXT, ui_text};
+use crate::view::theme::{tokyo_border, tokyo_muted, tokyo_surface, tokyo_text, ui_text};
 
 pub(super) fn follow_pc_toggle_row<'a>(
     dialog: &'a SettingsDialog,
@@ -107,7 +107,7 @@ pub(super) fn hdd_directory_row<'a>(
 
     let control = row![
         Space::new().width(Length::Fill),
-        ui_text(display, 13, TOKYO_MUTED),
+        ui_text(display, 13, tokyo_muted()),
         Space::new().width(Length::Fixed(8.0)),
         browse_btn,
     ]
@@ -173,7 +173,7 @@ pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
 
     let mut control = row![Space::new().width(Length::Fill)];
     if dialog.draft_floppy_image_path.is_some() {
-        control = control.push(ui_text(path_display, 13, TOKYO_MUTED));
+        control = control.push(ui_text(path_display, 13, tokyo_muted()));
         control = control.push(Space::new().width(Length::Fixed(8.0)));
     }
     control = control.push(browse_btn);
@@ -185,7 +185,7 @@ pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
                     .width(Length::Fixed(16.0))
                     .height(Length::Fixed(16.0))
                     .style(move |_theme, _status| svg::Style {
-                        color: Some(TOKYO_TEXT),
+                        color: Some(tokyo_text()),
                     }),
             )
             .width(Length::Fill)
@@ -199,17 +199,17 @@ pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         .height(Length::Fixed(28.0))
         .style(move |_theme, status| {
             let bg = match status {
-                button::Status::Pressed => TOKYO_BORDER,
-                button::Status::Hovered => TOKYO_SURFACE,
+                button::Status::Pressed => tokyo_border(),
+                button::Status::Hovered => tokyo_surface(),
                 _ => Color::TRANSPARENT,
             };
             button::Style {
                 background: Some(Background::Color(bg)),
-                text_color: TOKYO_TEXT,
+                text_color: tokyo_text(),
                 border: Border {
                     radius: 6.0.into(),
                     width: 1.0,
-                    color: TOKYO_BORDER,
+                    color: tokyo_border(),
                 },
                 ..button::Style::default()
             }
@@ -232,22 +232,22 @@ fn settings_browse_button<'a>(
     message: Message,
     kb_focused: bool,
 ) -> Element<'a, Message> {
-    button(container(ui_text(label, 12, TOKYO_TEXT)).padding([2, 8]))
+    button(container(ui_text(label, 12, tokyo_text())).padding([2, 8]))
         .on_press(message)
         .style(move |_theme, status| {
             let bg = match status {
-                button::Status::Pressed => TOKYO_BORDER,
-                button::Status::Hovered => TOKYO_SURFACE,
-                _ if kb_focused => TOKYO_SURFACE,
+                button::Status::Pressed => tokyo_border(),
+                button::Status::Hovered => tokyo_surface(),
+                _ if kb_focused => tokyo_surface(),
                 _ => Color::TRANSPARENT,
             };
             button::Style {
                 background: Some(Background::Color(bg)),
-                text_color: TOKYO_TEXT,
+                text_color: tokyo_text(),
                 border: Border {
                     radius: 6.0.into(),
                     width: 1.0,
-                    color: TOKYO_BORDER,
+                    color: tokyo_border(),
                 },
                 ..button::Style::default()
             }

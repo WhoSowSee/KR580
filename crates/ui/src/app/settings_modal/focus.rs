@@ -127,7 +127,7 @@ impl SettingsSection {
 
 /// Focus inside the right-hand content pane. Order matches the
 /// vertical layout: language anchor on top, then the speed segments
-/// left-to-right, or the theme placeholder on the Appearance tab.
+/// left-to-right, or the theme picker on the Appearance tab.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ContentFocus {
     LanguageAnchor,

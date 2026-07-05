@@ -5,8 +5,8 @@ use iced::{Background, Border, Color, Element, Length, Theme, alignment};
 
 use super::super::icons;
 use super::super::theme::{
-    TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE,
-    TOKYO_SURFACE_2, TOKYO_TEXT,
+    tokyo_blue, tokyo_board, tokyo_border, tokyo_device_accent, tokyo_modal_backdrop, tokyo_muted,
+    tokyo_selection_blue, tokyo_surface, tokyo_surface_2, tokyo_text,
 };
 use super::super::tooltips::hover_tooltip;
 use crate::app::{Message, ToolWindowKind};
@@ -17,19 +17,22 @@ const ICON_GLYPH_SIZE: f32 = 18.0;
 
 pub(in crate::view) fn device_backdrop_style(_theme: &Theme) -> container::Style {
     container::Style {
-        background: Some(Background::Color(Color::from_rgba8(0x12, 0x12, 0x21, 0.85))),
+        background: Some(Background::Color(Color {
+            a: 0.85,
+            ..tokyo_modal_backdrop()
+        })),
         ..container::Style::default()
     }
 }
 
 pub(in crate::view) fn device_buffer_style(_theme: &Theme) -> container::Style {
     container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
+        text_color: Some(tokyo_text()),
+        background: Some(Background::Color(tokyo_board())),
         border: Border {
             radius: 4.0.into(),
             width: 1.0,
-            color: TOKYO_BORDER,
+            color: tokyo_border(),
         },
         ..container::Style::default()
     }
@@ -110,11 +113,11 @@ pub(in crate::view) fn icon_button(
 ) -> Element<'static, Message> {
     let is_disabled = on_press.is_none() && !active;
     let glyph_color = if active {
-        TOKYO_BLUE
+        tokyo_device_accent(tokyo_blue())
     } else if is_disabled {
-        TOKYO_MUTED
+        tokyo_muted()
     } else {
-        TOKYO_TEXT
+        tokyo_device_accent(tokyo_text())
     };
     let glyph = svg(handle)
         .width(Length::Fixed(ICON_GLYPH_SIZE))
@@ -151,22 +154,26 @@ pub(in crate::view) fn icon_button(
 fn icon_button_style(status: button::Status, active: bool) -> button::Style {
     let disabled = matches!(status, button::Status::Disabled) && !active;
     let background = match (status, active) {
-        (button::Status::Pressed, _) if !disabled => TOKYO_SURFACE_2,
-        (button::Status::Hovered, _) if !disabled => TOKYO_SURFACE,
-        (_, true) if !disabled => TOKYO_SELECTION_BLUE,
-        _ => TOKYO_BOARD,
+        (button::Status::Pressed, _) if !disabled => tokyo_surface_2(),
+        (button::Status::Hovered, _) if !disabled => tokyo_surface(),
+        (_, true) if !disabled => tokyo_selection_blue(),
+        _ => tokyo_board(),
     };
     let border_color = if disabled {
         Color {
             a: 0.35,
-            ..TOKYO_BORDER
+            ..tokyo_border()
         }
     } else if active {
-        TOKYO_BLUE
+        tokyo_device_accent(tokyo_blue())
     } else {
-        TOKYO_BORDER
+        tokyo_border()
     };
-    let text_color = if disabled { TOKYO_MUTED } else { TOKYO_TEXT };
+    let text_color = if disabled {
+        tokyo_muted()
+    } else {
+        tokyo_text()
+    };
     button::Style {
         background: Some(Background::Color(background)),
         text_color,

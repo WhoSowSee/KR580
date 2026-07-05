@@ -7,12 +7,12 @@ pub(super) use super::super::styles::{
     modal_dropdown_option_style as dropdown_option_style,
     modal_tab_button_style as tab_button_style, panel_style as modal_dialog_style,
 };
-use super::super::theme::{TOKYO_BORDER, TOKYO_GREEN, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT};
+use super::super::theme::{tokyo_border, tokyo_green, tokyo_surface, tokyo_surface_2, tokyo_text};
 
 pub(super) fn combo_arrow_style(_status: button::Status, _open: bool) -> button::Style {
     button::Style {
         background: Some(Background::Color(Color::TRANSPARENT)),
-        text_color: TOKYO_TEXT,
+        text_color: tokyo_text(),
         border: Border {
             radius: 4.0.into(),
             width: 0.0,
@@ -26,18 +26,18 @@ pub(super) fn checklist_button_style(status: button::Status) -> button::Style {
     let background = match status {
         button::Status::Hovered => Color {
             a: 0.32,
-            ..TOKYO_SURFACE
+            ..tokyo_surface()
         },
         button::Status::Pressed => Color {
             a: 0.45,
-            ..TOKYO_SURFACE
+            ..tokyo_surface()
         },
         _ => Color::TRANSPARENT,
     };
 
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color: tokyo_text(),
         border: Border {
             radius: 4.0.into(),
             width: 0.0,
@@ -48,18 +48,22 @@ pub(super) fn checklist_button_style(status: button::Status) -> button::Style {
 }
 
 pub(super) fn checkbox_style(checked: bool) -> container::Style {
-    let border_color = if checked { TOKYO_GREEN } else { TOKYO_BORDER };
+    let border_color = if checked {
+        tokyo_green()
+    } else {
+        tokyo_border()
+    };
     let background = if checked {
         Some(Background::Color(Color {
             a: 0.18,
-            ..TOKYO_GREEN
+            ..tokyo_green()
         }))
     } else {
         None
     };
 
     container::Style {
-        text_color: Some(TOKYO_TEXT),
+        text_color: Some(tokyo_text()),
         background,
         border: Border {
             radius: 3.0.into(),
@@ -80,19 +84,19 @@ pub(super) fn footer_button_style(status: button::Status) -> button::Style {
     let background = match status {
         button::Status::Hovered => Color {
             a: 0.5,
-            ..TOKYO_SURFACE
+            ..tokyo_surface()
         },
-        button::Status::Pressed => TOKYO_SURFACE_2,
+        button::Status::Pressed => tokyo_surface_2(),
         _ => Color::TRANSPARENT,
     };
 
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color: tokyo_text(),
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: TOKYO_BORDER,
+            color: tokyo_border(),
         },
         ..button::Style::default()
     }

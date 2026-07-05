@@ -32,7 +32,7 @@ mod speed;
 mod status_register;
 mod storage;
 mod styles;
-mod theme;
+pub(crate) mod theme;
 mod tooltips;
 mod utils;
 mod widgets;
@@ -88,6 +88,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn view(&self, window: iced::window::Id) -> Element<'_, Message> {
+        theme::set_active_color_scheme(self.color_scheme);
         if self.monitor_window.id == Some(window) {
             if !self.monitor_window.detached {
                 return Space::new().into();

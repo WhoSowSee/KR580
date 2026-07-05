@@ -213,7 +213,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsToggleOff => "Выключено",
         Key::SettingsThemeLabel => "Тема",
         Key::SettingsThemeHint => "Тема оформления интерфейса",
-        Key::SettingsThemePlaceholder => "Скоро",
         Key::SettingsShortcutsLabel => "Горячие клавиши",
         Key::SettingsShortcutsHint => "Настройка сочетаний клавиш",
         Key::SettingsNoMatches => "Нет совпадений",

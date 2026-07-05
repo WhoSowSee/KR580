@@ -16,7 +16,7 @@ use super::styles::{
     action_button_style, input_borderless_style, input_shell_style, legend_label_style,
     panel_style, schematic_block_style, step_button_style,
 };
-use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
+use super::theme::{MONO_FONT, mono_text, tokyo_green, tokyo_muted, tokyo_text, ui_text};
 use super::tooltips::hover_tooltip;
 use crate::app::Message;
 
@@ -50,7 +50,7 @@ pub(super) fn legend_panel<'a>(
     .into();
     let legend: Element<'a, Message> = row![
         Space::new().width(Length::Fill),
-        container(ui_text(title, 14, TOKYO_TEXT))
+        container(ui_text(title, 14, tokyo_text()))
             .padding([0, 5])
             .style(legend_label_style),
         Space::new().width(Length::Fill),
@@ -90,7 +90,7 @@ pub(super) fn legend_panel_left<'a>(
     .into();
     let legend: Element<'a, Message> = row![
         Space::new().width(Length::Fill),
-        container(ui_text(title, 14, TOKYO_TEXT))
+        container(ui_text(title, 14, tokyo_text()))
             .padding([0, 5])
             .style(legend_label_style),
         Space::new().width(Length::Fill),
@@ -180,7 +180,7 @@ pub(super) fn spinner_text_input<'a>(
 }
 
 pub(super) fn step_button(label: &'static str, message: Message) -> Element<'static, Message> {
-    button(mono_text(label, 8, TOKYO_TEXT).align_x(alignment::Horizontal::Center))
+    button(mono_text(label, 8, tokyo_text()).align_x(alignment::Horizontal::Center))
         .on_press(message)
         .padding(0)
         .width(Length::Fixed(14.0))
@@ -195,7 +195,7 @@ pub(super) fn enter_button(message: Message) -> Element<'static, Message> {
         .width(Length::Fixed(GLYPH_SIZE))
         .height(Length::Fixed(GLYPH_SIZE))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_GREEN),
+            color: Some(tokyo_green()),
         });
     button(
         container(glyph)
@@ -218,7 +218,7 @@ pub(super) fn enter_button_disabled() -> Element<'static, Message> {
         .width(Length::Fixed(GLYPH_SIZE))
         .height(Length::Fixed(GLYPH_SIZE))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_MUTED),
+            color: Some(tokyo_muted()),
         });
     button(
         container(glyph)
@@ -246,7 +246,7 @@ pub(super) fn modal_icon_button(
         .width(Length::Fixed(GLYPH_SIZE))
         .height(Length::Fixed(GLYPH_SIZE))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
+            color: Some(tokyo_text()),
         });
     let face = button(
         container(glyph)
@@ -276,7 +276,7 @@ pub(super) fn modal_footer_button(
     style: fn(button::Status) -> button::Style,
 ) -> Element<'static, Message> {
     button(
-        container(ui_text(label_text, 14, TOKYO_TEXT))
+        container(ui_text(label_text, 14, tokyo_text()))
             .padding([7, 22])
             .align_x(alignment::Horizontal::Center),
     )
@@ -309,7 +309,7 @@ pub(super) fn icon_action_button(
     } else {
         Color {
             a: 0.45,
-            ..TOKYO_MUTED
+            ..tokyo_muted()
         }
     };
     let glyph = svg(handle)

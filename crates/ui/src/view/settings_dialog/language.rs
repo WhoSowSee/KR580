@@ -2,7 +2,7 @@ use iced::widget::{Space, button, column, container, row, svg};
 use iced::{Element, Length, alignment};
 
 use super::super::icons;
-use super::super::theme::{TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::super::theme::{tokyo_muted, tokyo_text, ui_text};
 use super::consts::{DROPDOWN_CHEVRON_SIZE, LANGUAGE_PICKER_WIDTH};
 use super::setting_row::setting_row;
 use super::styles::{dropdown_anchor_style, dropdown_option_style, dropdown_panel_style};
@@ -21,13 +21,13 @@ pub(super) fn language_setting_row<'a>(
         .width(Length::Fixed(DROPDOWN_CHEVRON_SIZE))
         .height(Length::Fixed(DROPDOWN_CHEVRON_SIZE))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_MUTED),
+            color: Some(tokyo_muted()),
         });
 
     let anchor = button(
         container(
             row![
-                ui_text(active_label, 13, TOKYO_TEXT),
+                ui_text(active_label, 13, tokyo_text()),
                 Space::new().width(Length::Fill),
                 chevron,
             ]
@@ -84,7 +84,7 @@ fn language_dropdown_option(
 ) -> Element<'static, Message> {
     let label = lang.t(language_label_key(target));
     button(
-        container(ui_text(label, 13, TOKYO_TEXT))
+        container(ui_text(label, 13, tokyo_text()))
             .padding([6, 10])
             .width(Length::Fill),
     )

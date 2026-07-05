@@ -3,7 +3,7 @@ use iced::{Element, Length, Padding, alignment};
 
 use super::super::icons;
 use super::super::styles::{input_borderless_style, input_shell_style};
-use super::super::theme::{TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::super::theme::{tokyo_muted, tokyo_text, ui_text};
 use super::super::widgets::modal_icon_button;
 use super::controls::label;
 use super::local_icons;
@@ -117,7 +117,7 @@ fn combo_box<'a>(value: &'a str, open: bool) -> Element<'a, Message> {
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_MUTED),
+            color: Some(tokyo_muted()),
         });
     let arrow = button(
         container(chevron)
@@ -158,7 +158,7 @@ fn dropdown(options: &[String], highlighted: Option<usize>) -> Element<'static, 
 fn dropdown_option(label_text: String, highlighted: bool) -> Element<'static, Message> {
     let message_value = label_text.clone();
     button(
-        container(ui_text(label_text, 13, TOKYO_TEXT))
+        container(ui_text(label_text, 13, tokyo_text()))
             .padding([6, 9])
             .width(Length::Fill),
     )

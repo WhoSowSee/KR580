@@ -3,8 +3,8 @@ use iced::{Background, Border, Color, Padding, Theme};
 
 pub(super) use crate::view::styles::panel_style as dialog_style;
 use crate::view::theme::{
-    TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_SELECTION_BLUE, TOKYO_SURFACE, TOKYO_SURFACE_2,
-    TOKYO_TEXT,
+    tokyo_blue, tokyo_board, tokyo_border, tokyo_modal_backdrop, tokyo_selection_blue,
+    tokyo_surface, tokyo_surface_2, tokyo_text,
 };
 
 pub(super) const HEX_GROUP: usize = 16;
@@ -15,10 +15,8 @@ pub(super) const MODAL_MARGIN: f32 = 60.0;
 pub(super) fn backdrop_style(_theme: &Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
         background: Some(Background::Color(Color {
-            r: 0.07,
-            g: 0.07,
-            b: 0.13,
             a: 0.85,
+            ..tokyo_modal_backdrop()
         })),
         border: Border {
             radius: 0.0.into(),
@@ -32,10 +30,8 @@ pub(super) fn backdrop_style(_theme: &Theme) -> iced::widget::container::Style {
 pub(super) fn popup_backdrop_style(_theme: &Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
         background: Some(Background::Color(Color {
-            r: 0.05,
-            g: 0.05,
-            b: 0.10,
             a: 0.55,
+            ..tokyo_modal_backdrop()
         })),
         ..iced::widget::container::Style::default()
     }
@@ -43,11 +39,11 @@ pub(super) fn popup_backdrop_style(_theme: &Theme) -> iced::widget::container::S
 
 pub(super) fn framebuffer_style(_theme: &Theme) -> iced::widget::container::Style {
     iced::widget::container::Style {
-        background: Some(Background::Color(TOKYO_BOARD)),
+        background: Some(Background::Color(tokyo_board())),
         border: Border {
             radius: 4.0.into(),
             width: 1.0,
-            color: TOKYO_BORDER,
+            color: tokyo_border(),
         },
         ..iced::widget::container::Style::default()
     }
@@ -64,21 +60,21 @@ pub(super) fn framebuffer_padding(empty: bool) -> Padding {
 
 pub(super) fn icon_button_style(status: button::Status, active: bool) -> button::Style {
     let background = if active {
-        TOKYO_SELECTION_BLUE
+        tokyo_selection_blue()
     } else {
         match status {
-            button::Status::Pressed => TOKYO_SURFACE_2,
-            button::Status::Hovered => TOKYO_SURFACE,
-            _ => TOKYO_BOARD,
+            button::Status::Pressed => tokyo_surface_2(),
+            button::Status::Hovered => tokyo_surface(),
+            _ => tokyo_board(),
         }
     };
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color: tokyo_text(),
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: if active { TOKYO_BLUE } else { TOKYO_BORDER },
+            color: if active { tokyo_blue() } else { tokyo_border() },
         },
         ..button::Style::default()
     }

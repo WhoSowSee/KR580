@@ -1,8 +1,8 @@
 use crate::persistence::{SettingsError, ShortcutSettings};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::{Path, PathBuf};
 
-const SETTINGS_VERSION: u32 = 3;
+const SETTINGS_VERSION: u32 = 4;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -80,8 +80,113 @@ pub struct ExportSettings {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UiSettings {
-    pub theme: String,
+    pub theme: ColorScheme,
     pub ram_view_base: u16,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ColorScheme {
+    TokyoNight,
+    TokyoNightLight,
+    BlackWhiteDark,
+    BlackWhiteLight,
+    KanagawaWave,
+    KanagawaLotus,
+    CatppuccinMocha,
+    CatppuccinLatte,
+    Nord,
+    GruvboxDark,
+    GruvboxLight,
+    MaterialOcean,
+}
+
+impl ColorScheme {
+    pub const DEFAULT: Self = Self::TokyoNight;
+
+    pub fn storage_name(self) -> &'static str {
+        match self {
+            Self::TokyoNight => "tokyoNight",
+            Self::TokyoNightLight => "tokyoNightLight",
+            Self::BlackWhiteDark => "blackWhiteDark",
+            Self::BlackWhiteLight => "blackWhiteLight",
+            Self::KanagawaWave => "kanagawaWave",
+            Self::KanagawaLotus => "kanagawaLotus",
+            Self::CatppuccinMocha => "catppuccinMocha",
+            Self::CatppuccinLatte => "catppuccinLatte",
+            Self::Nord => "nord",
+            Self::GruvboxDark => "gruvboxDark",
+            Self::GruvboxLight => "gruvboxLight",
+            Self::MaterialOcean => "materialOcean",
+        }
+    }
+
+    pub fn from_storage_name(raw: &str) -> Option<Self> {
+        match raw {
+            "dark" | "tokyoNight" => Some(Self::TokyoNight),
+            "light" | "tokyoNightLight" => Some(Self::TokyoNightLight),
+            "blackWhiteDark" => Some(Self::BlackWhiteDark),
+            "blackWhiteLight" => Some(Self::BlackWhiteLight),
+            "kanagawaWave" => Some(Self::KanagawaWave),
+            "kanagawaLotus" => Some(Self::KanagawaLotus),
+            "catppuccinMocha" => Some(Self::CatppuccinMocha),
+            "catppuccinLatte" => Some(Self::CatppuccinLatte),
+            "nord" => Some(Self::Nord),
+            "gruvboxDark" => Some(Self::GruvboxDark),
+            "gruvboxLight" => Some(Self::GruvboxLight),
+            "materialOcean" => Some(Self::MaterialOcean),
+            "monokai" => Some(Self::TokyoNight),
+            _ => None,
+        }
+    }
+
+    pub fn index(self) -> u8 {
+        self as u8
+    }
+
+    pub fn from_index(index: u8) -> Self {
+        match index {
+            0 => Self::TokyoNight,
+            1 => Self::TokyoNightLight,
+            2 => Self::BlackWhiteDark,
+            3 => Self::BlackWhiteLight,
+            4 => Self::KanagawaWave,
+            5 => Self::KanagawaLotus,
+            6 => Self::CatppuccinMocha,
+            7 => Self::CatppuccinLatte,
+            8 => Self::Nord,
+            9 => Self::GruvboxDark,
+            10 => Self::GruvboxLight,
+            11 => Self::MaterialOcean,
+            _ => Self::DEFAULT,
+        }
+    }
+}
+
+impl Default for ColorScheme {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl Serialize for ColorScheme {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.storage_name())
+    }
+}
+
+impl<'de> Deserialize<'de> for ColorScheme {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        Self::from_storage_name(&raw)
+            .ok_or_else(|| serde::de::Error::custom(format!("unsupported color scheme: {raw}")))
+    }
 }
 
 pub struct SettingsStore;
@@ -147,7 +252,7 @@ impl Default for ExportSettings {
 impl Default for UiSettings {
     fn default() -> Self {
         Self {
-            theme: "dark".to_owned(),
+            theme: ColorScheme::DEFAULT,
             ram_view_base: 0,
         }
     }
@@ -162,6 +267,9 @@ impl SettingsStore {
         let mut settings: Settings = serde_json::from_str(json)?;
         match settings.settings_version {
             SETTINGS_VERSION => {}
+            3 => {
+                settings.settings_version = SETTINGS_VERSION;
+            }
             2 => {
                 settings.settings_version = SETTINGS_VERSION;
             }

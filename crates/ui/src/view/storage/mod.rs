@@ -12,7 +12,7 @@ use iced::{Element, Length, Padding, alignment};
 
 use self::chrome::{device_backdrop_style, device_buffer_style};
 use super::styles::{panel_style as dialog_style, scrollable_style};
-use super::theme::{MONO_FONT, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
 use text::storage_buffer_text;
@@ -198,7 +198,7 @@ fn dialog_body<'a>(
             iced::widget::text(text)
                 .font(MONO_FONT)
                 .size(15)
-                .color(TOKYO_TEXT)
+                .color(tokyo_text())
                 .wrapping(iced::widget::text::Wrapping::Glyph),
         )
         .padding(buffer_padding(empty))
@@ -230,7 +230,7 @@ fn framed_buffer<'a>(buffer: Element<'a, Message>, title: Option<&'a str>) -> El
         return buffer;
     };
 
-    let label = container(ui_text(title, 13, TOKYO_MUTED))
+    let label = container(ui_text(title, 13, tokyo_muted()))
         .padding(Padding {
             top: 8.0,
             right: 12.0,
@@ -273,7 +273,7 @@ fn storage_footer<'a>(
             iced::widget::text(meta)
                 .font(MONO_FONT)
                 .size(12)
-                .color(TOKYO_TEXT)
+                .color(tokyo_text())
                 .wrapping(iced::widget::text::Wrapping::None),
         )
         .width(Length::Fill)

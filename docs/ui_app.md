@@ -180,9 +180,9 @@ or actor pacing.
 
 ## Top menu chrome
 
-The custom top menu bar is a flat 34 px strip on `TOKYO_BOARD`. It no
+The custom top menu bar is a flat 34 px strip on `active board token`. It no
 longer draws a visible bottom hairline divider: the existing 1 px
-divider slot paints `TOKYO_BOARD`, so the top of the app reads as one
+divider slot paints `active board token`, so the top of the app reads as one
 quieter surface while the dropdown offsets stay unchanged. Dropdowns
 still open at the same 34 px vertical offset and keep their own framed
 panel border.
@@ -224,16 +224,16 @@ order, top to bottom:
 1. **«Список ячеек ОЗУ»** – virtualised memory list with the inline
    value editor and the opcode dropdown. The value column can use a local
    disassembly pass to colour the bytes that follow a multi-byte opcode:
-   16-bit memory addresses/16-bit immediates are `TOKYO_YELLOW`, 8-bit
-   generic immediate operands are `TOKYO_CYAN`, and the port operand of
+   16-bit memory addresses/16-bit immediates are `active yellow token`, 8-bit
+   generic immediate operands are `active cyan token`, and the port operand of
    `IN`/`OUT` (used by the monitor, printer, storage, and network
-   devices) is `TOKYO_MAGENTA`. Opcode bytes themselves stay
-   `TOKYO_GREEN`. The scan walks back up to two bytes from the top of
+   devices) is `active magenta token`. Opcode bytes themselves stay
+   `active green token`. The scan walks back up to two bytes from the top of
    the visible window to recover an instruction boundary, so the hint
    is accurate even when the list starts in the middle of an instruction.
    The coloring is controlled by the **Highlight memory operands**
    toggle in Settings → General; when the toggle is off, all value
-   cells render in `TOKYO_GREEN`. The operand classification that
+   cells render in `active green token`. The operand classification that
    drives the colouring also feeds Alt+Enter on a selected operand
    cell: pressing Alt+Enter while a 16-bit address operand byte is
    selected (and the inline editor is not focused) relocates the
@@ -264,27 +264,28 @@ panel border so it reads as a piece of the frame):
 |---|---|---|---|---|---|
 | run  | `play.svg` / `pause.svg` | `Message::ToggleRun`       | green / red | Выполнить программу / Пауза | `Ctrl+R` |
 | run  | `step-forward.svg` / `refresh-ccw.svg` | `Message::StepInstruction` / `Message::RestartProgram` | blue | Выполнить команду / Перезапустить программу | `Ctrl+T` at rest |
-| run  | `redo-dot.svg`        | `Message::StepTact`        | yellow  | Выполнить такт | `Ctrl+Y` |
-| reset | `reset-ram.svg`       | `Message::ResetRam`        | red     | Сброс ОЗУ | `Ctrl+Shift+R` |
+| run  | `redo-dot.svg`        | `Message::StepTact`        | yellow | Выполнить такт | `Ctrl+Y` |
+| reset | `reset-ram.svg`       | `Message::ResetRam`        | red | Сброс ОЗУ | `Ctrl+Shift+R` |
 | reset | `reset-registers.svg` | `Message::ResetCpu`        | magenta | Сброс регистров | `Ctrl+Shift+G` |
 
 The first two buttons are tumblers driven by `DesktopApp::running`.
 
 The leftmost (run/pause) button mirrors the reference KR-580 emulator.
-At rest it paints `play.svg` in green; once armed it swaps to
-`pause.svg` in red. **Pause is unconditional**: a click while the run
-is armed always sends `AppCommand::Stop`, regardless of where PC has
-walked to. This matters because a paced run carries PC through
-whatever bytes follow the user's program – once it walks off the
-loaded code into a stretch of `0x00` (the default RAM fill), any
-gate that compares the *current* `cpu.memory.read(pc)` against zero
-would mistake the running program for an empty page and silently
-swallow the click. The user reported this as «не могу остановить
-программу, только сбросом регистров»: typed `13` at 0x0000, ran it,
-PC walked through INX D + NOPs, and pause did nothing because the
-byte at the new PC was zero. The current handler returns Stop first
-and only then reaches the run-arming gates, so Stop is reachable
-from any execution state.
+At rest it paints `play.svg` in the active green token; once armed it
+swaps to `pause.svg` in the active red token. In the black-and-white
+schemes both glyphs collapse to the same monochrome HDD/device accent.
+**Pause is unconditional**: a click while the run is armed always sends
+`AppCommand::Stop`, regardless of where PC has walked to. This matters
+because a paced run carries PC through whatever bytes follow the user's
+program – once it walks off the loaded code into a stretch of `0x00`
+(the default RAM fill), any gate that compares the *current*
+`cpu.memory.read(pc)` against zero would mistake the running program
+for an empty page and silently swallow the click. The user reported
+this as «не могу остановить программу, только сбросом регистров»:
+typed `13` at 0x0000, ran it, PC walked through INX D + NOPs, and pause
+did nothing because the byte at the new PC was zero. The current
+handler returns Stop first and only then reaches the run-arming gates,
+so Stop is reachable from any execution state.
 
 Run-arming is the gated half. With the toggle disarmed, the handler
 checks both the halted bit and the byte at `cpu.pc`: a halted CPU
@@ -341,16 +342,18 @@ circular reset arrow). The speed stepper additionally uses Lucide
 `chevrons-left` / `chevrons-right` action SVGs for adjacent-tier
 switching. All action SVG files declare
 `stroke="currentColor"`, so the iced `svg` widget tints them at
-runtime via `svg::Style { color: Some(accent) }` – the accent is the
-glyph colour at rest and the border colour on hover/press, while the
-surface stays on the neutral `TOKYO_BOARD` / `TOKYO_BORDER` palette of
-the editor `↵` button and input shells; hover uses the darker
-`TOKYO_SURFACE` tone (`#1D2030`) so the feedback stays visible without
-reading as a raised light card. Tooltip bodies use
-`inset_style`; it shares the same darker `TOKYO_BOARD` fill as the
+runtime via `svg::Style { color: Some(accent) }`. Regular colour schemes
+keep the separate run/step/reset accents listed above; only the
+black-and-white schemes collapse those glyphs to the same monochrome
+HDD/device accent. The surface stays on the neutral `active board token`
+/ `active border token` palette of the editor `↵` button and input
+shells; hover uses the darker `active surface token` tone (`#1D2030`) so
+the feedback stays visible without reading as a raised light card.
+Tooltip bodies use
+`inset_style`; it shares the same darker `active board token` fill as the
 `Регистр состояния` tooltip, so all hover tips now use one surface tone.
 When a button has a keyboard shortcut, `view::tooltips::hover_tooltip`
-adds a same-line `TOKYO_MUTED` shortcut suffix after the action label.
+adds a same-line `active muted token` shortcut suffix after the action label.
 Configurable actions render that suffix from `DesktopApp::shortcut_settings`,
 so tooltips and menu rows track the current shortcut map instead of a
 hard-coded string.
@@ -383,8 +386,10 @@ buttons (38×38, the
 same footprint and icon scale as the action buttons in «Выполнение» /
 «Сброс») plus a hover tooltip that reuses the editor `inset_style` so
 it visually belongs to the same chrome family as the action-panel
-tooltips. Hover uses the shared dark `TOKYO_SURFACE` fill and keeps the
-neutral frame colour, matching the current action-button feedback.
+tooltips. Regular colour schemes keep per-device accents; the
+black-and-white schemes collapse all five chips to the HDD/device
+accent. Hover uses the shared dark `active surface token` fill and keeps
+the neutral frame colour, matching the current action-button feedback.
 
 `device_chip` takes an `Option<Message>` for `on_press`. All five slots
 are active and dispatch `Message::OpenMonitor`, `Message::OpenFloppy`,
@@ -438,7 +443,7 @@ Body sections (top to bottom):
 |---|---|---|---|
 | unified (default) | Экран | `pixels` + `text_cells` composited | one `iced::widget::Canvas`. The pixel layer is drawn first using the reference KP580 Delphi formula `0xFFFFFF / 127 * (color & 0x7F)` reinterpreted as a `TColor` (LE DWORD, low byte = R) – a 128-step pseudo-coloured palette, not grayscale. The 64×20 text cells are then rasterised on top through the bundled 5×7 ASCII font in `view::monitor_font` using their own scale (the text grid is 448×200 logical px while the graphics raster is 256×256). The section title is overlaid only while the layer is empty; once any pixel or character lands the title disappears and the Canvas claims the full surface. |
 | split | Графический слой | `pixels: Vec<(u8,u8,u8)>` | Pixel-only `iced::widget::Canvas`, top-left anchored, same Delphi-`TColor` palette as unified |
-| split | Текстовый слой | `text_cells: Vec<TextCell { ch, color }>` | one continuous mono text run in `TOKYO_TEXT` over `TOKYO_BOARD`; framebuffer row boundaries do not insert line breaks, and glyph wrapping occurs only at the actual panel width. Non-printable bytes render as `·`, embedded zero cells as spaces, and trailing zero cells are omitted. |
+| split | Текстовый слой | `text_cells: Vec<TextCell { ch, color }>` | one continuous mono text run in `active text token` over `active board token`; framebuffer row boundaries do not insert line breaks, and glyph wrapping occurs only at the actual panel width. Non-printable bytes render as `·`, embedded zero cells as spaces, and trailing zero cells are omitted. |
 
 The byte-stream popup (`hex_buffer: Vec<u8>`) is rendered by
 `hex_popup_overlay` – a centred panel (`430×480 px`) shown only when
@@ -532,8 +537,8 @@ In debug mode the floppy accepts bytes into the visible buffer without
 an image file and leaves the file-backed queue count unchanged. The
 binary button toggles the body between `visible_buffer` and the bytes of
 the currently attached image file; this is an in-place layout switch,
-not a second overlay. The buffer frame uses the same dark `TOKYO_BOARD`
-surface and `TOKYO_BORDER` frame as the monitor. Its `Содержимое буфера`,
+not a second overlay. The buffer frame uses the same dark `active board token`
+surface and `active border token` frame as the monitor. Its `Содержимое буфера`,
 `Содержимое образа`, or `Файл не подключён` label is an empty-state hint:
 it is visible only while the active byte source is empty and disappears
 as soon as content is present. The footer shows the storage status,
@@ -626,12 +631,12 @@ edge now mirrors the right edge.
 `mux_panel_style`, `mux_chip_style`, `mux_header_style`,
 `schematic_readout`, `schematic_wide_readout`, device chips,
 `legend_panel_left` и общая рамка верхней области не задают resting
-fill. Структуру держат только `TOKYO_BORDER`-линии, поэтому блоки не
+fill. Структуру держат только `active border token`-линии, поэтому блоки не
 выглядят как отдельные залитые карточки на плате.
 
 Интерактивные элементы сохраняют feedback: register chips в группе
-«Регистры и операнды» поднимают fill до общего `TOKYO_SURFACE` на hover,
-но активный chip получает `TOKYO_SELECTION_BLUE` – ту же синюю заливку,
+«Регистры и операнды» поднимают fill до общего `active surface token` на hover,
+но активный chip получает `active selection-blue token` – ту же синюю заливку,
 что выбранная строка ОЗУ. РОН ячейки мультиплексора используют тот же
 тёмный hover-fill и тот же selected-blue, но активная цель хранится как
 `RegisterInlineTarget`, поэтому выбор `B` в верхнем буферном блоке не
@@ -672,8 +677,8 @@ fill. Структуру держат только `TOKYO_BORDER`-линии, п
 Подписи у ламп теперь горизонтальные и расположены **сверху** над
 точкой внутри framed-панели «Сигналы управления». Это повторяет
 пример 2: строка читается как обычная таблица сигналов, без SVG-
-поворота текста. Точка под подписью красится в `TOKYO_RED`, когда
-сигнал активен, и в `TOKYO_TEXT`, когда нет – та же идиома, что у
+поворота текста. Точка под подписью красится в `active red token`, когда
+сигнал активен, и в `active text token`, когда нет – та же идиома, что у
 `flag_dot` для Z/S/P.
 
 The separate Z/S/P/C/AC flag strip is centred inside its framed block
@@ -1233,10 +1238,10 @@ When `cpu.halted` is true and `pc - 1` points at a `0x76` (HLT) byte,
 that row in the memory list paints in red instead of the usual blue
 selection: `view::styles::containers::memory_row_container_style`
 takes a second `halted` argument and returns a red-tinted background
-(`TOKYO_RED` at 0.22 alpha) with the same 6 px corner radius as the
+(`active red token` at 0.22 alpha) with the same 6 px corner radius as the
 regular selection – no extra border, so the highlight reads as a
 peer of the blue selection rather than as competing chrome on top of
-it. The address column on the same row also switches to `TOKYO_RED`
+it. The address column on the same row also switches to `active red token`
 so the row reads as a single coherent "the program ended here"
 banner. The byte check defends against corner cases where PC sits one
 past an unrelated byte after a SetPc on a halted state – the halt
@@ -1412,7 +1417,7 @@ left-chevron button, a segmented centre gauge, a `N инстр/сек` readout,
 and a right-chevron button. The step buttons are compact 36 x 36 px
 squares with the same resting background as the app plate, so both
 chevrons fit inside the fixed-width frame without adding a grey chip
-surface. Their outline uses the same `TOKYO_BORDER` tone as the
+surface. Their outline uses the same `active border token` tone as the
 surrounding schematic frames. The bottom strip aligns these framed
 blocks by their lower border, matching the right-side action panels.
 Clicking left/right emits
@@ -1465,12 +1470,12 @@ tier lights a centred band of 5 / 10 / 15 / 20 segments for Slow /
 Medium / High / Max respectively. Every segment keeps a fixed height
 from the whole-gauge wave envelope, so changing tiers only recolours
 segments instead of resizing them. Neighbouring inactive bars receive
-a very light magenta halo that fades back into `TOKYO_SURFACE_2` over
+a very light magenta halo that fades back into `active secondary-surface token` over
 four segments. The text below shows the resolved
 `tier_hz(active)` value as CPU instructions per second: the paced run loop
 executes one CPU instruction per worker tick, while `step_tact` remains
 the separate tact-level debug control. The chevron buttons use the same
-dark `TOKYO_SURFACE` hover fill as the other control chips, with the
+dark `active surface token` hover fill as the other control chips, with the
 panel border colour left unchanged. The handler in `app/mod.rs`
 stashes the tier on `DesktopApp::speed_tier`, resolves it through
 `tier_hz`, and ships `SetStepInterval` + `SetRunMode` to the worker.
@@ -1548,6 +1553,9 @@ messages that would affect the underlying app state – `Tick`, keyboard
 shortcuts, menu actions – and only lets through modal-specific messages
 (Esc, Enter, Tab, button clicks) and read-only signals (`CursorMoved`,
 `FrameRendered`, etc.). Closing the modal restores full input routing.
+The shared modal and attached-device backdrops derive their translucent
+dim color from the active color scheme's board token instead of using one
+fixed tint.
 
 ### Discard modal
 
@@ -1570,9 +1578,9 @@ present because there is no exporter for it. The default tab and focus
 are MS Excel.
 
 The body mirrors the KR-580 export dialog shape while keeping the app's
-dark Tokyo Night surface: a RAM contents group on the left, a register
-values group on the right, and a horizontal flag values group below
-them. RAM settings include an editable target dropdown: XLSX labels it
+active color-scheme surface: a RAM contents group on the left, a
+register values group on the right, and a horizontal flag values group
+below them. RAM settings include an editable target dropdown: XLSX labels it
 as an Excel page (`Подпрограмма 1` by default), and TXT labels it as a
 text section (`Раздел 1` by default). The user can add or delete target
 names while the current app instance is alive; these names are
@@ -1664,17 +1672,23 @@ ring.
 Opened via default `Ctrl+,` or the menu bar. Four categories (General,
 External Devices, Appearance, Shortcuts) with keyboard-navigable
 sidebar chips. General holds language, speed, follow-PC, memory operand
-   highlighting, and the `.580` file association; External Devices holds the floppy image, HDD directory
-and network defaults; Appearance and Shortcuts hold their namesake
-settings. Live-editing language/speed with Cancel/Reset/Save footer.
-Reset opens a sub-modal confirmation. Search filters settings rows
-across all categories.
+highlighting, and the `.580` file association; External Devices holds
+the floppy image, HDD directory, and network defaults. Appearance holds
+the color-scheme picker, grouped into Dark and Light lists without a
+separate setting label column; each option renders a medium-size theme name in
+the left visual column and larger palette swatches in the right visual
+column. The Black & White Light and Catppuccin Latte palettes use muted
+light surfaces and softened text contrast instead of stark white panels.
+Shortcuts holds the keyboard
+shortcut map. Live-editing language/speed/theme with
+Cancel/Reset/Save footer. Reset opens a sub-modal confirmation. Search
+filters settings rows across all categories, including theme names.
 
 **State:** `settings_dialog: Option<SettingsDialog>`. `SettingsDialog`
 lives in `app/settings_modal/` and is a standalone draft – the live
-`lang` and `default_speed` fields on `DesktopApp` are kept in sync
-with the draft while editing, then rolled back to `original_*` on
-Cancel or committed on Save.
+`lang`, `default_speed`, and `color_scheme` fields on `DesktopApp` are
+kept in sync with the draft while editing, then rolled back to
+`original_*` on Cancel or committed on Save.
 
 **View:** `view/settings_dialog/` – `settings_modal_overlay()`.
 
@@ -2022,26 +2036,28 @@ and the dialog draft with defaults.
 
 ### Settings dialog: live preview, sub-modal, persistence
 
-`SettingsDialog::{draft_lang, draft_speed}` are the user's tentative
-values; `original_lang` / `original_speed` snapshot the live state at
-the moment the modal opens.
+`SettingsDialog::{draft_lang, draft_speed, draft_color_scheme}` are
+the user's tentative values; `original_lang`, `original_speed`, and
+`original_color_scheme` snapshot the live state at the moment the modal
+opens.
 
 - Editing a draft updates **live state** (`DesktopApp::lang`,
-  `default_speed`, `speed_tier`) immediately so the schematic and
-  status bar re-render in the new language / pacing without waiting
-  for `Save`. The settings router whitelists only its own message
-  variants, so the speed change is applied **synchronously** through
-  `apply_speed_tier` instead of routing a `Task::done(SpeedTierChanged)`
-  that the router would swallow.
+  `default_speed`, `speed_tier`, `color_scheme`) immediately so the
+  schematic, status bar, and chrome re-render in the new language /
+  pacing / theme without waiting for `Save`. The settings router
+  whitelists only its own message variants, so the speed change is
+  applied **synchronously** through `apply_speed_tier` instead of
+  routing a `Task::done(SpeedTierChanged)` that the router would
+  swallow.
 - `Cancel` / backdrop click / `Esc` in the empty dialog rolls back to
   the snapshot (`original_*`) and re-applies the original speed tier
   through the same chokepoint.
 - `Save` keeps the live state and dispatches `Message::PersistSettings`
   to write the JSON. The General page also stores a default floppy image path
   (loaded on startup) and separate startup address/port pairs for the network
-  client and server; the Shortcuts page stores the draft shortcut overrides.
-  These are draft-only until `Save`. Their compact fields use the same control
-  scale as the segmented buttons.
+  client and server; the Appearance page stores `ui.theme`; the Shortcuts page
+  stores the draft shortcut overrides. These are draft-only until `Save`. Their
+  compact fields use the same control scale as the segmented buttons.
 - The settings content pane scrolls vertically when its rows exceed the fixed
   dialog height. It uses `scrollable::Scrollbar::hidden()`, so wheel scrolling
   remains available without a visible rail or reserved scrollbar width.
@@ -2050,8 +2066,8 @@ the moment the modal opens.
 - `Reset` opens a stack-layer sub-modal whose `Cancel` / `Confirm`
   buttons follow `reset_confirm_focus`. `Confirm` writes
   the system default language from `system_locale::default_language()` /
-  `SpeedTier::High` (120 instructions/sec), turns Follow PC off,
-  restores the default shortcut map,
+  `SpeedTier::High` (120 instructions/sec), restores the default
+  `ColorScheme::TokyoNight`, turns Follow PC off, restores the default shortcut map,
   rewrites the dialog's `original_*` snapshot so a follow-up `Cancel`
   cannot restore the pre-reset values, and persists.
 
@@ -2140,8 +2156,8 @@ drives the same blue/cyan/border colour scheme that iced applies to the
 plain right-hand text input, so both visual styles match.
 
 Regular, inline, help-search, and help-article text selection uses the
-shared `TOKYO_TEXT_SELECTION` token: a semi-transparent gray overlay that
-keeps `TOKYO_TEXT` and `TOKYO_GREEN` values readable instead of washing
+shared `active text-selection token` token: a semi-transparent gray overlay that
+keeps `active text token` and `active green token` values readable instead of washing
 them under the old magenta fill.
 
 Two gestures clear the caret without going through any of the
@@ -2185,7 +2201,7 @@ GPU-presented frame. To suppress that flash:
 Cross-platform fall-backs:
 
 - The application root style explicitly paints the iced background with
-  `#121320` (`TOKYO_BOARD`) so any frame the OS shows before our wgpu
+  `#121320` (`active board token`) so any frame the OS shows before our wgpu
   surface presents is already in-theme.
 - On non-Windows targets `platform::cloak_window` is a no-op.
 

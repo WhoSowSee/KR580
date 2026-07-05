@@ -215,7 +215,6 @@ pub(crate) enum Key {
     SettingsToggleOff,
     SettingsThemeLabel,
     SettingsThemeHint,
-    SettingsThemePlaceholder,
     SettingsShortcutsLabel,
     SettingsShortcutsHint,
     SettingsNoMatches,

@@ -1,6 +1,6 @@
 use super::register_inline::RegisterMove;
 use crate::i18n::Lang;
-use crate::persistence::{ShortcutAction, ShortcutBinding};
+use crate::persistence::{ColorScheme, ShortcutAction, ShortcutBinding};
 use iced::Point;
 use iced::keyboard;
 use iced::widget::text_editor;
@@ -304,6 +304,7 @@ pub(crate) enum Message {
     SettingsDraftSpeedChanged(SpeedTier),
     SettingsDraftFollowPcSet(bool),
     SettingsDraftMemoryOperandHighlightingSet(bool),
+    SettingsDraftColorSchemeChanged(ColorScheme),
     SettingsFloppyImageBrowse,
     SettingsDraftFloppyImageSet(PathBuf),
     SettingsFloppyImageClear,

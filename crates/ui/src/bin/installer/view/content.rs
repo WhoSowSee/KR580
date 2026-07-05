@@ -4,8 +4,6 @@ use super::finish;
 use iced::widget::{Space, button, checkbox, column, container, row, svg, text, text_input};
 use iced::{Alignment, Element, Length, alignment};
 use k580_ui::install_mode::InstallMode;
-#[cfg(windows)]
-use k580_ui::install_mode::InstallScope;
 use std::sync::LazyLock;
 
 const OPTION_HEIGHT: f32 = 64.0;
@@ -146,6 +144,8 @@ fn header(app: &Installer) -> Element<'_, Message> {
 fn scope_section(app: &Installer) -> Element<'_, Message> {
     #[cfg(windows)]
     {
+        use k580_ui::install_mode::InstallScope;
+
         column![
             section_label(app.locale().t(T::WindowsScope)),
             row![

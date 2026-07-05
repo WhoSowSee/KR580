@@ -1,11 +1,25 @@
 Appearance settings (Ctrl+, > Appearance tab):
 
-- Theme: currently fixed to Tokyo Night
-Dark background (#1a1b26), surfaces (#24283b, #2f3346, #3b4261)
-Accent text (#c0caf5), muted text (#8b92a8)
-Flag indicators: green = 1, grey = 0
-RAM table highlights: PC (green), SP (brown), stack (yellow), cursor (blue)
+**Theme**
+The list is split into Dark and Light groups. The default scheme is Tokyo Night.
 
-- Window size: adapts to content, minimum width ~1180 px
+Available schemes:
+• Tokyo Night / Tokyo Night Light
+• Black & White Dark / Black & White Light
+• Kanagawa Wave / Kanagawa Lotus
+• Catppuccin Mocha / Catppuccin Latte
+• Nord
+• Gruvbox Dark / Gruvbox Light
+• Material Ocean
 
-- Monospace font for hex values, proportional for labels.
+Each row shows the theme name on the left and enlarged palette swatches on the right. Selection applies immediately; Cancel restores the previous theme and Save writes it to settings.
+Black & White Light and Catppuccin Latte use muted light surfaces and softer text contrast to avoid glare.
+
+**Color indication**
+• Schematic flags: green = 1, grey = 0
+• RAM table highlights: PC, SP, stack, and cursor use the selected scheme's accent colors
+• In black-and-white schemes, external-device, execution, and reset buttons use one monochrome accent; inactive lamps dim to grey
+
+**Typography**
+• Monospace font for hex values
+• Proportional font for labels and text

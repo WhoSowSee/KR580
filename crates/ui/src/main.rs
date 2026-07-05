@@ -10,15 +10,8 @@ mod system_locale;
 mod view;
 
 use app::DesktopApp;
-use iced::{Color, Theme, theme};
+use iced::{Theme, theme};
 use std::path::PathBuf;
-
-/// Matches `TOKYO_BOARD` so the launch flash blends into the UI.
-const BOARD_BACKGROUND: Color = Color::from_rgb(
-    0x12 as f32 / 255.0,
-    0x13 as f32 / 255.0,
-    0x20 as f32 / 255.0,
-);
 
 fn main() -> iced::Result {
     tracing_subscriber::fmt()
@@ -59,15 +52,8 @@ fn parse_cli_args(args: &mut impl Iterator<Item = String>) -> Result<Option<Path
     Ok(Some(PathBuf::from(arg)))
 }
 
-fn app_style(_state: &DesktopApp, _theme: &Theme) -> theme::Style {
-    theme::Style {
-        background_color: BOARD_BACKGROUND,
-        text_color: Color::from_rgb(
-            0xC0 as f32 / 255.0,
-            0xCA as f32 / 255.0,
-            0xF5 as f32 / 255.0,
-        ),
-    }
+fn app_style(state: &DesktopApp, _theme: &Theme) -> theme::Style {
+    view::theme::app_base_style(state.color_scheme)
 }
 
 #[cfg(test)]

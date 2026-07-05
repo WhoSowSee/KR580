@@ -13,7 +13,7 @@ use styles::{modal_backdrop_style, modal_dialog_style, separator_horizontal, sep
 
 use crate::app::{HelpDialog, Message};
 use crate::i18n::Lang;
-use crate::view::theme::{TOKYO_TEXT, ui_text};
+use crate::view::theme::{tokyo_text, ui_text};
 
 pub(super) fn help_modal_overlay<'a>(dialog: &'a HelpDialog, lang: Lang) -> Element<'a, Message> {
     let backdrop = mouse_area(
@@ -28,7 +28,7 @@ pub(super) fn help_modal_overlay<'a>(dialog: &'a HelpDialog, lang: Lang) -> Elem
         container(ui_text(
             lang.t(crate::i18n::Key::HelpDialogTitle),
             21,
-            TOKYO_TEXT,
+            tokyo_text(),
         ))
         .padding([0, 20])
         .align_y(iced::alignment::Vertical::Center),

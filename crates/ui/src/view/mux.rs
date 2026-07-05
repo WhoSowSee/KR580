@@ -12,8 +12,8 @@ use super::styles::{
     inline_value_input_style, mux_chip_style, mux_header_style, mux_panel_style, solid_style,
 };
 use super::theme::{
-    MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MUTED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE,
-    TOKYO_TEXT, mono_text, ui_text,
+    MONO_FONT, mono_text, tokyo_blue, tokyo_green, tokyo_muted, tokyo_selection_blue,
+    tokyo_subtle_line, tokyo_surface, tokyo_text, ui_text,
 };
 use super::utils::row_separator;
 use crate::app::{Message, REGISTER_INLINE_INPUT_ID, RegisterInlineTarget, register_name};
@@ -148,7 +148,7 @@ pub(super) fn mux_panel<'a>(
     container(
         column![
             container(
-                ui_text(lang.t(Key::Multiplexer), 14, TOKYO_MUTED)
+                ui_text(lang.t(Key::Multiplexer), 14, tokyo_muted())
                     .align_x(alignment::Horizontal::Center),
             )
             .height(Length::Fixed(18.0))
@@ -176,7 +176,7 @@ pub(super) fn mux_panel<'a>(
 /// caption stays centred regardless of how iced rounds the inner
 /// text bounding box against the outer width.
 fn mux_section_caption(label: &str) -> Element<'_, Message> {
-    container(ui_text(label.to_owned(), 11, TOKYO_MUTED).align_x(alignment::Horizontal::Center))
+    container(ui_text(label.to_owned(), 11, tokyo_muted()).align_x(alignment::Horizontal::Center))
         .padding([3, 8])
         .width(Length::Fill)
         .align_x(alignment::Horizontal::Center)
@@ -203,9 +203,9 @@ fn mux_static_pair(
 fn mux_static_cell(label: &'static str, value: u8) -> Element<'static, Message> {
     container(
         row![
-            ui_text(label, 13, TOKYO_MUTED),
+            ui_text(label, 13, tokyo_muted()),
             Space::new().width(Length::Fill),
-            mono_text(format!("{value:02X}"), 16, TOKYO_GREEN),
+            mono_text(format!("{value:02X}"), 16, tokyo_green()),
         ]
         .align_y(alignment::Vertical::Center)
         .spacing(8),
@@ -226,9 +226,9 @@ fn mux_readout_row<'a>(
 ) -> Element<'a, Message> {
     let face = container(
         row![
-            ui_text(label.to_owned(), 12, TOKYO_MUTED),
+            ui_text(label.to_owned(), 12, tokyo_muted()),
             Space::new().width(Length::Fill),
-            mono_text(value, 16, TOKYO_GREEN),
+            mono_text(value, 16, tokyo_green()),
         ]
         .align_y(alignment::Vertical::Center)
         .spacing(8),
@@ -285,9 +285,13 @@ fn mux_register_cell(
     let editing = edit_state.inline_target == Some(target);
     let hovered = edit_state.hovered_target == Some(target);
 
-    // Selected register name uses TOKYO_BLUE, idle uses TOKYO_MUTED –
-    // matches the memory-row address column. Byte stays TOKYO_GREEN.
-    let label_color = if is_selected { TOKYO_BLUE } else { TOKYO_MUTED };
+    // Selected register name uses tokyo_blue(), idle uses tokyo_muted() –
+    // matches the memory-row address column. Byte stays tokyo_green().
+    let label_color = if is_selected {
+        tokyo_blue()
+    } else {
+        tokyo_muted()
+    };
 
     let value: Element<'_, Message> = if editing && !edit_state.running {
         text_input(edit_state.input_placeholder, edit_state.input_value)
@@ -303,7 +307,7 @@ fn mux_register_cell(
             .into()
     } else {
         mouse_area(
-            container(mono_text(value, 16, TOKYO_GREEN))
+            container(mono_text(value, 16, tokyo_green()))
                 .width(Length::Fixed(MUX_REGISTER_VALUE_WIDTH))
                 .align_x(alignment::Horizontal::Center),
         )
@@ -346,21 +350,21 @@ fn mux_register_cell(
 
 fn mux_register_cell_style(_theme: &Theme, active: bool, selected: bool) -> container::Style {
     let background = if selected {
-        Some(TOKYO_SELECTION_BLUE)
+        Some(tokyo_selection_blue())
     } else if active {
-        Some(TOKYO_SURFACE)
+        Some(tokyo_surface())
     } else {
         None
     };
 
     container::Style {
         background: background.map(Background::Color),
-        text_color: Some(TOKYO_TEXT),
+        text_color: Some(tokyo_text()),
         border: iced::Border {
             radius: 0.0.into(),
             width: if active { 1.0 } else { 0.0 },
             color: if active {
-                mux_grid_line_color()
+                tokyo_subtle_line()
             } else {
                 Color::TRANSPARENT
             },
@@ -373,12 +377,8 @@ fn mux_column_separator() -> Element<'static, Message> {
     container(Space::new())
         .width(Length::Fixed(1.0))
         .height(Length::Fixed(MUX_REGISTER_CELL_HEIGHT))
-        .style(|_theme| solid_style(mux_grid_line_color(), 0.0))
+        .style(|_theme| solid_style(tokyo_subtle_line(), 0.0))
         .into()
-}
-
-fn mux_grid_line_color() -> Color {
-    Color::from_rgba8(0x41, 0x48, 0x68, 0.26)
 }
 
 #[cfg(test)]
@@ -390,6 +390,6 @@ mod tests {
         let style = mux_register_cell_style(&Theme::TokyoNight, true, false);
 
         assert_eq!(style.border.width, 1.0);
-        assert_eq!(style.border.color, mux_grid_line_color());
+        assert_eq!(style.border.color, tokyo_subtle_line());
     }
 }

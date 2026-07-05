@@ -1,7 +1,7 @@
 use iced::widget::{Space, button, container, row};
 use iced::{Element, Length, alignment};
 
-use super::super::theme::{TOKYO_TEXT, ui_text};
+use super::super::theme::{tokyo_text, ui_text};
 use super::consts::FOOTER_HEIGHT;
 use super::styles::footer_button_style;
 use crate::app::{FooterFocus, Message, SettingsCategory, SettingsDialog, SettingsSection};
@@ -64,7 +64,7 @@ fn reset_shortcuts_label(lang: Lang) -> &'static str {
 }
 
 fn footer_button(label: &'static str, action: Message, focused: bool) -> Element<'static, Message> {
-    button(container(ui_text(label, 13, TOKYO_TEXT)).padding([6, 16]))
+    button(container(ui_text(label, 13, tokyo_text())).padding([6, 16]))
         .on_press(action)
         .padding(0)
         .style(move |_theme, status| footer_button_style(status, focused))

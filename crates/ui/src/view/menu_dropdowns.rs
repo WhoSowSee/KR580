@@ -3,7 +3,7 @@ use iced::{Element, Length, alignment};
 
 use super::icons;
 use super::styles::{menu_button_disabled_style, menu_button_style, opcode_dropdown_style};
-use super::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{tokyo_border, tokyo_muted, tokyo_text, ui_text};
 use super::tooltips::shortcut_hint;
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
@@ -243,8 +243,8 @@ fn menu_item_with_note(
     action: Message,
     enabled: bool,
 ) -> Element<'static, Message> {
-    let glyph_color = if enabled { TOKYO_TEXT } else { TOKYO_MUTED };
-    let label_color = if enabled { TOKYO_TEXT } else { TOKYO_MUTED };
+    let glyph_color = if enabled { tokyo_text() } else { tokyo_muted() };
+    let label_color = if enabled { tokyo_text() } else { tokyo_muted() };
 
     let glyph = svg(icon)
         .width(Length::Fixed(MENU_ICON_SIZE))
@@ -256,7 +256,7 @@ fn menu_item_with_note(
     let label: Element<'static, Message> = match note {
         Some(note) => row![
             ui_text(label, 13, label_color),
-            ui_text(note, 11, TOKYO_MUTED),
+            ui_text(note, 11, tokyo_muted()),
         ]
         .spacing(8)
         .align_y(alignment::Vertical::Center)
@@ -269,7 +269,7 @@ fn menu_item_with_note(
             glyph,
             label,
             Space::new().width(Length::Fill),
-            ui_text(shortcut, 11, TOKYO_MUTED),
+            ui_text(shortcut, 11, tokyo_muted()),
         ]
         .spacing(10)
         .align_y(alignment::Vertical::Center),
@@ -302,7 +302,7 @@ fn menu_separator() -> Element<'static, Message> {
             .style(|_theme| iced::widget::container::Style {
                 background: Some(iced::Background::Color(iced::Color {
                     a: 0.35,
-                    ..TOKYO_BORDER
+                    ..tokyo_border()
                 })),
                 ..iced::widget::container::Style::default()
             }),

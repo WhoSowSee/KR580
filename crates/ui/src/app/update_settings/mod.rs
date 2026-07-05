@@ -1,22 +1,15 @@
-use iced::Task;
-
 use super::constants::SETTINGS_SEARCH_INPUT_ID;
 use super::messages::{Message, SpeedTier};
-use super::settings_modal::{
-    FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsDialog, SettingsSection,
-};
+use super::settings_modal::SettingsDialog;
+use super::settings_modal::{FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsSection};
 use super::state::DesktopApp;
 use crate::i18n::Key;
 use crate::settings_storage::{
     default_lang, language_from_lang, load_settings, preset_from_speed_tier, save_settings,
 };
+use iced::Task;
 
 impl DesktopApp {
-    /// Dispatches every `Message::Settings*` and the dialog lifecycle
-    /// messages (`OpenSettings` / `CloseSettings` / `SaveSettings` /
-    /// `PersistSettings`). Returns `Some(task)` on a recognised
-    /// settings message, `None` otherwise so the main `update` loop
-    /// can fall through to the rest of the match arms.
     pub(super) fn dispatch_settings_message(&mut self, message: Message) -> Option<Task<Message>> {
         if let Some(task) = self.dispatch_shortcut_settings_message(&message) {
             return Some(task);
@@ -30,6 +23,7 @@ impl DesktopApp {
                 self.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
                     self.lang,
                     self.default_speed,
+                    self.color_scheme,
                     self.follow_pc,
                     self.memory_operand_highlighting,
                     settings.general.floppy_image_path,
@@ -43,6 +37,7 @@ impl DesktopApp {
                 if let Some(dialog) = self.settings_dialog.take() {
                     let lang_changed = self.lang != dialog.original_lang;
                     self.lang = dialog.original_lang;
+                    self.color_scheme = dialog.original_color_scheme;
                     let speed_changed = self.default_speed != dialog.original_speed
                         || self.speed_tier != dialog.original_speed;
                     self.default_speed = dialog.original_speed;
@@ -84,6 +79,7 @@ impl DesktopApp {
                     dialog.draft_memory_operand_highlighting;
                 settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
                 settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
+                settings.ui.theme = dialog.draft_color_scheme;
                 apply_network_defaults(&mut settings.network, network);
                 settings.shortcuts = shortcuts.clone();
                 save_settings(&settings);
@@ -98,11 +94,13 @@ impl DesktopApp {
                 let mut settings = load_settings();
                 settings.general.language = language_from_lang(self.lang);
                 settings.general.default_speed = preset_from_speed_tier(self.default_speed);
+                settings.ui.theme = self.color_scheme;
                 if let Some(dialog) = self.settings_dialog.as_ref() {
                     settings.general.follow_pc = dialog.draft_follow_pc;
                     settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
                     settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
                     settings.shortcuts = dialog.draft_shortcuts.clone();
+                    settings.ui.theme = dialog.draft_color_scheme;
                     if let Ok(network) = parse_network_defaults(dialog) {
                         apply_network_defaults(&mut settings.network, network);
                     }
@@ -142,9 +140,6 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SettingsDraftSpeedChanged(tier) => {
-                // Direct apply: the modal router whitelists only its
-                // own message variants, so a `Task::done(SpeedTierChanged)`
-                // round-trip would be swallowed mid-flight.
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_speed = tier;
                 }
@@ -164,6 +159,13 @@ impl DesktopApp {
                     dialog.draft_memory_operand_highlighting = value;
                 }
                 self.memory_operand_highlighting = value;
+                Some(Task::none())
+            }
+            Message::SettingsDraftColorSchemeChanged(scheme) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_color_scheme = scheme;
+                }
+                self.color_scheme = scheme;
                 Some(Task::none())
             }
             Message::SettingsFloppyImageBrowse => {
@@ -298,10 +300,6 @@ impl DesktopApp {
                 }
                 cycle_section(dialog, backward);
                 let target = dialog.section;
-                // iced has no global "blur" operation, so when we
-                // leave Search we focus a dummy id no widget owns –
-                // the focused text_input clears its caret on the
-                // next pass and Tab/Enter no longer route to it.
                 Some(match target {
                     SettingsSection::Search => {
                         iced::widget::operation::focus(SETTINGS_SEARCH_INPUT_ID)
@@ -328,6 +326,7 @@ impl DesktopApp {
             Message::SettingsResetConfirmed => {
                 let default_lang = default_lang();
                 let default_speed = SpeedTier::High;
+                let default_color_scheme = crate::persistence::ColorScheme::DEFAULT;
                 let default_follow_pc = false;
                 let default_memory_operand_highlighting = true;
                 let network = crate::persistence::NetworkSettings::default();
@@ -335,10 +334,12 @@ impl DesktopApp {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_lang = default_lang;
                     dialog.draft_speed = default_speed;
+                    dialog.draft_color_scheme = default_color_scheme;
                     dialog.draft_floppy_image_path = None;
                     dialog.draft_hdd_directory = None;
                     dialog.original_lang = default_lang;
                     dialog.original_speed = default_speed;
+                    dialog.original_color_scheme = default_color_scheme;
                     dialog.draft_network_client_host = network.host;
                     dialog.draft_network_client_port = network.port.to_string();
                     dialog.draft_network_server_host = network.bind_host;
@@ -349,7 +350,8 @@ impl DesktopApp {
                     dialog.draft_follow_pc = default_follow_pc;
                     dialog.draft_memory_operand_highlighting = default_memory_operand_highlighting;
                     dialog.original_follow_pc = default_follow_pc;
-                    dialog.original_memory_operand_highlighting = default_memory_operand_highlighting;
+                    dialog.original_memory_operand_highlighting =
+                        default_memory_operand_highlighting;
                     dialog.network_error = None;
                     dialog.reset_confirm_open = false;
                 }
@@ -359,6 +361,7 @@ impl DesktopApp {
                 let lang_changed = self.lang != default_lang;
                 self.lang = default_lang;
                 self.default_speed = default_speed;
+                self.color_scheme = default_color_scheme;
                 self.apply_speed_tier(default_speed);
                 if lang_changed {
                     self.refresh_localized_status();

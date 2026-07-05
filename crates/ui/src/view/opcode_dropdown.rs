@@ -10,7 +10,7 @@ use iced::{Element, Length, alignment};
 use super::styles::{
     input_borderless_style, opcode_dropdown_style, opcode_option_style, scrollable_style,
 };
-use super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text};
+use super::theme::{MONO_FONT, mono_text, tokyo_green, tokyo_text};
 use super::utils::row_separator;
 use crate::app::{Message, OPCODE_SEARCH_INPUT_ID, OpcodeChoice, filtered_opcode_choices};
 use crate::i18n::{Key, Lang};
@@ -83,8 +83,9 @@ fn opcode_option(
 ) -> Element<'static, Message> {
     button(
         row![
-            mono_text(format!("{:02X}", choice.value), 13, TOKYO_GREEN).width(Length::Fixed(34.0)),
-            mono_text(choice.mnemonic, 13, TOKYO_TEXT).width(Length::Fill),
+            mono_text(format!("{:02X}", choice.value), 13, tokyo_green())
+                .width(Length::Fixed(34.0)),
+            mono_text(choice.mnemonic, 13, tokyo_text()).width(Length::Fill),
         ]
         .spacing(8)
         .align_y(alignment::Vertical::Center),

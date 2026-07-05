@@ -10,7 +10,7 @@ use super::storage::chrome::{
 };
 use super::storage::status_label;
 use super::styles::{panel_style, scrollable_style};
-use super::theme::{MONO_FONT, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
 use crate::app::{Message, ToolWindowKind};
 use crate::i18n::{Key, Lang, PrinterKey};
 
@@ -144,7 +144,7 @@ fn buffer_panel<'a>(state: &'a PrinterState, text_view: bool, lang: Lang) -> Ele
             iced::widget::text(content)
                 .font(MONO_FONT)
                 .size(11)
-                .color(TOKYO_TEXT)
+                .color(tokyo_text())
                 .wrapping(iced::widget::text::Wrapping::None),
         )
         .padding(if empty { [34, 12] } else { [12, 12] })
@@ -162,7 +162,7 @@ fn buffer_panel<'a>(state: &'a PrinterState, text_view: bool, lang: Lang) -> Ele
         let label = container(ui_text(
             lang.t(Key::Printer(PrinterKey::BufferContents)),
             13,
-            TOKYO_MUTED,
+            tokyo_muted(),
         ))
         .padding(Padding {
             top: 8.0,
@@ -200,7 +200,7 @@ fn footer<'a>(state: &'a PrinterState, lang: Lang) -> Element<'a, Message> {
     iced::widget::text(meta)
         .font(MONO_FONT)
         .size(12)
-        .color(TOKYO_TEXT)
+        .color(tokyo_text())
         .wrapping(iced::widget::text::Wrapping::None)
         .into()
 }

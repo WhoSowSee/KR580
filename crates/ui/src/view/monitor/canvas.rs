@@ -4,7 +4,7 @@ use iced::{Color, Rectangle, Renderer, Theme};
 
 use crate::app::Message;
 use crate::view::monitor_font::{CELL_HEIGHT, CELL_WIDTH, GLYPH_HEIGHT, GLYPH_WIDTH, pixel_lit};
-use crate::view::theme::TOKYO_BOARD;
+use crate::view::theme::tokyo_board;
 
 pub(super) struct PixelCanvas<'a> {
     pub(super) state: &'a MonitorState,
@@ -24,7 +24,7 @@ impl<'a> Program<Message> for PixelCanvas<'a> {
     ) -> Vec<Geometry> {
         let geometry = self.cache.draw(renderer, bounds.size(), |frame| {
             let bg = Path::rectangle(iced::Point::ORIGIN, frame.size());
-            frame.fill(&bg, TOKYO_BOARD);
+            frame.fill(&bg, tokyo_board());
 
             let scale = (frame.width() / GRAPHICS_WIDTH as f32)
                 .min(frame.height() / GRAPHICS_HEIGHT as f32);
@@ -62,7 +62,7 @@ impl<'a> Program<Message> for UnifiedCanvas<'a> {
     ) -> Vec<Geometry> {
         let geometry = self.cache.draw(renderer, bounds.size(), |frame| {
             let bg = Path::rectangle(iced::Point::ORIGIN, frame.size());
-            frame.fill(&bg, TOKYO_BOARD);
+            frame.fill(&bg, tokyo_board());
 
             let scale = (frame.width() / GRAPHICS_WIDTH as f32)
                 .min(frame.height() / GRAPHICS_HEIGHT as f32);

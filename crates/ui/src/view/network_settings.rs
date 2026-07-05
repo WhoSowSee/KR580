@@ -8,7 +8,7 @@ use super::storage::chrome::icon_button;
 use super::styles::{
     modal_backdrop_style, modal_field_button_style, modal_tab_button_style, panel_style,
 };
-use super::theme::{TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT, ui_text};
+use super::theme::{tokyo_muted, tokyo_red, tokyo_text, ui_text};
 use super::widgets::{modal_footer_button, text_input_shell};
 use crate::app::Message;
 use crate::i18n::{Key, NetworkKey};
@@ -23,11 +23,15 @@ pub(super) fn settings_overlay(view: NetworkViewState<'_>) -> Element<'_, Messag
     .on_press(Message::CloseNetworkSettings);
     let error: Element<'_, Message> = view.error.map_or_else(
         || Space::new().height(Length::Fixed(12.0)).into(),
-        |error| ui_text(error, 12, TOKYO_RED).into(),
+        |error| ui_text(error, 12, tokyo_red()).into(),
     );
     let inputs = row![
         column![
-            ui_text(view.lang.t(Key::Network(NetworkKey::Host)), 12, TOKYO_MUTED),
+            ui_text(
+                view.lang.t(Key::Network(NetworkKey::Host)),
+                12,
+                tokyo_muted()
+            ),
             text_input_shell(
                 "127.0.0.1",
                 view.host,
@@ -38,7 +42,11 @@ pub(super) fn settings_overlay(view: NetworkViewState<'_>) -> Element<'_, Messag
         .spacing(4)
         .width(Length::Fill),
         column![
-            ui_text(view.lang.t(Key::Network(NetworkKey::Port)), 12, TOKYO_MUTED),
+            ui_text(
+                view.lang.t(Key::Network(NetworkKey::Port)),
+                12,
+                tokyo_muted()
+            ),
             text_input_shell("5800", view.port, Message::NetworkPortChanged, Length::Fill,),
         ]
         .spacing(4)
@@ -65,7 +73,7 @@ pub(super) fn settings_overlay(view: NetworkViewState<'_>) -> Element<'_, Messag
                 ui_text(
                     view.lang.t(Key::Network(NetworkKey::SettingsTitle)),
                     16,
-                    TOKYO_TEXT
+                    tokyo_text()
                 ),
                 Space::new().width(Length::Fill),
                 icon_button(
@@ -78,7 +86,11 @@ pub(super) fn settings_overlay(view: NetworkViewState<'_>) -> Element<'_, Messag
             ]
             .align_y(alignment::Vertical::Center),
             row![
-                ui_text(view.lang.t(Key::Network(NetworkKey::Mode)), 13, TOKYO_MUTED),
+                ui_text(
+                    view.lang.t(Key::Network(NetworkKey::Mode)),
+                    13,
+                    tokyo_muted()
+                ),
                 mode_button(
                     view.lang.t(Key::Network(NetworkKey::ModeClient)),
                     NetworkMode::Client,
@@ -111,7 +123,7 @@ fn mode_button(
     mode: NetworkMode,
     selected: bool,
 ) -> Element<'static, Message> {
-    button(container(ui_text(label, 13, TOKYO_TEXT)).padding([6, 14]))
+    button(container(ui_text(label, 13, tokyo_text())).padding([6, 14]))
         .on_press(Message::NetworkModeChanged(mode))
         .padding(0)
         .style(move |_theme, status| modal_tab_button_style(status, selected))

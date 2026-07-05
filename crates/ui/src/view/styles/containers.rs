@@ -6,26 +6,27 @@ use iced::widget::container;
 use iced::{Background, Border, Color, Theme};
 
 use super::super::theme::{
-    TOKYO_BLUE, TOKYO_BOARD, TOKYO_BORDER, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_TEXT,
+    tokyo_blue, tokyo_board, tokyo_border, tokyo_modal_backdrop, tokyo_red, tokyo_red_fill,
+    tokyo_selection_blue, tokyo_text,
 };
 
 pub(crate) fn app_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
+    surface_style(Some(tokyo_board()), 0.0, 0.0, Color::TRANSPARENT)
 }
 
 pub(crate) fn menu_bar_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
+    surface_style(Some(tokyo_board()), 0.0, 0.0, Color::TRANSPARENT)
 }
 
 pub(crate) fn board_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 8.0, 1.0, TOKYO_BORDER)
+    surface_style(Some(tokyo_board()), 8.0, 1.0, tokyo_border())
 }
 
 /// Outline-only variant of `board_style` for the left schematic panel:
 /// the schematic already provides its own outline language, so an extra
 /// rounded border around it reads as redundant.
 pub(crate) fn schematic_board_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
+    surface_style(Some(tokyo_board()), 0.0, 0.0, Color::TRANSPARENT)
 }
 
 /// Divider slot under the menu bar – paints in the plate colour so it
@@ -33,7 +34,7 @@ pub(crate) fn schematic_board_style(_theme: &Theme) -> container::Style {
 /// position against.
 pub(crate) fn menu_bar_divider_style(_theme: &Theme) -> container::Style {
     container::Style {
-        background: Some(Background::Color(TOKYO_BOARD)),
+        background: Some(Background::Color(tokyo_board())),
         border: Border {
             radius: 0.0.into(),
             width: 0.0,
@@ -49,51 +50,46 @@ pub(crate) fn panel_style(theme: &Theme) -> container::Style {
 
 pub(crate) fn modal_backdrop_style(_theme: &Theme) -> container::Style {
     container::Style {
-        background: Some(Background::Color(Color {
-            r: 0.07,
-            g: 0.07,
-            b: 0.13,
-            a: 0.70,
-        })),
+        background: Some(Background::Color(tokyo_modal_backdrop())),
         ..container::Style::default()
     }
 }
 
 pub(crate) fn large_dialog_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 12.0, 1.0, TOKYO_BORDER)
+    surface_style(Some(tokyo_board()), 12.0, 1.0, tokyo_border())
 }
 
 /// Shared surface for hover tooltips. Matches `status_tooltip_style`
 /// so every tooltip in the app uses the same darker plate fill.
 pub(crate) fn inset_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
+    surface_style(Some(tokyo_board()), 6.0, 1.0, tokyo_border())
 }
 
 pub(crate) fn status_tooltip_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, TOKYO_BORDER)
+    surface_style(Some(tokyo_board()), 6.0, 1.0, tokyo_border())
 }
 
-/// `error_inset_style` reuses `TOKYO_BOARD` so the notice reads as
+/// `error_inset_style` reuses `tokyo_board()` so the notice reads as
 /// "another bubble on the same plate" instead of a foreign light box;
 /// the red 1.5 px border alone carries the "this is an error" signal.
 pub(crate) fn error_inset_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 8.0, 1.5, TOKYO_RED)
+    surface_style(Some(tokyo_board()), 8.0, 1.5, tokyo_red())
 }
 
 pub(crate) fn schematic_block_style(_theme: &Theme) -> container::Style {
-    surface_style(None, 6.0, 1.0, TOKYO_BORDER)
+    surface_style(None, 6.0, 1.0, tokyo_border())
 }
 
 /// Header strip of the multiplexer panel. Transparent at rest, with
 /// a full-rectangle border so the upper edge stays visible against
 /// the plate (the outer `mux_panel_style` perimeter "disappears"
-/// against `TOKYO_BOARD` there). Top corners share the 6 px radius;
+/// against `tokyo_board()` there). Top corners share the 6 px radius;
 /// bottom corners stay square so the strip butts into the next
 /// section caption.
 pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
     container::Style {
         background: None,
-        text_color: Some(TOKYO_TEXT),
+        text_color: Some(tokyo_text()),
         border: Border {
             radius: iced::border::Radius {
                 top_left: 6.0,
@@ -102,25 +98,25 @@ pub(crate) fn mux_header_style(_theme: &Theme) -> container::Style {
                 bottom_left: 0.0,
             },
             width: 1.0,
-            color: TOKYO_BORDER,
+            color: tokyo_border(),
         },
         ..container::Style::default()
     }
 }
 
 pub(crate) fn mux_panel_style(_theme: &Theme) -> container::Style {
-    surface_style(None, 6.0, 1.0, TOKYO_BORDER)
+    surface_style(None, 6.0, 1.0, tokyo_border())
 }
 
 /// Outline-only chrome for individual chips inside the multiplexer
 /// (W/Z scratch pair, SP/PC inline readouts) – matches `mux_panel_style`
 /// at a smaller scale.
 pub(crate) fn mux_chip_style(_theme: &Theme) -> container::Style {
-    surface_style(None, 6.0, 1.0, TOKYO_BORDER)
+    surface_style(None, 6.0, 1.0, tokyo_border())
 }
 
 pub(crate) fn legend_label_style(_theme: &Theme) -> container::Style {
-    surface_style(Some(TOKYO_BOARD), 0.0, 0.0, Color::TRANSPARENT)
+    surface_style(Some(tokyo_board()), 0.0, 0.0, Color::TRANSPARENT)
 }
 
 pub(crate) fn transparent_style(_theme: &Theme) -> container::Style {
@@ -132,9 +128,13 @@ pub(crate) fn transparent_style(_theme: &Theme) -> container::Style {
 /// only feedback that promises "you can type here" is the focus ring,
 /// matching the convention of native form fields.
 pub(crate) fn input_shell_style(_theme: &Theme, focused: bool) -> container::Style {
-    let border_color = if focused { TOKYO_BLUE } else { TOKYO_BORDER };
+    let border_color = if focused {
+        tokyo_blue()
+    } else {
+        tokyo_border()
+    };
 
-    surface_style(Some(TOKYO_BOARD), 6.0, 1.0, border_color)
+    surface_style(Some(tokyo_board()), 6.0, 1.0, border_color)
 }
 
 /// Floating opcode picker. Matches the surrounding board panels so
@@ -143,8 +143,8 @@ pub(crate) fn input_shell_style(_theme: &Theme, focused: bool) -> container::Sty
 /// memory list, so a square top edge would look clipped.
 pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
     container::Style {
-        text_color: Some(TOKYO_TEXT),
-        background: Some(Background::Color(TOKYO_BOARD)),
+        text_color: Some(tokyo_text()),
+        background: Some(Background::Color(tokyo_board())),
         border: Border {
             radius: iced::border::Radius {
                 top_left: 7.0,
@@ -153,7 +153,7 @@ pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
                 bottom_left: 7.0,
             },
             width: 1.0,
-            color: TOKYO_BORDER,
+            color: tokyo_border(),
         },
         ..container::Style::default()
     }
@@ -164,8 +164,8 @@ pub(crate) fn opcode_dropdown_style(_theme: &Theme) -> container::Style {
 pub(crate) fn memory_row_container_style(selected: bool, halted: bool) -> container::Style {
     if halted {
         return container::Style {
-            background: Some(Background::Color(Color::from_rgba8(0xF7, 0x76, 0x8E, 0.22))),
-            text_color: Some(TOKYO_TEXT),
+            background: Some(Background::Color(tokyo_red_fill())),
+            text_color: Some(tokyo_text()),
             border: Border {
                 radius: 6.0.into(),
                 width: 0.0,
@@ -176,14 +176,14 @@ pub(crate) fn memory_row_container_style(selected: bool, halted: bool) -> contai
     }
 
     let background = if selected {
-        Some(Background::Color(TOKYO_SELECTION_BLUE))
+        Some(Background::Color(tokyo_selection_blue()))
     } else {
         None
     };
 
     container::Style {
         background,
-        text_color: Some(TOKYO_TEXT),
+        text_color: Some(tokyo_text()),
         border: Border {
             // Round only the highlighted row so 1-px separators between
             // unhighlighted rows still meet edge-to-edge.
@@ -213,7 +213,7 @@ pub(crate) fn surface_style(
     border_color: Color,
 ) -> container::Style {
     container::Style {
-        text_color: Some(TOKYO_TEXT),
+        text_color: Some(tokyo_text()),
         background: background.map(Background::Color),
         border: Border {
             radius: radius.into(),
@@ -249,14 +249,14 @@ mod tests {
         let idle = input_shell_style(&Theme::TokyoNight, false);
         let focused = input_shell_style(&Theme::TokyoNight, true);
 
-        assert_eq!(idle.background, Some(Background::Color(TOKYO_BOARD)));
-        assert_eq!(focused.background, Some(Background::Color(TOKYO_BOARD)));
+        assert_eq!(idle.background, Some(Background::Color(tokyo_board())));
+        assert_eq!(focused.background, Some(Background::Color(tokyo_board())));
     }
 
     #[test]
     fn menu_bar_divider_paints_as_app_plate() {
         let divider = menu_bar_divider_style(&Theme::TokyoNight);
 
-        assert_eq!(divider.background, Some(Background::Color(TOKYO_BOARD)));
+        assert_eq!(divider.background, Some(Background::Color(tokyo_board())));
     }
 }

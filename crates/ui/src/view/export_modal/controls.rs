@@ -2,7 +2,7 @@ use iced::widget::{Space, button, column, container, row, stack, text_input};
 use iced::{Element, Length, Padding, alignment};
 
 use super::super::styles::{input_borderless_style, input_shell_style};
-use super::super::theme::{MONO_FONT, TOKYO_GREEN, TOKYO_TEXT, mono_text, ui_text};
+use super::super::theme::{MONO_FONT, mono_text, tokyo_green, tokyo_text, ui_text};
 use super::styles::{
     checkbox_style, checklist_button_style, flag_checkbox_style, group_label_style,
     group_panel_style,
@@ -30,7 +30,7 @@ pub(super) fn group_box<'a>(
         .into();
     let label = row![
         Space::new().width(Length::Fill),
-        container(ui_text(title, 14, TOKYO_TEXT))
+        container(ui_text(title, 14, tokyo_text()))
             .padding([0, 6])
             .style(group_label_style),
         Space::new().width(Length::Fill),
@@ -53,7 +53,7 @@ pub(super) fn checkbox_row(
     message: Message,
 ) -> Element<'static, Message> {
     let mark: Element<'static, Message> = if checked {
-        mono_text("✓", 13, TOKYO_GREEN)
+        mono_text("✓", 13, tokyo_green())
             .align_x(alignment::Horizontal::Center)
             .into()
     } else {
@@ -67,7 +67,7 @@ pub(super) fn checkbox_row(
         .style(move |_theme| checkbox_style(checked));
 
     button(
-        row![box_face, ui_text(label_text, 13, TOKYO_TEXT)]
+        row![box_face, ui_text(label_text, 13, tokyo_text())]
             .spacing(8)
             .align_y(alignment::Vertical::Center),
     )
@@ -84,7 +84,7 @@ pub(super) fn flag_checkbox(
     message: Message,
 ) -> Element<'static, Message> {
     let mark: Element<'static, Message> = if checked {
-        mono_text("✓", 12, TOKYO_GREEN)
+        mono_text("✓", 12, tokyo_green())
             .align_x(alignment::Horizontal::Center)
             .into()
     } else {
@@ -98,7 +98,7 @@ pub(super) fn flag_checkbox(
         .style(move |_theme| flag_checkbox_style(checked));
 
     button(
-        column![box_face, ui_text(label_text, 12, TOKYO_TEXT)]
+        column![box_face, ui_text(label_text, 12, tokyo_text())]
             .spacing(2)
             .width(Length::Fill)
             .align_x(alignment::Horizontal::Center),
@@ -140,9 +140,9 @@ pub(super) fn input_shell<'a>(
 }
 
 pub(super) fn suffix(value: &'static str) -> Element<'static, Message> {
-    mono_text(value, 13, TOKYO_TEXT).into()
+    mono_text(value, 13, tokyo_text()).into()
 }
 
 pub(super) fn label(value: &'static str) -> Element<'static, Message> {
-    ui_text(value, 13, TOKYO_TEXT).into()
+    ui_text(value, 13, tokyo_text()).into()
 }

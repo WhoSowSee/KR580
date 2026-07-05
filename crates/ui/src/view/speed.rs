@@ -12,7 +12,7 @@ use iced::{Background, Border, Color, Element, Length, alignment};
 use super::icons;
 use super::styles::solid_style;
 use super::theme::{
-    TOKYO_BOARD, TOKYO_BORDER, TOKYO_MAGENTA, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT, ui_text,
+    tokyo_board, tokyo_border, tokyo_magenta, tokyo_surface, tokyo_surface_2, tokyo_text, ui_text,
 };
 use super::widgets::legend_panel_left;
 use crate::app::{Message, SpeedTier, tier_hz};
@@ -42,7 +42,8 @@ const GAUGE_HALO_SEGMENTS: usize = 4;
 pub(super) fn speed_panel(active: SpeedTier, lang: Lang) -> Element<'static, Message> {
     let gauge = column![
         gauge_row(active),
-        ui_text(speed_readout(active, lang), 13, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+        ui_text(speed_readout(active, lang), 13, tokyo_text())
+            .align_x(alignment::Horizontal::Center),
     ]
     .spacing(GAUGE_READOUT_SPACING)
     .align_x(alignment::Horizontal::Center);
@@ -74,7 +75,7 @@ fn speed_step_button(handle: svg::Handle, tier: SpeedTier) -> Element<'static, M
         .width(Length::Fixed(CONTROL_ICON_SIZE))
         .height(Length::Fixed(CONTROL_ICON_SIZE))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
+            color: Some(tokyo_text()),
         });
 
     button(
@@ -94,21 +95,21 @@ fn speed_step_button(handle: svg::Handle, tier: SpeedTier) -> Element<'static, M
 
 fn speed_step_button_style(status: button::Status) -> button::Style {
     let background = match status {
-        button::Status::Pressed => TOKYO_SURFACE_2,
-        button::Status::Hovered => TOKYO_SURFACE,
-        _ => TOKYO_BOARD,
+        button::Status::Pressed => tokyo_surface_2(),
+        button::Status::Hovered => tokyo_surface(),
+        _ => tokyo_board(),
     };
     let border_color = match status {
         button::Status::Disabled => Color {
             a: 0.35,
-            ..TOKYO_BORDER
+            ..tokyo_border()
         },
-        _ => TOKYO_BORDER,
+        _ => tokyo_border(),
     };
 
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color: tokyo_text(),
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
@@ -143,7 +144,7 @@ fn gauge_segment_color(index: usize, active: SpeedTier) -> Color {
         let strength = active_segment_strength(index, start, end);
         Color {
             a: 0.66 + 0.24 * strength,
-            ..TOKYO_MAGENTA
+            ..tokyo_magenta()
         }
     } else {
         let halo = inactive_segment_halo(index, start, end);
@@ -151,11 +152,11 @@ fn gauge_segment_color(index: usize, active: SpeedTier) -> Color {
             return blend_color(
                 Color {
                     a: 0.50,
-                    ..TOKYO_SURFACE_2
+                    ..tokyo_surface_2()
                 },
                 Color {
                     a: 0.50,
-                    ..TOKYO_MAGENTA
+                    ..tokyo_magenta()
                 },
                 halo,
             );
@@ -163,7 +164,7 @@ fn gauge_segment_color(index: usize, active: SpeedTier) -> Color {
 
         Color {
             a: 0.48,
-            ..TOKYO_SURFACE_2
+            ..tokyo_surface_2()
         }
     }
 }
@@ -259,7 +260,7 @@ fn active_segment_count(tier: SpeedTier) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::super::theme::TOKYO_BORDER;
+    use super::super::theme::tokyo_border;
     use super::*;
 
     #[test]
@@ -303,14 +304,14 @@ mod tests {
     fn speed_step_button_resting_background_matches_app_plate() {
         let style = speed_step_button_style(button::Status::Active);
 
-        assert_eq!(style.background, Some(Background::Color(TOKYO_BOARD)));
+        assert_eq!(style.background, Some(Background::Color(tokyo_board())));
     }
 
     #[test]
     fn speed_step_button_hover_uses_shared_hover_surface() {
         let style = speed_step_button_style(button::Status::Hovered);
 
-        assert_eq!(style.background, Some(Background::Color(TOKYO_SURFACE)));
+        assert_eq!(style.background, Some(Background::Color(tokyo_surface())));
     }
 
     #[test]
@@ -318,8 +319,8 @@ mod tests {
         let active = speed_step_button_style(button::Status::Active);
         let hovered = speed_step_button_style(button::Status::Hovered);
 
-        assert_eq!(active.border.color, TOKYO_BORDER);
-        assert_eq!(hovered.border.color, TOKYO_BORDER);
+        assert_eq!(active.border.color, tokyo_border());
+        assert_eq!(hovered.border.color, tokyo_border());
     }
 
     #[test]

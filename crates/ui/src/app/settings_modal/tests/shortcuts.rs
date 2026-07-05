@@ -3,7 +3,7 @@ use crate::app::settings_modal::SettingsDialog;
 use crate::app::{DesktopApp, Message};
 use crate::i18n::Lang;
 use crate::persistence::{
-    NetworkSettings, ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings,
+    ColorScheme, NetworkSettings, ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings,
 };
 
 #[test]
@@ -17,6 +17,7 @@ fn dialog_copies_shortcut_settings() {
     let dialog = SettingsDialog::new_with_shortcuts(
         Lang::Ru,
         SpeedTier::Medium,
+        ColorScheme::DEFAULT,
         true,
         true,
         None,
@@ -36,6 +37,7 @@ fn shortcut_capture_updates_live_preview_and_draft() {
     app.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
         app.lang,
         app.default_speed,
+        ColorScheme::DEFAULT,
         true,
         true,
         None,
@@ -86,6 +88,7 @@ fn shortcut_reset_updates_live_preview_and_rolls_back_on_cancel() {
     app.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
         app.lang,
         app.default_speed,
+        ColorScheme::DEFAULT,
         true,
         true,
         None,

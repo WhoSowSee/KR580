@@ -217,7 +217,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SettingsToggleOff => "Off",
         Key::SettingsThemeLabel => "Theme",
         Key::SettingsThemeHint => "Interface theme",
-        Key::SettingsThemePlaceholder => "Coming soon",
         Key::SettingsShortcutsLabel => "Keyboard shortcuts",
         Key::SettingsShortcutsHint => "Customize keyboard shortcuts",
         Key::SettingsNoMatches => "No matches",

@@ -8,7 +8,7 @@ use crate::i18n::Key;
 
 impl DesktopApp {
     pub(crate) fn theme(&self, _window: iced::window::Id) -> Option<Theme> {
-        Some(Theme::TokyoNight)
+        Some(crate::view::theme::iced_theme_for_scheme(self.color_scheme))
     }
 
     pub(crate) fn set_status(&mut self, kind: StatusKind) {

@@ -10,4 +10,5 @@ Key features:
 - Undo/Redo with 256 history entries
 - UI localization: Russian and English
 - Configurable default execution speed
+- Configurable dark and light color schemes
 - Opcode picker dropdown with search across all 244 documented instructions

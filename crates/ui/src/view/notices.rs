@@ -2,7 +2,7 @@ use iced::widget::{Space, column, container, mouse_area, opaque, row};
 use iced::{Element, Length, alignment};
 
 use super::styles::error_inset_style;
-use super::theme::{TOKYO_TEXT, ui_text};
+use super::theme::{tokyo_text, ui_text};
 use crate::app::Message;
 
 const NOTICE_TOP: f32 = 96.0;
@@ -32,7 +32,7 @@ fn notice_overlay(
     dismiss: Message,
 ) -> Element<'_, Message> {
     let body = container(
-        ui_text(notice.to_owned(), 15, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+        ui_text(notice.to_owned(), 15, tokyo_text()).align_x(alignment::Horizontal::Center),
     )
     .padding([12, 22])
     .style(style);

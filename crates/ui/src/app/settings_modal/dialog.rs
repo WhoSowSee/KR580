@@ -3,7 +3,7 @@ use super::focus::{
 };
 use crate::app::messages::SpeedTier;
 use crate::i18n::Lang;
-use crate::persistence::{NetworkSettings, ShortcutAction, ShortcutSettings};
+use crate::persistence::{ColorScheme, NetworkSettings, ShortcutAction, ShortcutSettings};
 
 /// Draft state edited by the dialog. Live language, speed, and shortcut
 /// fields on `DesktopApp` are kept in sync for immediate preview;
@@ -14,6 +14,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) search: String,
     pub(crate) draft_lang: Lang,
     pub(crate) draft_speed: SpeedTier,
+    pub(crate) draft_color_scheme: ColorScheme,
     pub(crate) draft_follow_pc: bool,
     pub(crate) draft_memory_operand_highlighting: bool,
     pub(crate) draft_floppy_image_path: Option<std::path::PathBuf>,
@@ -34,6 +35,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) dropdown_highlight: Option<Lang>,
     pub(crate) original_lang: Lang,
     pub(crate) original_speed: SpeedTier,
+    pub(crate) original_color_scheme: ColorScheme,
     pub(crate) original_follow_pc: bool,
     pub(crate) original_memory_operand_highlighting: bool,
     pub(crate) footer_focus: FooterFocus,
@@ -57,6 +59,7 @@ impl SettingsDialog {
         Self::new_with_shortcuts(
             lang,
             speed,
+            ColorScheme::DEFAULT,
             follow_pc,
             memory_operand_highlighting,
             floppy_image_path,
@@ -70,6 +73,7 @@ impl SettingsDialog {
     pub(crate) fn new_with_shortcuts(
         lang: Lang,
         speed: SpeedTier,
+        color_scheme: ColorScheme,
         follow_pc: bool,
         memory_operand_highlighting: bool,
         floppy_image_path: Option<std::path::PathBuf>,
@@ -82,6 +86,7 @@ impl SettingsDialog {
             search: String::new(),
             draft_lang: lang,
             draft_speed: speed,
+            draft_color_scheme: color_scheme,
             draft_follow_pc: follow_pc,
             draft_memory_operand_highlighting: memory_operand_highlighting,
             draft_floppy_image_path: floppy_image_path.clone(),
@@ -98,6 +103,7 @@ impl SettingsDialog {
             dropdown_highlight: None,
             original_lang: lang,
             original_speed: speed,
+            original_color_scheme: color_scheme,
             original_follow_pc: follow_pc,
             original_memory_operand_highlighting: memory_operand_highlighting,
             footer_focus: FooterFocus::Cancel,

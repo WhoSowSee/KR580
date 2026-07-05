@@ -14,7 +14,7 @@ use iced::{Element, Length};
 use crate::app::{HexStreamFilter, Message, ToolWindowKind};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
-use crate::view::theme::{TOKYO_BLUE, TOKYO_TEXT};
+use crate::view::theme::{tokyo_blue, tokyo_device_accent, tokyo_text};
 use crate::view::tooltips::hover_tooltip;
 
 use hex_popup::hex_popup_overlay;
@@ -265,7 +265,11 @@ fn icon_button(
     shortcut: Option<String>,
     active: bool,
 ) -> Element<'static, Message> {
-    let glyph_color = if active { TOKYO_BLUE } else { TOKYO_TEXT };
+    let glyph_color = if active {
+        tokyo_device_accent(tokyo_blue())
+    } else {
+        tokyo_device_accent(tokyo_text())
+    };
     let glyph = svg(handle)
         .width(Length::Fixed(ICON_GLYPH_SIZE))
         .height(Length::Fixed(ICON_GLYPH_SIZE))

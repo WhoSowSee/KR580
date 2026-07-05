@@ -34,6 +34,7 @@ impl DesktopApp {
             | Message::SettingsDraftSpeedChanged(_)
             | Message::SettingsDraftFollowPcSet(_)
             | Message::SettingsDraftMemoryOperandHighlightingSet(_)
+            | Message::SettingsDraftColorSchemeChanged(_)
             | Message::SettingsFloppyImageBrowse
             | Message::SettingsDraftFloppyImageSet(_)
             | Message::SettingsFloppyImageClear

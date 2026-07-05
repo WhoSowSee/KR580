@@ -19,8 +19,8 @@ pub(crate) use operands::{operand_jump_target, operand_port_number};
 use super::opcode_dropdown::{OPCODE_DROPDOWN_HEIGHT, opcode_dropdown_overlay};
 use super::styles::{memory_row_container_style, scrollable_style, solid_style, transparent_style};
 use super::theme::{
-    TOKYO_BLUE, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_RED, TOKYO_YELLOW,
-    ui_text,
+    tokyo_blue, tokyo_cyan, tokyo_green, tokyo_magenta, tokyo_muted, tokyo_red, tokyo_subtle_line,
+    tokyo_yellow, ui_text,
 };
 use super::widgets::legend_panel;
 use crate::app::{
@@ -120,13 +120,13 @@ impl DesktopApp {
 fn memory_header(lang: crate::i18n::Lang) -> Element<'static, Message> {
     container(
         row![
-            ui_text(lang.t(Key::ColumnAddress).to_owned(), 12, TOKYO_MUTED)
+            ui_text(lang.t(Key::ColumnAddress).to_owned(), 12, tokyo_muted())
                 .width(Length::FillPortion(1))
                 .align_x(alignment::Horizontal::Center),
-            ui_text(lang.t(Key::ColumnValue).to_owned(), 12, TOKYO_MUTED)
+            ui_text(lang.t(Key::ColumnValue).to_owned(), 12, tokyo_muted())
                 .width(Length::FillPortion(1))
                 .align_x(alignment::Horizontal::Center),
-            ui_text(lang.t(Key::ColumnCommand).to_owned(), 12, TOKYO_MUTED)
+            ui_text(lang.t(Key::ColumnCommand).to_owned(), 12, tokyo_muted())
                 .width(Length::FillPortion(1))
                 .align_x(alignment::Horizontal::Center),
         ]
@@ -190,22 +190,22 @@ fn memory_row<'a>(
         .map(|instruction| instruction.mnemonic)
         .unwrap_or_else(|_| "-".to_owned());
     let accent = if visuals.halted_here {
-        TOKYO_RED
+        tokyo_red()
     } else if visuals.selected {
-        TOKYO_BLUE
+        tokyo_blue()
     } else {
-        TOKYO_MUTED
+        tokyo_muted()
     };
     let value_color = if !visuals.operand_highlighting {
-        TOKYO_GREEN
+        tokyo_green()
     } else if visuals.is_port_operand {
-        TOKYO_MAGENTA
+        tokyo_magenta()
     } else if visuals.is_address_operand {
-        TOKYO_YELLOW
+        tokyo_yellow()
     } else if visuals.is_data_operand {
-        TOKYO_CYAN
+        tokyo_cyan()
     } else {
-        TOKYO_GREEN
+        tokyo_green()
     };
 
     // Cells fill the full row height; clicks on the bottom-edge
@@ -233,26 +233,24 @@ fn memory_row<'a>(
 
     // Cosmetic 1-px divider over the cells row. Hidden when this/next
     // row is selected or halted.
-    let separator_overlay: Element<'a, Message> = if visuals.selected
-        || visuals.next_selected
-        || visuals.halted_here
-    {
-        Space::new()
-            .width(Length::Fill)
-            .height(Length::Fixed(MEMORY_ROW_HEIGHT))
-            .into()
-    } else {
-        column![
+    let separator_overlay: Element<'a, Message> =
+        if visuals.selected || visuals.next_selected || visuals.halted_here {
             Space::new()
                 .width(Length::Fill)
-                .height(Length::Fixed(MEMORY_ROW_HEIGHT - 1.0)),
-            container(Space::new())
-                .height(Length::Fixed(1.0))
-                .width(Length::Fill)
-                .style(|_theme| solid_style(iced::Color::from_rgba8(0x41, 0x48, 0x68, 0.26), 0.0)),
-        ]
-        .into()
-    };
+                .height(Length::Fixed(MEMORY_ROW_HEIGHT))
+                .into()
+        } else {
+            column![
+                Space::new()
+                    .width(Length::Fill)
+                    .height(Length::Fixed(MEMORY_ROW_HEIGHT - 1.0)),
+                container(Space::new())
+                    .height(Length::Fixed(1.0))
+                    .width(Length::Fill)
+                    .style(|_theme| solid_style(tokyo_subtle_line(), 0.0)),
+            ]
+            .into()
+        };
 
     stack![cells_row, separator_overlay]
         .width(Length::Fill)

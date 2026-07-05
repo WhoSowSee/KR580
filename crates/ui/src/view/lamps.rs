@@ -7,7 +7,7 @@ use iced::widget::{Row, column, tooltip};
 use iced::{Element, Length, alignment};
 use k580_core::{Cpu8080State, MachineCycleKind, kind_at, layout_for, position_for};
 
-use super::theme::{TOKYO_RED, TOKYO_TEXT, mono_text};
+use super::theme::{mono_text, tokyo_inactive_lamp, tokyo_red, tokyo_text};
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
 
@@ -99,10 +99,14 @@ fn control_lamp(
     hint: &'static str,
     active: bool,
 ) -> Element<'static, Message> {
-    let dot_color = if active { TOKYO_RED } else { TOKYO_TEXT };
+    let dot_color = if active {
+        tokyo_red()
+    } else {
+        tokyo_inactive_lamp()
+    };
 
     let face: Element<'static, Message> = column![
-        mono_text(label, 9, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+        mono_text(label, 9, tokyo_text()).align_x(alignment::Horizontal::Center),
         mono_text("●", 16, dot_color).align_x(alignment::Horizontal::Center),
     ]
     .width(Length::Fixed(LAMP_WIDTH))

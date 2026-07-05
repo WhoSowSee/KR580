@@ -10,7 +10,7 @@ use iced::{Element, Length, alignment};
 use groups::{MemoryGroupState, flags_group, memory_group, register_group};
 use styles::{footer_button_style, modal_backdrop_style, modal_dialog_style, tab_button_style};
 
-use super::theme::{TOKYO_TEXT, ui_text};
+use super::theme::{tokyo_text, ui_text};
 use super::widgets::modal_footer_button;
 use crate::app::{
     ExportFlagSelection, ExportMemoryColumns, ExportRegisterSelection, ExportTab, Message,
@@ -128,7 +128,7 @@ fn tabs(tab: ExportTab, lang: Lang) -> Element<'static, Message> {
 
 fn tab_button(label: &'static str, target: ExportTab, active: bool) -> Element<'static, Message> {
     button(
-        container(ui_text(label, 15, TOKYO_TEXT))
+        container(ui_text(label, 15, tokyo_text()))
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(alignment::Horizontal::Center)
@@ -163,7 +163,7 @@ fn footer(lang: Lang) -> Element<'static, Message> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::theme::{TOKYO_BORDER, TOKYO_SURFACE};
+    use super::super::theme::{tokyo_border, tokyo_surface};
     use super::styles::{checkbox_style, flag_checkbox_style, tab_button_style};
     use iced::Background;
     use iced::widget::button;
@@ -172,8 +172,8 @@ mod tests {
     fn active_tab_uses_fill_without_accent_border() {
         let style = tab_button_style(button::Status::Active, true);
 
-        assert_eq!(style.background, Some(Background::Color(TOKYO_SURFACE)));
-        assert_eq!(style.border.color, TOKYO_BORDER);
+        assert_eq!(style.background, Some(Background::Color(tokyo_surface())));
+        assert_eq!(style.border.color, tokyo_border());
     }
 
     #[test]

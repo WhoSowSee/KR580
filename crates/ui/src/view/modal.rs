@@ -2,7 +2,7 @@ use iced::widget::{Space, button, column, container, mouse_area, opaque, row, st
 use iced::{Background, Border, Element, Length};
 
 use super::styles::{modal_backdrop_style, panel_style as modal_dialog_style};
-use super::theme::{TOKYO_BOARD, TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{tokyo_board, tokyo_border, tokyo_muted, tokyo_text, ui_text};
 use crate::app::{DiscardModalButton, Message, PendingAction};
 use crate::i18n::{Key, Lang};
 
@@ -42,7 +42,7 @@ pub(super) fn discard_modal_overlay(
     .on_press(Message::CancelDiscard);
 
     let cancel_button =
-        button(container(ui_text(lang.t(Key::DiscardCancel), 13, TOKYO_TEXT)).padding([6, 16]))
+        button(container(ui_text(lang.t(Key::DiscardCancel), 13, tokyo_text())).padding([6, 16]))
             .on_press(Message::CancelDiscard)
             .style(move |theme, status| {
                 modal_button_style(theme, status, focused == DiscardModalButton::Cancel)
@@ -52,7 +52,7 @@ pub(super) fn discard_modal_overlay(
         container(ui_text(
             lang.t(discard_confirm_label_key(action)),
             13,
-            TOKYO_TEXT,
+            tokyo_text(),
         ))
         .padding([6, 16]),
     )
@@ -70,10 +70,10 @@ pub(super) fn discard_modal_overlay(
     .width(Length::Fill);
 
     let title_note: Element<'_, Message> = match title_note {
-        Some(note) => ui_text(note, 12, TOKYO_MUTED).into(),
+        Some(note) => ui_text(note, 12, tokyo_muted()).into(),
         None => Space::new().width(Length::Shrink).into(),
     };
-    let title_row = row![ui_text(title, 16, TOKYO_TEXT), title_note,]
+    let title_row = row![ui_text(title, 16, tokyo_text()), title_note,]
         .spacing(10)
         .align_y(iced::alignment::Vertical::Center);
 
@@ -81,7 +81,7 @@ pub(super) fn discard_modal_overlay(
         column![
             title_row,
             Space::new().height(Length::Fixed(8.0)),
-            ui_text(lang.t(body_key), 13, TOKYO_TEXT,),
+            ui_text(lang.t(body_key), 13, tokyo_text(),),
             Space::new().height(Length::Fixed(16.0)),
             buttons,
         ]
@@ -140,21 +140,21 @@ fn modal_button_style(
     status: iced::widget::button::Status,
     focused: bool,
 ) -> iced::widget::button::Style {
-    use crate::view::theme::{TOKYO_SURFACE, TOKYO_SURFACE_2};
+    use crate::view::theme::{tokyo_surface, tokyo_surface_2};
     use iced::widget::button;
     let background = match status {
-        button::Status::Pressed => TOKYO_SURFACE_2,
-        button::Status::Hovered => TOKYO_SURFACE,
-        _ if focused => TOKYO_SURFACE,
-        _ => TOKYO_BOARD,
+        button::Status::Pressed => tokyo_surface_2(),
+        button::Status::Hovered => tokyo_surface(),
+        _ if focused => tokyo_surface(),
+        _ => tokyo_board(),
     };
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color: tokyo_text(),
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: TOKYO_BORDER,
+            color: tokyo_border(),
         },
         ..button::Style::default()
     }
@@ -165,7 +165,7 @@ mod tests {
     use super::{discard_confirm_label_key, modal_button_style};
     use crate::app::PendingAction;
     use crate::i18n::Key;
-    use crate::view::theme::{TOKYO_BORDER, TOKYO_SURFACE};
+    use crate::view::theme::{tokyo_border, tokyo_surface};
     use iced::widget::button;
     use iced::{Background, Theme};
 
@@ -173,8 +173,8 @@ mod tests {
     fn focused_modal_button_uses_hover_fill_without_focus_border() {
         let style = modal_button_style(&Theme::TokyoNight, button::Status::Active, true);
 
-        assert_eq!(style.background, Some(Background::Color(TOKYO_SURFACE)));
-        assert_eq!(style.border.color, TOKYO_BORDER);
+        assert_eq!(style.background, Some(Background::Color(tokyo_surface())));
+        assert_eq!(style.border.color, tokyo_border());
     }
 
     #[test]

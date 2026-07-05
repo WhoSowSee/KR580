@@ -14,7 +14,7 @@ use super::menu_labels::{inactive_category_keys, settings_category_key};
 use super::styles::{
     caption_button_style, close_caption_button_style, menu_bar_divider_style, menu_bar_style,
 };
-use super::theme::{TOKYO_MAGENTA, TOKYO_TEXT, ui_text};
+use super::theme::{tokyo_magenta, tokyo_text, ui_text};
 use crate::app::{DesktopApp, MenuId, Message};
 use crate::i18n::Key;
 
@@ -67,7 +67,7 @@ impl DesktopApp {
             .width(Length::Fixed(MENU_ICON_SIZE))
             .height(Length::Fixed(MENU_ICON_SIZE))
             .style(|_theme, _status| svg::Style {
-                color: Some(TOKYO_TEXT),
+                color: Some(tokyo_text()),
             });
         let cpu_toggle: Element<'_, Message> = mouse_area(cpu_icon)
             .on_press(Message::MenuCategoriesToggled)
@@ -176,11 +176,15 @@ impl DesktopApp {
 }
 
 fn menu_label(label: &str) -> Element<'_, Message> {
-    ui_text(label.to_owned(), 13, TOKYO_TEXT).into()
+    ui_text(label.to_owned(), 13, tokyo_text()).into()
 }
 
 fn menu_trigger(label: &str, menu: MenuId, active: bool) -> Element<'_, Message> {
-    let color = if active { TOKYO_MAGENTA } else { TOKYO_TEXT };
+    let color = if active {
+        tokyo_magenta()
+    } else {
+        tokyo_text()
+    };
     mouse_area(ui_text(label.to_owned(), 13, color))
         .on_press(Message::MenuToggled(menu))
         .interaction(iced::mouse::Interaction::Pointer)
@@ -188,7 +192,7 @@ fn menu_trigger(label: &str, menu: MenuId, active: bool) -> Element<'_, Message>
 }
 
 fn settings_trigger(label: &str) -> Element<'_, Message> {
-    mouse_area(ui_text(label.to_owned(), 13, TOKYO_TEXT))
+    mouse_area(ui_text(label.to_owned(), 13, tokyo_text()))
         .on_press(Message::OpenSettings)
         .interaction(iced::mouse::Interaction::Pointer)
         .into()
@@ -213,7 +217,7 @@ fn caption_button(
         .width(Length::Fixed(glyph_size))
         .height(Length::Fixed(glyph_size))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
+            color: Some(tokyo_text()),
         });
 
     let body = container(glyph)

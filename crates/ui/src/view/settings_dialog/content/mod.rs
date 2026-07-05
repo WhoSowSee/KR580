@@ -1,13 +1,13 @@
 use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
 use iced::{Element, Length, Padding};
 
-use super::super::theme::{TOKYO_MUTED, ui_text};
+use super::super::theme::{tokyo_muted, ui_text};
 use super::consts::{CONTENT_PADDING, SETTING_ROW_HEIGHT};
 use super::language::{language_dropdown_list, language_setting_row};
 use super::network::network_defaults_row;
 use super::shortcuts_row::shortcuts_setting_row;
 use super::speed::speed_setting_row;
-use super::theme_row::theme_setting_row;
+use super::theme_row::{theme_search_matches, theme_setting_row};
 use crate::app::{Message, SettingsCategory, SettingsDialog};
 use crate::i18n::{Key, Lang, NetworkKey};
 
@@ -61,7 +61,7 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
     };
 
     let body: Element<'a, Message> = if rows.is_empty() {
-        container(ui_text(lang.t(Key::SettingsNoMatches), 13, TOKYO_MUTED))
+        container(ui_text(lang.t(Key::SettingsNoMatches), 13, tokyo_muted()))
             .padding(content_padding)
             .into()
     } else {
@@ -219,7 +219,8 @@ fn collect_category_rows<'a>(
                 &[Key::SettingsThemeLabel, Key::SettingsThemeHint],
                 lang,
                 lower_query,
-            ) {
+            ) || theme_search_matches(lang, lower_query)
+            {
                 out.push(theme_setting_row(dialog, lang));
             }
         }
@@ -237,7 +238,7 @@ fn collect_category_rows<'a>(
 }
 
 fn group_header(label: &'static str) -> Element<'static, Message> {
-    ui_text(label, 11, TOKYO_MUTED).into()
+    ui_text(label, 11, tokyo_muted()).into()
 }
 
 pub(super) fn matches_query(keys: &[Key], lang: Lang, lower_query: &str) -> bool {

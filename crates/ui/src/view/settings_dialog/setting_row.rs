@@ -1,7 +1,7 @@
 use iced::widget::{Space, column, container, row};
 use iced::{Element, Length, alignment};
 
-use super::super::theme::{TOKYO_BORDER, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::super::theme::{tokyo_border, tokyo_muted, tokyo_text, ui_text};
 use super::consts::LABEL_COLUMN_WIDTH;
 use crate::app::Message;
 
@@ -14,9 +14,9 @@ pub(super) fn setting_row<'a>(
     control: Element<'a, Message>,
 ) -> Element<'a, Message> {
     let label_column = column![
-        ui_text(label, 14, TOKYO_TEXT),
+        ui_text(label, 14, tokyo_text()),
         Space::new().height(Length::Fixed(4.0)),
-        ui_text(hint, 11, TOKYO_MUTED),
+        ui_text(hint, 11, tokyo_muted()),
     ]
     .width(Length::Fixed(LABEL_COLUMN_WIDTH));
 
@@ -38,7 +38,7 @@ pub(super) fn separator_horizontal() -> Element<'static, Message> {
         .style(|_theme| iced::widget::container::Style {
             background: Some(iced::Background::Color(iced::Color {
                 a: 0.6,
-                ..TOKYO_BORDER
+                ..tokyo_border()
             })),
             ..iced::widget::container::Style::default()
         })
@@ -52,7 +52,7 @@ pub(super) fn separator_vertical() -> Element<'static, Message> {
         .style(|_theme| iced::widget::container::Style {
             background: Some(iced::Background::Color(iced::Color {
                 a: 0.6,
-                ..TOKYO_BORDER
+                ..tokyo_border()
             })),
             ..iced::widget::container::Style::default()
         })

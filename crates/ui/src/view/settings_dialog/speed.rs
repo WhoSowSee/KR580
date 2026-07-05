@@ -1,7 +1,7 @@
 use iced::widget::{button, container, row};
 use iced::{Element, Length, alignment};
 
-use super::super::theme::{TOKYO_TEXT, ui_text};
+use super::super::theme::{tokyo_text, ui_text};
 use super::consts::SPEED_SEGMENT_WIDTH;
 use super::setting_row::setting_row;
 use super::styles::segmented_button_style;
@@ -69,7 +69,7 @@ pub(super) fn segmented_button_width(
     width: f32,
 ) -> Element<'static, Message> {
     button(
-        container(ui_text(label, 13, TOKYO_TEXT))
+        container(ui_text(label, 13, tokyo_text()))
             .padding([6, 0])
             .width(Length::Fixed(width))
             .align_x(alignment::Horizontal::Center),

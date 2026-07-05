@@ -5,7 +5,9 @@ use super::focus::{FooterFocus, ResetConfirmFocus, SettingsCategory};
 use crate::app::messages::SpeedTier;
 use crate::app::{DesktopApp, Message, StatusKind};
 use crate::i18n::Lang;
-use crate::persistence::{NetworkSettings, ShortcutAction, ShortcutBinding, ShortcutKey};
+use crate::persistence::{
+    ColorScheme, NetworkSettings, ShortcutAction, ShortcutBinding, ShortcutKey,
+};
 use crate::settings_storage::default_lang;
 
 mod general;
@@ -161,6 +163,56 @@ fn cancel_rolls_back_live_speed_to_pre_open_snapshot() {
 
     assert_eq!(app.speed_tier, SpeedTier::Slow);
     assert_eq!(app.default_speed, SpeedTier::Slow);
+    assert!(app.settings_dialog.is_none());
+}
+
+#[test]
+fn live_theme_change_updates_active_scheme_immediately() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.color_scheme = ColorScheme::TokyoNight;
+    app.settings_dialog = Some(SettingsDialog::new(
+        app.lang,
+        app.default_speed,
+        true,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+    ));
+
+    let _ = app.update(Message::SettingsDraftColorSchemeChanged(
+        ColorScheme::GruvboxDark,
+    ));
+
+    assert_eq!(app.color_scheme, ColorScheme::GruvboxDark);
+    assert_eq!(
+        app.settings_dialog.as_ref().unwrap().draft_color_scheme,
+        ColorScheme::GruvboxDark
+    );
+}
+
+#[test]
+fn cancel_rolls_back_live_theme_to_pre_open_snapshot() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.color_scheme = ColorScheme::TokyoNight;
+    app.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
+        app.lang,
+        app.default_speed,
+        app.color_scheme,
+        true,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+        app.shortcut_settings.clone(),
+    ));
+
+    let _ = app.update(Message::SettingsDraftColorSchemeChanged(
+        ColorScheme::MaterialOcean,
+    ));
+    let _ = app.update(Message::CloseSettings);
+
+    assert_eq!(app.color_scheme, ColorScheme::TokyoNight);
     assert!(app.settings_dialog.is_none());
 }
 

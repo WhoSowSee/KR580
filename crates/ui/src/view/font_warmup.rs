@@ -1,7 +1,7 @@
 use iced::widget::{Column, container, stack, text};
 use iced::{Element, Font, Length};
 
-use super::theme::{MONO_FONT, TOKYO_TEXT, UI_BOLD_FONT, UI_FONT};
+use super::theme::{MONO_FONT, UI_BOLD_FONT, UI_FONT, tokyo_text};
 use crate::app::Message;
 
 const WARMUP_SIZES: [f32; 9] = [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 18.0, 24.0];
@@ -61,7 +61,7 @@ fn mono_warmup_line(size: f32) -> Element<'static, Message> {
     text(WARMUP_MONO_TEXT)
         .font(MONO_FONT)
         .size(size)
-        .color(TOKYO_TEXT)
+        .color(tokyo_text())
         .into()
 }
 
@@ -69,6 +69,6 @@ fn font_warmup_line(font: Font, size: f32) -> Element<'static, Message> {
     text(WARMUP_TEXT)
         .font(font)
         .size(size)
-        .color(TOKYO_TEXT)
+        .color(tokyo_text())
         .into()
 }

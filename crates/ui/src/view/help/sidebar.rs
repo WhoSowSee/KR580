@@ -5,7 +5,7 @@ use super::styles::{help_search_input_style, hidden_scrollbar_style, sidebar_chi
 use crate::app::{HelpDialog, HelpNode, Message};
 use crate::i18n::Lang;
 use crate::view::icons;
-use crate::view::theme::{TOKYO_MUTED, TOKYO_SURFACE, TOKYO_TEXT, ui_text};
+use crate::view::theme::{tokyo_muted, tokyo_surface, tokyo_text, ui_text};
 
 const CHEVRON_SIZE: f32 = 14.0;
 const SEARCH_ICON_SIZE: f32 = 13.0;
@@ -16,7 +16,7 @@ pub(super) fn help_sidebar<'a>(dialog: &'a HelpDialog, lang: Lang) -> Element<'a
         .width(Length::Fixed(SEARCH_ICON_SIZE))
         .height(Length::Fixed(SEARCH_ICON_SIZE))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_MUTED),
+            color: Some(tokyo_muted()),
         });
 
     let search_field = text_input(
@@ -39,14 +39,14 @@ pub(super) fn help_sidebar<'a>(dialog: &'a HelpDialog, lang: Lang) -> Element<'a
             .width(Length::Fixed(TOGGLE_ICON_SIZE))
             .height(Length::Fixed(TOGGLE_ICON_SIZE))
             .style(|_theme, _status| svg::Style {
-                color: Some(TOKYO_MUTED),
+                color: Some(tokyo_muted()),
             }),
     )
     .on_press(Message::HelpToggleExpandAll)
     .padding(0)
     .style(|_theme, status| {
         let bg = match status {
-            button::Status::Hovered | button::Status::Pressed => TOKYO_SURFACE,
+            button::Status::Hovered | button::Status::Pressed => tokyo_surface(),
             _ => Color::TRANSPARENT,
         };
         button::Style {
@@ -114,7 +114,7 @@ fn build_tree<'a>(
                 .width(Length::Fixed(CHEVRON_SIZE))
                 .height(Length::Fixed(CHEVRON_SIZE))
                 .style(|_theme, _status| svg::Style {
-                    color: Some(TOKYO_MUTED),
+                    color: Some(tokyo_muted()),
                 })
                 .into()
         } else {
@@ -128,7 +128,7 @@ fn build_tree<'a>(
         let row_content = row![
             text("").width(Length::Fixed(indent as f32)),
             arrow,
-            ui_text(label, 14, TOKYO_TEXT),
+            ui_text(label, 14, tokyo_text()),
         ]
         .spacing(2)
         .align_y(alignment::Vertical::Center);

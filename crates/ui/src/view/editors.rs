@@ -9,7 +9,9 @@ use iced::{Element, Length, Padding, alignment};
 
 use super::icons;
 use super::styles::{disabled_input_borderless_style, input_borderless_style, input_shell_style};
-use super::theme::{MONO_FONT, TOKYO_BLUE, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_RED, TOKYO_YELLOW};
+use super::theme::{
+    MONO_FONT, tokyo_blue, tokyo_device_accent, tokyo_green, tokyo_magenta, tokyo_red, tokyo_yellow,
+};
 use super::tooltips::shortcut_hint;
 use super::widgets::{
     enter_button, enter_button_disabled, icon_action_button, legend_panel, spinner_text_input,
@@ -170,11 +172,11 @@ impl DesktopApp {
         // step/restart swaps `StepInstruction` ↔ `RestartProgram`
         // (ResetCpu + Run, RAM preserved).
         let (run_icon, run_accent, run_tooltip) = if self.running {
-            (icons::pause(), TOKYO_RED, self.lang.t(Key::ActionPause))
+            (icons::pause(), tokyo_red(), self.lang.t(Key::ActionPause))
         } else {
             (
                 icons::play(),
-                TOKYO_GREEN,
+                tokyo_green(),
                 self.lang.t(Key::ActionRunProgram),
             )
         };
@@ -206,21 +208,21 @@ impl DesktopApp {
             icon_action_button(
                 run_icon,
                 gate(Message::ToggleRun),
-                run_accent,
+                tokyo_device_accent(run_accent),
                 run_tooltip,
                 shortcut_hint(&self.shortcut_settings, &Message::ToggleRun),
             ),
             icon_action_button(
                 step_icon,
                 gate(step_message),
-                TOKYO_BLUE,
+                tokyo_device_accent(tokyo_blue()),
                 step_tooltip,
                 step_shortcut,
             ),
             icon_action_button(
                 icons::redo_dot(),
                 gate(Message::StepTact),
-                TOKYO_YELLOW,
+                tokyo_device_accent(tokyo_yellow()),
                 self.lang.t(Key::ActionStepTact),
                 shortcut_hint(&self.shortcut_settings, &Message::StepTact),
             ),
@@ -232,14 +234,14 @@ impl DesktopApp {
             icon_action_button(
                 icons::reset_ram(),
                 Some(Message::ResetRam),
-                TOKYO_RED,
+                tokyo_device_accent(tokyo_red()),
                 self.lang.t(Key::ActionResetRam),
                 shortcut_hint(&self.shortcut_settings, &Message::ResetRam),
             ),
             icon_action_button(
                 icons::reset_registers(),
                 Some(Message::ResetCpu),
-                TOKYO_MAGENTA,
+                tokyo_device_accent(tokyo_magenta()),
                 self.lang.t(Key::ActionResetCpu),
                 shortcut_hint(&self.shortcut_settings, &Message::ResetCpu),
             ),

@@ -19,8 +19,8 @@ use super::lamps::control_lamps;
 use super::mux::MuxRegisterValues;
 use super::styles::{schematic_block_style, schematic_board_style};
 use super::theme::{
-    TOKYO_BLUE, TOKYO_CYAN, TOKYO_GREEN, TOKYO_MAGENTA, TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT,
-    TOKYO_YELLOW, mono_text, ui_text,
+    mono_text, tokyo_blue, tokyo_cyan, tokyo_device_accent, tokyo_green, tokyo_magenta,
+    tokyo_muted, tokyo_red, tokyo_text, tokyo_yellow, ui_text,
 };
 use super::tooltips::shortcut_hint;
 use super::widgets::{LEGEND_LINE_OFFSET, legend_panel_left};
@@ -48,15 +48,19 @@ impl DesktopApp {
                 lang.t(Key::HltOff)
             },
             13,
-            if cpu.halted { TOKYO_RED } else { TOKYO_GREEN },
+            if cpu.halted {
+                tokyo_red()
+            } else {
+                tokyo_green()
+            },
         ))
         .on_press(Message::ToggleHalt)
         .interaction(iced::mouse::Interaction::Pointer);
 
         let status_row = row![
-            mono_text(format!("PC {:04X}", cpu.pc), 13, TOKYO_BLUE),
-            mono_text(format!("SP {:04X}", cpu.sp), 13, TOKYO_CYAN),
-            mono_text(format!("T {}", cpu.cycle_count), 13, TOKYO_YELLOW),
+            mono_text(format!("PC {:04X}", cpu.pc), 13, tokyo_blue()),
+            mono_text(format!("SP {:04X}", cpu.sp), 13, tokyo_cyan()),
+            mono_text(format!("T {}", cpu.cycle_count), 13, tokyo_yellow()),
             halt_indicator,
         ]
         .spacing(14)
@@ -77,7 +81,7 @@ impl DesktopApp {
                     "{:04X}",
                     ((cpu.registers.a as u16) << 8) | cpu.flags.to_psw() as u16,
                 ),
-                TOKYO_GREEN,
+                tokyo_green(),
                 Some(lang.t(Key::PswTooltip)),
             ),
             flag_panel,
@@ -98,7 +102,7 @@ impl DesktopApp {
                 functional_block(
                     lang.t(Key::Accumulator),
                     self.display_register_value(RegisterName::A),
-                    TOKYO_GREEN,
+                    tokyo_green(),
                     accumulator_target,
                     FunctionalBlockState {
                         selected: active_target == Some(accumulator_target),
@@ -112,7 +116,7 @@ impl DesktopApp {
                 functional_block(
                     lang.t(Key::BufferRegister1),
                     self.display_register_value(RegisterName::B),
-                    TOKYO_GREEN,
+                    tokyo_green(),
                     buffer1_target,
                     FunctionalBlockState {
                         selected: active_target == Some(buffer1_target),
@@ -126,7 +130,7 @@ impl DesktopApp {
                 functional_block(
                     lang.t(Key::BufferRegister2),
                     self.display_register_value(RegisterName::C),
-                    TOKYO_GREEN,
+                    tokyo_green(),
                     buffer2_target,
                     FunctionalBlockState {
                         selected: active_target == Some(buffer2_target),
@@ -142,14 +146,14 @@ impl DesktopApp {
                 schematic_readout(
                     lang.t(Key::AddressBuffer),
                     format!("{:04X}", cpu.last_address_bus),
-                    TOKYO_GREEN,
+                    tokyo_green(),
                     Some(lang.t(Key::AddressBufferTooltip)),
                 ),
                 Space::new().width(Length::Fill),
                 schematic_readout(
                     lang.t(Key::InstructionRegister),
                     format!("{:02X}", cpu.last_fetched_opcode),
-                    TOKYO_GREEN,
+                    tokyo_green(),
                     Some(lang.t(Key::InstructionRegisterTooltip)),
                 ),
                 Space::new().width(Length::Fill),
@@ -158,7 +162,7 @@ impl DesktopApp {
                     decode_opcode(cpu.last_fetched_opcode)
                         .map(|info| info.mnemonic)
                         .unwrap_or_else(|_| "-".to_owned()),
-                    TOKYO_GREEN,
+                    tokyo_green(),
                     Some(lang.t(Key::InstructionDecoderTooltip)),
                 ),
             ]
@@ -202,7 +206,7 @@ impl DesktopApp {
             schematic_wide_readout(
                 lang.t(Key::StatusRegister),
                 super::status_register::status_register_bits(cpu),
-                TOKYO_GREEN,
+                tokyo_green(),
                 None,
             ),
             lang,
@@ -220,11 +224,11 @@ impl DesktopApp {
         );
         let shortened_status =
             crate::app::shorten_status_for_width(&self.status, self.main_window_size.width);
-        let status_value: Element<'_, Message> = mono_text(shortened_status, 13, TOKYO_TEXT)
+        let status_value: Element<'_, Message> = mono_text(shortened_status, 13, tokyo_text())
             .wrapping(iced::widget::text::Wrapping::None)
             .into();
         let status_chip = row![
-            ui_text(lang.t(Key::HeaderStatus), 12, TOKYO_MUTED),
+            ui_text(lang.t(Key::HeaderStatus), 12, tokyo_muted()),
             status_value,
         ]
         .spacing(12)
@@ -243,13 +247,13 @@ impl DesktopApp {
             schematic_wide_readout(
                 lang.t(Key::DataBuffer),
                 format!("{:02X}", cpu.last_data_bus_byte),
-                TOKYO_GREEN,
+                tokyo_green(),
                 Some(lang.t(Key::DataBufferTooltip)),
             ),
             schematic_wide_readout(
                 lang.t(Key::FlagsRegister),
                 flag_bits,
-                TOKYO_GREEN,
+                tokyo_green(),
                 Some(lang.t(Key::FlagsRegisterTooltip)),
             ),
             column![
@@ -312,35 +316,35 @@ impl DesktopApp {
         let devices = row![
             device_chip(
                 icons::device_monitor(),
-                TOKYO_GREEN,
+                tokyo_device_accent(tokyo_green()),
                 lang.t(Key::DeviceMonitor),
                 Some(Message::OpenMonitor),
                 shortcut_hint(&self.shortcut_settings, &Message::OpenMonitor),
             ),
             device_chip(
                 icons::device_floppy(),
-                TOKYO_CYAN,
+                tokyo_device_accent(tokyo_cyan()),
                 lang.t(Key::DeviceFloppy),
                 Some(Message::OpenFloppy),
                 shortcut_hint(&self.shortcut_settings, &Message::OpenFloppy),
             ),
             device_chip(
                 icons::device_hdd(),
-                TOKYO_BLUE,
+                tokyo_device_accent(tokyo_blue()),
                 lang.t(Key::DeviceHdd),
                 Some(Message::OpenHdd),
                 shortcut_hint(&self.shortcut_settings, &Message::OpenHdd),
             ),
             device_chip(
                 icons::device_network(),
-                TOKYO_YELLOW,
+                tokyo_device_accent(tokyo_yellow()),
                 lang.t(Key::DeviceNetwork),
                 Some(Message::OpenNetwork),
                 shortcut_hint(&self.shortcut_settings, &Message::OpenNetwork),
             ),
             device_chip(
                 icons::device_printer(),
-                TOKYO_MAGENTA,
+                tokyo_device_accent(tokyo_magenta()),
                 lang.t(Key::DevicePrinter),
                 Some(Message::OpenPrinter),
                 shortcut_hint(&self.shortcut_settings, &Message::OpenPrinter),

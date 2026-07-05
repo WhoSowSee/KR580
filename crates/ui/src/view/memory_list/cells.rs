@@ -4,7 +4,7 @@ use iced::widget::{Text, container, mouse_area, text_input};
 use iced::{Element, Length, Theme, alignment};
 
 use super::super::styles::inline_value_input_style;
-use super::super::theme::{MONO_FONT, TOKYO_TEXT, mono_text};
+use super::super::theme::{MONO_FONT, mono_text, tokyo_text};
 use crate::app::{MEMORY_INLINE_INPUT_ID, Message};
 
 const VALUE_GLYPH_WIDTH: f32 = 28.0;
@@ -49,7 +49,7 @@ pub(super) fn address_cell(address: u16, accent: iced::Color) -> Element<'static
 /// `MemorySelected`. `mouse_area::update` ignores presses an inner
 /// widget already captured, so each gesture reaches one listener.
 pub(super) fn command_cell(command: String, address: u16) -> Element<'static, Message> {
-    let glyph: Element<'static, Message> = mouse_area(mono_text(command, 14, TOKYO_TEXT))
+    let glyph: Element<'static, Message> = mouse_area(mono_text(command, 14, tokyo_text()))
         .on_press(Message::OpcodeDropdownToggled(address))
         .on_double_click(Message::MemoryReplace(address))
         .interaction(iced::mouse::Interaction::Pointer)

@@ -2,7 +2,7 @@ use iced::widget::{Space, column, container, row};
 use iced::{Element, Length, alignment};
 use k580_core::{Cpu8080State, decode_opcode};
 
-use super::theme::{TOKYO_GREEN, TOKYO_MUTED, mono_text, ui_text};
+use super::theme::{mono_text, tokyo_green, tokyo_muted, ui_text};
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
 
@@ -82,13 +82,13 @@ fn command_column(
     let align = command_column_alignment();
     let value = value.into();
     let value: Element<'_, Message> = if mono {
-        mono_text(value, 14, TOKYO_GREEN).into()
+        mono_text(value, 14, tokyo_green()).into()
     } else {
-        ui_text(value, 14, TOKYO_GREEN).into()
+        ui_text(value, 14, tokyo_green()).into()
     };
 
     container(
-        column![ui_text(label.to_owned(), 12, TOKYO_MUTED), value]
+        column![ui_text(label.to_owned(), 12, tokyo_muted()), value]
             .spacing(5)
             .align_x(align),
     )

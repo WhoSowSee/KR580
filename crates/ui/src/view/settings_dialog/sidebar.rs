@@ -3,7 +3,7 @@ use iced::{Element, Length, alignment};
 
 use super::super::icons;
 use super::super::styles::input_borderless_style;
-use super::super::theme::{TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::super::theme::{tokyo_muted, tokyo_text, ui_text};
 use super::consts::{SEARCH_ICON_SIZE, SIDEBAR_WIDTH};
 use super::styles::{section_input_style, sidebar_chip_style};
 use crate::app::{
@@ -19,7 +19,7 @@ pub(super) fn settings_sidebar<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         .width(Length::Fixed(SEARCH_ICON_SIZE))
         .height(Length::Fixed(SEARCH_ICON_SIZE))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_MUTED),
+            color: Some(tokyo_muted()),
         });
 
     let search_field = text_input(lang.t(Key::SettingsSearchPlaceholder), &dialog.search)
@@ -75,7 +75,7 @@ fn category_chip(
     keyboard_focused: bool,
     lang: Lang,
 ) -> Element<'static, Message> {
-    let label = ui_text(lang.t(category.label_key()), 13, TOKYO_TEXT);
+    let label = ui_text(lang.t(category.label_key()), 13, tokyo_text());
 
     button(
         container(label)

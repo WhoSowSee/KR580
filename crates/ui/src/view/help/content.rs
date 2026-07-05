@@ -13,7 +13,7 @@ use crate::app::{
     Message, parse_help_markdown_line,
 };
 use crate::i18n::Lang;
-use crate::view::theme::{TOKYO_MUTED, TOKYO_SURFACE, TOKYO_TEXT, UI_BOLD_FONT, UI_FONT};
+use crate::view::theme::{UI_BOLD_FONT, UI_FONT, tokyo_muted, tokyo_surface, tokyo_text};
 
 pub(super) fn help_content<'a>(dialog: &'a HelpDialog, lang: Lang) -> Element<'a, Message> {
     let query = dialog.results_query();
@@ -79,7 +79,7 @@ fn all_matches<'a>(dialog: &'a HelpDialog, query: &str, lang: Lang) -> Element<'
         items.push(
             text(lang.t(crate::i18n::Key::SettingsNoMatches))
                 .size(14.0)
-                .color_maybe(Some(TOKYO_MUTED))
+                .color_maybe(Some(tokyo_muted()))
                 .into(),
         );
     }
@@ -133,7 +133,7 @@ fn render_content(raw: &str, query: Option<&str>) -> Element<'static, Message> {
             items.push(text("").size(4.0).into());
         } else if let Some(bullet) = line.strip_prefix("• ") {
             let bullet_row = row![
-                text("•").size(14.0).color_maybe(Some(TOKYO_TEXT)),
+                text("•").size(14.0).color_maybe(Some(tokyo_text())),
                 render_line(&bullet, query, 14.0),
             ]
             .spacing(6);
@@ -158,14 +158,14 @@ fn render_line(
         return text(line.text.to_owned())
             .font(UI_FONT)
             .size(size)
-            .color_maybe(Some(TOKYO_TEXT))
+            .color_maybe(Some(tokyo_text()))
             .into();
     }
 
     rich_text(line_spans(segments))
         .font(UI_FONT)
         .size(size)
-        .color(TOKYO_TEXT)
+        .color(tokyo_text())
         .width(Length::Fill)
         .into()
 }
@@ -175,13 +175,13 @@ fn line_spans(segments: Vec<TextSegment>) -> Vec<Span<'static, (), Font>> {
         .into_iter()
         .map(|segment| {
             let is_match = segment.matched;
-            let color = if is_match { Color::WHITE } else { TOKYO_TEXT };
+            let color = if is_match { Color::WHITE } else { tokyo_text() };
             let mut text_span = span(segment.text).color(color);
             if segment.bold {
                 text_span = text_span.font(UI_BOLD_FONT);
             }
             if is_match {
-                text_span.background(Background::Color(TOKYO_SURFACE))
+                text_span.background(Background::Color(tokyo_surface()))
             } else {
                 text_span
             }
@@ -358,7 +358,7 @@ mod tests {
 
         assert_eq!(
             highlight.background,
-            Background::Color(crate::view::theme::TOKYO_SURFACE)
+            Background::Color(crate::view::theme::tokyo_surface())
         );
     }
 

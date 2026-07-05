@@ -8,8 +8,8 @@ use std::time::Duration;
 use super::styles::inline_value_input_style;
 use super::styles::{action_button_style, schematic_block_style};
 use super::theme::{
-    MONO_FONT, TOKYO_MUTED, TOKYO_RED, TOKYO_SELECTION_BLUE, TOKYO_SURFACE, TOKYO_TEXT, mono_text,
-    ui_text,
+    MONO_FONT, mono_text, tokyo_inactive_lamp, tokyo_muted, tokyo_red, tokyo_selection_blue,
+    tokyo_surface, tokyo_text, ui_text,
 };
 use super::tooltips::{hover_tooltip, long_tooltip_body};
 use crate::app::{Message, REGISTER_INLINE_INPUT_ID, RegisterInlineTarget};
@@ -60,7 +60,7 @@ pub(super) fn schematic_readout(
 ) -> Element<'static, Message> {
     let face = container(
         column![
-            ui_text(label, 11, TOKYO_MUTED),
+            ui_text(label, 11, tokyo_muted()),
             readout_value(value, SCHEMATIC_READOUT_VALUE_FONT_SIZE, accent),
         ]
         .spacing(2)
@@ -88,7 +88,7 @@ pub(super) fn schematic_wide_readout(
 ) -> Element<'static, Message> {
     let face = container(
         column![
-            ui_text(label, 11, TOKYO_MUTED),
+            ui_text(label, 11, tokyo_muted()),
             readout_value(value, SCHEMATIC_READOUT_VALUE_FONT_SIZE, accent),
         ]
         .spacing(2)
@@ -118,7 +118,7 @@ pub(super) fn schematic_mnemonic_readout(
     let value_size = schematic_mnemonic_font_size(&value);
     let face = container(
         column![
-            ui_text(label, 11, TOKYO_MUTED),
+            ui_text(label, 11, tokyo_muted()),
             readout_value(value, value_size, accent),
         ]
         .spacing(2)
@@ -196,9 +196,17 @@ pub(super) fn flag_strip(cpu: &Cpu8080State) -> Element<'static, Message> {
 
 fn flag_dot(label: &'static str, active: bool) -> Element<'static, Message> {
     column![
-        mono_text("●", 18, if active { TOKYO_RED } else { TOKYO_TEXT })
-            .align_x(alignment::Horizontal::Center),
-        ui_text(label, 10, TOKYO_TEXT).align_x(alignment::Horizontal::Center),
+        mono_text(
+            "●",
+            18,
+            if active {
+                tokyo_red()
+            } else {
+                tokyo_inactive_lamp()
+            }
+        )
+        .align_x(alignment::Horizontal::Center),
+        ui_text(label, 10, tokyo_text()).align_x(alignment::Horizontal::Center),
     ]
     .spacing(2)
     .width(Length::Fixed(32.0))
@@ -291,7 +299,7 @@ pub(super) fn functional_block<'a>(
     };
 
     let face = container(
-        column![ui_text(title, 11, TOKYO_MUTED), value,]
+        column![ui_text(title, 11, tokyo_muted()), value,]
             .align_x(alignment::Horizontal::Center)
             .width(Length::Fill)
             .spacing(2),
@@ -321,9 +329,9 @@ pub(super) fn functional_block<'a>(
 fn functional_block_style(theme: &Theme, selected: bool, active: bool) -> container::Style {
     let mut style = schematic_block_style(theme);
     if selected {
-        style.background = Some(Background::Color(TOKYO_SELECTION_BLUE));
+        style.background = Some(Background::Color(tokyo_selection_blue()));
     } else if active {
-        style.background = Some(Background::Color(TOKYO_SURFACE));
+        style.background = Some(Background::Color(tokyo_surface()));
     }
     style
 }

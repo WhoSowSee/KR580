@@ -9,7 +9,7 @@ use super::storage::chrome::{
     device_backdrop_style, device_buffer_style, icon_button, window_controls,
 };
 use super::styles::{panel_style, scrollable_style};
-use super::theme::{MONO_FONT, TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
 use crate::app::{Message, ToolWindowKind};
 use crate::i18n::{Key, Lang, NetworkKey};
 
@@ -164,7 +164,7 @@ fn buffer_panel(title: &'static str, text: String) -> Element<'static, Message> 
             iced::widget::text(text)
                 .font(MONO_FONT)
                 .size(11)
-                .color(TOKYO_TEXT)
+                .color(tokyo_text())
                 .wrapping(iced::widget::text::Wrapping::None),
         )
         .padding(if empty { [34, 12] } else { [12, 12] })
@@ -178,7 +178,7 @@ fn buffer_panel(title: &'static str, text: String) -> Element<'static, Message> 
         .height(Length::Fill)
         .style(device_buffer_style)
         .clip(true);
-    let label = container(ui_text(title, 13, TOKYO_MUTED))
+    let label = container(ui_text(title, 13, tokyo_muted()))
         .padding(Padding {
             top: 8.0,
             right: 12.0,
@@ -221,7 +221,7 @@ fn footer<'a>(state: &'a NetworkState, lang: Lang) -> Element<'a, Message> {
     iced::widget::text(meta)
         .font(MONO_FONT)
         .size(12)
-        .color(TOKYO_TEXT)
+        .color(tokyo_text())
         .wrapping(iced::widget::text::Wrapping::None)
         .into()
 }

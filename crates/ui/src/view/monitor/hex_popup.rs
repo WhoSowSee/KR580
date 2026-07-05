@@ -6,7 +6,7 @@ use crate::app::{HexStreamFilter, Message};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
 use crate::view::styles::scrollable_style;
-use crate::view::theme::{TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
+use crate::view::theme::{mono_text, tokyo_muted, tokyo_text, ui_text};
 
 use super::icon_button;
 use super::styles::{HEX_GROUP, dialog_style, framebuffer_style, popup_backdrop_style};
@@ -37,9 +37,9 @@ pub(super) fn hex_popup_overlay<'a>(
             .join(" ");
         col = col.push(
             row![
-                mono_text(format!("{offset:04X}"), 12, TOKYO_MUTED),
+                mono_text(format!("{offset:04X}"), 12, tokyo_muted()),
                 Space::new().width(Length::Fixed(12.0)),
-                mono_text(hex, 12, TOKYO_TEXT),
+                mono_text(hex, 12, tokyo_text()),
             ]
             .align_y(iced::alignment::Vertical::Center),
         );
@@ -58,9 +58,9 @@ pub(super) fn hex_popup_overlay<'a>(
     };
 
     let header = row![
-        ui_text(lang.t(Key::MonitorHexBuffer), 14, TOKYO_TEXT),
+        ui_text(lang.t(Key::MonitorHexBuffer), 14, tokyo_text()),
         Space::new().width(Length::Fixed(16.0)),
-        ui_text(format!("{} B", kept.len()), 12, TOKYO_MUTED),
+        ui_text(format!("{} B", kept.len()), 12, tokyo_muted()),
         Space::new().width(Length::Fill),
         icon_button(
             filter_icon,

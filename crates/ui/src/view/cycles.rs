@@ -11,7 +11,7 @@ use k580_core::{
 };
 
 use super::styles::inset_style;
-use super::theme::{TOKYO_GREEN, TOKYO_MUTED, TOKYO_TEXT, mono_text, ui_text};
+use super::theme::{mono_text, tokyo_green, tokyo_muted, tokyo_text, ui_text};
 use super::tooltips::{SNAPPED_TOOLTIP_GAP, VIEWPORT_PADDING};
 use super::widgets::legend_panel_left;
 use crate::app::Message;
@@ -61,16 +61,16 @@ fn labeled_row_with_tooltip(
     use std::time::Duration;
 
     let face = row![
-        ui_text(label_short.to_owned(), 12, TOKYO_MUTED),
+        ui_text(label_short.to_owned(), 12, tokyo_muted()),
         Space::new().width(Length::Fill),
-        mono_text(value_text, 14, TOKYO_GREEN),
+        mono_text(value_text, 14, tokyo_green()),
     ]
     .spacing(10)
     .align_y(alignment::Vertical::Center);
 
     let face_container = container(face).width(Length::Fill);
 
-    let body = container(ui_text(hint.to_owned(), 12, TOKYO_TEXT))
+    let body = container(ui_text(hint.to_owned(), 12, tokyo_text()))
         .padding(Padding {
             top: 4.0,
             right: 8.0,

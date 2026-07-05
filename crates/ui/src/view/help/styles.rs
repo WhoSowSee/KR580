@@ -6,7 +6,7 @@ pub(super) use crate::view::styles::{
     large_dialog_style as modal_dialog_style, modal_backdrop_style,
 };
 use crate::view::theme::{
-    TOKYO_BORDER, TOKYO_MUTED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_TEXT, TOKYO_TEXT_SELECTION,
+    tokyo_border, tokyo_muted, tokyo_surface, tokyo_surface_2, tokyo_text, tokyo_text_selection,
 };
 
 pub(super) fn sidebar_chip_style(
@@ -15,17 +15,17 @@ pub(super) fn sidebar_chip_style(
     keyboard_focused: bool,
 ) -> button::Style {
     let background = if active || keyboard_focused {
-        TOKYO_SURFACE
+        tokyo_surface()
     } else {
         match status {
-            button::Status::Pressed => TOKYO_SURFACE_2,
-            button::Status::Hovered => TOKYO_SURFACE,
+            button::Status::Pressed => tokyo_surface_2(),
+            button::Status::Hovered => tokyo_surface(),
             _ => Color::TRANSPARENT,
         }
     };
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color: tokyo_text(),
         border: Border {
             radius: 8.0.into(),
             width: 0.0,
@@ -37,8 +37,8 @@ pub(super) fn sidebar_chip_style(
 
 pub(super) fn breadcrumb_button_style(status: button::Status) -> button::Style {
     let text_color = match status {
-        button::Status::Hovered | button::Status::Pressed => TOKYO_TEXT,
-        _ => TOKYO_MUTED,
+        button::Status::Hovered | button::Status::Pressed => tokyo_text(),
+        _ => tokyo_muted(),
     };
     button::Style {
         background: None,
@@ -57,7 +57,7 @@ pub(super) fn help_search_input_style(
     status: text_input::Status,
 ) -> text_input::Style {
     text_input::Style {
-        selection: TOKYO_TEXT_SELECTION,
+        selection: tokyo_text_selection(),
         ..input_borderless_style(theme, status)
     }
 }
@@ -73,9 +73,9 @@ pub(super) fn help_text_editor_style(
             width: 0.0,
             color: Color::TRANSPARENT,
         },
-        placeholder: TOKYO_MUTED,
-        value: TOKYO_TEXT,
-        selection: TOKYO_TEXT_SELECTION,
+        placeholder: tokyo_muted(),
+        value: tokyo_text(),
+        selection: tokyo_text_selection(),
     }
 }
 
@@ -83,7 +83,7 @@ pub(super) fn separator_horizontal() -> container::Style {
     container::Style {
         background: Some(Background::Color(iced::Color {
             a: 0.35,
-            ..TOKYO_BORDER
+            ..tokyo_border()
         })),
         ..container::Style::default()
     }
@@ -144,7 +144,7 @@ mod tests {
             text_input::Status::Focused { is_hovered: false },
         );
 
-        assert_eq!(style.selection, TOKYO_TEXT_SELECTION);
+        assert_eq!(style.selection, tokyo_text_selection());
     }
 
     #[test]
@@ -152,7 +152,7 @@ mod tests {
         let style = breadcrumb_button_style(button::Status::Hovered);
 
         assert_eq!(style.background, None);
-        assert_eq!(style.text_color, TOKYO_TEXT);
+        assert_eq!(style.text_color, tokyo_text());
     }
 
     #[test]
@@ -160,6 +160,6 @@ mod tests {
         let style = help_text_editor_style(&Theme::TokyoNight, text_editor::Status::Active);
 
         assert_eq!(style.background, Background::Color(Color::TRANSPARENT));
-        assert_eq!(style.selection, TOKYO_TEXT_SELECTION);
+        assert_eq!(style.selection, tokyo_text_selection());
     }
 }

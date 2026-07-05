@@ -1,6 +1,6 @@
 use super::super::icons;
 use super::super::styles::scrollable_style;
-use super::super::theme::{TOKYO_MUTED, TOKYO_RED, TOKYO_TEXT, ui_text};
+use super::super::theme::{tokyo_muted, tokyo_red, tokyo_text, ui_text};
 use super::super::widgets::{modal_footer_button, modal_icon_button};
 use super::styles::{
     badge_style, dropdown_option_style, dropdown_panel_style, field_button_style,
@@ -113,7 +113,7 @@ fn target_row<'a>(
 fn no_targets_row(lang: Lang) -> Element<'static, Message> {
     row![
         Space::new().width(Length::Fixed(LABEL_WIDTH)),
-        ui_text(lang.t(Key::ImportNoTargets), 12, TOKYO_MUTED),
+        ui_text(lang.t(Key::ImportNoTargets), 12, tokyo_muted()),
     ]
     .spacing(8)
     .align_y(alignment::Vertical::Center)
@@ -124,7 +124,7 @@ fn no_targets_row(lang: Lang) -> Element<'static, Message> {
 fn error_row(error: &str) -> Element<'_, Message> {
     row![
         Space::new().width(Length::Fixed(LABEL_WIDTH)),
-        ui_text(error, 12, TOKYO_RED).width(Length::Fixed(FIELD_WIDTH)),
+        ui_text(error, 12, tokyo_red()).width(Length::Fixed(FIELD_WIDTH)),
     ]
     .spacing(8)
     .align_y(alignment::Vertical::Center)
@@ -149,9 +149,9 @@ fn file_anchor<'a>(
         )
     };
     let color = if file_display.is_empty() {
-        TOKYO_MUTED
+        tokyo_muted()
     } else {
-        TOKYO_TEXT
+        tokyo_text()
     };
     let file_label = ui_text(label, 13, color)
         .width(Length::Fill)
@@ -181,11 +181,11 @@ fn target_anchor<'a>(value: &'a str) -> Element<'a, Message> {
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_MUTED),
+            color: Some(tokyo_muted()),
         });
 
     let row = row![
-        ui_text(value.to_owned(), 13, TOKYO_TEXT),
+        ui_text(value.to_owned(), 13, tokyo_text()),
         Space::new().width(Length::Fill),
         chevron,
     ]
@@ -251,7 +251,7 @@ fn dropdown(
 fn dropdown_option(label: String, highlighted: bool) -> Element<'static, Message> {
     let message_value = label.clone();
     button(
-        container(ui_text(label, 13, TOKYO_TEXT))
+        container(ui_text(label, 13, tokyo_text()))
             .padding([0, 10])
             .width(Length::Fill)
             .height(Length::Fixed(DROPDOWN_OPTION_HEIGHT))
@@ -282,7 +282,7 @@ fn group_box<'a>(
         .into();
     let label = row![
         Space::new().width(Length::Fill),
-        container(ui_text(title, 14, TOKYO_TEXT))
+        container(ui_text(title, 14, tokyo_text()))
             .padding([0, 6])
             .style(group_label_style),
         Space::new().width(Length::Fill),
@@ -300,7 +300,7 @@ fn group_box<'a>(
 }
 
 fn row_label(value: &'static str) -> Element<'static, Message> {
-    container(ui_text(value, 13, TOKYO_TEXT))
+    container(ui_text(value, 13, tokyo_text()))
         .width(Length::Fixed(LABEL_WIDTH))
         .height(Length::Fixed(ROW_HEIGHT))
         .align_y(alignment::Vertical::Center)
@@ -312,7 +312,7 @@ fn format_badge(label: &'static str, format: ImportFileFormat) -> Element<'stati
         ImportFileFormat::Xlsx => XLSX_BADGE_WIDTH,
         ImportFileFormat::Text => TEXT_BADGE_WIDTH,
     };
-    container(ui_text(label, 11, TOKYO_MUTED).wrapping(iced::widget::text::Wrapping::None))
+    container(ui_text(label, 11, tokyo_muted()).wrapping(iced::widget::text::Wrapping::None))
         .padding([3, 8])
         .width(Length::Fixed(width))
         .align_x(alignment::Horizontal::Center)

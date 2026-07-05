@@ -8,7 +8,7 @@
 //! ```
 
 use super::styles::status_tooltip_style;
-use super::theme::{TOKYO_BLUE, TOKYO_TEXT, ui_text};
+use super::theme::{tokyo_blue, tokyo_text, ui_text};
 use super::tooltips::EXPLANATORY_TOOLTIP_DELAY;
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
@@ -94,11 +94,11 @@ pub(super) fn status_register_tooltip<'a>(
 
     let body = container(
         column![
-            ui_text(description, 12, TOKYO_TEXT),
+            ui_text(description, 12, tokyo_text()),
             Space::new().height(Length::Fixed(6.0)),
             row![
-                ui_text(format!("{prefix} "), 12, TOKYO_TEXT),
-                ui_text(status_label, 12, TOKYO_BLUE),
+                ui_text(format!("{prefix} "), 12, tokyo_text()),
+                ui_text(status_label, 12, tokyo_blue()),
             ]
             .spacing(0)
             .align_y(alignment::Vertical::Center),

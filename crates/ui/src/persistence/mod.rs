@@ -13,7 +13,7 @@ pub use export::{
 pub use import::Importers;
 pub use program::{LEGACY_LENGTH, ProgramError, ProgramSerializer};
 pub use settings::{
-    ExportSettings, GeneralSettings, Language, NetworkMode, NetworkSettings, Settings,
+    ColorScheme, ExportSettings, GeneralSettings, Language, NetworkMode, NetworkSettings, Settings,
     SettingsStore, SpeedPreset, StorageSettings, UiSettings,
 };
 pub use shortcuts::{

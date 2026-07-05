@@ -11,7 +11,7 @@ use iced::{Background, Border, Color, Element, Length, alignment};
 use super::icons;
 use super::styles::{large_dialog_style as modal_dialog_style, modal_backdrop_style};
 use super::theme::{
-    TOKYO_MUTED, TOKYO_SURFACE, TOKYO_SURFACE_2, TOKYO_SURFACE_3, TOKYO_TEXT, ui_text,
+    tokyo_muted, tokyo_surface, tokyo_surface_2, tokyo_surface_3, tokyo_text, ui_text,
 };
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
@@ -34,7 +34,7 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
     )
     .on_press(Message::CloseAbout);
 
-    let title = ui_text(lang.t(Key::AboutTitle), 24, TOKYO_TEXT);
+    let title = ui_text(lang.t(Key::AboutTitle), 24, tokyo_text());
 
     let app_icon_glyph = image(icons::app_icon())
         .width(Length::Fixed(APP_ICON_GLYPH_SIZE))
@@ -45,7 +45,7 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
         .align_x(alignment::Horizontal::Center)
         .align_y(alignment::Vertical::Center);
 
-    let app_name = ui_text(lang.t(Key::AppName), 18, TOKYO_TEXT);
+    let app_name = ui_text(lang.t(Key::AppName), 18, tokyo_text());
     let version = ui_text(
         format!(
             "{} {}",
@@ -53,7 +53,7 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
             env!("CARGO_PKG_VERSION")
         ),
         13,
-        TOKYO_MUTED,
+        tokyo_muted(),
     );
 
     let identity_row = row![
@@ -64,19 +64,19 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
     .spacing(16)
     .align_y(alignment::Vertical::Center);
 
-    let description = ui_text(lang.t(Key::AboutDescription), 14, TOKYO_TEXT);
+    let description = ui_text(lang.t(Key::AboutDescription), 14, tokyo_text());
 
     let github_glyph = svg(icons::github())
         .width(Length::Fixed(GITHUB_ICON_SIZE))
         .height(Length::Fixed(GITHUB_ICON_SIZE))
         .style(|_theme, _status| svg::Style {
-            color: Some(TOKYO_TEXT),
+            color: Some(tokyo_text()),
         });
     let github_button = button(
         container(
             row![
                 github_glyph,
-                ui_text(lang.t(Key::AboutGithubLabel), 13, TOKYO_TEXT),
+                ui_text(lang.t(Key::AboutGithubLabel), 13, tokyo_text()),
             ]
             .spacing(10)
             .align_y(alignment::Vertical::Center),
@@ -128,13 +128,13 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
 fn pill_button_style(status: iced::widget::button::Status) -> iced::widget::button::Style {
     use iced::widget::button;
     let background = match status {
-        button::Status::Pressed => TOKYO_SURFACE_3,
-        button::Status::Hovered => TOKYO_SURFACE_2,
-        _ => TOKYO_SURFACE,
+        button::Status::Pressed => tokyo_surface_3(),
+        button::Status::Hovered => tokyo_surface_2(),
+        _ => tokyo_surface(),
     };
     button::Style {
         background: Some(Background::Color(background)),
-        text_color: TOKYO_TEXT,
+        text_color: tokyo_text(),
         border: Border {
             radius: PILL_RADIUS.into(),
             width: 0.0,

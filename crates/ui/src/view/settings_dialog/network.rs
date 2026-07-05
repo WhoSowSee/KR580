@@ -1,7 +1,7 @@
 use iced::widget::{Space, column, container, row};
 use iced::{Element, Length, alignment};
 
-use super::super::theme::{TOKYO_MUTED, TOKYO_RED, ui_text};
+use super::super::theme::{tokyo_muted, tokyo_red, ui_text};
 use super::super::widgets::compact_text_input_shell;
 use super::setting_row::setting_row;
 use crate::app::{Message, SettingsDialog};
@@ -31,7 +31,7 @@ pub(super) fn network_defaults_row<'a>(
     );
     let error: Element<'a, Message> = dialog.network_error.as_deref().map_or_else(
         || Space::new().height(0).into(),
-        |error| ui_text(error, 10, TOKYO_RED).into(),
+        |error| ui_text(error, 10, tokyo_red()).into(),
     );
 
     setting_row(
@@ -49,7 +49,7 @@ fn endpoint_row<'a>(
     port_message: fn(String) -> Message,
 ) -> Element<'a, Message> {
     row![
-        container(ui_text(label, 11, TOKYO_MUTED))
+        container(ui_text(label, 11, tokyo_muted()))
             .width(Length::Fixed(NETWORK_LABEL_WIDTH))
             .align_x(alignment::Horizontal::Right),
         compact_text_input_shell(

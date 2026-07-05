@@ -1,7 +1,7 @@
 use k580_core::{Cpu8080State, Memory64K};
 use k580_ui::persistence::{
-    LEGACY_LENGTH, ProgramError, ProgramSerializer, Settings, SettingsError, SettingsStore,
-    ShortcutAction, SpeedPreset,
+    ColorScheme, LEGACY_LENGTH, ProgramError, ProgramSerializer, Settings, SettingsError,
+    SettingsStore, ShortcutAction, SpeedPreset,
 };
 
 #[test]
@@ -189,12 +189,13 @@ fn settings_are_versioned_camel_case_json() {
     assert!(!settings.general.follow_pc);
     assert_eq!(settings.general.default_speed, SpeedPreset::High);
     assert!(settings.general.memory_operand_highlighting);
+    assert_eq!(settings.ui.theme, ColorScheme::TokyoNight);
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
-    let unsupported = json.replace("\"settingsVersion\": 3", "\"settingsVersion\": 4");
+    let unsupported = json.replace("\"settingsVersion\": 4", "\"settingsVersion\": 5");
     assert!(matches!(
         SettingsStore::from_json(&unsupported),
-        Err(SettingsError::UnsupportedVersion(4))
+        Err(SettingsError::UnsupportedVersion(5))
     ));
 }
 
@@ -207,7 +208,7 @@ fn version_two_settings_gain_default_shortcuts() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 3);
+    assert_eq!(migrated.settings_version, 4);
     assert_eq!(
         migrated
             .shortcuts
@@ -234,6 +235,30 @@ fn version_one_settings_reset_legacy_runtime_network_endpoints() {
 
     let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
 
-    assert_eq!(migrated.settings_version, 3);
+    assert_eq!(migrated.settings_version, 4);
     assert_eq!(migrated.network, Default::default());
+}
+
+#[test]
+fn legacy_dark_theme_migrates_to_tokyo_night() {
+    let mut value = serde_json::to_value(Settings::default()).unwrap();
+    value["settingsVersion"] = serde_json::json!(3);
+    value["ui"]["theme"] = serde_json::json!("dark");
+    let json = serde_json::to_string_pretty(&value).unwrap();
+
+    let migrated = SettingsStore::from_json(&json).unwrap();
+
+    assert_eq!(migrated.settings_version, 4);
+    assert_eq!(migrated.ui.theme, ColorScheme::TokyoNight);
+}
+
+#[test]
+fn removed_monokai_theme_migrates_to_tokyo_night() {
+    let mut value = serde_json::to_value(Settings::default()).unwrap();
+    value["ui"]["theme"] = serde_json::json!("monokai");
+    let json = serde_json::to_string_pretty(&value).unwrap();
+
+    let migrated = SettingsStore::from_json(&json).unwrap();
+
+    assert_eq!(migrated.ui.theme, ColorScheme::TokyoNight);
 }

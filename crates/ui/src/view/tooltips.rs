@@ -3,7 +3,7 @@ use iced::{Element, Length, Padding, alignment};
 use std::time::Duration;
 
 use super::styles::inset_style;
-use super::theme::{TOKYO_MUTED, TOKYO_TEXT, ui_text};
+use super::theme::{tokyo_muted, tokyo_text, ui_text};
 use crate::app::Message;
 use crate::persistence::ShortcutSettings;
 
@@ -11,7 +11,7 @@ const LONG_TOOLTIP_WIDTH: f32 = 220.0;
 
 pub(super) fn long_tooltip_body(hint: &'static str) -> Element<'static, Message> {
     container(
-        ui_text(hint, 11, TOKYO_TEXT)
+        ui_text(hint, 11, tokyo_text())
             .width(Length::Fixed(LONG_TOOLTIP_WIDTH))
             .wrapping(Wrapping::Word),
     )
@@ -46,11 +46,11 @@ pub(super) fn hover_tooltip(
     position: tooltip::Position,
     delay: Duration,
 ) -> Element<'static, Message> {
-    let title = ui_text(hint, 12, TOKYO_TEXT).align_x(alignment::Horizontal::Center);
+    let title = ui_text(hint, 12, tokyo_text()).align_x(alignment::Horizontal::Center);
     let content: Element<'static, Message> = match shortcut.filter(|value| !value.is_empty()) {
         Some(shortcut) => row![
             title,
-            ui_text(shortcut, 11, TOKYO_MUTED).align_x(alignment::Horizontal::Center),
+            ui_text(shortcut, 11, tokyo_muted()).align_x(alignment::Horizontal::Center),
         ]
         .spacing(8)
         .align_y(alignment::Vertical::Center)
