@@ -48,7 +48,7 @@ pub(crate) enum Key {
     StatusOpened, StatusSavedTo, StatusExportTo, StatusImportFrom, ErrorPrefix, HaltNotice,
 
     SpeedTitle, SpeedUnit,
-    SettingsTitle, SettingsSearchPlaceholder, SettingsCategoryGeneral,
+    SettingsTitle, SettingsSavedNotice, SettingsSearchPlaceholder, SettingsCategoryGeneral,
     SettingsCategoryExternalDevices, SettingsCategoryAppearance, SettingsCategoryShortcuts,
     SettingsLanguageLabel, SettingsLanguageHint, SettingsSpeedLabel, SettingsSpeedHint,
     SettingsFollowPcLabel, SettingsFollowPcHint, SettingsMemoryOperandHighlightingLabel,

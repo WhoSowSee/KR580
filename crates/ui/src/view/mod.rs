@@ -43,8 +43,8 @@ use iced::{Element, Length};
 
 use modal::discard_modal_overlay;
 use monitor::{monitor_window, monitor_window_overlay};
-use network::{NetworkViewState, network_window, network_window_overlay};
-use notices::{error_notice_overlay, halt_notice_overlay};
+use network::{network_window, network_window_overlay};
+use notices::{error_notice_overlay, halt_notice_overlay, with_settings_saved_notice};
 use printer::{printer_window, printer_window_overlay};
 use printer_setup::with_printer_setup_overlay;
 use settings_dialog::settings_modal_overlay;
@@ -76,19 +76,6 @@ pub(super) const VIEW_MENU_DROPDOWN_LEFT: f32 = 130.0;
 pub(super) const HELP_MENU_DROPDOWN_LEFT: f32 = 308.0;
 
 impl DesktopApp {
-    fn network_view_state(&self) -> NetworkViewState<'_> {
-        NetworkViewState {
-            network: &self.snapshot.devices.network,
-            settings_open: self.network_settings_open,
-            text_view: self.network_text_view,
-            mode: self.network_mode_draft,
-            host: &self.network_host_input,
-            port: &self.network_port_input,
-            error: self.network_settings_error.as_deref(),
-            lang: self.lang,
-        }
-    }
-
     pub(crate) fn view(&self, window: iced::window::Id) -> Element<'_, Message> {
         theme::set_active_color_scheme(self.color_scheme);
         if self.monitor_window.id == Some(window) {
@@ -195,7 +182,7 @@ impl DesktopApp {
             app_root
         };
 
-        // Notice stacking order, bottom to top: halt → error → info.
+        // Notice stacking order, bottom to top: halt → error.
         let app_with_overlays: Element<'_, Message> =
             if let Some(notice) = self.halt_notice.as_deref() {
                 stack![app_with_menu, halt_notice_overlay(notice)]
@@ -380,7 +367,11 @@ impl DesktopApp {
             scrimmed
         };
 
-        with_printer_setup_overlay(layered, self.printer_setup_dialog.as_ref(), self.lang)
+        with_settings_saved_notice(
+            with_printer_setup_overlay(layered, self.printer_setup_dialog.as_ref(), self.lang),
+            self.settings_saved_notice,
+            self.lang,
+        )
     }
 }
 

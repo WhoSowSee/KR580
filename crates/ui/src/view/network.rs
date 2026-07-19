@@ -10,7 +10,7 @@ use super::storage::chrome::{
 };
 use super::styles::{panel_style, scrollable_style};
 use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
-use crate::app::{Message, ToolWindowKind};
+use crate::app::{DesktopApp, Message, ToolWindowKind};
 use crate::i18n::{Key, Lang, NetworkKey};
 
 const WINDOW_WIDTH: f32 = 760.0;
@@ -25,6 +25,21 @@ pub(in crate::view) struct NetworkViewState<'a> {
     pub(in crate::view) port: &'a str,
     pub(in crate::view) error: Option<&'a str>,
     pub(in crate::view) lang: Lang,
+}
+
+impl DesktopApp {
+    pub(in crate::view) fn network_view_state(&self) -> NetworkViewState<'_> {
+        NetworkViewState {
+            network: &self.snapshot.devices.network,
+            settings_open: self.network_settings_open,
+            text_view: self.network_text_view,
+            mode: self.network_mode_draft,
+            host: &self.network_host_input,
+            port: &self.network_port_input,
+            error: self.network_settings_error.as_deref(),
+            lang: self.lang,
+        }
+    }
 }
 
 pub(in crate::view) fn network_window_overlay(view: NetworkViewState<'_>) -> Element<'_, Message> {

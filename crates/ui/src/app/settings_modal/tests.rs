@@ -14,6 +14,8 @@ mod general;
 mod initialization;
 mod navigation;
 mod printer;
+mod routing;
+mod saving;
 mod shortcuts;
 
 static FILE_ASSOC_TEST_MUTEX: Mutex<()> = Mutex::new(());

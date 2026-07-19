@@ -39,6 +39,12 @@ impl DesktopApp {
         {
             self.clear_halt_notice();
         }
+        if self
+            .settings_saved_notice
+            .is_some_and(|notice| notice.is_expired(now))
+        {
+            self.settings_saved_notice = None;
+        }
         // `pending_follow_pc` covers a fast run that auto-paused
         // inside one tick: by the time we read `running` here it's
         // already false.

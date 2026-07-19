@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use super::constants::SETTINGS_SEARCH_INPUT_ID;
 use super::messages::{Message, SpeedTier};
 use super::settings_modal::SettingsDialog;
@@ -16,6 +18,7 @@ impl DesktopApp {
         }
         match message {
             Message::OpenSettings => {
+                self.settings_saved_notice = None;
                 self.open_menu = None;
                 self.hide_opcode_dropdown();
                 self.close_open_device_panel();
@@ -36,6 +39,7 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::CloseSettings => {
+                self.settings_saved_notice = None;
                 if let Some(dialog) = self.settings_dialog.take() {
                     let lang_changed = self.lang != dialog.original_lang;
                     self.lang = dialog.original_lang;
@@ -57,6 +61,7 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SaveSettings => {
+                let previous_notice = self.settings_saved_notice.take();
                 let Some(dialog) = self.settings_dialog.as_ref() else {
                     return Some(Task::none());
                 };
@@ -75,14 +80,13 @@ impl DesktopApp {
                         return Some(Task::none());
                     }
                 };
-                let shortcuts = dialog.draft_shortcuts.clone();
-                let printer_settings = dialog.draft_printer_settings.clone();
-                let printer_dialog_mode = dialog.draft_printer_dialog_mode;
                 self.save_settings_dialog(dialog, network);
-                self.shortcut_settings = shortcuts;
-                self.printer_default_settings = printer_settings;
-                self.printer_dialog_mode = printer_dialog_mode;
-                self.settings_dialog = None;
+                self.commit_settings_dialog_state();
+                let started_at = Instant::now();
+                self.settings_saved_notice = Some(match previous_notice {
+                    Some(notice) => notice.restarted(started_at),
+                    None => super::SettingsSavedNotice::new(started_at),
+                });
                 Some(Task::none())
             }
             Message::SettingsCategorySelected(category) => {
@@ -335,6 +339,22 @@ impl DesktopApp {
             }
             _ => None,
         }
+    }
+
+    pub(super) fn commit_settings_dialog_state(&mut self) {
+        let Some(dialog) = self.settings_dialog.as_mut() else {
+            return;
+        };
+        self.shortcut_settings = dialog.draft_shortcuts.clone();
+        self.printer_default_settings = dialog.draft_printer_settings.clone();
+        self.printer_dialog_mode = dialog.draft_printer_dialog_mode;
+        dialog.original_lang = dialog.draft_lang;
+        dialog.original_speed = dialog.draft_speed;
+        dialog.original_color_scheme = dialog.draft_color_scheme;
+        dialog.original_follow_pc = dialog.draft_follow_pc;
+        dialog.original_memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
+        dialog.original_printer_dialog_mode = dialog.draft_printer_dialog_mode;
+        dialog.original_shortcuts = dialog.draft_shortcuts.clone();
     }
 
     fn save_settings_dialog(&self, dialog: &SettingsDialog, network: NetworkDefaults) {

@@ -22,10 +22,9 @@ impl DesktopApp {
 
         match message {
             Message::Tick
+            | Message::DismissSettingsSavedNotice
             | Message::CursorMoved(_)
-            | Message::ModifiersChanged(_)
-            | Message::FocusReconciled { .. }
-            | Message::ResolveFocusedTracker(_) => None,
+            | Message::ModifiersChanged(_) => None,
             Message::CloseSettings
             | Message::SaveSettings
             | Message::SettingsCategorySelected(_)
@@ -96,7 +95,10 @@ impl DesktopApp {
             Message::HorizontalArrowKey(direction) => {
                 Some(self.handle_settings_horizontal_arrow(*direction))
             }
-            Message::MousePressed | Message::MousePressedIgnored => None,
+            Message::MousePressed
+            | Message::MousePressedIgnored
+            | Message::FocusReconciled { .. }
+            | Message::ResolveFocusedTracker(_) => Some(Task::none()),
             _ => Some(Task::none()),
         }
     }

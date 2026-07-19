@@ -10,6 +10,7 @@ use super::messages::{ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTie
 use super::modal::DiscardModalButton;
 use super::printer::PrinterSetupDialog;
 use super::settings_modal::SettingsDialog;
+use super::settings_saved_notice::SettingsSavedNotice;
 use super::status::StatusKind;
 use super::undo::UndoStack;
 use super::windows::ToolWindowState;
@@ -141,6 +142,7 @@ pub(crate) struct DesktopApp {
     pub(crate) color_scheme: ColorScheme,
     pub(crate) shortcut_settings: ShortcutSettings,
     pub(crate) settings_dialog: Option<SettingsDialog>,
+    pub(crate) settings_saved_notice: Option<SettingsSavedNotice>,
     pub(crate) printer_default_settings: Option<k580_ui::devices::printer::PrinterSettings>,
     pub(crate) printer_dialog_mode: PrinterDialogMode,
     pub(crate) printer_session_settings: Option<k580_ui::devices::printer::PrinterSettings>,
@@ -312,6 +314,7 @@ impl DesktopApp {
             color_scheme,
             shortcut_settings: settings.shortcuts.clone(),
             settings_dialog: None,
+            settings_saved_notice: None,
             printer_default_settings,
             printer_dialog_mode: settings.general.printer_dialog_mode,
             printer_session_settings: None,

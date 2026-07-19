@@ -1687,8 +1687,10 @@ shortcut map. Live-editing language/speed/theme with
 Cancel/Reset/Save footer. Reset opens a sub-modal confirmation. Search
 filters settings rows across all categories, including theme names.
 
-**State:** `settings_dialog: Option<SettingsDialog>`. `SettingsDialog`
-lives in `app/settings_modal/` and is a standalone draft – the live
+**State:** `settings_dialog: Option<SettingsDialog>` and the transient
+`settings_saved_notice: Option<SettingsSavedNotice>` from
+`app/settings_saved_notice.rs`. `SettingsDialog` lives in
+`app/settings_modal/` and is a standalone draft – the live
 `lang`, `default_speed`, and `color_scheme` fields on `DesktopApp` are
 kept in sync with the draft while editing, then rolled back to
 `original_*` on Cancel or committed on Save.
@@ -2040,7 +2042,10 @@ dialog is open and turns it into one of four section-aware actions.
 The two arrow handlers and the section-aware Tab handler all early-out
 with `Task::none()` instead of falling back to the global routes, so
 arrow / Tab presses inside the modal can never reach the schematic
-panel underneath.
+panel underneath. The router also consumes `MousePressed`,
+`MousePressedIgnored`, `FocusReconciled`, and `ResolveFocusedTracker` while the
+dialog is open. This prevents the global coordinate-based focus reconciler from
+activating a text input underneath transparent or rounded parts of the modal.
 
 The Shortcuts category renders an unlabeled two-column list: action name and
 current shortcut. Clicking a shortcut capsule, or pressing Enter while its row has
@@ -2074,8 +2079,8 @@ and the dialog draft with defaults.
 
 `SettingsDialog::{draft_lang, draft_speed, draft_color_scheme}` are
 the user's tentative values; `original_lang`, `original_speed`, and
-`original_color_scheme` snapshot the live state at the moment the modal
-opens.
+`original_color_scheme` snapshot the latest committed state, initially
+captured when the modal opens.
 
 - Editing a draft updates **live state** (`DesktopApp::lang`,
   `default_speed`, `speed_tier`, `color_scheme`) immediately so the
@@ -2088,8 +2093,23 @@ opens.
 - `Cancel` / backdrop click / `Esc` in the empty dialog rolls back to
   the snapshot (`original_*`) and re-applies the original speed tier
   through the same chokepoint.
-- `Save` keeps the live state and writes the complete dialog snapshot to JSON
-  once. The General page also stores a default floppy image path
+- `Save` keeps the dialog open, keeps the live state, writes the complete dialog
+  snapshot to JSON once, and advances `original_*` so a later `Cancel` returns
+  to the latest saved values. A text-only top-centre `Настройки сохранены` /
+  `Settings saved` notice appears above the modal using the standard board fill,
+  neutral border, padding, and radius shared by the existing notices. It eases in,
+  holds, and fades out within a two-second lifetime. Its top lane is 48 logical
+  pixels from the window edge, leaving clear space above the modal header instead
+  of straddling its top border. Pressing `Save` again captures
+  the active notice's current opacity and vertical offset, starts the replacement
+  from that exact frame, and runs a subtle continuity-preserving pulse before
+  settling; rapid repeated saves therefore restart the full lifetime without the
+  old `0.2` opacity / `-10 px` position snap. Clicking the notice
+  emits `DismissSettingsSavedNotice` and dismisses it immediately. The animation is
+  derived from
+  `SettingsSavedNotice::presentation` on the settings dialog's existing frame
+  subscription, while `Message::Tick` removes the expired state. The General page
+  also stores a default floppy image path
   (loaded on startup) and separate startup address/port pairs for the network
   client and server; the Appearance page stores `ui.theme`; the Shortcuts page
   stores the draft shortcut overrides. These are draft-only until `Save`. Their
