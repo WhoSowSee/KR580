@@ -187,6 +187,10 @@ worth eyeballing after touching `crates/ui`:
   tooltips near window edges keep visible breathing room instead of
   snapping flush to the border without moving farther away from the
   hovered button;
+- hover the address buffer, instruction register, decoder, multiplexer rows,
+  cycle rows, control-signal lamps, and status register; confirm their tooltip
+  body text uses the same readable size as button tooltip labels while shortcut
+  suffixes remain smaller;
 - on the schematic, enter inline editing for «Буферный регистр 1» and
   «Буферный регистр 2» and confirm the hex value stays vertically stable
   instead of jumping upward; double-click must clear the editor while

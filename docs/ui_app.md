@@ -365,6 +365,9 @@ the feedback stays visible without reading as a raised light card.
 Tooltip bodies use
 `inset_style`; it shares the same darker `active board token` fill as the
 `Регистр состояния` tooltip, so all hover tips now use one surface tone.
+Explanatory tooltips for schematic readouts, control lamps, cycle rows, and the
+status register share a 12 px body-text token with button tooltip labels; only
+the secondary keyboard-shortcut suffix remains at 11 px.
 When a button has a keyboard shortcut, `view::tooltips::hover_tooltip`
 adds a same-line `active muted token` shortcut suffix after the action label.
 Configurable actions render that suffix from `DesktopApp::shortcut_settings`,

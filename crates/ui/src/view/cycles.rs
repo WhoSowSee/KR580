@@ -70,15 +70,19 @@ fn labeled_row_with_tooltip(
 
     let face_container = container(face).width(Length::Fill);
 
-    let body = container(ui_text(hint.to_owned(), 12, tokyo_text()))
-        .padding(Padding {
-            top: 4.0,
-            right: 8.0,
-            bottom: 4.0,
-            left: 8.0,
-        })
-        .max_width(230.0)
-        .style(inset_style);
+    let body = container(ui_text(
+        hint.to_owned(),
+        super::tooltips::TOOLTIP_BODY_FONT_SIZE,
+        tokyo_text(),
+    ))
+    .padding(Padding {
+        top: 4.0,
+        right: 8.0,
+        bottom: 4.0,
+        left: 8.0,
+    })
+    .max_width(230.0)
+    .style(inset_style);
 
     tooltip(face_container, body, tooltip::Position::Top)
         .gap(SNAPPED_TOOLTIP_GAP)

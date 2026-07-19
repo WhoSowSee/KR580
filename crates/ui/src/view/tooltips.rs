@@ -8,10 +8,11 @@ use crate::app::Message;
 use crate::persistence::ShortcutSettings;
 
 const LONG_TOOLTIP_WIDTH: f32 = 220.0;
+pub(super) const TOOLTIP_BODY_FONT_SIZE: u32 = 12;
 
 pub(super) fn long_tooltip_body(hint: &'static str) -> Element<'static, Message> {
     container(
-        ui_text(hint, 11, tokyo_text())
+        ui_text(hint, TOOLTIP_BODY_FONT_SIZE, tokyo_text())
             .width(Length::Fixed(LONG_TOOLTIP_WIDTH))
             .wrapping(Wrapping::Word),
     )
@@ -46,7 +47,8 @@ pub(super) fn hover_tooltip(
     position: tooltip::Position,
     delay: Duration,
 ) -> Element<'static, Message> {
-    let title = ui_text(hint, 12, tokyo_text()).align_x(alignment::Horizontal::Center);
+    let title =
+        ui_text(hint, TOOLTIP_BODY_FONT_SIZE, tokyo_text()).align_x(alignment::Horizontal::Center);
     let content: Element<'static, Message> = match shortcut.filter(|value| !value.is_empty()) {
         Some(shortcut) => row![
             title,
@@ -77,7 +79,9 @@ pub(super) fn hover_tooltip(
 
 #[cfg(test)]
 mod tests {
-    use super::{SNAPPED_TOOLTIP_GAP, VIEWPORT_PADDING, VISIBLE_GAP, shortcut_hint};
+    use super::{
+        SNAPPED_TOOLTIP_GAP, TOOLTIP_BODY_FONT_SIZE, VIEWPORT_PADDING, VISIBLE_GAP, shortcut_hint,
+    };
     use crate::app::Message;
     use crate::persistence::{ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings};
 
@@ -142,5 +146,10 @@ mod tests {
     fn tooltip_gap_keeps_visible_offset_close_to_trigger() {
         assert_eq!(VISIBLE_GAP, 6.0);
         assert_eq!(SNAPPED_TOOLTIP_GAP, -6.0);
+    }
+
+    #[test]
+    fn tooltip_body_font_size_stays_readable() {
+        assert_eq!(TOOLTIP_BODY_FONT_SIZE, 12);
     }
 }

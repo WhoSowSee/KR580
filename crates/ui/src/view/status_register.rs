@@ -9,7 +9,7 @@
 
 use super::styles::status_tooltip_style;
 use super::theme::{tokyo_blue, tokyo_text, ui_text};
-use super::tooltips::EXPLANATORY_TOOLTIP_DELAY;
+use super::tooltips::{EXPLANATORY_TOOLTIP_DELAY, TOOLTIP_BODY_FONT_SIZE};
 use crate::app::Message;
 use crate::i18n::{Key, Lang};
 use iced::widget::{Space, column, container, row, tooltip};
@@ -94,11 +94,11 @@ pub(super) fn status_register_tooltip<'a>(
 
     let body = container(
         column![
-            ui_text(description, 12, tokyo_text()),
+            ui_text(description, TOOLTIP_BODY_FONT_SIZE, tokyo_text()),
             Space::new().height(Length::Fixed(6.0)),
             row![
-                ui_text(format!("{prefix} "), 12, tokyo_text()),
-                ui_text(status_label, 12, tokyo_blue()),
+                ui_text(format!("{prefix} "), TOOLTIP_BODY_FONT_SIZE, tokyo_text()),
+                ui_text(status_label, TOOLTIP_BODY_FONT_SIZE, tokyo_blue()),
             ]
             .spacing(0)
             .align_y(alignment::Vertical::Center),
