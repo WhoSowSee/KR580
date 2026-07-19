@@ -68,13 +68,17 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         column(rows).spacing(20).padding(content_padding).into()
     };
 
-    let body: Element<'a, Message> = scrollable(body)
-        .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::hidden(),
-        ))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into();
+    let body: Element<'a, Message> = if settings_content_needs_scroll(dialog.category, searching) {
+        scrollable(body)
+            .direction(scrollable::Direction::Vertical(
+                scrollable::Scrollbar::hidden(),
+            ))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+    } else {
+        body
+    };
 
     let body: Element<'a, Message> = match (dialog.language_dropdown_open, language_row_index) {
         (true, Some(idx)) if !searching => {
@@ -125,6 +129,10 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
+}
+
+pub(super) fn settings_content_needs_scroll(category: SettingsCategory, searching: bool) -> bool {
+    searching || category != SettingsCategory::General
 }
 
 fn collect_category_rows<'a>(

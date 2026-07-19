@@ -1718,7 +1718,11 @@ Clicking a topic node switches the content. The regular article view is a
 read-only `text_editor`: it keeps `on_action` wired so drag selection,
 double-click word selection, triple-click line selection, Ctrl+A, and
 Ctrl+C still work, but `HelpDialog::perform_text_action` rejects edit and
-caret-move actions. A single left click is applied as `Click`, then the
+caret-move actions. The editor uses shrink height inside the pane's regular
+`scrollable`, so wheel-line and touchpad-pixel deltas share the scrollable's
+pixel-clamped offset instead of the editor's whole-line scroll state. This
+keeps very short overflow ranges stable while preserving text selection. A
+single left click is applied as `Click`, then the
 article cursor is moved to the same position with an empty selection anchor;
 iced renders that as a zero-width selection range instead of a visible
 insertion caret. A no-op `Drag` immediately after the click is normalized the
@@ -2116,9 +2120,10 @@ captured when the modal opens.
   compact fields use the same control scale as the segmented buttons.
 - The settings content pane scrolls vertically when its rows exceed the fixed
   dialog height. It uses `scrollable::Scrollbar::hidden()`, so wheel scrolling
-  remains available without a visible rail or reserved scrollbar width.
-- The `760×496` dialog balances the margins above and below the General rows;
-  hidden scrolling remains the overflow fallback on smaller displays.
+  remains available without a visible rail or reserved scrollbar width. The
+  unfiltered General page bypasses the scrollable because its fixed five rows
+  fit the pane; search results and every other category retain scrolling.
+- The `760×496` dialog balances the margins above and below the General rows.
 - `Reset` opens a stack-layer sub-modal whose `Cancel` / `Confirm`
   buttons follow `reset_confirm_focus`. `Confirm` writes
   the system default language from `system_locale::default_language()` /

@@ -101,8 +101,10 @@ pub(super) fn settings_modal_overlay<'a>(
 
 #[cfg(test)]
 mod tests {
+    use crate::app::SettingsCategory;
+
     use super::consts::DIALOG_HEIGHT;
-    use super::content::matches_query;
+    use super::content::{matches_query, settings_content_needs_scroll};
     use super::language::language_label_key;
     use crate::i18n::{Key, Lang};
 
@@ -158,5 +160,21 @@ mod tests {
         let height = std::hint::black_box(DIALOG_HEIGHT);
 
         assert_eq!(height, 496.0);
+    }
+
+    #[test]
+    fn general_settings_content_does_not_scroll_without_search() {
+        assert!(!settings_content_needs_scroll(
+            SettingsCategory::General,
+            false
+        ));
+        assert!(settings_content_needs_scroll(
+            SettingsCategory::General,
+            true
+        ));
+        assert!(settings_content_needs_scroll(
+            SettingsCategory::ExternalDevices,
+            false
+        ));
     }
 }

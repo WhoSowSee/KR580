@@ -15,6 +15,8 @@ use crate::app::{
 use crate::i18n::Lang;
 use crate::view::theme::{UI_BOLD_FONT, UI_FONT, tokyo_muted, tokyo_surface, tokyo_text};
 
+const ARTICLE_EDITOR_HEIGHT: Length = Length::Shrink;
+
 pub(super) fn help_content<'a>(dialog: &'a HelpDialog, lang: Lang) -> Element<'a, Message> {
     let query = dialog.results_query();
     if query.is_empty() {
@@ -34,9 +36,13 @@ fn single_article<'a>(dialog: &'a HelpDialog, _lang: Lang) -> Element<'a, Messag
         .font(UI_FONT)
         .padding(CONTENT_PADDING)
         .size(14.0)
-        .height(Length::Fill)
+        .height(ARTICLE_EDITOR_HEIGHT)
         .style(help_text_editor_style);
-    container(body)
+    let scrollable_body = scrollable(body)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .style(hidden_scrollbar_style);
+    container(scrollable_body)
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
@@ -297,6 +303,11 @@ fn range_covers(ranges: &[Range<usize>], start: usize, end: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn article_editor_yields_wheel_scrolling_to_parent() {
+        assert_eq!(ARTICLE_EDITOR_HEIGHT, Length::Shrink);
+    }
 
     #[test]
     fn line_segments_mark_only_matching_letters() {
