@@ -717,7 +717,8 @@ with a wide remaining row.
   плашки на плате: `schematic_readout` (134×60, 20 px hex value),
   `schematic_wide_readout` для растянутых блоков с той же высотой и
   вертикальными padding-метриками,
-  `schematic_mnemonic_readout`, `flag_strip` / `flag_dot`,
+  `schematic_mnemonic_readout` с оптическим максимумом 19 px для
+  мнемоник рядом с 20 px hex-значениями, `flag_strip` / `flag_dot`,
   `device_chip` и `functional_block`.
 - `view/mux.rs` (~300 строк) – мультиплексор: внешний заголовок,
   отдельные framed-группы W/Z и РОН grid B/C/D/E/H/L, SP/PC

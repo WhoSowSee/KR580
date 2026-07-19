@@ -37,6 +37,7 @@ const SCHEMATIC_READOUT_PADDING: f32 = 8.0;
 pub(super) const SCHEMATIC_WIDE_READOUT_HEIGHT: f32 = SCHEMATIC_READOUT_HEIGHT;
 const SCHEMATIC_READOUT_VALUE_FONT_SIZE: u32 = 20;
 const SCHEMATIC_READOUT_VALUE_SLOT_HEIGHT: f32 = 24.0;
+const SCHEMATIC_MNEMONIC_MAX_FONT_SIZE: u32 = 19;
 const SCHEMATIC_MNEMONIC_MIN_FONT_SIZE: u32 = 16;
 const SCHEMATIC_MNEMONIC_WIDTH_FACTOR: f32 = 0.62;
 const SCHEMATIC_MNEMONIC_INNER_WIDTH: f32 =
@@ -158,8 +159,7 @@ fn readout_value(
 fn schematic_mnemonic_font_size(value: &str) -> u32 {
     let glyph_count = value.chars().count();
     let visual_size = match glyph_count {
-        0..=5 => SCHEMATIC_READOUT_VALUE_FONT_SIZE,
-        6..=7 => 19,
+        0..=7 => SCHEMATIC_MNEMONIC_MAX_FONT_SIZE,
         8..=9 => 18,
         10..=11 => 17,
         _ => SCHEMATIC_MNEMONIC_MIN_FONT_SIZE,
@@ -169,7 +169,7 @@ fn schematic_mnemonic_font_size(value: &str) -> u32 {
         .floor() as u32;
     fitted.min(visual_size).clamp(
         SCHEMATIC_MNEMONIC_MIN_FONT_SIZE,
-        SCHEMATIC_READOUT_VALUE_FONT_SIZE,
+        SCHEMATIC_MNEMONIC_MAX_FONT_SIZE,
     )
 }
 
@@ -354,18 +354,18 @@ mod tests {
     }
 
     #[test]
-    fn mnemonic_readout_keeps_base_size_until_text_needs_shrink() {
+    fn mnemonic_readout_uses_optical_max_size_until_text_needs_shrink() {
         assert_eq!(
             schematic_mnemonic_font_size("NOP"),
-            SCHEMATIC_READOUT_VALUE_FONT_SIZE
+            SCHEMATIC_MNEMONIC_MAX_FONT_SIZE
         );
         assert_eq!(
             schematic_mnemonic_font_size("INR A"),
-            SCHEMATIC_READOUT_VALUE_FONT_SIZE
+            SCHEMATIC_MNEMONIC_MAX_FONT_SIZE
         );
         assert_eq!(
             schematic_mnemonic_font_size("SUB B"),
-            SCHEMATIC_READOUT_VALUE_FONT_SIZE
+            SCHEMATIC_MNEMONIC_MAX_FONT_SIZE
         );
         assert_eq!(schematic_mnemonic_font_size("MVI D,d8"), 18);
         assert_eq!(schematic_mnemonic_font_size("LXI SP,d16"), 17);
