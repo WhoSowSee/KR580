@@ -176,6 +176,7 @@ pub(crate) enum Message {
     HorizontalArrowKey(i32),
     RegisterArrowKey(RegisterMove),
     MemoryScrolled(f32, f32),
+    MemoryScrollbarDragged(f32, f32),
     JumpMemoryAddress,
     JumpMemoryTo(u16),
     MemoryAddressChanged(String),

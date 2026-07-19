@@ -247,6 +247,18 @@ order, top to bottom:
    address-field shortcut independently.
    The return command restores the previous memory scroll offset, so
    the source operand keeps the same visible row position after a round trip.
+   The memory scrollbar uses a compact 20 × 4 logical-pixel thumb with an 8 px
+   hit target over a hidden native rail. Hovering any part of that rail reveals
+   the thumb, while dragging still starts only from the thumb itself. Pressing
+   the thumb preserves its grab point instead of recentering it under the
+   pointer. The first 12 logical pixels of a drag use a smooth precision curve,
+   reducing subpixel movement from dozens of addresses to individual rows. At
+   12 px the thumb catches the pointer with
+   matching velocity; longer and faster drags remain one-to-one and traverse the
+   complete 64 KiB address range. Wheel and touchpad scrolling keep iced's native
+   pixel/line sensitivity. The list remains virtualised at 96 rendered rows with
+   12 rows of overscan, so thumb interaction does not increase per-frame row
+   construction.
 2. **«Ячейка ОЗУ и ее значение»** – address spinner + value field +
    `↵` apply button.
 3. **«Регистр и его значение»** – register name spinner + value field +

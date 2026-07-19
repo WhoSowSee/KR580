@@ -162,6 +162,11 @@ worth eyeballing after touching `crates/ui`:
 - in the inline memory list, confirm Tab walks down through addresses
   and Shift+Tab walks back up, with each destination empty and its stored
   byte shown as the placeholder;
+- in the inline memory list, confirm the scrollbar thumb is compact, does not
+  jump when grabbed off-centre, appears when hovering either the thumb or an empty
+  part of its rail, moves by only a few addresses for a minimal drag, catches the
+  pointer within 12 px, stays under it for a fast drag, reaches both track ends
+  without stutter, and leaves wheel/touchpad sensitivity unchanged;
 - in the opcode picker, type part of an opcode or mnemonic, confirm
   ArrowDown/Tab and ArrowUp/Shift+Tab move the highlighted filtered row
   with wrapping, and Enter writes the highlighted opcode to the selected

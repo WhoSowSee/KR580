@@ -6,22 +6,24 @@
 use iced::widget::scrollable;
 use iced::{Background, Border, Color, Theme};
 
+use super::super::theme::tokyo_muted;
+
+const SCROLLER_HOVER: Color = Color::from_rgb(
+    0x9A as f32 / 255.0,
+    0xA5 as f32 / 255.0,
+    0xCE as f32 / 255.0,
+);
+const SCROLLER_DRAG: Color = Color::from_rgb(
+    0xC0 as f32 / 255.0,
+    0xCA as f32 / 255.0,
+    0xF5 as f32 / 255.0,
+);
+
 pub(crate) fn scrollable_style(
     reveal: bool,
     theme: &Theme,
     status: scrollable::Status,
 ) -> scrollable::Style {
-    const SCROLLER_HOVER: Color = Color::from_rgb(
-        0x9A as f32 / 255.0,
-        0xA5 as f32 / 255.0,
-        0xCE as f32 / 255.0,
-    );
-    const SCROLLER_DRAG: Color = Color::from_rgb(
-        0xC0 as f32 / 255.0,
-        0xCA as f32 / 255.0,
-        0xF5 as f32 / 255.0,
-    );
-
     let mut style = scrollable::default(theme, status);
     style.vertical_rail.background = None;
     style.vertical_rail.border = Border::default();
@@ -63,4 +65,16 @@ pub(crate) fn scrollable_style(
     }
 
     style
+}
+
+pub(crate) fn memory_scrollbar_color(reveal: bool, hovered: bool, dragged: bool) -> Color {
+    if dragged {
+        SCROLLER_DRAG
+    } else if hovered {
+        SCROLLER_HOVER
+    } else if reveal {
+        tokyo_muted()
+    } else {
+        Color::TRANSPARENT
+    }
 }

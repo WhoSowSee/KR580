@@ -8,6 +8,7 @@ use super::constants::{
 use super::messages::{Message, RegisterInlineTarget};
 use super::state::{DesktopApp, PendingAction};
 use super::update_routes::open_device_message;
+use crate::runtime::parse::scroll_memory_to;
 
 impl DesktopApp {
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
@@ -198,6 +199,12 @@ impl DesktopApp {
                 self.memory_viewport_height = viewport_height;
                 self.scroll_memory(offset);
                 self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+            }
+            Message::MemoryScrollbarDragged(offset, viewport_height) => {
+                self.memory_viewport_height = viewport_height;
+                self.scroll_memory(offset);
+                self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+                return scroll_memory_to(self.memory_scroll_offset);
             }
             Message::JumpMemoryAddress if !self.running => {
                 if self.keyboard_modifiers.command() {

@@ -5,19 +5,21 @@
 //! `legend_panel` frame. The opcode dropdown is composed in here when the
 //! user opens it.
 
-use iced::widget::{Column, Space, column, container, row, scrollable, stack};
+use iced::widget::{Column, Space, column, container, responsive, row, scrollable, stack};
 use iced::{Element, Length, alignment};
 use k580_core::{Cpu8080State, decode_opcode};
 
 mod cells;
 mod operands;
+mod scrollbar;
 use cells::{address_cell, command_cell, memory_value_cell};
 use operands::classify_operands;
+use scrollbar::memory_scrollbar;
 
 pub(crate) use operands::{operand_jump_target, operand_port_number};
 
 use super::opcode_dropdown::{OPCODE_DROPDOWN_HEIGHT, opcode_dropdown_overlay};
-use super::styles::{memory_row_container_style, scrollable_style, solid_style, transparent_style};
+use super::styles::{memory_row_container_style, solid_style, transparent_style};
 use super::theme::{
     tokyo_blue, tokyo_cyan, tokyo_green, tokyo_magenta, tokyo_muted, tokyo_red, tokyo_subtle_line,
     tokyo_yellow, ui_text,
@@ -78,10 +80,35 @@ impl DesktopApp {
         let scrollable_memory: Element<'_, Message> = scrollable(rows)
             .id(MEMORY_SCROLL_ID)
             .height(Length::Fill)
-            .style(move |theme, status| scrollable_style(memory_scroll_reveal, theme, status))
+            .direction(scrollable::Direction::Vertical(
+                scrollable::Scrollbar::hidden(),
+            ))
             .on_scroll(|viewport| {
                 Message::MemoryScrolled(viewport.absolute_offset().y, viewport.bounds().height)
             })
+            .into();
+        let memory_scroll_offset = self.memory_scroll_offset;
+        let memory_scrollbar: Element<'_, Message> = responsive(move |size| {
+            let max_offset = memory_max_scroll_offset(view_count, size.height);
+            if max_offset <= 0.0 {
+                return Space::new().width(Length::Fill).height(Length::Fill).into();
+            }
+
+            container(memory_scrollbar(
+                memory_scroll_offset,
+                max_offset,
+                size.height,
+                memory_scroll_reveal,
+            ))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Right)
+            .into()
+        })
+        .into();
+        let scrollable_memory: Element<'_, Message> = stack![scrollable_memory, memory_scrollbar]
+            .width(Length::Fill)
+            .height(Length::Fill)
             .into();
 
         let memory_body: Element<'_, Message> = if let Some(address) = self.opcode_dropdown_address
@@ -143,6 +170,10 @@ fn memory_spacer(rows: usize) -> Element<'static, Message> {
         .width(Length::Fill)
         .height(Length::Fixed(rows as f32 * MEMORY_ROW_HEIGHT))
         .into()
+}
+
+fn memory_max_scroll_offset(row_count: usize, viewport_height: f32) -> f32 {
+    (row_count as f32 * MEMORY_ROW_HEIGHT - viewport_height).max(0.0)
 }
 
 fn opcode_dropdown_top(row_top: f32, viewport_height: f32) -> f32 {

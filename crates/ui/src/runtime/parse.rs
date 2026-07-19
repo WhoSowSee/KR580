@@ -7,7 +7,7 @@ use iced::Task;
 use iced::widget::operation;
 use k580_core::RegisterName;
 
-pub(super) fn scroll_memory_to(offset: f32) -> Task<Message> {
+pub(crate) fn scroll_memory_to(offset: f32) -> Task<Message> {
     operation::scroll_to(
         MEMORY_SCROLL_ID,
         operation::AbsoluteOffset {

@@ -25,4 +25,4 @@ pub(super) use containers::{
 pub(super) use inputs::{
     disabled_input_borderless_style, inline_value_input_style, input_borderless_style,
 };
-pub(super) use scrollable::scrollable_style;
+pub(super) use scrollable::{memory_scrollbar_color, scrollable_style};
