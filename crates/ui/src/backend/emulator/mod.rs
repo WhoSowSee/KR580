@@ -293,10 +293,10 @@ impl Emulator {
             AppCommand::ClearPrinterBuffer => {
                 self.bus.printer.clear();
             }
-            AppCommand::PrintPrinterPdf(path) => {
+            AppCommand::PrintPrinterNative(settings) => {
                 self.bus
                     .printer
-                    .print_to_pdf(path, self.io_runtime.handle())
+                    .print_native(settings, self.io_runtime.handle())
                     .map_err(|error| crate::backend::AppError::Io(error.to_string()))?;
             }
             AppCommand::Shutdown => {

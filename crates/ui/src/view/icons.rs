@@ -106,6 +106,8 @@ static TEXT_CURSOR: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("text-cursor").as_slice()));
 static TYPE: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("type").as_slice()));
+static SETTINGS: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("settings").as_slice()));
 static BRUSH_CLEANING: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("brush-cleaning").as_slice()));
 static IMAGE: LazyLock<svg::Handle> =
@@ -314,6 +316,10 @@ pub(super) fn text_cursor() -> svg::Handle {
 
 pub(super) fn type_icon() -> svg::Handle {
     TYPE.clone()
+}
+
+pub(super) fn settings() -> svg::Handle {
+    SETTINGS.clone()
 }
 
 pub(super) fn brush_cleaning() -> svg::Handle {

@@ -8,6 +8,16 @@ cargo clippy --workspace --all-targets --manifest-path /d/kr-580/Cargo.toml -- -
 cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
 ```
 
+On Windows, the installed-driver PrintTicket roundtrip has an explicit ignored
+smoke test:
+
+```sh
+cargo test -p kr580 --test native_printer_properties -- --ignored --nocapture
+```
+
+It loads a real installed printer, parses its capabilities, and reapplies its
+current selected option without submitting a physical print job.
+
 ## Current coverage
 
 - `k580-core`: opcode classification, documented-opcode smoke execution,
@@ -19,14 +29,17 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
   monitor framebuffer/attribute state, storage worker queueing, storage
   visible-buffer clearing, storage debug-buffer acceptance without an
   attached file, network no-data handling, Tokio TCP worker roundtrip,
-  CP866 decoding, asynchronous printer PDF export with spool preservation,
+  CP866 decoding and 80-column native printer line wrapping, PrintTicket
+  capability parsing, delta generation, feature de-duplication, and property
+  localization,
   `.580` roundtrip/determinism/header validation, raw `.krs` behavior,
   settings JSON versioning, `.txt`/`.xlsx` direct exporters/importers,
   command-mediated state mutation, floppy image attachment, printer
-  clearing/export, and actor publication of completed printer jobs. The
-  PDF regression test parses the generated file, verifies that the
-  embedded font resource exists, and extracts the expected CP866-decoded
-  Cyrillic text. The `square_program` integration test synthesizes a
+  clearing/raw export, and actor publication of completed printer jobs. Native
+  printer discovery, capability loading, PrintTicket validation, fallback
+  Properties pages, and printing are a Windows smoke-test path because they
+  depend on installed OS printers and drivers. The `square_program` integration
+  test synthesizes a
   temporary `square.580` snapshot, loads it, runs it to HLT through the
   `Emulator`, and asserts the monitor pixel layer contains exactly
   the 28-pixel outline of an 8×8 square (corners included, interior
@@ -34,8 +47,8 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
   `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
   the documented 3-byte graphics command (`prompt/03_peripherals.md`).
 - `kr580` UI and installer: pure view helpers, printer HEX and CP866 text formatting,
-  printer view-mode toggling, memory-cell action and return shortcut
-  rebinding, PDF path normalization, detachable tool-window lifecycle,
+  printer view-mode toggling, printer target/settings updates, memory-cell action and return shortcut
+  rebinding, detachable tool-window lifecycle,
   installer layout helpers, install-mode detection, embedded/fallback
   installer payload selection, and launcher-to-app path resolution.
 
@@ -71,8 +84,6 @@ artwork:
 The Windows build script does not regenerate `icon.ico` automatically –
 it only embeds it. A stale `icon.ico` will be silently shipped if you
 forget to rerun the generator.
-
-Printer PDF tests also require the checked-in `assets/fonts/RobotoMono.ttf` because the internal `kr580` printer module embeds it at compile time. The font is mirrored into the crate-local assets tree and has no generated derivative.
 
 ## Manual smoke checks for the UI
 
@@ -201,10 +212,51 @@ worth eyeballing after touching `crates/ui`:
   between `bug-off` and active blue `bug`, the empty buffer state has no
   cursor glyph, and the clear button empties the visible buffer without
   changing the device footer state.
+- on Windows, open Settings → External Devices, choose a printer with the
+  custom Printer row setup modal, confirm its status/driver/port details,
+  paper sizes, paper sources, and orientation are populated; confirm the modal
+  appears at its final size before the asynchronous printer details arrive,
+  the Name and Comment text have balanced outer margins, the compact dialog
+  does not clip long printer, paper, or source values, the orientation content
+  has balanced top and bottom spacing, and the close
+  glyph uses the standard framed `34x34` modal button, section labels interrupt
+  the top-left border, no
+  header/footer separators are drawn, and the paper preview rotates when
+  landscape is selected; open Properties,
+  visit Favorites, General, Paper, Graphics, and Advanced, and confirm feature,
+  option, and parameter labels follow the selected app language without exposing
+  raw QName prefixes or `PageDevmodeSnapshot`; change a driver option, close it,
+  and confirm the emulator remains responsive and refreshes the top-level
+  controls; confirm dropdown panels keep a gap below their anchors, retain
+  the bottom border under the final option in both setup windows, and close
+  after clicking elsewhere inside the same modal; confirm an opened property
+  selector overlays the following rows instead of moving them;
+  use `Tab` and `Shift+Tab` to traverse the enabled top-level controls and the
+  complete Properties ring in both directions, including tabs, active feature
+  controls, parameter fields, profiles, and footer actions; then use
+  `ArrowUp`/`ArrowDown` in each kind of open selector and
+  confirm the highlight moves without committing until `Enter`; confirm `Esc`
+  closes the selector before the modal; confirm Properties opens on Favorites
+  without a focus outline, a mouse-selected tab shows only its bottom indicator,
+  and keyboard traversal then enables the tab focus outline; confirm the property
+  lists remain scrollable without a visible scrollbar, the compact paper preview
+  fits without a side-panel scroll, and the top-level Paper and Orientation
+  groups have equal height; save and reload a named profile,
+  restart the emulator, and confirm
+  the printer footer uses that global target and configuration for every file;
+  switch the Printer setup window row to System, reopen setup, confirm the OS
+  dialog appears, then switch back to the emulator window; with a long printer
+  name, confirm the clear icon stays fixed at the right edge of the row; clear
+  the row and confirm it returns to the OS default target;
 - send bytes to port `04h`, open the Принтер quick-access chip, and confirm
   the buffer renders as uppercase HEX with four-digit offsets and 16 bytes
   per line; toggle the `type` button and confirm CP866 text appears without
-  changing the byte count, then toggle back to HEX; print to PDF, verify the
-  UI returns from `Busy` to `Ready` and the CP866 text is readable; clear the
-  buffer and confirm the last PDF path remains in the footer; detach, pin,
-  attach, and close the window.
+  changing the byte count, then toggle back to HEX; click the settings gear,
+  select a different printer and paper/orientation, and confirm the footer shows
+  its name without changing `settings.json`; confirm the header contains one
+  Print action and no separate PDF action; print and
+  verify the UI returns from `Busy` to `Ready` and the selected printer
+  receives the CP866-decoded text; cancel a native printer or output-file prompt
+  and confirm the UI also returns to `Ready`, shows no raw Win32 error, and keeps
+  all three footer fields within the window; clear the buffer and confirm the active
+  printer target remains unchanged; detach, pin, attach, and close the window.

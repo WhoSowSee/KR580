@@ -6,4 +6,6 @@ The KR580 printer accumulates bytes sent by a program to port `04h` with `OUT`.
 - The text-symbol button toggles between HEX and CP866-decoded text
 - Can detach into a separate always-on-top window
 - Clear removes the accumulated bytes
-- Print to PDF saves CP866-decoded text without clearing the buffer
+- The settings gear opens printer, paper, source, and orientation setup
+- Properties opens the selected printer driver's complete settings
+- Print sends CP866-decoded text to the system printer without clearing the buffer

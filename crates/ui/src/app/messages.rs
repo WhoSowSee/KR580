@@ -1,10 +1,14 @@
 use super::register_inline::RegisterMove;
 use crate::i18n::Lang;
-use crate::persistence::{ColorScheme, ShortcutAction, ShortcutBinding};
+use crate::persistence::{ColorScheme, PrinterDialogMode, ShortcutAction, ShortcutBinding};
 use iced::Point;
 use iced::keyboard;
 use iced::widget::text_editor;
 use k580_core::RegisterName;
+use k580_ui::devices::printer::{
+    PrinterConfiguration, PrinterInfo, PrinterOrientation, PrinterPropertyChange,
+    PrinterPropertySheet, PrinterSettings,
+};
 use std::path::PathBuf;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -296,7 +300,53 @@ pub(crate) enum Message {
     ClosePrinter,
     TogglePrinterBufferView,
     ClearPrinterBuffer,
-    PrintPrinterPdf,
+    PrintPrinterNative,
+    ConfigurePrinterSession,
+    PrinterSessionSetupFinished(Result<Option<PrinterSettings>, String>),
+    PrinterSetupLoaded(Result<Vec<PrinterInfo>, String>),
+    PrinterSetupSelected(String),
+    PrinterSetupConfigurationLoaded {
+        printer_name: String,
+        result: Result<PrinterConfiguration, String>,
+    },
+    PrinterSetupDropdownToggled(super::printer::PrinterSetupDropdown),
+    PrinterSetupDropdownDismissed(super::printer::PrinterSetupDropdown),
+    PrinterSetupPaperSelected(i16),
+    PrinterSetupSourceSelected(i16),
+    PrinterSetupOrientationSelected(PrinterOrientation),
+    PrinterSetupProperties,
+    PrinterPropertiesLoaded {
+        printer_name: String,
+        result: Result<PrinterPropertySheet, String>,
+    },
+    PrinterPropertiesTabSelected(super::printer::PrinterPropertiesTab),
+    PrinterPropertiesFocusResolved {
+        focused: Option<iced::widget::Id>,
+        backward: bool,
+    },
+    PrinterPropertyDropdownToggled(super::printer::PrinterPropertyDropdown),
+    PrinterPropertyDropdownDismissed(super::printer::PrinterPropertyDropdown),
+    PrinterPropertyFeatureSelected(PrinterPropertyChange),
+    PrinterPropertyApplied {
+        printer_name: String,
+        result: Result<PrinterPropertySheet, String>,
+    },
+    PrinterPropertyParameterChanged {
+        name: String,
+        value: String,
+    },
+    PrinterPropertyParameterApply(String),
+    PrinterPropertyPaperSelected(i16),
+    PrinterPropertySourceSelected(i16),
+    PrinterPropertyOrientationSelected(PrinterOrientation),
+    PrinterPropertyPresetSelected(String),
+    PrinterPropertyPresetNameChanged(String),
+    PrinterPropertyPresetSave,
+    PrinterPropertyPresetDelete,
+    PrinterPropertyConfirmed,
+    ClosePrinterProperties,
+    PrinterSetupConfirmed,
+    ClosePrinterSetup,
     ToggleStackView,
     SettingsCategorySelected(SettingsCategory),
     SettingsSearchChanged(String),
@@ -305,11 +355,15 @@ pub(crate) enum Message {
     SettingsDraftFollowPcSet(bool),
     SettingsDraftMemoryOperandHighlightingSet(bool),
     SettingsDraftColorSchemeChanged(ColorScheme),
+    SettingsDraftPrinterDialogModeSet(PrinterDialogMode),
     SettingsFloppyImageBrowse,
     SettingsDraftFloppyImageSet(PathBuf),
     SettingsFloppyImageClear,
     SettingsHddDirectoryBrowse,
     SettingsDraftHddDirectorySet(PathBuf),
+    SettingsPrinterSetup,
+    SettingsPrinterSetupFinished(Result<Option<PrinterSettings>, String>),
+    SettingsPrinterClear,
     SettingsNetworkClientHostChanged(String),
     SettingsNetworkClientPortChanged(String),
     SettingsNetworkServerHostChanged(String),
@@ -322,7 +376,6 @@ pub(crate) enum Message {
     SettingsResetRequested,
     SettingsResetConfirmed,
     SettingsResetCancelled,
-    PersistSettings,
     SettingsSectionCycle {
         backward: bool,
     },

@@ -13,8 +13,9 @@ pub use export::{
 pub use import::Importers;
 pub use program::{LEGACY_LENGTH, ProgramError, ProgramSerializer};
 pub use settings::{
-    ColorScheme, ExportSettings, GeneralSettings, Language, NetworkMode, NetworkSettings, Settings,
-    SettingsStore, SpeedPreset, StorageSettings, UiSettings,
+    ColorScheme, ExportSettings, GeneralSettings, Language, NetworkMode, NetworkSettings,
+    PrinterDialogMode, PrinterPreset, Settings, SettingsStore, SpeedPreset, StorageSettings,
+    UiSettings,
 };
 pub use shortcuts::{
     ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutModifiers, ShortcutOverride,

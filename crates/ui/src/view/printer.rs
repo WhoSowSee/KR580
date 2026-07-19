@@ -20,6 +20,7 @@ const WINDOW_HEIGHT: f32 = 340.0;
 pub(in crate::view) fn printer_window_overlay(
     state: &PrinterState,
     text_view: bool,
+    printer_target: String,
     lang: Lang,
 ) -> Element<'_, Message> {
     let backdrop: Element<'_, Message> = mouse_area(
@@ -30,11 +31,18 @@ pub(in crate::view) fn printer_window_overlay(
     )
     .on_press(Message::ClosePrinter)
     .into();
-    let dialog = container(printer_content(state, text_view, false, false, lang))
-        .padding(16)
-        .style(panel_style)
-        .width(Length::Fixed(WINDOW_WIDTH))
-        .height(Length::Fixed(WINDOW_HEIGHT));
+    let dialog = container(printer_content(
+        state,
+        text_view,
+        printer_target,
+        false,
+        false,
+        lang,
+    ))
+    .padding(16)
+    .style(panel_style)
+    .width(Length::Fixed(WINDOW_WIDTH))
+    .height(Length::Fixed(WINDOW_HEIGHT));
 
     stack![opaque(backdrop), centered(opaque(dialog))]
         .width(Length::Fill)
@@ -45,28 +53,40 @@ pub(in crate::view) fn printer_window_overlay(
 pub(in crate::view) fn printer_window(
     state: &PrinterState,
     text_view: bool,
+    printer_target: String,
     always_on_top: bool,
     lang: Lang,
 ) -> Element<'_, Message> {
-    container(printer_content(state, text_view, true, always_on_top, lang))
-        .padding(16)
-        .style(panel_style)
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    container(printer_content(
+        state,
+        text_view,
+        printer_target,
+        true,
+        always_on_top,
+        lang,
+    ))
+    .padding(16)
+    .style(panel_style)
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 fn printer_content(
     state: &PrinterState,
     text_view: bool,
+    printer_target: String,
     detached: bool,
     always_on_top: bool,
     lang: Lang,
 ) -> Element<'_, Message> {
-    let body = column![buffer_panel(state, text_view, lang), footer(state, lang)]
-        .spacing(12)
-        .width(Length::Fill)
-        .height(Length::Fill);
+    let body = column![
+        buffer_panel(state, text_view, lang),
+        footer(state, printer_target, lang)
+    ]
+    .spacing(12)
+    .width(Length::Fill)
+    .height(Length::Fill);
     column![
         header(state, text_view, detached, always_on_top, lang),
         Space::new().height(Length::Fixed(12.0)),
@@ -101,9 +121,17 @@ fn header(
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
+            icons::settings(),
+            Some(Message::ConfigurePrinterSession),
+            lang.t(Key::Printer(PrinterKey::ConfigureSession)),
+            false,
+            None,
+        ),
+        Space::new().width(Length::Fixed(6.0)),
+        icon_button(
             icons::device_printer(),
-            print_enabled.then_some(Message::PrintPrinterPdf),
-            lang.t(Key::Printer(PrinterKey::PrintPdf)),
+            print_enabled.then_some(Message::PrintPrinterNative),
+            lang.t(Key::Printer(PrinterKey::PrintNative)),
             busy,
             None,
         ),
@@ -180,29 +208,51 @@ fn buffer_panel<'a>(state: &'a PrinterState, text_view: bool, lang: Lang) -> Ele
     }
 }
 
-fn footer<'a>(state: &'a PrinterState, lang: Lang) -> Element<'a, Message> {
-    let target = state
-        .target_path
-        .as_ref()
-        .map(|path| path.display().to_string())
-        .unwrap_or_else(|| {
-            lang.t(Key::Printer(PrinterKey::PdfTargetMissing))
-                .to_owned()
-        });
-    let meta = format!(
-        "{}: {}   {}: {}   {}: {target}",
+fn footer(state: &PrinterState, printer_target: String, lang: Lang) -> Element<'static, Message> {
+    let status = match &state.status {
+        DeviceStatus::Error(_) => lang.t(Key::Printer(PrinterKey::PrintFailed)).to_owned(),
+        status => status_label(status, lang),
+    };
+    let status = format!(
+        "{}: {}",
         lang.t(Key::Printer(PrinterKey::Status)),
-        status_label(&state.status, lang),
+        compact_footer_value(&status, 34),
+    );
+    let buffered = format!(
+        "{}: {}",
         lang.t(Key::Printer(PrinterKey::BytesBuffered)),
         state.bytes_buffered,
-        lang.t(Key::Printer(PrinterKey::PdfTarget)),
     );
-    iced::widget::text(meta)
-        .font(MONO_FONT)
-        .size(12)
-        .color(tokyo_text())
-        .wrapping(iced::widget::text::Wrapping::None)
-        .into()
+    let target = format!(
+        "{}: {}",
+        lang.t(Key::Printer(PrinterKey::Target)),
+        compact_footer_value(&printer_target, 30),
+    );
+    container(
+        iced::widget::text(format!("{status}   {buffered}   {target}"))
+            .font(MONO_FONT)
+            .size(12)
+            .color(tokyo_text())
+            .wrapping(iced::widget::text::Wrapping::None),
+    )
+    .width(Length::Fill)
+    .clip(true)
+    .into()
+}
+
+fn compact_footer_value(value: &str, maximum: usize) -> String {
+    let mut characters = value.chars();
+    let head = characters.by_ref().take(maximum).collect::<String>();
+    if characters.next().is_none() {
+        head
+    } else {
+        format!(
+            "{}...",
+            head.chars()
+                .take(maximum.saturating_sub(3))
+                .collect::<String>()
+        )
+    }
 }
 
 fn centered<'a>(content: Element<'a, Message>) -> Element<'a, Message> {
@@ -240,7 +290,9 @@ fn format_printer_text(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{format_printer_buffer, format_printer_text, printer_actions_enabled};
+    use super::{
+        compact_footer_value, format_printer_buffer, format_printer_text, printer_actions_enabled,
+    };
     use crate::backend::{DeviceStatus, PrinterState};
     use std::path::PathBuf;
 
@@ -275,6 +327,15 @@ mod tests {
         assert_eq!(
             printer_actions_enabled(&printer_state(DeviceStatus::Busy)),
             (false, true)
+        );
+    }
+
+    #[test]
+    fn printer_footer_values_are_bounded_without_splitting_unicode() {
+        assert_eq!(compact_footer_value("коротко", 10), "коротко");
+        assert_eq!(
+            compact_footer_value("Очень длинное имя принтера", 12),
+            "Очень дли..."
         );
     }
 

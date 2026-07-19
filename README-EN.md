@@ -33,7 +33,7 @@ The project focuses on inspectable execution: edit RAM and registers, step by in
 - Instruction stepping, tact-level stepping, paced run, and burst run modes.
 - Native iced desktop UI with RAM list, register editor, status register, machine-cycle view, control schematic, and localized Russian/English installer text.
 - External device windows for monitor, floppy, HDD, network adapter, and printer.
-- Versioned `.580` snapshots, raw `.krs` subprogram loading, direct `.txt` / `.xlsx` import and export, and printer PDF generation.
+- Versioned `.580` snapshots, raw `.krs` subprogram loading, direct `.txt` / `.xlsx` import and export, and native printing with driver settings.
 - Graphical installer, uninstaller, terminal launcher, optional `.580` file association, and portable or system install layouts.
 
 ## Screenshots
@@ -65,7 +65,7 @@ The project focuses on inspectable execution: edit RAM and registers, step by in
 | `01h` | Floppy | File-backed or debug-buffer storage window. |
 | `02h` | HDD | Append-backed `hdd.kpd` storage with visible buffer inspection. |
 | `03h` | Network adapter | TCP client/server worker with RX/TX counters and explicit connection state. |
-| `04h` | Printer | CP866 spool, buffered output, and asynchronous A4 PDF export. |
+| `04h` | Printer | CP866 spool, buffered output, and asynchronous system printing. |
 
 Device operations return typed statuses and errors. The CPU core talks to them only through `IN` / `OUT`, so emulator state stays serializable and testable.
 
@@ -148,7 +148,6 @@ After installation, `kr` can open `.580` snapshots from the terminal and can reg
 | `.krs` | Raw subprogram bytes loaded at a caller-provided base address. |
 | `.txt` | Plain-text register, flag, and memory exports; also importable. |
 | `.xlsx` | Workbook export/import through `rust_xlsxwriter` and `calamine`. |
-| `.pdf` | Printer output rendered as A4 text with bundled Roboto Mono. |
 
 ## Workspace layout
 

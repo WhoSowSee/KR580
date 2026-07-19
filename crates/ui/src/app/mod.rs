@@ -31,6 +31,7 @@ mod subscription;
 mod undo;
 mod update;
 mod update_overlays;
+mod update_routes;
 mod update_settings;
 #[cfg(test)]
 mod window_tests;
@@ -59,6 +60,11 @@ pub(crate) use messages::{
 };
 pub(crate) use modal::DiscardModalButton;
 pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};
+pub(crate) use printer::{
+    PRINTER_PROPERTIES_PRESET_INPUT_ID, PrinterPropertiesDialog, PrinterPropertiesFocus,
+    PrinterPropertiesTab, PrinterPropertyDropdown, PrinterSetupDialog, PrinterSetupDropdown,
+    PrinterSetupFocus, printer_property_parameter_input_id,
+};
 pub(crate) use register_inline::RegisterMove;
 pub(crate) use settings_modal::{
     ContentFocus, FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection,

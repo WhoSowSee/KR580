@@ -6,6 +6,7 @@ use super::super::setting_row::setting_row;
 use super::super::speed::segmented_button_width;
 use crate::app::{ContentFocus, Message, SettingsDialog, SettingsSection};
 use crate::i18n::{Key, Lang};
+use crate::persistence::PrinterDialogMode;
 use crate::view::icons;
 use crate::view::theme::{tokyo_border, tokyo_muted, tokyo_surface, tokyo_text, ui_text};
 
@@ -120,6 +121,103 @@ pub(super) fn hdd_directory_row<'a>(
     )
 }
 
+pub(super) fn printer_default_row<'a>(
+    dialog: &'a SettingsDialog,
+    lang: Lang,
+) -> Element<'a, Message> {
+    let kb_focus = (dialog.section == SettingsSection::Content)
+        .then_some(dialog.content_focus)
+        .flatten();
+    let kb_focused = kb_focus == Some(ContentFocus::PrinterDefault);
+
+    let display = dialog
+        .draft_printer_settings
+        .as_ref()
+        .map(|settings| settings.printer_name.as_str())
+        .map(|name| truncate_path(name, 18))
+        .unwrap_or_else(|| lang.t(Key::SettingsPrinterSystemDefault).to_owned());
+
+    let setup_btn = settings_browse_button(
+        lang.t(Key::SettingsPrinterSetup),
+        Message::SettingsPrinterSetup,
+        kb_focused,
+    );
+
+    let mut control = row![
+        Space::new().width(Length::Fill),
+        ui_text(display, 13, tokyo_muted()),
+        Space::new().width(Length::Fixed(8.0)),
+        setup_btn,
+    ];
+
+    if dialog.draft_printer_settings.is_some() {
+        let clear_btn = button(
+            container(
+                svg(icons::brush_cleaning())
+                    .width(Length::Fixed(16.0))
+                    .height(Length::Fixed(16.0))
+                    .style(move |_theme, _status| svg::Style {
+                        color: Some(tokyo_text()),
+                    }),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+        )
+        .on_press(Message::SettingsPrinterClear)
+        .padding(0)
+        .width(Length::Fixed(28.0))
+        .height(Length::Fixed(28.0))
+        .style(move |_theme, status| settings_clear_button_style(status));
+        control = control
+            .push(Space::new().width(Length::Fixed(8.0)))
+            .push(clear_btn);
+    }
+
+    setting_row(
+        lang.t(Key::SettingsPrinterLabel),
+        lang.t(Key::SettingsPrinterHint),
+        control.align_y(alignment::Vertical::Center).into(),
+    )
+}
+
+pub(super) fn printer_dialog_mode_row<'a>(
+    dialog: &'a SettingsDialog,
+    lang: Lang,
+) -> Element<'a, Message> {
+    const MODE_SEGMENT_WIDTH: f32 = 136.0;
+    let kb_focus = (dialog.section == SettingsSection::Content)
+        .then_some(dialog.content_focus)
+        .flatten();
+    let kb_focused = kb_focus == Some(ContentFocus::PrinterDialogMode);
+
+    let custom = dialog.draft_printer_dialog_mode == PrinterDialogMode::Custom;
+    let segments = row![
+        segmented_button_width(
+            lang.t(Key::SettingsPrinterDialogModeCustom),
+            custom,
+            kb_focused,
+            Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::Custom),
+            MODE_SEGMENT_WIDTH,
+        ),
+        segmented_button_width(
+            lang.t(Key::SettingsPrinterDialogModeSystem),
+            !custom,
+            false,
+            Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::System),
+            MODE_SEGMENT_WIDTH,
+        ),
+    ]
+    .spacing(6);
+
+    setting_row(
+        lang.t(Key::SettingsPrinterDialogModeLabel),
+        lang.t(Key::SettingsPrinterDialogModeHint),
+        segments.into(),
+    )
+}
+
 pub(super) fn file_association_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
@@ -197,23 +295,7 @@ pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         .padding(0)
         .width(Length::Fixed(28.0))
         .height(Length::Fixed(28.0))
-        .style(move |_theme, status| {
-            let bg = match status {
-                button::Status::Pressed => tokyo_border(),
-                button::Status::Hovered => tokyo_surface(),
-                _ => Color::TRANSPARENT,
-            };
-            button::Style {
-                background: Some(Background::Color(bg)),
-                text_color: tokyo_text(),
-                border: Border {
-                    radius: 6.0.into(),
-                    width: 1.0,
-                    color: tokyo_border(),
-                },
-                ..button::Style::default()
-            }
-        });
+        .style(move |_theme, status| settings_clear_button_style(status));
         control = control.push(Space::new().width(Length::Fixed(8.0)));
         control = control.push(clear_btn);
     }
@@ -234,25 +316,45 @@ fn settings_browse_button<'a>(
 ) -> Element<'a, Message> {
     button(container(ui_text(label, 12, tokyo_text())).padding([2, 8]))
         .on_press(message)
-        .style(move |_theme, status| {
-            let bg = match status {
-                button::Status::Pressed => tokyo_border(),
-                button::Status::Hovered => tokyo_surface(),
-                _ if kb_focused => tokyo_surface(),
-                _ => Color::TRANSPARENT,
-            };
-            button::Style {
-                background: Some(Background::Color(bg)),
-                text_color: tokyo_text(),
-                border: Border {
-                    radius: 6.0.into(),
-                    width: 1.0,
-                    color: tokyo_border(),
-                },
-                ..button::Style::default()
-            }
-        })
+        .style(move |_theme, status| settings_button_style(status, kb_focused))
         .into()
+}
+
+fn settings_button_style(status: button::Status, kb_focused: bool) -> button::Style {
+    let bg = match status {
+        button::Status::Pressed => tokyo_border(),
+        button::Status::Hovered => tokyo_surface(),
+        _ if kb_focused => tokyo_surface(),
+        _ => Color::TRANSPARENT,
+    };
+    button::Style {
+        background: Some(Background::Color(bg)),
+        text_color: tokyo_text(),
+        border: Border {
+            radius: 6.0.into(),
+            width: 1.0,
+            color: tokyo_border(),
+        },
+        ..button::Style::default()
+    }
+}
+
+fn settings_clear_button_style(status: button::Status) -> button::Style {
+    let bg = match status {
+        button::Status::Pressed => tokyo_border(),
+        button::Status::Hovered => tokyo_surface(),
+        _ => Color::TRANSPARENT,
+    };
+    button::Style {
+        background: Some(Background::Color(bg)),
+        text_color: tokyo_text(),
+        border: Border {
+            radius: 6.0.into(),
+            width: 1.0,
+            color: tokyo_border(),
+        },
+        ..button::Style::default()
+    }
 }
 
 pub(super) fn truncate_path(path: &str, max: usize) -> String {

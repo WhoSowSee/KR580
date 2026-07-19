@@ -1,8 +1,9 @@
+use crate::devices::printer::PrinterSettings;
 use crate::persistence::{SettingsError, ShortcutSettings};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::{Path, PathBuf};
 
-const SETTINGS_VERSION: u32 = 4;
+const SETTINGS_VERSION: u32 = 8;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +29,30 @@ pub struct GeneralSettings {
     pub memory_operand_highlighting: bool,
     pub floppy_image_path: Option<PathBuf>,
     pub hdd_directory: Option<PathBuf>,
+    #[serde(default)]
+    pub printer_name: Option<String>,
+    #[serde(default)]
+    pub printer_settings: Option<PrinterSettings>,
+    #[serde(default)]
+    pub printer_dialog_mode: PrinterDialogMode,
+    #[serde(default)]
+    pub printer_presets: Vec<PrinterPreset>,
+}
+
+impl GeneralSettings {
+    pub fn set_printer_settings(&mut self, settings: Option<PrinterSettings>) {
+        self.printer_name = settings
+            .as_ref()
+            .map(|settings| settings.printer_name.clone());
+        self.printer_settings = settings;
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrinterPreset {
+    pub name: String,
+    pub settings: PrinterSettings,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,6 +69,14 @@ pub enum SpeedPreset {
     Medium,
     High,
     Max,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PrinterDialogMode {
+    #[default]
+    Custom,
+    System,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -215,6 +248,10 @@ impl Default for GeneralSettings {
             memory_operand_highlighting: true,
             floppy_image_path: None,
             hdd_directory: None,
+            printer_name: None,
+            printer_settings: None,
+            printer_dialog_mode: PrinterDialogMode::default(),
+            printer_presets: Vec::new(),
         }
     }
 }
@@ -265,20 +302,31 @@ impl SettingsStore {
 
     pub fn from_json(json: &str) -> Result<Settings, SettingsError> {
         let mut settings: Settings = serde_json::from_str(json)?;
-        match settings.settings_version {
+        let source_version = settings.settings_version;
+        match source_version {
             SETTINGS_VERSION => {}
-            3 => {
+            1..=7 => {
+                if source_version == 1 {
+                    settings.network = NetworkSettings::default();
+                }
+                if source_version <= 4 {
+                    settings.general.printer_name = None;
+                }
+                if source_version <= 5 {
+                    settings.general.printer_dialog_mode = PrinterDialogMode::default();
+                }
                 settings.settings_version = SETTINGS_VERSION;
-            }
-            2 => {
-                settings.settings_version = SETTINGS_VERSION;
-            }
-            1 => {
-                settings.settings_version = SETTINGS_VERSION;
-                settings.network = NetworkSettings::default();
             }
             version => return Err(SettingsError::UnsupportedVersion(version)),
         }
+        let printer_settings = settings.general.printer_settings.take().or_else(|| {
+            settings
+                .general
+                .printer_name
+                .take()
+                .map(PrinterSettings::named)
+        });
+        settings.general.set_printer_settings(printer_settings);
         settings.shortcuts.normalize();
         Ok(settings)
     }

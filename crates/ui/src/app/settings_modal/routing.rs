@@ -6,6 +6,7 @@ use super::focus::{
 use crate::app::messages::{Message, SpeedTier};
 use crate::app::state::DesktopApp;
 use crate::i18n::Lang;
+use crate::persistence::PrinterDialogMode;
 
 impl DesktopApp {
     /// Mirrors `route_discard_modal_message`: while the settings modal
@@ -27,7 +28,6 @@ impl DesktopApp {
             | Message::ResolveFocusedTracker(_) => None,
             Message::CloseSettings
             | Message::SaveSettings
-            | Message::PersistSettings
             | Message::SettingsCategorySelected(_)
             | Message::SettingsSearchChanged(_)
             | Message::SettingsDraftLanguageChanged(_)
@@ -35,11 +35,19 @@ impl DesktopApp {
             | Message::SettingsDraftFollowPcSet(_)
             | Message::SettingsDraftMemoryOperandHighlightingSet(_)
             | Message::SettingsDraftColorSchemeChanged(_)
+            | Message::SettingsDraftPrinterDialogModeSet(_)
             | Message::SettingsFloppyImageBrowse
             | Message::SettingsDraftFloppyImageSet(_)
             | Message::SettingsFloppyImageClear
             | Message::SettingsHddDirectoryBrowse
             | Message::SettingsDraftHddDirectorySet(_)
+            | Message::SettingsPrinterSetup
+            | Message::SettingsPrinterSetupFinished(_)
+            | Message::SettingsPrinterClear
+            | Message::PrinterSetupLoaded(_)
+            | Message::PrinterSetupSelected(_)
+            | Message::PrinterSetupConfirmed
+            | Message::ClosePrinterSetup
             | Message::SettingsNetworkClientHostChanged(_)
             | Message::SettingsNetworkClientPortChanged(_)
             | Message::SettingsNetworkServerHostChanged(_)
@@ -54,7 +62,8 @@ impl DesktopApp {
             | Message::SettingsResetCancelled
             | Message::SettingsSectionCycle { .. }
             | Message::SettingsFileAssociationRegister
-            | Message::SettingsFileAssociationUnregister => None,
+            | Message::SettingsFileAssociationUnregister
+            | Message::PrinterSessionSetupFinished(_) => None,
             Message::EscPressed => {
                 if dialog.recording_shortcut.is_some() {
                     Some(Task::done(Message::SettingsShortcutCaptureCancelled))
@@ -146,6 +155,14 @@ impl DesktopApp {
             }
             ContentFocus::FloppyImage => Task::done(Message::SettingsFloppyImageBrowse),
             ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),
+            ContentFocus::PrinterDefault => Task::done(Message::SettingsPrinterSetup),
+            ContentFocus::PrinterDialogMode => {
+                let mode = match dialog.draft_printer_dialog_mode {
+                    PrinterDialogMode::Custom => PrinterDialogMode::System,
+                    PrinterDialogMode::System => PrinterDialogMode::Custom,
+                };
+                Task::done(Message::SettingsDraftPrinterDialogModeSet(mode))
+            }
             ContentFocus::NetworkDefaults => Task::none(),
             ContentFocus::FileAssociation => {
                 let registered = k580_ui::file_assoc::is_registered();

@@ -203,6 +203,31 @@ fn collect_category_rows<'a>(
             }
             if matches_query(
                 &[
+                    Key::SettingsPrinterLabel,
+                    Key::SettingsPrinterHint,
+                    Key::SettingsPrinterSetup,
+                    Key::SettingsPrinterSystemDefault,
+                    Key::SettingsPrinterClear,
+                ],
+                lang,
+                lower_query,
+            ) {
+                out.push(printer_default_row(dialog, lang));
+            }
+            if matches_query(
+                &[
+                    Key::SettingsPrinterDialogModeLabel,
+                    Key::SettingsPrinterDialogModeHint,
+                    Key::SettingsPrinterDialogModeCustom,
+                    Key::SettingsPrinterDialogModeSystem,
+                ],
+                lang,
+                lower_query,
+            ) {
+                out.push(printer_dialog_mode_row(dialog, lang));
+            }
+            if matches_query(
+                &[
                     Key::Network(NetworkKey::GeneralSettingsLabel),
                     Key::Network(NetworkKey::GeneralSettingsHint),
                     Key::Network(NetworkKey::ModeClient),

@@ -25,13 +25,17 @@ Invalid ports return `PortError::InvalidPort`. Device-specific enqueue failures 
 
 `NetworkDevice::start_worker` spawns a Tokio task for client or server mode. The worker connects or binds explicitly from settings, splits the socket into read/write halves, queues received bytes into the device RX queue, drains outgoing bytes from a channel, and updates visible status/counters. The old manual `queue_received` test hook remains available for deterministic unit tests.
 
-## Printer spool and PDF export
+## Printer spool and printing
 
 The printer on port `04h` accepts every `OUT` byte into `PrinterState::spool` and increments `bytes_buffered`. The spool is independent from export: printing does not consume or clear it.
 
-`AppCommand::PrintPrinterPdf(path)` copies the current spool and starts a blocking PDF generation task on the emulator's Tokio runtime. The device enters `Busy` immediately. The actor polls the completion channel every 50 ms and publishes the resulting `Ready` or `Error` state, target path, and error text without blocking the UI or CPU actor.
+`AppCommand::PrintPrinterNative(settings)` copies the current spool and starts a blocking system-printer job on the emulator's Tokio runtime. `None` targets the OS default printer; `Some(PrinterSettings)` carries the persisted global configuration or the session override selected from the printer buffer window. The device enters `Busy` immediately, and the actor polls the completion channel every 50 ms so a long printer job does not block the UI or CPU actor. Win32 `ERROR_CANCELLED` is a normal completion outcome: cancelling a driver or output-file prompt returns the printer to `Ready` and does not populate `last_error`.
 
-PDF output is A4 text rendered with the bundled Roboto Mono font. An empty spool produces a valid blank PDF. Printer bytes are decoded as CP866, CR/LF and blank lines are preserved, tabs expand to four spaces, unsupported control bytes render as `·`, and long lines wrap at 80 columns. `AppCommand::ClearPrinterBuffer` clears only the spool and byte counter; it leaves the last PDF path and device status intact.
+On Windows, `EnumPrintersW` supplies the custom setup modal with printer name, driver, port, status, location, comment, job count, and default marker. `DocumentPropertiesW` loads and validates the driver's complete public and private `DEVMODEW`, while `DeviceCapabilitiesW` supplies the supported paper and input-bin identifiers and labels. The custom modal exposes the same top-level structure as the system print setup: printer selection and details, Properties, paper size, paper source, and portrait/landscape orientation. The alternate system mode uses `PrintDlgW`.
+
+Embedded Properties converts the active `DEVMODEW` to PrintTicket XML, parses PrintCapabilities with `roxmltree`, and exposes both standard and vendor-defined features, constrained options, and typed parameters. Each edit is validated by `PTMergeAndValidatePrintTicket` and converted back through `PTConvertPrintTicketToDevMode`, preserving driver-private settings for the eventual GDI print job. The PrintTicket provider is opened, used, and closed on one MTA thread. Every blocking Win32 dialog or driver call runs in a Tokio blocking task.
+
+Native printing creates the GDI device context with the validated `DEVMODEW`, so the selected paper, source, orientation, and driver-private options reach the spooler. Printer bytes are decoded as CP866, CR/LF and blank lines are preserved, tabs expand to four spaces, unsupported control bytes render as `·`, and long lines wrap at 80 columns. `AppCommand::ClearPrinterBuffer` clears only the spool and byte counter; it leaves the active printer settings and device status intact.
 
 ## Monitor command protocol
 

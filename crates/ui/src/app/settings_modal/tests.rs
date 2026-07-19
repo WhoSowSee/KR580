@@ -1,126 +1,22 @@
 use std::sync::Mutex;
 
 use super::dialog::SettingsDialog;
-use super::focus::{FooterFocus, ResetConfirmFocus, SettingsCategory};
+use super::focus::ResetConfirmFocus;
 use crate::app::messages::SpeedTier;
 use crate::app::{DesktopApp, Message, StatusKind};
 use crate::i18n::Lang;
 use crate::persistence::{
-    ColorScheme, NetworkSettings, ShortcutAction, ShortcutBinding, ShortcutKey,
+    ColorScheme, NetworkSettings, PrinterDialogMode, ShortcutAction, ShortcutBinding, ShortcutKey,
 };
 use crate::settings_storage::default_lang;
 
 mod general;
+mod initialization;
+mod navigation;
+mod printer;
 mod shortcuts;
 
 static FILE_ASSOC_TEST_MUTEX: Mutex<()> = Mutex::new(());
-
-#[test]
-fn dialog_starts_on_general_category() {
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
-    assert_eq!(dialog.category, SettingsCategory::General);
-    assert!(dialog.search.is_empty());
-}
-
-#[test]
-fn search_query_strips_surrounding_whitespace() {
-    let mut dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
-    dialog.search = "  скорость  ".to_owned();
-    assert_eq!(dialog.search_query(), "скорость");
-}
-
-#[test]
-fn footer_focus_defaults_to_cancel() {
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
-    assert_eq!(dialog.footer_focus, FooterFocus::Cancel);
-}
-
-#[test]
-fn dialog_copies_floppy_image_path() {
-    let path = std::path::PathBuf::from("/tmp/floppy.kpd");
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        Some(path.clone()),
-        None,
-        NetworkSettings::default(),
-    );
-    assert_eq!(dialog.draft_floppy_image_path, Some(path));
-}
-
-#[test]
-fn dialog_copies_client_and_server_network_defaults() {
-    let network = NetworkSettings {
-        host: "client.local".to_owned(),
-        port: 6000,
-        bind_host: "0.0.0.0".to_owned(),
-        bind_port: 7000,
-        ..NetworkSettings::default()
-    };
-    let dialog = SettingsDialog::new(Lang::Ru, SpeedTier::Medium, true, true, None, None, network);
-
-    assert_eq!(dialog.draft_network_client_host, "client.local");
-    assert_eq!(dialog.draft_network_client_port, "6000");
-    assert_eq!(dialog.draft_network_server_host, "0.0.0.0");
-    assert_eq!(dialog.draft_network_server_port, "7000");
-}
-
-#[test]
-fn footer_focus_cycles_in_a_ring() {
-    assert_eq!(FooterFocus::Reset.next(), FooterFocus::Cancel);
-    assert_eq!(FooterFocus::Cancel.next(), FooterFocus::Save);
-    assert_eq!(FooterFocus::Save.next(), FooterFocus::Reset);
-
-    assert_eq!(FooterFocus::Save.previous(), FooterFocus::Cancel);
-    assert_eq!(FooterFocus::Cancel.previous(), FooterFocus::Reset);
-    assert_eq!(FooterFocus::Reset.previous(), FooterFocus::Save);
-}
-
-#[test]
-fn shortcut_footer_focus_includes_shortcut_reset() {
-    assert_eq!(
-        FooterFocus::Reset.next_with_shortcuts(true),
-        FooterFocus::ShortcutReset
-    );
-    assert_eq!(
-        FooterFocus::ShortcutReset.next_with_shortcuts(true),
-        FooterFocus::Cancel
-    );
-    assert_eq!(
-        FooterFocus::Cancel.previous_with_shortcuts(true),
-        FooterFocus::ShortcutReset
-    );
-    assert_eq!(
-        FooterFocus::ShortcutReset.previous_with_shortcuts(true),
-        FooterFocus::Reset
-    );
-}
 
 #[test]
 fn live_speed_change_updates_active_tier_immediately() {
@@ -237,6 +133,7 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     app.lang = Lang::En;
     app.default_speed = SpeedTier::Max;
     app.speed_tier = SpeedTier::Max;
+    app.printer_dialog_mode = PrinterDialogMode::System;
     app.settings_dialog = Some(SettingsDialog::new(
         app.lang,
         app.default_speed,
@@ -246,6 +143,9 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
         None,
         NetworkSettings::default(),
     ));
+    let dialog = app.settings_dialog.as_mut().unwrap();
+    dialog.draft_printer_dialog_mode = PrinterDialogMode::System;
+    dialog.original_printer_dialog_mode = PrinterDialogMode::System;
 
     let _ = app.update(Message::SettingsResetRequested);
     assert!(app.settings_dialog.as_ref().unwrap().reset_confirm_open);
@@ -264,6 +164,12 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     assert!(!dialog.original_follow_pc);
     assert!(app.memory_operand_highlighting);
     assert!(dialog.original_memory_operand_highlighting);
+    assert_eq!(app.printer_dialog_mode, PrinterDialogMode::Custom);
+    assert_eq!(dialog.draft_printer_dialog_mode, PrinterDialogMode::Custom);
+    assert_eq!(
+        dialog.original_printer_dialog_mode,
+        PrinterDialogMode::Custom
+    );
     assert_eq!(
         app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))

@@ -1,7 +1,8 @@
 use k580_core::{Cpu8080State, Memory64K};
+use k580_ui::devices::printer::PrinterSettings;
 use k580_ui::persistence::{
-    ColorScheme, LEGACY_LENGTH, ProgramError, ProgramSerializer, Settings, SettingsError,
-    SettingsStore, ShortcutAction, SpeedPreset,
+    ColorScheme, GeneralSettings, LEGACY_LENGTH, PrinterDialogMode, ProgramError,
+    ProgramSerializer, Settings, SettingsError, SettingsStore, ShortcutAction, SpeedPreset,
 };
 
 #[test]
@@ -186,16 +187,21 @@ fn settings_are_versioned_camel_case_json() {
     let json = SettingsStore::to_json(&settings).unwrap();
     assert!(json.contains("settingsVersion"));
     assert!(json.contains("recentFiles"));
+    assert!(json.contains("printerName"));
+    assert!(json.contains("printerSettings"));
+    assert!(json.contains("printerDialogMode"));
+    assert!(json.contains("printerPresets"));
     assert!(!settings.general.follow_pc);
     assert_eq!(settings.general.default_speed, SpeedPreset::High);
     assert!(settings.general.memory_operand_highlighting);
+    assert_eq!(settings.general.printer_name, None);
     assert_eq!(settings.ui.theme, ColorScheme::TokyoNight);
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
-    let unsupported = json.replace("\"settingsVersion\": 4", "\"settingsVersion\": 5");
+    let unsupported = json.replace("\"settingsVersion\": 8", "\"settingsVersion\": 9");
     assert!(matches!(
         SettingsStore::from_json(&unsupported),
-        Err(SettingsError::UnsupportedVersion(5))
+        Err(SettingsError::UnsupportedVersion(9))
     ));
 }
 
@@ -208,7 +214,7 @@ fn version_two_settings_gain_default_shortcuts() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 4);
+    assert_eq!(migrated.settings_version, 8);
     assert_eq!(
         migrated
             .shortcuts
@@ -235,8 +241,43 @@ fn version_one_settings_reset_legacy_runtime_network_endpoints() {
 
     let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
 
-    assert_eq!(migrated.settings_version, 4);
+    assert_eq!(migrated.settings_version, 8);
     assert_eq!(migrated.network, Default::default());
+}
+
+#[test]
+fn version_four_settings_gain_default_printer_name() {
+    let mut value = serde_json::to_value(Settings::default()).unwrap();
+    value["settingsVersion"] = serde_json::json!(4);
+    value["general"]
+        .as_object_mut()
+        .unwrap()
+        .remove("printerName");
+    let json = serde_json::to_string_pretty(&value).unwrap();
+
+    let migrated = SettingsStore::from_json(&json).unwrap();
+
+    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(migrated.general.printer_name, None);
+}
+
+#[test]
+fn version_five_settings_gain_custom_printer_dialog_mode() {
+    let mut value = serde_json::to_value(Settings::default()).unwrap();
+    value["settingsVersion"] = serde_json::json!(5);
+    value["general"]
+        .as_object_mut()
+        .unwrap()
+        .remove("printerDialogMode");
+    let json = serde_json::to_string_pretty(&value).unwrap();
+
+    let migrated = SettingsStore::from_json(&json).unwrap();
+
+    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(
+        migrated.general.printer_dialog_mode,
+        PrinterDialogMode::Custom
+    );
 }
 
 #[test]
@@ -248,8 +289,57 @@ fn legacy_dark_theme_migrates_to_tokyo_night() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 4);
+    assert_eq!(migrated.settings_version, 8);
     assert_eq!(migrated.ui.theme, ColorScheme::TokyoNight);
+}
+
+#[test]
+fn version_six_printer_name_gains_full_printer_settings() {
+    let legacy = Settings {
+        settings_version: 6,
+        general: GeneralSettings {
+            printer_name: Some("HP Laser MFP 131 133 135-139".to_owned()),
+            printer_settings: None,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
+
+    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(
+        migrated.general.printer_settings,
+        Some(PrinterSettings::named(
+            "HP Laser MFP 131 133 135-139".to_owned()
+        ))
+    );
+    assert_eq!(
+        migrated.general.printer_name.as_deref(),
+        Some("HP Laser MFP 131 133 135-139")
+    );
+}
+
+#[test]
+fn current_printer_settings_normalize_the_compatibility_name() {
+    let mut settings = Settings::default();
+    settings.general.printer_name = Some("Stale printer".to_owned());
+    settings.general.printer_settings = Some(PrinterSettings::named("Active printer".to_owned()));
+
+    let loaded = SettingsStore::from_json(&SettingsStore::to_json(&settings).unwrap()).unwrap();
+
+    assert_eq!(
+        loaded.general.printer_name.as_deref(),
+        Some("Active printer")
+    );
+    assert_eq!(
+        loaded
+            .general
+            .printer_settings
+            .as_ref()
+            .map(|settings| settings.printer_name.as_str()),
+        Some("Active printer")
+    );
 }
 
 #[test]

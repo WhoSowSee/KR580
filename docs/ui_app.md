@@ -112,7 +112,8 @@ store emulator state in widgets.
     selection.
   - `app/import_modal.rs` and `app/import_modal_state.rs` – import
     modal routing, source format detection, and sheet/section selection.
-  - `app/printer.rs` – printer PDF save dialog and `.pdf` path normalization.
+  - `app/printer.rs` and `app/printer/` – printer setup/dispatch helpers,
+    asynchronous driver calls, capability loading, and session override state.
   - `app/register_inline.rs` – inline register-cell editor (Tab/Shift+Tab
     walk, Ctrl+Arrow navigation).
   - `app/undo.rs` – `UndoEntry` / `UndoStack` storage and coalescing,
@@ -594,22 +595,24 @@ four-digit byte offset at the left and 16 bytes per line. The local
 `printer_text_view` toggle switches the same spool to CP866-decoded text;
 CR/LF is normalized, tabs expand to four spaces, and unsupported controls
 render as `·`. The footer shows device status, total buffered bytes, and the
-most recent PDF target.
+active printer target: the session override if present, then the persisted
+global printer, then the OS default printer.
 
 | Glyph | Tooltip | Action |
 |---|---|---|
 | `panel-detach` / `panel-attach` | «Открепить в отдельное окно» / «Вернуть в окно эмулятора» | switches between the attached popup and the prepared native window |
 | `pin` | «Закрепить поверх других окон» / «Не держать поверх других окон» | toggles `ToolWindowKind::Printer` between normal and always-on-top levels; visible only while detached |
 | `type` | «Показать текст» / «Показать байты» | dispatches `Message::TogglePrinterBufferView`; active blue state indicates CP866 text mode |
-| `printer` | «Печатать в PDF» | opens a `.pdf` save dialog and dispatches `AppCommand::PrintPrinterPdf`; an empty spool produces a blank PDF, while a second print is disabled during `Busy` |
-| `brush-cleaning` | «Очистить буфер принтера» | dispatches `AppCommand::ClearPrinterBuffer`; remains available for an empty spool and during PDF generation |
+| `settings` | «Настройки принтера» | opens the configured printer setup window and stores the selected `PrinterSettings` in `printer_session_settings`; it is not persisted |
+| `printer` | «Печатать» | dispatches `AppCommand::PrintPrinterNative` with the session settings, global settings, or `None` for the OS default; a second print is disabled during `Busy` |
+| `brush-cleaning` | «Очистить буфер принтера» | dispatches `AppCommand::ClearPrinterBuffer`; remains available for an empty spool and during native printing |
 | `x` | «Закрыть» / `Close` | `Message::ClosePrinter` |
 
-PDF generation belongs to the internal printer device module, not the UI. The UI selects the
-path and dispatches a command; the device copies the spool, enters `Busy`,
-and renders CP866-decoded text asynchronously with the bundled Roboto Mono
-font. Completion returns through the actor's 50 ms device poll. Printing
-does not clear the spool, while clearing does not erase the last PDF path.
+Native printing belongs to the internal printer device module, not the UI. The device copies the spool, enters `Busy`, and renders CP866-decoded text through the OS print stack with the selected `DEVMODEW`; completion returns through the actor's 50 ms device poll. Printing and clearing do not reset either global or session printer settings.
+
+Printer setup is custom by default. `view/printer_setup.rs` renders a 720 px emulator-styled modal with the system dialog's structure: printer selector, compact Properties button, status/type/location/comment details, paper size, paper source, and portrait/landscape orientation. The modal reserves the final Printer group height before the asynchronous printer and driver configuration calls complete, so it opens at its final size instead of resizing after the first frame; that height also keeps the Name and Comment text margins visually balanced. It keeps footer buttons at a stable height, draws left-aligned section legends through their borders, uses the standard framed 34 px modal close button, and omits decorative header/footer separators. The Paper and Orientation groups share one fixed row height; the orientation controls are vertically centred inside that row, while the preview changes between portrait and landscape dimensions with the selected radio option. Printer, paper, and source selectors use a controlled anchored overlay with a 6 px gap and 4 px panel padding, so an opened menu neither participates in parent layout nor obscures its final border. Clicking elsewhere inside the modal closes the open selector. `Tab` and `Shift+Tab` cycle the enabled controls in both directions; `Enter` activates the focused control, while arrow keys move the highlighted option inside an open selector without committing it. `Esc` closes the selector before closing the modal. `EnumPrintersW` loads printer metadata, `DeviceCapabilitiesW` loads the paper and source lists, and `DocumentPropertiesW` loads and normalizes the complete driver `DEVMODEW`.
+
+Properties opens a second emulator-styled modal instead of the driver window. Its Favorites, General, Paper, Graphics, and Advanced tabs are built from the driver's PrintCapabilities XML; changes are merged into the current PrintTicket with `PTMergeAndValidatePrintTicket` and converted back to a validated `DEVMODEW`. Standard and vendor-defined features, constrained options, numeric/string parameters, named per-printer profiles, and a live paper preview are supported. Russian localization covers the known HP feature, option, and parameter names, preserves driver-provided Cyrillic, falls back to readable QName splitting for unknown drivers, and suppresses opaque internal values such as `PageDevmodeSnapshot`. Property selectors use the same anchored overlay as top-level setup: a 6 px gap separates the panel, 4 px inner padding preserves the final option's bottom border, and long lists scroll without a visible scrollbar. Because the panel is an iced overlay instead of an inline column, opening it never moves adjacent property rows or the preview panel; clicking elsewhere inside Properties closes it. Arrow keys move the controlled highlight, `Enter` commits it, and `Esc` closes the list first. The property body remains scrollable by wheel or touchpad but does not draw a scrollbar. The profiles/preview side column is fixed rather than scrollable, with a compact paper preview that fits the dialog body in both orientations. Properties starts with logical focus on Favorites but suppresses its focus outline until `Tab` or `Shift+Tab` is used. Mouse selection changes the active tab and draws only its bottom indicator; keyboard traversal enables the focus outline independently through `tab_focus_visible`. PrintTicket provider open/use/close stays on one MTA worker thread, and every driver call runs through `tokio::task::spawn_blocking`, so the iced update loop remains responsive. If `general.printerDialogMode` is `system`, top-level setup uses `PrintDlgW` instead.
 
 The older "I/O Controller" capsule that used to sit on the right of
 the same row was removed: it duplicated the role of the device strip
@@ -1844,15 +1847,34 @@ endpoint input strings, and an optional validation error.
 Opened from the Принтер quick-access chip. The fixed `760×340` surface
 uses the shared attached/detached tool-window lifecycle and renders the
 printer spool as 16-byte uppercase HEX rows with byte offsets. Its header
-can print the CP866-decoded spool to PDF, clear the buffer, detach or attach
-the window, pin a detached window, and close it.
+can configure a session printer, print the CP866-decoded spool to the active
+system printer, clear the buffer, detach or attach the window, pin a detached
+window, and close it.
 
-**State:** `printer_open: bool`, `printer_window: ToolWindowState`. Live
-buffer, status, byte count, PDF target, and error state come from
-`AppSnapshot.devices.printer`.
+**State:** `printer_open: bool`, `printer_window: ToolWindowState`,
+`printer_session_settings: Option<PrinterSettings>`,
+`printer_default_settings: Option<PrinterSettings>`. Live buffer, status, byte
+count, and error state come from `AppSnapshot.devices.printer`; the active
+system-printer name and label are derived from the session/default settings. The footer
+keeps status, byte count, and printer target in one compact left-aligned line;
+bounded values and clipping keep long printer names inside the window. Cancelling
+a native print prompt restores `Ready` without displaying the raw Win32 error.
+`printer_setup_dialog: Option<PrinterSetupDialog>` owns the setup draft and its
+optional `PrinterPropertiesDialog`, including the active tab, PrintTicket sheet,
+parameter inputs, named profiles, preview bytes, pending flags, validation
+error, `PrinterPropertiesFocus`, and the independent `tab_focus_visible`
+keyboard-outline flag. Properties changes stay in this draft
+until the nested and top-level OK actions accept them. The setup and Properties
+dialogs each own a closed Tab/Shift+Tab ring. The Properties ring is rebuilt
+from the active tab, available driver features, parameters, profile controls,
+and enabled footer actions; focus operations explicitly focus or unfocus the
+two editable input kinds so keyboard input cannot leak into a previously
+selected field.
 
 **View:** `view/printer.rs` – `printer_window_overlay()` and
-`printer_window()`.
+`printer_window()`; `view/printer_setup.rs` – the emulator-styled printer
+selection modal; `view/printer_setup/properties.rs` and its submodules – the
+embedded properties tabs, feature controls, profiles, and preview.
 
 ## Keyboard shortcuts
 
@@ -2026,7 +2048,21 @@ current shortcut. Clicking a shortcut capsule, or pressing Enter while its row h
 The next physical key press is converted into `ShortcutBinding { ctrl, shift,
 alt, key }` and assigned to that action in `draft_shortcuts`. Pressing Esc
 while recording emits `SettingsShortcutCaptureCancelled` and leaves the draft
-unchanged. Shortcut edits live-preview through `DesktopApp::shortcut_settings`,
+unchanged. The global printer setting uses `general.printerSettings` as its
+runtime source of truth and mirrors its name to legacy-compatible
+`general.printerName` when saving; it applies to all files after Save. The session
+printer selected from the printer buffer window never touches `settings.json`.
+Named full-driver configurations created in embedded Properties are stored per
+printer under `general.printerPresets`. `general.printerDialogMode` selects the
+printer setup surface globally: `custom` opens the emulator-styled
+`PrinterSetupDialog` by default, while `system` opens the OS `PrintDlgW` setup
+window. Both printer setup entry points share the same
+`printer_setup_pending` guard so only one setup surface can be active at a
+time. The External Devices printer row gives the selected printer name a fixed
+width before the setup and clear buttons, so long driver names truncate instead
+of shifting the clear icon. The next row controls `printerDialogMode` with a
+two-segment `ContentFocus::PrinterDialogMode` toggle placed before the Network
+defaults row. Shortcut edits live-preview through `DesktopApp::shortcut_settings`,
 so open menus and button tooltips render the new label immediately; closing the
 dialog without saving restores `original_shortcuts`. The footer `Reset shortcuts`
 button replaces the dialog draft with defaults and previews those defaults
@@ -2052,8 +2088,8 @@ opens.
 - `Cancel` / backdrop click / `Esc` in the empty dialog rolls back to
   the snapshot (`original_*`) and re-applies the original speed tier
   through the same chokepoint.
-- `Save` keeps the live state and dispatches `Message::PersistSettings`
-  to write the JSON. The General page also stores a default floppy image path
+- `Save` keeps the live state and writes the complete dialog snapshot to JSON
+  once. The General page also stores a default floppy image path
   (loaded on startup) and separate startup address/port pairs for the network
   client and server; the Appearance page stores `ui.theme`; the Shortcuts page
   stores the draft shortcut overrides. These are draft-only until `Save`. Their
@@ -2067,7 +2103,8 @@ opens.
   buttons follow `reset_confirm_focus`. `Confirm` writes
   the system default language from `system_locale::default_language()` /
   `SpeedTier::High` (120 instructions/sec), restores the default
-  `ColorScheme::TokyoNight`, turns Follow PC off, restores the default shortcut map,
+  `ColorScheme::TokyoNight`, turns Follow PC off, restores memory-operand
+  highlighting, the custom printer dialog mode, and the default shortcut map,
   rewrites the dialog's `original_*` snapshot so a follow-up `Cancel`
   cannot restore the pre-reset values, and persists.
 

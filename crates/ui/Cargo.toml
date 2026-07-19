@@ -24,7 +24,6 @@ k580-core = { version = "1.0.0", path = "../core" }
 crossbeam-channel.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-printpdf.workspace = true
 rust_xlsxwriter.workspace = true
 calamine.workspace = true
 iced = { workspace = true, features = ["image", "svg", "canvas", "advanced"] }
@@ -35,6 +34,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+roxmltree = "0.20"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -45,10 +45,22 @@ windows-sys = { version = "0.59", features = [
     "Win32_Globalization",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_Printing",
     "Win32_Security",
+    "Win32_Storage_Xps",
+    "Win32_System_Com",
+    "Win32_System_Memory",
     "Win32_System_Registry",
+    "Win32_UI_Controls_Dialogs",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
+] }
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Printing_PrintTicket",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
 ] }
 
 [target.'cfg(windows)'.build-dependencies]

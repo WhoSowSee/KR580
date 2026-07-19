@@ -26,6 +26,7 @@ mod network_settings;
 mod notices;
 mod opcode_dropdown;
 mod printer;
+mod printer_setup;
 mod schematic;
 mod settings_dialog;
 mod speed;
@@ -45,6 +46,7 @@ use monitor::{monitor_window, monitor_window_overlay};
 use network::{NetworkViewState, network_window, network_window_overlay};
 use notices::{error_notice_overlay, halt_notice_overlay};
 use printer::{printer_window, printer_window_overlay};
+use printer_setup::with_printer_setup_overlay;
 use settings_dialog::settings_modal_overlay;
 use storage::{floppy_window, floppy_window_overlay, hdd_window, hdd_window_overlay};
 use styles::app_style;
@@ -143,6 +145,7 @@ impl DesktopApp {
             return printer_window(
                 &self.snapshot.devices.printer,
                 self.printer_text_view,
+                self.printer_target_label(),
                 self.printer_window.always_on_top,
                 self.lang,
             );
@@ -228,7 +231,7 @@ impl DesktopApp {
             app_with_overlays
         };
 
-        if let Some(action) = self.pending_action.as_ref() {
+        let layered: Element<'_, Message> = if let Some(action) = self.pending_action.as_ref() {
             let modal = discard_modal_overlay(action, self.discard_modal_focus, self.lang);
             if matches!(action, PendingAction::DeleteHdd)
                 && self.hdd_open
@@ -366,6 +369,7 @@ impl DesktopApp {
                 printer_window_overlay(
                     &self.snapshot.devices.printer,
                     self.printer_text_view,
+                    self.printer_target_label(),
                     self.lang
                 )
             ]
@@ -374,7 +378,9 @@ impl DesktopApp {
             .into()
         } else {
             scrimmed
-        }
+        };
+
+        with_printer_setup_overlay(layered, self.printer_setup_dialog.as_ref(), self.lang)
     }
 }
 

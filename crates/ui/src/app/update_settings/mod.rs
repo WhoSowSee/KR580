@@ -20,7 +20,7 @@ impl DesktopApp {
                 self.hide_opcode_dropdown();
                 self.close_open_device_panel();
                 let settings = load_settings();
-                self.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
+                self.settings_dialog = Some(SettingsDialog::new_with_shortcuts_and_printer(
                     self.lang,
                     self.default_speed,
                     self.color_scheme,
@@ -28,6 +28,8 @@ impl DesktopApp {
                     self.memory_operand_highlighting,
                     settings.general.floppy_image_path,
                     settings.general.hdd_directory,
+                    settings.general.printer_settings,
+                    settings.general.printer_dialog_mode,
                     settings.network,
                     settings.shortcuts,
                 ));
@@ -43,6 +45,7 @@ impl DesktopApp {
                     self.default_speed = dialog.original_speed;
                     self.follow_pc = dialog.original_follow_pc;
                     self.memory_operand_highlighting = dialog.original_memory_operand_highlighting;
+                    self.printer_dialog_mode = dialog.original_printer_dialog_mode;
                     self.shortcut_settings = dialog.original_shortcuts;
                     if speed_changed {
                         self.apply_speed_tier(dialog.original_speed);
@@ -73,39 +76,13 @@ impl DesktopApp {
                     }
                 };
                 let shortcuts = dialog.draft_shortcuts.clone();
-                let mut settings = load_settings();
-                settings.general.follow_pc = dialog.draft_follow_pc;
-                settings.general.memory_operand_highlighting =
-                    dialog.draft_memory_operand_highlighting;
-                settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
-                settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
-                settings.ui.theme = dialog.draft_color_scheme;
-                apply_network_defaults(&mut settings.network, network);
-                settings.shortcuts = shortcuts.clone();
-                save_settings(&settings);
+                let printer_settings = dialog.draft_printer_settings.clone();
+                let printer_dialog_mode = dialog.draft_printer_dialog_mode;
+                self.save_settings_dialog(dialog, network);
                 self.shortcut_settings = shortcuts;
-                if self.settings_dialog.take().is_some() {
-                    Some(Task::done(Message::PersistSettings))
-                } else {
-                    Some(Task::none())
-                }
-            }
-            Message::PersistSettings => {
-                let mut settings = load_settings();
-                settings.general.language = language_from_lang(self.lang);
-                settings.general.default_speed = preset_from_speed_tier(self.default_speed);
-                settings.ui.theme = self.color_scheme;
-                if let Some(dialog) = self.settings_dialog.as_ref() {
-                    settings.general.follow_pc = dialog.draft_follow_pc;
-                    settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
-                    settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
-                    settings.shortcuts = dialog.draft_shortcuts.clone();
-                    settings.ui.theme = dialog.draft_color_scheme;
-                    if let Ok(network) = parse_network_defaults(dialog) {
-                        apply_network_defaults(&mut settings.network, network);
-                    }
-                }
-                save_settings(&settings);
+                self.printer_default_settings = printer_settings;
+                self.printer_dialog_mode = printer_dialog_mode;
+                self.settings_dialog = None;
                 Some(Task::none())
             }
             Message::SettingsCategorySelected(category) => {
@@ -168,39 +145,14 @@ impl DesktopApp {
                 self.color_scheme = scheme;
                 Some(Task::none())
             }
-            Message::SettingsFloppyImageBrowse => {
-                if self.settings_dialog.is_none() {
-                    return Some(Task::none());
+            Message::SettingsDraftPrinterDialogModeSet(mode) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_printer_dialog_mode = mode;
                 }
-                let preferred = self
-                    .settings_dialog
-                    .as_ref()
-                    .and_then(|d| d.draft_floppy_image_path.clone())
-                    .unwrap_or_else(|| {
-                        std::env::var("HOME")
-                            .or_else(|_| std::env::var("USERPROFILE"))
-                            .map(std::path::PathBuf::from)
-                            .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                    });
-                let mut dialog =
-                    rfd::FileDialog::new().add_filter("KR580 floppy image", &["kpd", "img", "bin"]);
-                if preferred.exists() && preferred.is_file() {
-                    if let Some(parent) = preferred.parent() {
-                        dialog = dialog.set_directory(parent);
-                    }
-                    if let Some(name) = preferred.file_name() {
-                        dialog = dialog.set_file_name(name.to_string_lossy().as_ref());
-                    }
-                } else if preferred.exists() && preferred.is_dir() {
-                    dialog = dialog.set_directory(&preferred);
-                } else if let Some(parent) = preferred.parent() {
-                    dialog = dialog.set_directory(parent);
-                }
-                if let Some(path) = dialog.pick_file() {
-                    return Some(Task::done(Message::SettingsDraftFloppyImageSet(path)));
-                }
+                self.printer_dialog_mode = mode;
                 Some(Task::none())
             }
+            Message::SettingsFloppyImageBrowse => Some(self.browse_settings_floppy_image()),
             Message::SettingsDraftFloppyImageSet(path) => {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_floppy_image_path = Some(path);
@@ -213,41 +165,21 @@ impl DesktopApp {
                 }
                 Some(Task::none())
             }
-            Message::SettingsHddDirectoryBrowse => {
-                if self.settings_dialog.is_none() {
-                    return Some(Task::none());
-                }
-                let preferred = self
-                    .settings_dialog
-                    .as_ref()
-                    .and_then(|d| d.draft_hdd_directory.clone())
-                    .unwrap_or_else(|| {
-                        std::env::var("HOME")
-                            .or_else(|_| std::env::var("USERPROFILE"))
-                            .map(std::path::PathBuf::from)
-                            .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                    });
-                let mut dialog = rfd::FileDialog::new();
-                if preferred.exists() && preferred.is_dir() {
-                    dialog = dialog.set_directory(&preferred);
-                } else if let Some(parent) = preferred.parent() {
-                    dialog = dialog.set_directory(parent);
-                }
-                if let Some(folder) = dialog.pick_folder() {
-                    if !is_directory_writable(&folder) {
-                        self.error_notice =
-                            Some(self.lang.t(Key::ErrHddDirectoryNotWritable).to_owned());
-                        self.error_notice_dismiss_at =
-                            Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
-                        return Some(Task::none());
-                    }
-                    return Some(Task::done(Message::SettingsDraftHddDirectorySet(folder)));
-                }
-                Some(Task::none())
-            }
+            Message::SettingsHddDirectoryBrowse => Some(self.browse_settings_hdd_directory()),
             Message::SettingsDraftHddDirectorySet(path) => {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_hdd_directory = Some(path);
+                }
+                Some(Task::none())
+            }
+            Message::SettingsPrinterSetup => Some(self.configure_printer_settings()),
+            Message::SettingsPrinterSetupFinished(result) => {
+                self.finish_printer_settings_setup(result);
+                Some(Task::none())
+            }
+            Message::SettingsPrinterClear => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_printer_settings = None;
                 }
                 Some(Task::none())
             }
@@ -329,6 +261,7 @@ impl DesktopApp {
                 let default_color_scheme = crate::persistence::ColorScheme::DEFAULT;
                 let default_follow_pc = false;
                 let default_memory_operand_highlighting = true;
+                let default_printer_dialog_mode = crate::persistence::PrinterDialogMode::default();
                 let network = crate::persistence::NetworkSettings::default();
                 let shortcuts = crate::persistence::ShortcutSettings::default();
                 if let Some(dialog) = self.settings_dialog.as_mut() {
@@ -337,6 +270,8 @@ impl DesktopApp {
                     dialog.draft_color_scheme = default_color_scheme;
                     dialog.draft_floppy_image_path = None;
                     dialog.draft_hdd_directory = None;
+                    dialog.draft_printer_settings = None;
+                    dialog.draft_printer_dialog_mode = default_printer_dialog_mode;
                     dialog.original_lang = default_lang;
                     dialog.original_speed = default_speed;
                     dialog.original_color_scheme = default_color_scheme;
@@ -352,12 +287,15 @@ impl DesktopApp {
                     dialog.original_follow_pc = default_follow_pc;
                     dialog.original_memory_operand_highlighting =
                         default_memory_operand_highlighting;
+                    dialog.original_printer_dialog_mode = default_printer_dialog_mode;
                     dialog.network_error = None;
                     dialog.reset_confirm_open = false;
                 }
                 self.follow_pc = default_follow_pc;
                 self.memory_operand_highlighting = default_memory_operand_highlighting;
                 self.shortcut_settings = shortcuts;
+                self.printer_default_settings = None;
+                self.printer_dialog_mode = default_printer_dialog_mode;
                 let lang_changed = self.lang != default_lang;
                 self.lang = default_lang;
                 self.default_speed = default_speed;
@@ -366,7 +304,12 @@ impl DesktopApp {
                 if lang_changed {
                     self.refresh_localized_status();
                 }
-                Some(Task::done(Message::PersistSettings))
+                if let Some(dialog) = self.settings_dialog.as_ref()
+                    && let Ok(network) = parse_network_defaults(dialog)
+                {
+                    self.save_settings_dialog(dialog, network);
+                }
+                Some(Task::none())
             }
             Message::SettingsFileAssociationRegister => {
                 if let Err(error) = k580_ui::file_assoc::register() {
@@ -393,10 +336,29 @@ impl DesktopApp {
             _ => None,
         }
     }
+
+    fn save_settings_dialog(&self, dialog: &SettingsDialog, network: NetworkDefaults) {
+        let mut settings = load_settings();
+        settings.general.language = language_from_lang(self.lang);
+        settings.general.default_speed = preset_from_speed_tier(self.default_speed);
+        settings.general.follow_pc = dialog.draft_follow_pc;
+        settings.general.memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
+        settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
+        settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
+        settings
+            .general
+            .set_printer_settings(dialog.draft_printer_settings.clone());
+        settings.general.printer_dialog_mode = dialog.draft_printer_dialog_mode;
+        settings.ui.theme = dialog.draft_color_scheme;
+        apply_network_defaults(&mut settings.network, network);
+        settings.shortcuts = dialog.draft_shortcuts.clone();
+        save_settings(&settings);
+    }
 }
 
 mod network;
 mod section;
 mod shortcuts;
-use network::{apply_network_defaults, is_directory_writable, parse_network_defaults};
+mod storage;
+use network::{NetworkDefaults, apply_network_defaults, parse_network_defaults};
 use section::cycle_section;

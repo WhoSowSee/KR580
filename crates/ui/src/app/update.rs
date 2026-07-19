@@ -7,6 +7,7 @@ use super::constants::{
 };
 use super::messages::{Message, RegisterInlineTarget};
 use super::state::{DesktopApp, PendingAction};
+use super::update_routes::open_device_message;
 
 impl DesktopApp {
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
@@ -18,22 +19,7 @@ impl DesktopApp {
             } => return self.handle_runtime_event(event, status, window),
             message => message,
         };
-        if let Some(task) = self.dispatch_window_message(&message) {
-            return task;
-        }
-        if let Some(task) = self.route_discard_modal_message(&message) {
-            return task;
-        }
-        if let Some(task) = self.route_import_modal_message(&message) {
-            return task;
-        }
-        if let Some(task) = self.route_export_modal_message(&message) {
-            return task;
-        }
-        if let Some(task) = self.route_help_dialog_message(&message) {
-            return task;
-        }
-        if let Some(task) = self.route_settings_modal_message(&message) {
+        if let Some(task) = self.route_blocking_ui_message(&message) {
             return task;
         }
         if let Some(task) = self.dispatch_settings_message(message.clone()) {
@@ -400,17 +386,5 @@ impl DesktopApp {
             _ => {}
         }
         Task::none()
-    }
-}
-
-fn open_device_message(port: u8) -> Option<Message> {
-    use crate::backend::IoBus;
-    match port {
-        IoBus::MONITOR_PORT => Some(Message::OpenMonitor),
-        IoBus::FLOPPY_PORT => Some(Message::OpenFloppy),
-        IoBus::HDD_PORT => Some(Message::OpenHdd),
-        IoBus::NETWORK_PORT => Some(Message::OpenNetwork),
-        IoBus::PRINTER_PORT => Some(Message::OpenPrinter),
-        _ => None,
     }
 }

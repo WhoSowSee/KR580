@@ -8,6 +8,7 @@ use super::help::HelpDialog;
 use super::hex_stream_filter::HexStreamFilter;
 use super::messages::{ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier};
 use super::modal::DiscardModalButton;
+use super::printer::PrinterSetupDialog;
 use super::settings_modal::SettingsDialog;
 use super::status::StatusKind;
 use super::undo::UndoStack;
@@ -17,7 +18,7 @@ use super::{
     ExportTargetSettings, ImportFileFormat, ImportModalFocus,
 };
 use crate::i18n::{Key, Lang};
-use crate::persistence::{ColorScheme, ShortcutSettings};
+use crate::persistence::{ColorScheme, PrinterDialogMode, ShortcutSettings};
 use crate::settings_storage::{lang_from_language, load_settings, speed_tier_from_preset};
 
 #[derive(Clone, Debug)]
@@ -140,6 +141,11 @@ pub(crate) struct DesktopApp {
     pub(crate) color_scheme: ColorScheme,
     pub(crate) shortcut_settings: ShortcutSettings,
     pub(crate) settings_dialog: Option<SettingsDialog>,
+    pub(crate) printer_default_settings: Option<k580_ui::devices::printer::PrinterSettings>,
+    pub(crate) printer_dialog_mode: PrinterDialogMode,
+    pub(crate) printer_session_settings: Option<k580_ui::devices::printer::PrinterSettings>,
+    pub(crate) printer_setup_dialog: Option<PrinterSetupDialog>,
+    pub(crate) printer_setup_pending: bool,
     /// Bumped whenever the OS file-association state changes so the
     /// settings overlay re-renders even when the dialog struct itself
     /// is unchanged.
@@ -201,6 +207,7 @@ impl DesktopApp {
             port: network_port,
         });
         let default_speed = speed_tier_from_preset(settings.general.default_speed);
+        let printer_default_settings = settings.general.printer_settings.clone();
         let color_scheme = settings.ui.theme;
         let follow_pc = settings.general.follow_pc;
         let memory_operand_highlighting = settings.general.memory_operand_highlighting;
@@ -305,6 +312,11 @@ impl DesktopApp {
             color_scheme,
             shortcut_settings: settings.shortcuts.clone(),
             settings_dialog: None,
+            printer_default_settings,
+            printer_dialog_mode: settings.general.printer_dialog_mode,
+            printer_session_settings: None,
+            printer_setup_dialog: None,
+            printer_setup_pending: false,
             file_association_toggle_revision: 0,
             file_association_last_registered: k580_ui::file_assoc::is_registered(),
             help_dialog: None,

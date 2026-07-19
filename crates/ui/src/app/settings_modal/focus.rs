@@ -139,6 +139,8 @@ pub(crate) enum ContentFocus {
     MemoryOperandHighlighting,
     FloppyImage,
     HddDirectory,
+    PrinterDefault,
+    PrinterDialogMode,
     NetworkDefaults,
     FileAssociation,
     Theme,

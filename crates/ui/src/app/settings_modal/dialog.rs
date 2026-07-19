@@ -3,7 +3,10 @@ use super::focus::{
 };
 use crate::app::messages::SpeedTier;
 use crate::i18n::Lang;
-use crate::persistence::{ColorScheme, NetworkSettings, ShortcutAction, ShortcutSettings};
+use crate::persistence::{
+    ColorScheme, NetworkSettings, PrinterDialogMode, ShortcutAction, ShortcutSettings,
+};
+use k580_ui::devices::printer::PrinterSettings;
 
 /// Draft state edited by the dialog. Live language, speed, and shortcut
 /// fields on `DesktopApp` are kept in sync for immediate preview;
@@ -19,6 +22,8 @@ pub(crate) struct SettingsDialog {
     pub(crate) draft_memory_operand_highlighting: bool,
     pub(crate) draft_floppy_image_path: Option<std::path::PathBuf>,
     pub(crate) draft_hdd_directory: Option<std::path::PathBuf>,
+    pub(crate) draft_printer_settings: Option<PrinterSettings>,
+    pub(crate) draft_printer_dialog_mode: PrinterDialogMode,
     pub(crate) draft_network_client_host: String,
     pub(crate) draft_network_client_port: String,
     pub(crate) draft_network_server_host: String,
@@ -38,6 +43,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) original_color_scheme: ColorScheme,
     pub(crate) original_follow_pc: bool,
     pub(crate) original_memory_operand_highlighting: bool,
+    pub(crate) original_printer_dialog_mode: PrinterDialogMode,
     pub(crate) footer_focus: FooterFocus,
     pub(crate) reset_confirm_open: bool,
     pub(crate) reset_confirm_focus: ResetConfirmFocus,
@@ -56,7 +62,7 @@ impl SettingsDialog {
         hdd_directory: Option<std::path::PathBuf>,
         network: NetworkSettings,
     ) -> Self {
-        Self::new_with_shortcuts(
+        Self::new_with_shortcuts_and_printer(
             lang,
             speed,
             ColorScheme::DEFAULT,
@@ -64,12 +70,15 @@ impl SettingsDialog {
             memory_operand_highlighting,
             floppy_image_path,
             hdd_directory,
+            None,
+            PrinterDialogMode::default(),
             network,
             ShortcutSettings::default(),
         )
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[cfg(test)]
     pub(crate) fn new_with_shortcuts(
         lang: Lang,
         speed: SpeedTier,
@@ -81,6 +90,35 @@ impl SettingsDialog {
         network: NetworkSettings,
         shortcuts: ShortcutSettings,
     ) -> Self {
+        Self::new_with_shortcuts_and_printer(
+            lang,
+            speed,
+            color_scheme,
+            follow_pc,
+            memory_operand_highlighting,
+            floppy_image_path,
+            hdd_directory,
+            None,
+            PrinterDialogMode::default(),
+            network,
+            shortcuts,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new_with_shortcuts_and_printer(
+        lang: Lang,
+        speed: SpeedTier,
+        color_scheme: ColorScheme,
+        follow_pc: bool,
+        memory_operand_highlighting: bool,
+        floppy_image_path: Option<std::path::PathBuf>,
+        hdd_directory: Option<std::path::PathBuf>,
+        printer_settings: Option<PrinterSettings>,
+        printer_dialog_mode: PrinterDialogMode,
+        network: NetworkSettings,
+        shortcuts: ShortcutSettings,
+    ) -> Self {
         Self {
             category: SettingsCategory::General,
             search: String::new(),
@@ -89,8 +127,10 @@ impl SettingsDialog {
             draft_color_scheme: color_scheme,
             draft_follow_pc: follow_pc,
             draft_memory_operand_highlighting: memory_operand_highlighting,
-            draft_floppy_image_path: floppy_image_path.clone(),
-            draft_hdd_directory: hdd_directory.clone(),
+            draft_floppy_image_path: floppy_image_path,
+            draft_hdd_directory: hdd_directory,
+            draft_printer_settings: printer_settings,
+            draft_printer_dialog_mode: printer_dialog_mode,
             draft_network_client_host: network.host,
             draft_network_client_port: network.port.to_string(),
             draft_network_server_host: network.bind_host,
@@ -106,6 +146,7 @@ impl SettingsDialog {
             original_color_scheme: color_scheme,
             original_follow_pc: follow_pc,
             original_memory_operand_highlighting: memory_operand_highlighting,
+            original_printer_dialog_mode: printer_dialog_mode,
             footer_focus: FooterFocus::Cancel,
             reset_confirm_open: false,
             reset_confirm_focus: ResetConfirmFocus::Cancel,
@@ -153,7 +194,9 @@ impl SettingsDialog {
             },
             SettingsCategory::ExternalDevices => match current {
                 ContentFocus::FloppyImage => Some(ContentFocus::HddDirectory),
-                ContentFocus::HddDirectory => Some(ContentFocus::NetworkDefaults),
+                ContentFocus::HddDirectory => Some(ContentFocus::PrinterDefault),
+                ContentFocus::PrinterDefault => Some(ContentFocus::PrinterDialogMode),
+                ContentFocus::PrinterDialogMode => Some(ContentFocus::NetworkDefaults),
                 ContentFocus::NetworkDefaults => None,
                 _ => Some(self.first_content_focus()),
             },
@@ -181,7 +224,9 @@ impl SettingsDialog {
             SettingsCategory::ExternalDevices => match current {
                 ContentFocus::FloppyImage => None,
                 ContentFocus::HddDirectory => Some(ContentFocus::FloppyImage),
-                ContentFocus::NetworkDefaults => Some(ContentFocus::HddDirectory),
+                ContentFocus::PrinterDefault => Some(ContentFocus::HddDirectory),
+                ContentFocus::PrinterDialogMode => Some(ContentFocus::PrinterDefault),
+                ContentFocus::NetworkDefaults => Some(ContentFocus::PrinterDialogMode),
                 _ => Some(self.last_content_focus()),
             },
             SettingsCategory::Appearance => match current {

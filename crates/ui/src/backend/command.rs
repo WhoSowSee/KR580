@@ -1,4 +1,5 @@
 use crate::backend::AppError;
+use crate::devices::printer::PrinterSettings;
 use crate::devices::{DeviceSnapshot, NetworkMode};
 use crate::persistence::ExportOptions;
 use k580_core::{Cpu8080State, InstructionOutcome, RegisterName, TactOutcome};
@@ -54,7 +55,7 @@ pub enum AppCommand {
     },
     ClearNetworkBuffers,
     ClearPrinterBuffer,
-    PrintPrinterPdf(PathBuf),
+    PrintPrinterNative(Option<PrinterSettings>),
     Shutdown,
 }
 

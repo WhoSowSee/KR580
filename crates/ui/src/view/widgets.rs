@@ -4,8 +4,10 @@
 //! reusable button shape, …). Panel-level composition lives in the panel
 //! modules themselves so this file does not turn into another monolith.
 
+mod anchored_overlay;
 mod inputs;
 
+pub(super) use anchored_overlay::anchored_overlay;
 pub(super) use inputs::{compact_text_input_shell, text_input_shell};
 
 use iced::widget::{Space, button, column, container, row, stack, svg, text_input};
@@ -16,7 +18,9 @@ use super::styles::{
     action_button_style, input_borderless_style, input_shell_style, legend_label_style,
     panel_style, schematic_block_style, step_button_style,
 };
-use super::theme::{MONO_FONT, mono_text, tokyo_green, tokyo_muted, tokyo_text, ui_text};
+use super::theme::{
+    MONO_FONT, mono_text, tokyo_blue, tokyo_green, tokyo_muted, tokyo_text, ui_text,
+};
 use super::tooltips::hover_tooltip;
 use crate::app::Message;
 
@@ -240,6 +244,16 @@ pub(super) fn modal_icon_button(
     tooltip_text: &'static str,
     size: f32,
 ) -> Element<'static, Message> {
+    modal_icon_button_focused(handle, message, tooltip_text, size, false)
+}
+
+pub(super) fn modal_icon_button_focused(
+    handle: svg::Handle,
+    message: Message,
+    tooltip_text: &'static str,
+    size: f32,
+    focused: bool,
+) -> Element<'static, Message> {
     const GLYPH_SIZE: f32 = 18.0;
 
     let glyph = svg(handle)
@@ -259,7 +273,13 @@ pub(super) fn modal_icon_button(
     .padding(0)
     .width(Length::Fixed(size))
     .height(Length::Fixed(size))
-    .style(move |_theme, status| super::styles::modal_field_button_style(status));
+    .style(move |_theme, status| {
+        let mut style = super::styles::modal_field_button_style(status);
+        if focused {
+            style.border.color = tokyo_blue();
+        }
+        style
+    });
 
     hover_tooltip(
         face.into(),

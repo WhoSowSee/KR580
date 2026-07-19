@@ -270,7 +270,11 @@ impl DesktopApp {
             Message::ClearPrinterBuffer => {
                 self.dispatch(crate::backend::AppCommand::ClearPrinterBuffer);
             }
-            Message::PrintPrinterPdf => self.print_printer_pdf(),
+            Message::PrintPrinterNative => self.print_printer_native(),
+            Message::ConfigurePrinterSession => return Some(self.configure_printer_session()),
+            Message::PrinterSessionSetupFinished(result) => {
+                self.finish_printer_session_setup(result.clone());
+            }
             _ => return None,
         }
         Some(Task::none())
