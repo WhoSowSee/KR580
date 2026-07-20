@@ -5,17 +5,14 @@ use super::super::theme::{tokyo_text, ui_text};
 use super::consts::SPEED_SEGMENT_WIDTH;
 use super::setting_row::setting_row;
 use super::styles::segmented_button_style;
-use crate::app::{ContentFocus, Message, SettingsDialog, SettingsSection, SpeedTier};
+use crate::app::{ContentFocus, Message, SettingsDialog, SpeedTier};
 use crate::i18n::{Key, Lang};
 
 pub(super) fn speed_setting_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-    let kb_focused_for = |c: ContentFocus| kb_focus == Some(c);
+    let kb_focused_for = |focus| dialog.content_focus_is_visible(focus);
 
     let segments = row![
         segmented_button(

@@ -193,8 +193,8 @@ impl DesktopApp {
             self.clear_halt_notice();
             return Task::none();
         }
-        if self.open_menu.is_some() {
-            self.open_menu = None;
+        if self.open_menu.is_some() || self.top_menu_focus.is_some() {
+            self.close_top_menu();
             return Task::none();
         }
         let resolve = iced::advanced::widget::operate(crate::runtime::find_focused_optional())

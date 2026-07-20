@@ -53,7 +53,7 @@ pub(super) fn printer_setup_modal_overlay<'a>(
         Message::ClosePrinterSetup,
         label(lang, Label::Close),
         34.0,
-        dialog.focus == PrinterSetupFocus::Close,
+        dialog.focus_is_visible(PrinterSetupFocus::Close),
     );
     let header = row![
         ui_text(label(lang, Label::Title), 18, tokyo_text()),
@@ -94,13 +94,13 @@ pub(super) fn printer_setup_modal_overlay<'a>(
         footer_button(
             label(lang, Label::Cancel),
             true,
-            dialog.focus == PrinterSetupFocus::Cancel,
+            dialog.focus_is_visible(PrinterSetupFocus::Cancel),
         )
         .on_press(Message::ClosePrinterSetup),
         footer_button(
             label(lang, Label::Ok),
             ready,
-            dialog.focus == PrinterSetupFocus::Ok,
+            dialog.focus_is_visible(PrinterSetupFocus::Ok),
         )
         .on_press_maybe(ready.then_some(Message::PrinterSetupConfirmed)),
     ]

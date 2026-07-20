@@ -9,7 +9,7 @@ use crate::i18n::{Key, Lang};
 
 pub(super) fn settings_footer(dialog: &SettingsDialog, lang: Lang) -> Element<'static, Message> {
     let focus = dialog.footer_focus;
-    let footer_active = dialog.section == SettingsSection::Footer;
+    let footer_active = dialog.section_focus_is_visible(SettingsSection::Footer);
 
     let reset = footer_button(
         lang.t(Key::SettingsReset),

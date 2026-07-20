@@ -125,13 +125,12 @@ pub(super) fn segmented_button_style(
 }
 
 pub(super) fn footer_button_style(status: button::Status, focused: bool) -> button::Style {
-    let background = match (focused, status) {
-        (true, _) => tokyo_surface(),
-        (false, button::Status::Hovered) => Color {
+    let background = match status {
+        button::Status::Hovered => Color {
             a: 0.4,
             ..tokyo_surface()
         },
-        (false, button::Status::Pressed) => Color {
+        button::Status::Pressed => Color {
             a: 0.6,
             ..tokyo_surface()
         },
@@ -143,7 +142,11 @@ pub(super) fn footer_button_style(status: button::Status, focused: bool) -> butt
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: tokyo_border(),
+            color: if focused {
+                tokyo_text()
+            } else {
+                tokyo_border()
+            },
         },
         ..button::Style::default()
     }
@@ -151,10 +154,14 @@ pub(super) fn footer_button_style(status: button::Status, focused: bool) -> butt
 
 pub(super) fn dropdown_anchor_style(
     status: button::Status,
+    opened: bool,
     keyboard_focused: bool,
 ) -> button::Style {
-    let background = match (keyboard_focused, status) {
-        (true, _) => tokyo_surface(),
+    let background = match (opened, status) {
+        (true, _) => Color {
+            a: 0.6,
+            ..tokyo_surface()
+        },
         (false, button::Status::Hovered) => Color {
             a: 0.4,
             ..tokyo_surface()
@@ -171,7 +178,44 @@ pub(super) fn dropdown_anchor_style(
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: tokyo_border(),
+            color: if keyboard_focused {
+                tokyo_text()
+            } else {
+                tokyo_border()
+            },
+        },
+        ..button::Style::default()
+    }
+}
+
+pub(super) fn confirmation_button_style(
+    status: button::Status,
+    focused: bool,
+    keyboard_focus_visible: bool,
+) -> button::Style {
+    let background = match status {
+        button::Status::Hovered => Color {
+            a: 0.4,
+            ..tokyo_surface()
+        },
+        button::Status::Pressed => Color {
+            a: 0.6,
+            ..tokyo_surface()
+        },
+        _ if focused && !keyboard_focus_visible => tokyo_surface(),
+        _ => Color::TRANSPARENT,
+    };
+    button::Style {
+        background: Some(Background::Color(background)),
+        text_color: tokyo_text(),
+        border: Border {
+            radius: 6.0.into(),
+            width: 1.0,
+            color: if focused && keyboard_focus_visible {
+                tokyo_text()
+            } else {
+                tokyo_border()
+            },
         },
         ..button::Style::default()
     }
@@ -216,5 +260,62 @@ pub(super) fn dropdown_option_style(
             color: Color::TRANSPARENT,
         },
         ..button::Style::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keyboard_focus_uses_white_border_without_focus_fill() {
+        let footer = footer_button_style(button::Status::Active, true);
+        assert_eq!(
+            footer.background,
+            Some(Background::Color(Color::TRANSPARENT))
+        );
+        assert_eq!(footer.border.color, tokyo_text());
+
+        let dropdown = dropdown_anchor_style(button::Status::Active, false, true);
+        assert_eq!(
+            dropdown.background,
+            Some(Background::Color(Color::TRANSPARENT))
+        );
+        assert_eq!(dropdown.border.color, tokyo_text());
+
+        let segment = segmented_button_style(button::Status::Active, false, true);
+        assert_eq!(
+            segment.background,
+            Some(Background::Color(Color::TRANSPARENT))
+        );
+        assert_eq!(segment.border.color, tokyo_text());
+    }
+
+    #[test]
+    fn open_language_dropdown_uses_active_fill() {
+        let style = dropdown_anchor_style(button::Status::Active, true, false);
+
+        assert_eq!(
+            style.background,
+            Some(Background::Color(Color {
+                a: 0.6,
+                ..tokyo_surface()
+            }))
+        );
+        assert_eq!(style.border.color, tokyo_border());
+    }
+
+    #[test]
+    fn confirmation_focus_switches_from_default_fill_to_keyboard_border() {
+        let default = confirmation_button_style(button::Status::Active, true, false);
+        assert_eq!(default.background, Some(Background::Color(tokyo_surface())));
+        assert_eq!(default.border.color, tokyo_border());
+
+        let keyboard = confirmation_button_style(button::Status::Active, true, true);
+        assert_eq!(
+            keyboard.background,
+            Some(Background::Color(Color::TRANSPARENT))
+        );
+        assert_eq!(keyboard.border.color, tokyo_text());
     }
 }

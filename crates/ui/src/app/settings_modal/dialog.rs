@@ -14,6 +14,7 @@ use k580_ui::devices::printer::PrinterSettings;
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsDialog {
     pub(crate) category: SettingsCategory,
+    pub(crate) sidebar_focus: SettingsCategory,
     pub(crate) search: String,
     pub(crate) draft_lang: Lang,
     pub(crate) draft_speed: SpeedTier,
@@ -47,8 +48,10 @@ pub(crate) struct SettingsDialog {
     pub(crate) footer_focus: FooterFocus,
     pub(crate) reset_confirm_open: bool,
     pub(crate) reset_confirm_focus: ResetConfirmFocus,
+    pub(crate) reset_confirm_keyboard_focus_visible: bool,
     pub(crate) section: SettingsSection,
     pub(crate) content_focus: Option<ContentFocus>,
+    pub(crate) keyboard_focus_visible: bool,
 }
 
 impl SettingsDialog {
@@ -121,6 +124,7 @@ impl SettingsDialog {
     ) -> Self {
         Self {
             category: SettingsCategory::General,
+            sidebar_focus: SettingsCategory::General,
             search: String::new(),
             draft_lang: lang,
             draft_speed: speed,
@@ -150,13 +154,23 @@ impl SettingsDialog {
             footer_focus: FooterFocus::Cancel,
             reset_confirm_open: false,
             reset_confirm_focus: ResetConfirmFocus::Cancel,
-            section: SettingsSection::Footer,
-            content_focus: None,
+            reset_confirm_keyboard_focus_visible: false,
+            section: SettingsSection::Content,
+            content_focus: Some(ContentFocus::LanguageAnchor),
+            keyboard_focus_visible: false,
         }
     }
 
     pub(crate) fn search_query(&self) -> &str {
         self.search.trim()
+    }
+
+    pub(crate) fn content_focus_is_visible(&self, focus: ContentFocus) -> bool {
+        self.section_focus_is_visible(SettingsSection::Content) && self.content_focus == Some(focus)
+    }
+
+    pub(crate) fn section_focus_is_visible(&self, section: SettingsSection) -> bool {
+        self.keyboard_focus_visible && self.section == section
     }
 
     pub(crate) fn first_content_focus(&self) -> ContentFocus {
@@ -170,7 +184,7 @@ impl SettingsDialog {
 
     pub(crate) fn last_content_focus(&self) -> ContentFocus {
         match self.category {
-            SettingsCategory::General => ContentFocus::MemoryOperandHighlighting,
+            SettingsCategory::General => ContentFocus::FileAssociation,
             SettingsCategory::ExternalDevices => ContentFocus::NetworkDefaults,
             SettingsCategory::Appearance => ContentFocus::Theme,
             SettingsCategory::Shortcuts => {
@@ -186,17 +200,24 @@ impl SettingsDialog {
                 ContentFocus::SpeedSlow => Some(ContentFocus::SpeedMedium),
                 ContentFocus::SpeedMedium => Some(ContentFocus::SpeedFast),
                 ContentFocus::SpeedFast => Some(ContentFocus::SpeedMax),
-                ContentFocus::SpeedMax => Some(ContentFocus::FollowPc),
-                ContentFocus::FollowPc => Some(ContentFocus::MemoryOperandHighlighting),
-                ContentFocus::MemoryOperandHighlighting => Some(ContentFocus::FileAssociation),
+                ContentFocus::SpeedMax => Some(ContentFocus::FollowPcOn),
+                ContentFocus::FollowPcOn => Some(ContentFocus::FollowPcOff),
+                ContentFocus::FollowPcOff => Some(ContentFocus::MemoryOperandHighlightingOn),
+                ContentFocus::MemoryOperandHighlightingOn => {
+                    Some(ContentFocus::MemoryOperandHighlightingOff)
+                }
+                ContentFocus::MemoryOperandHighlightingOff => Some(ContentFocus::FileAssociation),
                 ContentFocus::FileAssociation => None,
                 _ => Some(self.first_content_focus()),
             },
             SettingsCategory::ExternalDevices => match current {
                 ContentFocus::FloppyImage => Some(ContentFocus::HddDirectory),
                 ContentFocus::HddDirectory => Some(ContentFocus::PrinterDefault),
-                ContentFocus::PrinterDefault => Some(ContentFocus::PrinterDialogMode),
-                ContentFocus::PrinterDialogMode => Some(ContentFocus::NetworkDefaults),
+                ContentFocus::PrinterDefault => Some(ContentFocus::PrinterDialogModeCustom),
+                ContentFocus::PrinterDialogModeCustom => {
+                    Some(ContentFocus::PrinterDialogModeSystem)
+                }
+                ContentFocus::PrinterDialogModeSystem => Some(ContentFocus::NetworkDefaults),
                 ContentFocus::NetworkDefaults => None,
                 _ => Some(self.first_content_focus()),
             },
@@ -216,17 +237,24 @@ impl SettingsDialog {
                 ContentFocus::SpeedMedium => Some(ContentFocus::SpeedSlow),
                 ContentFocus::SpeedFast => Some(ContentFocus::SpeedMedium),
                 ContentFocus::SpeedMax => Some(ContentFocus::SpeedFast),
-                ContentFocus::FollowPc => Some(ContentFocus::SpeedMax),
-                ContentFocus::MemoryOperandHighlighting => Some(ContentFocus::FollowPc),
-                ContentFocus::FileAssociation => Some(ContentFocus::MemoryOperandHighlighting),
+                ContentFocus::FollowPcOn => Some(ContentFocus::SpeedMax),
+                ContentFocus::FollowPcOff => Some(ContentFocus::FollowPcOn),
+                ContentFocus::MemoryOperandHighlightingOn => Some(ContentFocus::FollowPcOff),
+                ContentFocus::MemoryOperandHighlightingOff => {
+                    Some(ContentFocus::MemoryOperandHighlightingOn)
+                }
+                ContentFocus::FileAssociation => Some(ContentFocus::MemoryOperandHighlightingOff),
                 _ => Some(self.last_content_focus()),
             },
             SettingsCategory::ExternalDevices => match current {
                 ContentFocus::FloppyImage => None,
                 ContentFocus::HddDirectory => Some(ContentFocus::FloppyImage),
                 ContentFocus::PrinterDefault => Some(ContentFocus::HddDirectory),
-                ContentFocus::PrinterDialogMode => Some(ContentFocus::PrinterDefault),
-                ContentFocus::NetworkDefaults => Some(ContentFocus::PrinterDialogMode),
+                ContentFocus::PrinterDialogModeCustom => Some(ContentFocus::PrinterDefault),
+                ContentFocus::PrinterDialogModeSystem => {
+                    Some(ContentFocus::PrinterDialogModeCustom)
+                }
+                ContentFocus::NetworkDefaults => Some(ContentFocus::PrinterDialogModeSystem),
                 _ => Some(self.last_content_focus()),
             },
             SettingsCategory::Appearance => match current {

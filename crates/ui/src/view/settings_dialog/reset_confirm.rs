@@ -2,12 +2,13 @@ use iced::widget::{Space, button, column, container, mouse_area, opaque, row, st
 use iced::{Element, Length};
 
 use super::super::theme::{tokyo_text, ui_text};
-use super::styles::{footer_button_style, modal_backdrop_style, modal_dialog_style};
+use super::styles::{confirmation_button_style, modal_backdrop_style, modal_dialog_style};
 use crate::app::{Message, ResetConfirmFocus};
 use crate::i18n::{Key, Lang};
 
 pub(super) fn reset_confirm_overlay(
     focus: ResetConfirmFocus,
+    keyboard_focus_visible: bool,
     lang: Lang,
 ) -> Element<'static, Message> {
     let backdrop = mouse_area(
@@ -23,7 +24,11 @@ pub(super) fn reset_confirm_overlay(
             .on_press(Message::SettingsResetCancelled)
             .padding(0)
             .style(move |_theme, status| {
-                footer_button_style(status, focus == ResetConfirmFocus::Cancel)
+                confirmation_button_style(
+                    status,
+                    focus == ResetConfirmFocus::Cancel,
+                    keyboard_focus_visible,
+                )
             });
 
     let reset = button(
@@ -36,7 +41,13 @@ pub(super) fn reset_confirm_overlay(
     )
     .on_press(Message::SettingsResetConfirmed)
     .padding(0)
-    .style(move |_theme, status| footer_button_style(status, focus == ResetConfirmFocus::Confirm));
+    .style(move |_theme, status| {
+        confirmation_button_style(
+            status,
+            focus == ResetConfirmFocus::Confirm,
+            keyboard_focus_visible,
+        )
+    });
 
     let buttons = row![
         Space::new().width(Length::Fill),

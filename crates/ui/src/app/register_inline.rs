@@ -2,6 +2,16 @@ use super::messages::RegisterInlineTarget;
 use iced::keyboard;
 use k580_core::RegisterName;
 
+const SCHEMATIC_REGISTERS: [RegisterName; 3] = [RegisterName::A, RegisterName::B, RegisterName::C];
+const MUX_REGISTERS: [RegisterName; 6] = [
+    RegisterName::B,
+    RegisterName::C,
+    RegisterName::D,
+    RegisterName::E,
+    RegisterName::H,
+    RegisterName::L,
+];
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RegisterMove {
     Up,
@@ -28,17 +38,19 @@ pub(crate) fn ctrl_arrow_move(
 }
 
 impl RegisterInlineTarget {
+    pub(crate) fn tab_adjacent(self, backward: bool) -> Self {
+        self.adjacent(backward).unwrap_or(match (self, backward) {
+            (Self::Schematic(_), true) => Self::Mux(RegisterName::L),
+            (Self::Schematic(_), false) => Self::Mux(RegisterName::B),
+            (Self::Mux(_), true) => Self::Schematic(RegisterName::C),
+            (Self::Mux(_), false) => Self::Schematic(RegisterName::A),
+        })
+    }
+
     pub(crate) fn adjacent(self, backward: bool) -> Option<Self> {
         let order = match self {
-            Self::Schematic(_) => &[RegisterName::A, RegisterName::B, RegisterName::C][..],
-            Self::Mux(_) => &[
-                RegisterName::B,
-                RegisterName::C,
-                RegisterName::D,
-                RegisterName::E,
-                RegisterName::H,
-                RegisterName::L,
-            ][..],
+            Self::Schematic(_) => &SCHEMATIC_REGISTERS[..],
+            Self::Mux(_) => &MUX_REGISTERS[..],
         };
 
         let register = self.register();
@@ -66,46 +78,39 @@ impl RegisterInlineTarget {
 }
 
 fn navigate_schematic(register: RegisterName, direction: RegisterMove) -> Option<RegisterName> {
-    let index = [RegisterName::A, RegisterName::B, RegisterName::C]
+    let index = SCHEMATIC_REGISTERS
         .iter()
         .position(|candidate| *candidate == register)?;
 
     let next = match direction {
         RegisterMove::Left => index.checked_sub(1)?,
-        RegisterMove::Right => index.checked_add(1).filter(|next| *next < 3)?,
+        RegisterMove::Right => index
+            .checked_add(1)
+            .filter(|next| *next < SCHEMATIC_REGISTERS.len())?,
         RegisterMove::Up | RegisterMove::Down => return None,
     };
 
-    Some([RegisterName::A, RegisterName::B, RegisterName::C][next])
+    Some(SCHEMATIC_REGISTERS[next])
 }
 
 fn navigate_mux(register: RegisterName, direction: RegisterMove) -> Option<RegisterName> {
-    let (row, column) = match register {
-        RegisterName::B => (0_usize, 0_usize),
-        RegisterName::C => (0, 1),
-        RegisterName::D => (1, 0),
-        RegisterName::E => (1, 1),
-        RegisterName::H => (2, 0),
-        RegisterName::L => (2, 1),
-        RegisterName::A => return None,
-    };
+    let index = MUX_REGISTERS
+        .iter()
+        .position(|candidate| *candidate == register)?;
+    let (row, column) = (index / 2, index % 2);
 
     let (next_row, next_column) = match direction {
         RegisterMove::Up => (row.checked_sub(1)?, column),
-        RegisterMove::Down => (row.checked_add(1).filter(|next| *next < 3)?, column),
+        RegisterMove::Down => (
+            row.checked_add(1)
+                .filter(|next| *next < MUX_REGISTERS.len() / 2)?,
+            column,
+        ),
         RegisterMove::Left => (row, column.checked_sub(1)?),
         RegisterMove::Right => (row, column.checked_add(1).filter(|next| *next < 2)?),
     };
 
-    Some(match (next_row, next_column) {
-        (0, 0) => RegisterName::B,
-        (0, 1) => RegisterName::C,
-        (1, 0) => RegisterName::D,
-        (1, 1) => RegisterName::E,
-        (2, 0) => RegisterName::H,
-        (2, 1) => RegisterName::L,
-        _ => return None,
-    })
+    MUX_REGISTERS.get(next_row * 2 + next_column).copied()
 }
 
 #[cfg(test)]

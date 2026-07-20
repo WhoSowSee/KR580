@@ -69,7 +69,7 @@ impl DesktopApp {
                 if let Some(properties) = self.properties_mut() {
                     properties.tab = *tab;
                     properties.focus = super::PrinterPropertiesFocus::Tab(*tab);
-                    properties.tab_focus_visible = false;
+                    properties.focus_visible = false;
                     properties.open_dropdown = None;
                     properties.dropdown_highlight = None;
                 }
@@ -186,8 +186,13 @@ impl DesktopApp {
                 self.move_property_dropdown_highlight(*direction);
                 Some(Task::none())
             }
-            Message::MousePressedIgnored => {
-                self.close_property_dropdown();
+            Message::MousePressed | Message::MousePressedIgnored => {
+                if let Some(properties) = self.properties_mut() {
+                    properties.focus_visible = false;
+                }
+                if matches!(message, Message::MousePressedIgnored) {
+                    self.close_property_dropdown();
+                }
                 Some(Task::none())
             }
             Message::Tick

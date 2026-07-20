@@ -145,7 +145,7 @@ fn paper_content<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Ele
             .spacing(8)
             .text_size(13)
             .style(radio_style(
-                properties.focus == PrinterPropertiesFocus::Portrait,
+                properties.focus_is_visible(PrinterPropertiesFocus::Portrait),
             )),
             radio(
                 label(lang, PropertyLabel::Landscape),
@@ -157,7 +157,7 @@ fn paper_content<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Ele
             .spacing(8)
             .text_size(13)
             .style(radio_style(
-                properties.focus == PrinterPropertiesFocus::Landscape,
+                properties.focus_is_visible(PrinterPropertiesFocus::Landscape),
             )),
         ]
         .spacing(16)
@@ -208,6 +208,9 @@ fn advanced_content<'a>(
                 .get(&parameter.name)
                 .map(String::as_str)
                 .unwrap_or(&parameter.value);
+            let input_focused = properties.focus_is_visible(
+                PrinterPropertiesFocus::ParameterInput(parameter.name.clone()),
+            );
             let input = text_input("", value)
                 .id(input_id)
                 .on_input(move |value| Message::PrinterPropertyParameterChanged {
@@ -217,7 +220,7 @@ fn advanced_content<'a>(
                 .on_submit(Message::PrinterPropertyParameterApply(apply_name.clone()))
                 .size(13)
                 .padding([8, 10])
-                .style(input_style)
+                .style(move |_theme, _status| input_style(input_focused))
                 .width(Length::Fill);
             items.push(
                 row![
@@ -231,8 +234,9 @@ fn advanced_content<'a>(
                     footer_button(
                         label(lang, PropertyLabel::Apply),
                         !properties.applying,
-                        properties.focus
-                            == PrinterPropertiesFocus::ParameterApply(parameter.name.clone()),
+                        properties.focus_is_visible(PrinterPropertiesFocus::ParameterApply(
+                            parameter.name.clone(),
+                        )),
                     )
                     .width(Length::Fixed(96.0))
                     .on_press_maybe((!properties.applying).then_some(

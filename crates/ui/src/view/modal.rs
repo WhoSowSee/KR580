@@ -15,8 +15,7 @@ use crate::i18n::{Key, Lang};
 ///    the modal is clickable.
 /// 2. **Centred dialog** – title, body paragraph, two action buttons. A second
 ///    `opaque` keeps clicks inside the dialog from bubbling back to the
-///    backdrop's `mouse_area`. Focused button reuses the hover fill; keyboard
-///    routing lives in `app::modal`.
+///    backdrop's `mouse_area`.
 /// 3. **Spacer rows** above/below + side spacers centre the dialog without
 ///    absolute coordinates.
 ///
@@ -25,6 +24,7 @@ use crate::i18n::{Key, Lang};
 pub(super) fn discard_modal_overlay(
     action: &PendingAction,
     focused: DiscardModalButton,
+    keyboard_focus_visible: bool,
     lang: Lang,
 ) -> Element<'_, Message> {
     let (title_key, title_note_key, body_key) = discard_modal_keys(action);
@@ -44,8 +44,12 @@ pub(super) fn discard_modal_overlay(
     let cancel_button =
         button(container(ui_text(lang.t(Key::DiscardCancel), 13, tokyo_text())).padding([6, 16]))
             .on_press(Message::CancelDiscard)
-            .style(move |theme, status| {
-                modal_button_style(theme, status, focused == DiscardModalButton::Cancel)
+            .style(move |_theme, status| {
+                modal_button_style(
+                    status,
+                    focused == DiscardModalButton::Cancel,
+                    keyboard_focus_visible,
+                )
             });
 
     let confirm_button = button(
@@ -57,8 +61,12 @@ pub(super) fn discard_modal_overlay(
         .padding([6, 16]),
     )
     .on_press(Message::ConfirmDiscard)
-    .style(move |theme, status| {
-        modal_button_style(theme, status, focused == DiscardModalButton::Confirm)
+    .style(move |_theme, status| {
+        modal_button_style(
+            status,
+            focused == DiscardModalButton::Confirm,
+            keyboard_focus_visible,
+        )
     });
 
     let buttons = row![
@@ -133,19 +141,17 @@ fn discard_confirm_label_key(action: &PendingAction) -> Key {
     }
 }
 
-/// Cancel/confirm share neutral chrome. The focused twin reuses the
-/// hover fill so keyboard users see what Enter will activate.
 fn modal_button_style(
-    _theme: &iced::Theme,
     status: iced::widget::button::Status,
     focused: bool,
+    keyboard_focus_visible: bool,
 ) -> iced::widget::button::Style {
     use crate::view::theme::{tokyo_surface, tokyo_surface_2};
     use iced::widget::button;
     let background = match status {
         button::Status::Pressed => tokyo_surface_2(),
         button::Status::Hovered => tokyo_surface(),
-        _ if focused => tokyo_surface(),
+        _ if focused && !keyboard_focus_visible => tokyo_surface(),
         _ => tokyo_board(),
     };
     button::Style {
@@ -154,7 +160,11 @@ fn modal_button_style(
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: tokyo_border(),
+            color: if focused && keyboard_focus_visible {
+                tokyo_text()
+            } else {
+                tokyo_border()
+            },
         },
         ..button::Style::default()
     }
@@ -165,16 +175,24 @@ mod tests {
     use super::{discard_confirm_label_key, modal_button_style};
     use crate::app::PendingAction;
     use crate::i18n::Key;
-    use crate::view::theme::{tokyo_border, tokyo_surface};
+    use crate::view::theme::{tokyo_board, tokyo_border, tokyo_surface, tokyo_text};
+    use iced::Background;
     use iced::widget::button;
-    use iced::{Background, Theme};
 
     #[test]
-    fn focused_modal_button_uses_hover_fill_without_focus_border() {
-        let style = modal_button_style(&Theme::TokyoNight, button::Status::Active, true);
+    fn default_modal_focus_uses_fill_without_white_border() {
+        let style = modal_button_style(button::Status::Active, true, false);
 
         assert_eq!(style.background, Some(Background::Color(tokyo_surface())));
         assert_eq!(style.border.color, tokyo_border());
+    }
+
+    #[test]
+    fn keyboard_modal_focus_uses_white_border_without_fill() {
+        let style = modal_button_style(button::Status::Active, true, true);
+
+        assert_eq!(style.background, Some(Background::Color(tokyo_board())));
+        assert_eq!(style.border.color, tokyo_text());
     }
 
     #[test]

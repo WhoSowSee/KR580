@@ -12,8 +12,8 @@ use crate::app::{
 use crate::i18n::{Key, Lang};
 
 pub(super) fn settings_sidebar<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
-    let search_active = dialog.section == SettingsSection::Search;
-    let sidebar_active = dialog.section == SettingsSection::Sidebar;
+    let search_active = dialog.section_focus_is_visible(SettingsSection::Search);
+    let sidebar_active = dialog.section_focus_is_visible(SettingsSection::Sidebar);
 
     let search_icon = svg(icons::search())
         .width(Length::Fixed(SEARCH_ICON_SIZE))
@@ -42,7 +42,7 @@ pub(super) fn settings_sidebar<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         items.push(category_chip(
             cat,
             dialog.category == cat,
-            sidebar_active && dialog.category == cat,
+            sidebar_active && dialog.sidebar_focus == cat,
             lang,
         ));
     }

@@ -89,7 +89,11 @@ pub(super) fn settings_modal_overlay<'a>(
     if dialog.reset_confirm_open {
         stack![
             modal,
-            reset_confirm_overlay(dialog.reset_confirm_focus, lang)
+            reset_confirm_overlay(
+                dialog.reset_confirm_focus,
+                dialog.reset_confirm_keyboard_focus_visible,
+                lang,
+            )
         ]
         .width(Length::Fill)
         .height(Length::Fill)

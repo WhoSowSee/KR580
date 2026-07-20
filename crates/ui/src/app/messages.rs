@@ -16,7 +16,21 @@ pub(crate) enum MenuId {
     File,
     Mp,
     View,
+    Settings,
     Help,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TopMenuFocus {
+    Category(MenuId),
+    Item { menu: MenuId, index: usize },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TopMenuIndicator {
+    Hidden,
+    TabRing,
+    ArrowFill,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

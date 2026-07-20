@@ -46,6 +46,7 @@ impl DesktopApp {
             return;
         };
         close_dropdown(dialog);
+        dialog.focus_visible = true;
         let current = PrinterSetupFocus::ALL
             .iter()
             .position(|candidate| *candidate == dialog.focus)
@@ -66,6 +67,9 @@ impl DesktopApp {
     }
 
     pub(super) fn activate_printer_setup_focus(&mut self) -> Task<Message> {
+        if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+            dialog.focus_visible = false;
+        }
         let Some(dialog) = self.printer_setup_dialog.as_ref() else {
             return Task::none();
         };

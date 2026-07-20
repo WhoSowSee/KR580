@@ -196,6 +196,7 @@ fn reset_confirm_opens_with_cancel_focused() {
     let dialog = app.settings_dialog.as_ref().unwrap();
     assert!(dialog.reset_confirm_open);
     assert_eq!(dialog.reset_confirm_focus, ResetConfirmFocus::Cancel);
+    assert!(!dialog.reset_confirm_keyboard_focus_visible);
 }
 
 #[test]
@@ -216,6 +217,12 @@ fn tab_toggles_reset_confirm_focus_in_a_two_button_ring() {
     assert_eq!(
         app.settings_dialog.as_ref().unwrap().reset_confirm_focus,
         ResetConfirmFocus::Confirm
+    );
+    assert!(
+        app.settings_dialog
+            .as_ref()
+            .unwrap()
+            .reset_confirm_keyboard_focus_visible
     );
 
     let _ = app.update(Message::FocusCycle { backward: false });

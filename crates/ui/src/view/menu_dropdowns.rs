@@ -5,12 +5,11 @@ use super::icons;
 use super::styles::{menu_button_disabled_style, menu_button_style, opcode_dropdown_style};
 use super::theme::{tokyo_border, tokyo_muted, tokyo_text, ui_text};
 use super::tooltips::shortcut_hint;
-use crate::app::Message;
+use crate::app::{MenuId, Message, TopMenuIndicator, top_menu_action};
 use crate::i18n::{Key, Lang};
 use crate::persistence::ShortcutSettings;
 
-/// Width of the floating File dropdown. Picked wide enough that the
-/// legacy-format note and shortcut fit beside the base action label.
+/// Width of the floating File dropdown.
 pub(super) const FILE_DROPDOWN_WIDTH: f32 = 290.0;
 
 /// Width of the MP-System dropdown. Tuned for the longest label plus
@@ -26,50 +25,28 @@ pub(super) const VIEW_DROPDOWN_WIDTH: f32 = 360.0;
 /// Edge length of the icon square that prefixes every dropdown row.
 pub(super) const MENU_ICON_SIZE: f32 = 16.0;
 
-pub(super) fn file_dropdown(lang: Lang, shortcuts: &ShortcutSettings) -> Element<'static, Message> {
+pub(super) fn file_dropdown(
+    lang: Lang,
+    shortcuts: &ShortcutSettings,
+    focused_item: Option<(usize, TopMenuIndicator)>,
+) -> Element<'static, Message> {
+    let item = |index, label, icon| {
+        menu_item(
+            label,
+            shortcuts,
+            icon,
+            top_menu_action(MenuId::File, index).expect("valid File menu index"),
+            true,
+            item_focus(focused_item, index),
+        )
+    };
     let items: Vec<Element<'static, Message>> = vec![
-        menu_item(
-            lang.t(Key::FileNew),
-            shortcut_text(shortcuts, &Message::NewFile),
-            icons::file(),
-            Message::NewFile,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::FileOpen),
-            shortcut_text(shortcuts, &Message::OpenSnapshot),
-            icons::folder_open(),
-            Message::OpenSnapshot,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::FileSave),
-            shortcut_text(shortcuts, &Message::SaveSnapshot),
-            icons::save(),
-            Message::SaveSnapshot,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::FileSaveAs),
-            shortcut_text(shortcuts, &Message::SaveSnapshotAs),
-            icons::save_as(),
-            Message::SaveSnapshotAs,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::FileImport),
-            shortcut_text(shortcuts, &Message::Import),
-            icons::file_down(),
-            Message::Import,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::FileExport),
-            shortcut_text(shortcuts, &Message::Export),
-            icons::file_up(),
-            Message::Export,
-            true,
-        ),
+        item(0, lang.t(Key::FileNew), icons::file()),
+        item(1, lang.t(Key::FileOpen), icons::folder_open()),
+        item(2, lang.t(Key::FileSave), icons::save()),
+        item(3, lang.t(Key::FileSaveAs), icons::save_as()),
+        item(4, lang.t(Key::FileImport), icons::file_down()),
+        item(5, lang.t(Key::FileExport), icons::file_up()),
     ];
 
     container(column(items).spacing(0))
@@ -83,51 +60,31 @@ pub(super) fn mp_dropdown(
     halted: bool,
     lang: Lang,
     shortcuts: &ShortcutSettings,
+    focused_item: Option<(usize, TopMenuIndicator)>,
 ) -> Element<'static, Message> {
+    let item = |index, label, icon, enabled| {
+        menu_item(
+            label,
+            shortcuts,
+            icon,
+            top_menu_action(MenuId::Mp, index).expect("valid MP-System menu index"),
+            enabled,
+            item_focus(focused_item, index),
+        )
+    };
     let items: Vec<Element<'static, Message>> = vec![
-        menu_item(
-            lang.t(Key::MpRunProgram),
-            shortcut_text(shortcuts, &Message::ToggleRun),
-            icons::play(),
-            Message::ToggleRun,
-            true,
-        ),
-        menu_item(
+        item(0, lang.t(Key::MpRunProgram), icons::play(), true),
+        item(
+            1,
             lang.t(Key::MpRunInstruction),
-            shortcut_text(shortcuts, &Message::StepInstruction),
             icons::step_forward(),
-            Message::StepInstruction,
             true,
         ),
-        menu_item(
-            lang.t(Key::MpRunTact),
-            shortcut_text(shortcuts, &Message::StepTact),
-            icons::redo_dot(),
-            Message::StepTact,
-            true,
-        ),
+        item(2, lang.t(Key::MpRunTact), icons::redo_dot(), true),
         menu_separator(),
-        menu_item(
-            lang.t(Key::MpResetRam),
-            shortcut_text(shortcuts, &Message::ResetRam),
-            icons::reset_ram(),
-            Message::ResetRam,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::MpResetCpu),
-            shortcut_text(shortcuts, &Message::ResetCpu),
-            icons::reset_registers(),
-            Message::ResetCpu,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::MpClearHalt),
-            shortcut_text(shortcuts, &Message::ClearHalt),
-            icons::clear_halt(),
-            Message::ClearHalt,
-            halted,
-        ),
+        item(3, lang.t(Key::MpResetRam), icons::reset_ram(), true),
+        item(4, lang.t(Key::MpResetCpu), icons::reset_registers(), true),
+        item(5, lang.t(Key::MpClearHalt), icons::clear_halt(), halted),
     ];
 
     container(column(items).spacing(0))
@@ -137,23 +94,25 @@ pub(super) fn mp_dropdown(
         .into()
 }
 
-pub(super) fn help_dropdown(lang: Lang, shortcuts: &ShortcutSettings) -> Element<'static, Message> {
+pub(super) fn help_dropdown(
+    lang: Lang,
+    shortcuts: &ShortcutSettings,
+    focused_item: Option<(usize, TopMenuIndicator)>,
+) -> Element<'static, Message> {
+    let item = |index, label, icon| {
+        menu_item(
+            label,
+            shortcuts,
+            icon,
+            top_menu_action(MenuId::Help, index).expect("valid Help menu index"),
+            true,
+            item_focus(focused_item, index),
+        )
+    };
     let items: Vec<Element<'static, Message>> = vec![
-        menu_item(
-            lang.t(Key::HelpShowDocs),
-            shortcut_text(shortcuts, &Message::OpenHelp),
-            icons::book_marked(),
-            Message::OpenHelp,
-            true,
-        ),
+        item(0, lang.t(Key::HelpShowDocs), icons::book_marked()),
         menu_separator(),
-        menu_item(
-            lang.t(Key::HelpAbout),
-            String::new(),
-            icons::info(),
-            Message::OpenAbout,
-            true,
-        ),
+        item(1, lang.t(Key::HelpAbout), icons::info()),
     ];
 
     container(column(items).spacing(0))
@@ -167,51 +126,26 @@ pub(super) fn view_dropdown(
     stack_view: bool,
     lang: Lang,
     shortcuts: &ShortcutSettings,
+    focused_item: Option<(usize, TopMenuIndicator)>,
 ) -> Element<'static, Message> {
+    let item = |index, label, icon| {
+        menu_item(
+            label,
+            shortcuts,
+            icon,
+            top_menu_action(MenuId::View, index).expect("valid View menu index"),
+            true,
+            item_focus(focused_item, index),
+        )
+    };
     let items: Vec<Element<'static, Message>> = vec![
-        menu_item(
-            lang.t(Key::DeviceMonitor),
-            shortcut_text(shortcuts, &Message::OpenMonitor),
-            icons::device_monitor(),
-            Message::OpenMonitor,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::DeviceFloppy),
-            shortcut_text(shortcuts, &Message::OpenFloppy),
-            icons::device_floppy(),
-            Message::OpenFloppy,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::DeviceHdd),
-            shortcut_text(shortcuts, &Message::OpenHdd),
-            icons::device_hdd(),
-            Message::OpenHdd,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::DeviceNetwork),
-            shortcut_text(shortcuts, &Message::OpenNetwork),
-            icons::device_network(),
-            Message::OpenNetwork,
-            true,
-        ),
-        menu_item(
-            lang.t(Key::DevicePrinter),
-            shortcut_text(shortcuts, &Message::OpenPrinter),
-            icons::device_printer(),
-            Message::OpenPrinter,
-            true,
-        ),
+        item(0, lang.t(Key::DeviceMonitor), icons::device_monitor()),
+        item(1, lang.t(Key::DeviceFloppy), icons::device_floppy()),
+        item(2, lang.t(Key::DeviceHdd), icons::device_hdd()),
+        item(3, lang.t(Key::DeviceNetwork), icons::device_network()),
+        item(4, lang.t(Key::DevicePrinter), icons::device_printer()),
         menu_separator(),
-        menu_item(
-            stack_view_label(stack_view, lang),
-            shortcut_text(shortcuts, &Message::ToggleStackView),
-            icons::stack(),
-            Message::ToggleStackView,
-            true,
-        ),
+        item(5, stack_view_label(stack_view, lang), icons::stack()),
     ];
 
     container(column(items).spacing(0))
@@ -225,24 +159,21 @@ fn stack_view_label(stack_view: bool, lang: Lang) -> &'static str {
     lang.stack_view_area_label(stack_view)
 }
 
-fn menu_item(
-    label: &'static str,
-    shortcut: String,
-    icon: svg::Handle,
-    action: Message,
-    enabled: bool,
-) -> Element<'static, Message> {
-    menu_item_with_note(label, None, shortcut, icon, action, enabled)
+fn item_focus(focused_item: Option<(usize, TopMenuIndicator)>, index: usize) -> TopMenuIndicator {
+    focused_item
+        .filter(|(focused_index, _)| *focused_index == index)
+        .map_or(TopMenuIndicator::Hidden, |(_, indicator)| indicator)
 }
 
-fn menu_item_with_note(
+fn menu_item(
     label: &'static str,
-    note: Option<&'static str>,
-    shortcut: String,
+    shortcuts: &ShortcutSettings,
     icon: svg::Handle,
     action: Message,
     enabled: bool,
+    indicator: TopMenuIndicator,
 ) -> Element<'static, Message> {
+    let shortcut = shortcut_text(shortcuts, &action);
     let glyph_color = if enabled { tokyo_text() } else { tokyo_muted() };
     let label_color = if enabled { tokyo_text() } else { tokyo_muted() };
 
@@ -253,16 +184,7 @@ fn menu_item_with_note(
             color: Some(glyph_color),
         });
 
-    let label: Element<'static, Message> = match note {
-        Some(note) => row![
-            ui_text(label, 13, label_color),
-            ui_text(note, 11, tokyo_muted()),
-        ]
-        .spacing(8)
-        .align_y(alignment::Vertical::Center)
-        .into(),
-        None => ui_text(label, 13, label_color).into(),
-    };
+    let label: Element<'static, Message> = ui_text(label, 13, label_color).into();
 
     let body = container(
         row![
@@ -283,7 +205,7 @@ fn menu_item_with_note(
         let pair = vec![Message::MenuClosed, action];
         btn = btn
             .on_press(Message::MenuBatch(pair))
-            .style(move |_theme, status| menu_button_style(status));
+            .style(move |_theme, status| menu_button_style(status, indicator));
     } else {
         btn = btn.style(move |_theme, status| menu_button_disabled_style(status));
     }

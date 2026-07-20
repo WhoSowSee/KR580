@@ -1,11 +1,12 @@
 use super::super::dialog::SettingsDialog;
-use super::super::focus::{ContentFocus, FooterFocus, SettingsCategory};
+use super::super::focus::{ContentFocus, FooterFocus, SettingsCategory, SettingsSection};
 use crate::app::messages::SpeedTier;
+use crate::app::{DesktopApp, Message};
 use crate::i18n::Lang;
 use crate::persistence::NetworkSettings;
 
 #[test]
-fn footer_focus_defaults_to_cancel() {
+fn settings_focus_defaults_to_language_without_visible_ring() {
     let dialog = SettingsDialog::new(
         Lang::Ru,
         SpeedTier::Medium,
@@ -16,6 +17,76 @@ fn footer_focus_defaults_to_cancel() {
         NetworkSettings::default(),
     );
     assert_eq!(dialog.footer_focus, FooterFocus::Cancel);
+    assert_eq!(dialog.section, SettingsSection::Content);
+    assert_eq!(dialog.content_focus, Some(ContentFocus::LanguageAnchor));
+    assert_eq!(dialog.sidebar_focus, SettingsCategory::General);
+    assert!(!dialog.keyboard_focus_visible);
+}
+
+#[test]
+fn general_toggle_segments_are_individually_tab_indexed() {
+    let dialog = SettingsDialog::new(
+        Lang::Ru,
+        SpeedTier::Medium,
+        true,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+    );
+
+    assert_eq!(
+        dialog.next_content_focus(ContentFocus::SpeedMax),
+        Some(ContentFocus::FollowPcOn)
+    );
+    assert_eq!(
+        dialog.next_content_focus(ContentFocus::FollowPcOn),
+        Some(ContentFocus::FollowPcOff)
+    );
+    assert_eq!(
+        dialog.next_content_focus(ContentFocus::FollowPcOff),
+        Some(ContentFocus::MemoryOperandHighlightingOn)
+    );
+    assert_eq!(
+        dialog.next_content_focus(ContentFocus::MemoryOperandHighlightingOn),
+        Some(ContentFocus::MemoryOperandHighlightingOff)
+    );
+    assert_eq!(
+        dialog.next_content_focus(ContentFocus::MemoryOperandHighlightingOff),
+        Some(ContentFocus::FileAssociation)
+    );
+    assert_eq!(dialog.last_content_focus(), ContentFocus::FileAssociation);
+}
+
+#[test]
+fn sidebar_tab_moves_cursor_without_activating_category() {
+    let (mut app, _) = DesktopApp::with_initial_path(None);
+    let mut dialog = SettingsDialog::new(
+        Lang::Ru,
+        SpeedTier::Medium,
+        true,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+    );
+    dialog.section = SettingsSection::Sidebar;
+    app.settings_dialog = Some(dialog);
+
+    let _ = app.update(Message::FocusCycle { backward: false });
+    let dialog = app.settings_dialog.as_ref().unwrap();
+    assert_eq!(dialog.category, SettingsCategory::General);
+    assert_eq!(dialog.sidebar_focus, SettingsCategory::ExternalDevices);
+    assert!(dialog.keyboard_focus_visible);
+
+    let _ = app.update(Message::EnterPressed);
+    assert!(!app.settings_dialog.as_ref().unwrap().keyboard_focus_visible);
+    let _ = app.update(Message::SettingsCategorySelected(
+        SettingsCategory::ExternalDevices,
+    ));
+    let dialog = app.settings_dialog.as_ref().unwrap();
+    assert_eq!(dialog.category, SettingsCategory::ExternalDevices);
+    assert_eq!(dialog.content_focus, Some(ContentFocus::FloppyImage));
 }
 
 #[test]
@@ -39,18 +110,26 @@ fn external_devices_focus_keeps_printer_before_network() {
     );
     assert_eq!(
         dialog.next_content_focus(ContentFocus::PrinterDefault),
-        Some(ContentFocus::PrinterDialogMode)
+        Some(ContentFocus::PrinterDialogModeCustom)
     );
     assert_eq!(
-        dialog.next_content_focus(ContentFocus::PrinterDialogMode),
+        dialog.next_content_focus(ContentFocus::PrinterDialogModeCustom),
+        Some(ContentFocus::PrinterDialogModeSystem)
+    );
+    assert_eq!(
+        dialog.next_content_focus(ContentFocus::PrinterDialogModeSystem),
         Some(ContentFocus::NetworkDefaults)
     );
     assert_eq!(
         dialog.previous_content_focus(ContentFocus::NetworkDefaults),
-        Some(ContentFocus::PrinterDialogMode)
+        Some(ContentFocus::PrinterDialogModeSystem)
     );
     assert_eq!(
-        dialog.previous_content_focus(ContentFocus::PrinterDialogMode),
+        dialog.previous_content_focus(ContentFocus::PrinterDialogModeSystem),
+        Some(ContentFocus::PrinterDialogModeCustom)
+    );
+    assert_eq!(
+        dialog.previous_content_focus(ContentFocus::PrinterDialogModeCustom),
         Some(ContentFocus::PrinterDefault)
     );
 }

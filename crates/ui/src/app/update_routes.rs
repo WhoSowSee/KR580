@@ -22,7 +22,10 @@ impl DesktopApp {
         if let Some(task) = self.route_printer_setup_message(message) {
             return Some(task);
         }
-        self.route_settings_modal_message(message)
+        if let Some(task) = self.route_settings_modal_message(message) {
+            return Some(task);
+        }
+        self.route_open_menu_message(message)
     }
 }
 

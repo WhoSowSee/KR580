@@ -61,7 +61,12 @@ impl DesktopApp {
                 scroll.chain(Task::done(Message::RefocusInline))
             }
             None if self.active_register_target.is_some() => {
-                self.step_register(-direction);
+                let movement = if direction > 0 {
+                    RegisterMove::Up
+                } else {
+                    RegisterMove::Down
+                };
+                self.navigate_active_register_target(movement);
                 Task::none()
             }
             _ => {
@@ -149,5 +154,22 @@ mod tests {
         );
         assert!(app.register_value_input.is_empty());
         assert_eq!(app.input_placeholder(REGISTER_INLINE_INPUT_ID, "00"), "34");
+    }
+
+    #[test]
+    fn schematic_vertical_arrows_do_not_leave_the_register_strip() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+
+        for register in [RegisterName::A, RegisterName::B, RegisterName::C] {
+            let target = RegisterInlineTarget::Schematic(register);
+            app.select_register_target(target);
+            app.focused_input = None;
+
+            let _ = app.handle_arrow_key(1);
+            assert_eq!(app.active_register_target, Some(target));
+
+            let _ = app.handle_arrow_key(-1);
+            assert_eq!(app.active_register_target, Some(target));
+        }
     }
 }

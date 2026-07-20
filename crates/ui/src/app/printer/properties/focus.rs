@@ -32,6 +32,9 @@ impl DesktopApp {
     }
 
     pub(super) fn activate_printer_properties_focus(&mut self) -> Task<Message> {
+        if let Some(properties) = self.properties_mut() {
+            properties.focus_visible = false;
+        }
         let Some(properties) = self.properties() else {
             return Task::none();
         };
@@ -70,7 +73,7 @@ impl DesktopApp {
         let focus = order[next].clone();
         if let Some(properties) = self.properties_mut() {
             properties.focus = focus.clone();
-            properties.tab_focus_visible = true;
+            properties.focus_visible = true;
             properties.open_dropdown = None;
             properties.dropdown_highlight = None;
         }

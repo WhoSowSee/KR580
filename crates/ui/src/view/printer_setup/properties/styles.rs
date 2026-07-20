@@ -29,14 +29,13 @@ pub(super) fn tab_style(
     }
 }
 
-pub(super) fn input_style(_theme: &iced::Theme, status: text_input::Status) -> text_input::Style {
-    let focused = matches!(status, text_input::Status::Focused { .. });
+pub(super) fn input_style(keyboard_focused: bool) -> text_input::Style {
     text_input::Style {
         background: Background::Color(Color::TRANSPARENT),
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: if focused {
+            color: if keyboard_focused {
                 tokyo_blue()
             } else {
                 tokyo_border()
@@ -68,5 +67,19 @@ pub(super) fn active_tab_line(_theme: &iced::Theme) -> container::Style {
     container::Style {
         background: Some(Background::Color(tokyo_blue())),
         ..container::Style::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn focused_input_border_depends_on_keyboard_focus_visibility() {
+        let mouse_style = input_style(false);
+        assert_eq!(mouse_style.border.color, tokyo_border());
+
+        let keyboard_style = input_style(true);
+        assert_eq!(keyboard_style.border.color, tokyo_blue());
     }
 }

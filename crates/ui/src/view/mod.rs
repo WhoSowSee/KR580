@@ -172,7 +172,7 @@ impl DesktopApp {
                 Some(MenuId::Mp) => MP_MENU_DROPDOWN_LEFT,
                 Some(MenuId::View) => VIEW_MENU_DROPDOWN_LEFT,
                 Some(MenuId::Help) => HELP_MENU_DROPDOWN_LEFT,
-                None => FILE_MENU_DROPDOWN_LEFT,
+                Some(MenuId::Settings) | None => FILE_MENU_DROPDOWN_LEFT,
             };
             stack![app_root, menu_dropdown_overlay(dropdown, left)]
                 .width(Length::Fill)
@@ -219,7 +219,12 @@ impl DesktopApp {
         };
 
         let layered: Element<'_, Message> = if let Some(action) = self.pending_action.as_ref() {
-            let modal = discard_modal_overlay(action, self.discard_modal_focus, self.lang);
+            let modal = discard_modal_overlay(
+                action,
+                self.discard_modal_focus,
+                self.discard_modal_keyboard_focus_visible,
+                self.lang,
+            );
             if matches!(action, PendingAction::DeleteHdd)
                 && self.hdd_open
                 && !self.hdd_window.detached

@@ -32,7 +32,9 @@ fn profiles<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Element<
     .on_input(Message::PrinterPropertyPresetNameChanged)
     .size(12)
     .padding([7, 10])
-    .style(input_style)
+    .style(move |_theme, _status| {
+        input_style(properties.focus_is_visible(PrinterPropertiesFocus::PresetName))
+    })
     .width(Length::Fill);
     let can_save = properties.sheet.is_some()
         && !properties.applying
@@ -45,14 +47,14 @@ fn profiles<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Element<
             footer_button(
                 label(lang, PropertyLabel::Delete),
                 can_delete,
-                properties.focus == PrinterPropertiesFocus::PresetDelete,
+                properties.focus_is_visible(PrinterPropertiesFocus::PresetDelete),
             )
             .width(Length::Fill)
             .on_press_maybe(can_delete.then_some(Message::PrinterPropertyPresetDelete)),
             footer_button(
                 label(lang, PropertyLabel::Save),
                 can_save,
-                properties.focus == PrinterPropertiesFocus::PresetSave,
+                properties.focus_is_visible(PrinterPropertiesFocus::PresetSave),
             )
             .width(Length::Fill)
             .on_press_maybe(can_save.then_some(Message::PrinterPropertyPresetSave)),

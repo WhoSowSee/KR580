@@ -20,7 +20,7 @@ impl DesktopApp {
         self.export_memory_columns = ExportMemoryColumns::default();
         self.export_registers = ExportRegisterSelection::default();
         self.export_flags = ExportFlagSelection::default();
-        self.open_menu = None;
+        self.close_top_menu();
         self.hide_opcode_dropdown();
     }
 

@@ -5,7 +5,7 @@ use super::super::theme::{
     mono_text, tokyo_border, tokyo_surface, tokyo_surface_2, tokyo_text, ui_text,
 };
 use crate::app::shortcuts::shortcut_action_label;
-use crate::app::{ContentFocus, Message, SettingsDialog, SettingsSection};
+use crate::app::{ContentFocus, Message, SettingsDialog};
 use crate::i18n::Lang;
 use crate::persistence::ShortcutAction;
 
@@ -30,8 +30,7 @@ fn shortcut_row<'a>(
     lang: Lang,
     action: ShortcutAction,
 ) -> Element<'a, Message> {
-    let focused = dialog.section == SettingsSection::Content
-        && dialog.content_focus == Some(ContentFocus::Shortcut(action));
+    let focused = dialog.content_focus_is_visible(ContentFocus::Shortcut(action));
     let recording = dialog.recording_shortcut == Some(action);
     let label = if recording {
         capture_prompt(lang).to_owned()

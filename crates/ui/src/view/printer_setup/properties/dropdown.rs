@@ -40,7 +40,7 @@ pub(super) fn feature(
         items,
         properties.open_dropdown.as_ref() == Some(&key),
         !properties.applying,
-        properties.focus == PrinterPropertiesFocus::Dropdown(key),
+        properties.focus_is_visible(PrinterPropertiesFocus::Dropdown(key)),
         properties.dropdown_highlight,
     )
 }
@@ -115,7 +115,7 @@ fn dropdown_for(
         items,
         properties.open_dropdown.as_ref() == Some(&key),
         !properties.applying,
-        properties.focus == PrinterPropertiesFocus::Dropdown(key),
+        properties.focus_is_visible(PrinterPropertiesFocus::Dropdown(key)),
         properties.dropdown_highlight,
     )
 }

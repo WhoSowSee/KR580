@@ -41,7 +41,7 @@ pub(super) fn printer_properties_modal_overlay<'a>(
         Message::ClosePrinterProperties,
         label(lang, PropertyLabel::Cancel),
         34.0,
-        properties.focus == PrinterPropertiesFocus::Close,
+        properties.focus_is_visible(PrinterPropertiesFocus::Close),
     );
     let header = row![
         ui_text(title, 18, tokyo_text()),
@@ -61,13 +61,13 @@ pub(super) fn printer_properties_modal_overlay<'a>(
         footer_button(
             label(lang, PropertyLabel::Cancel),
             true,
-            properties.focus == PrinterPropertiesFocus::Cancel,
+            properties.focus_is_visible(PrinterPropertiesFocus::Cancel),
         )
         .on_press(Message::ClosePrinterProperties),
         footer_button(
             label(lang, PropertyLabel::Ok),
             ready,
-            properties.focus == PrinterPropertiesFocus::Ok,
+            properties.focus_is_visible(PrinterPropertiesFocus::Ok),
         )
         .on_press_maybe(ready.then_some(Message::PrinterPropertyConfirmed)),
     ]
@@ -143,8 +143,7 @@ fn tab(
     properties: &PrinterPropertiesDialog,
 ) -> Element<'static, Message> {
     let selected = tab == properties.tab;
-    let focused =
-        properties.tab_focus_visible && properties.focus == PrinterPropertiesFocus::Tab(tab);
+    let focused = properties.focus_is_visible(PrinterPropertiesFocus::Tab(tab));
     let line = container(Space::new())
         .width(Length::Fill)
         .height(Length::Fixed(2.0))

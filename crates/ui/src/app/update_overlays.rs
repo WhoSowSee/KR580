@@ -9,7 +9,7 @@ impl DesktopApp {
     pub(crate) fn dispatch_overlay_message(&mut self, message: &Message) -> Option<Task<Message>> {
         match message {
             Message::OpenAbout => {
-                self.open_menu = None;
+                self.close_top_menu();
                 self.close_open_device_panel();
                 self.about_dialog_open = true;
             }
@@ -17,7 +17,7 @@ impl DesktopApp {
                 self.about_dialog_open = false;
             }
             Message::OpenHelp => {
-                self.open_menu = None;
+                self.close_top_menu();
                 self.hide_opcode_dropdown();
                 self.close_open_device_panel();
                 self.help_dialog = Some(HelpDialog::new(self.lang));
@@ -65,7 +65,7 @@ impl DesktopApp {
                 }
             }
             Message::OpenMonitor => {
-                self.open_menu = None;
+                self.close_top_menu();
                 self.hide_opcode_dropdown();
                 let close_storage = Task::batch([
                     self.close_floppy(),
@@ -107,7 +107,7 @@ impl DesktopApp {
                 self.save_monitor_image();
             }
             Message::OpenFloppy => {
-                self.open_menu = None;
+                self.close_top_menu();
                 self.hide_opcode_dropdown();
                 let close_other = Task::batch([
                     self.close_monitor(),
@@ -157,7 +157,7 @@ impl DesktopApp {
                 self.dispatch_sync(crate::backend::AppCommand::SetFloppyDebugBuffer(enabled));
             }
             Message::OpenHdd => {
-                self.open_menu = None;
+                self.close_top_menu();
                 self.hide_opcode_dropdown();
                 let close_other = Task::batch([
                     self.close_monitor(),
@@ -206,7 +206,7 @@ impl DesktopApp {
                 self.dispatch(crate::backend::AppCommand::ClearFloppyBuffer);
             }
             Message::OpenNetwork => {
-                self.open_menu = None;
+                self.close_top_menu();
                 self.hide_opcode_dropdown();
                 let close_other = Task::batch([
                     self.close_monitor(),
@@ -247,7 +247,7 @@ impl DesktopApp {
                 self.network_text_view = !self.network_text_view;
             }
             Message::OpenPrinter => {
-                self.open_menu = None;
+                self.close_top_menu();
                 self.hide_opcode_dropdown();
                 let close_other = Task::batch([
                     self.close_monitor(),

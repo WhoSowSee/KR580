@@ -106,8 +106,13 @@ impl DesktopApp {
                 self.move_printer_setup_dropdown_highlight(*direction);
                 Some(Task::none())
             }
-            Message::MousePressedIgnored => {
-                self.close_printer_setup_dropdown();
+            Message::MousePressed | Message::MousePressedIgnored => {
+                if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+                    dialog.focus_visible = false;
+                }
+                if matches!(message, Message::MousePressedIgnored) {
+                    self.close_printer_setup_dropdown();
+                }
                 Some(Task::none())
             }
             Message::Tick

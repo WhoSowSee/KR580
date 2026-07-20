@@ -6,7 +6,7 @@ use super::super::theme::{tokyo_muted, tokyo_text, ui_text};
 use super::consts::{DROPDOWN_CHEVRON_SIZE, LANGUAGE_PICKER_WIDTH};
 use super::setting_row::setting_row;
 use super::styles::{dropdown_anchor_style, dropdown_option_style, dropdown_panel_style};
-use crate::app::{ContentFocus, Message, SettingsDialog, SettingsSection};
+use crate::app::{ContentFocus, Message, SettingsDialog};
 use crate::i18n::{Key, Lang};
 
 pub(super) fn language_setting_row<'a>(
@@ -14,8 +14,7 @@ pub(super) fn language_setting_row<'a>(
     lang: Lang,
 ) -> Element<'a, Message> {
     let active_label = lang.t(language_label_key(dialog.draft_lang));
-    let keyboard_focused = dialog.section == SettingsSection::Content
-        && dialog.content_focus == Some(ContentFocus::LanguageAnchor);
+    let keyboard_focused = dialog.content_focus_is_visible(ContentFocus::LanguageAnchor);
 
     let chevron = svg(icons::chevron_down())
         .width(Length::Fixed(DROPDOWN_CHEVRON_SIZE))
@@ -39,7 +38,9 @@ pub(super) fn language_setting_row<'a>(
     )
     .on_press(Message::SettingsLanguageDropdownToggled)
     .padding(0)
-    .style(move |_theme, status| dropdown_anchor_style(status, keyboard_focused));
+    .style(move |_theme, status| {
+        dropdown_anchor_style(status, dialog.language_dropdown_open, keyboard_focused)
+    });
 
     setting_row(
         lang.t(Key::SettingsLanguageLabel),

@@ -15,6 +15,7 @@ mod import_modal_state;
 #[cfg(test)]
 mod import_modal_tests;
 mod keymap;
+mod menu_keyboard;
 pub(crate) mod messages;
 mod modal;
 mod network;
@@ -55,9 +56,11 @@ pub(crate) use help::{
 };
 pub(crate) use hex_stream_filter::HexStreamFilter;
 pub(crate) use import_modal_state::{ImportFileFormat, ImportModalFocus};
+pub(crate) use menu_keyboard::top_menu_action;
 pub(crate) use messages::{
     ExportFlag, ExportMemoryColumn, ExportRegister, ExportTab, MenuId, Message,
-    RegisterInlineTarget, SettingsCategory, SpeedTier, ToolWindowKind,
+    RegisterInlineTarget, SettingsCategory, SpeedTier, ToolWindowKind, TopMenuFocus,
+    TopMenuIndicator,
 };
 pub(crate) use modal::DiscardModalButton;
 pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};

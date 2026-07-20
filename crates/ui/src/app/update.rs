@@ -357,6 +357,11 @@ impl DesktopApp {
                     self.focused_input = Some(OPCODE_SEARCH_INPUT_ID);
                     return iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID);
                 }
+                if self.focused_input == Some(REGISTER_INLINE_INPUT_ID)
+                    || (self.focused_input.is_none() && self.active_register_target.is_some())
+                {
+                    return self.cycle_register_target_focus(backward);
+                }
                 use iced::advanced::widget::operation::focusable::find_focused;
                 return iced::advanced::widget::operate(find_focused())
                     .map(move |focused| Message::FocusResolved { focused, backward });
@@ -365,19 +370,15 @@ impl DesktopApp {
                 return self.cycle_focus(focused, backward);
             }
             Message::MenuToggled(menu) => {
-                self.open_menu = if self.open_menu == Some(menu) {
-                    None
-                } else {
-                    Some(menu)
-                };
+                self.toggle_top_menu(menu);
             }
             Message::MenuClosed => {
-                self.open_menu = None;
+                self.close_top_menu();
             }
             Message::MenuCategoriesToggled => {
                 self.menu_categories_visible = !self.menu_categories_visible;
                 if !self.menu_categories_visible {
-                    self.open_menu = None;
+                    self.close_top_menu();
                 }
             }
             Message::MenuBatch(messages) => {

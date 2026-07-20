@@ -138,12 +138,27 @@ pub(super) fn radio_style(focused: bool) -> impl Fn(&iced::Theme, radio::Status)
                 Color::TRANSPARENT
             },
             border_width: if focused { 2.0 } else { 1.0 },
-            border_color: if selected || focused {
+            border_color: if focused {
                 tokyo_blue()
             } else {
                 tokyo_border()
             },
             text_color: Some(tokyo_text()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn selected_radio_keeps_blue_dot_without_focus_border() {
+        let style = radio_style(false)(
+            &iced::Theme::Dark,
+            radio::Status::Active { is_selected: true },
+        );
+        assert_eq!(style.dot_color, tokyo_blue());
+        assert_eq!(style.border_color, tokyo_border());
     }
 }

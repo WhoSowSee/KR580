@@ -6,7 +6,7 @@ use super::super::theme::{
     color_scheme_palette, tokyo_blue, tokyo_border, tokyo_muted, tokyo_selection_blue,
     tokyo_surface, tokyo_surface_2, tokyo_text, ui_text,
 };
-use crate::app::{ContentFocus, Message, SettingsDialog, SettingsSection};
+use crate::app::{ContentFocus, Message, SettingsDialog};
 use crate::i18n::Lang;
 use crate::persistence::ColorScheme;
 
@@ -14,10 +14,7 @@ pub(super) fn theme_setting_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-    let keyboard_focused = kb_focus == Some(ContentFocus::Theme);
+    let keyboard_focused = dialog.content_focus_is_visible(ContentFocus::Theme);
 
     let control = Column::new()
         .spacing(12)

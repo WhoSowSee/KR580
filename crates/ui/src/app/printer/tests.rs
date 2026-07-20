@@ -27,12 +27,17 @@ fn setup_dropdown_arrows_move_highlight_without_changing_selection() {
 #[test]
 fn setup_tab_cycles_forward_and_backward_over_enabled_controls() {
     let mut app = app_with_printers();
+    assert!(!app.printer_setup_dialog.as_ref().unwrap().focus_visible);
 
     let _ = app.update(Message::FocusCycle { backward: false });
     assert_eq!(
         app.printer_setup_dialog.as_ref().unwrap().focus,
         PrinterSetupFocus::Cancel
     );
+    assert!(app.printer_setup_dialog.as_ref().unwrap().focus_visible);
+
+    let _ = app.update(Message::EnterPressed);
+    assert!(!app.printer_setup_dialog.as_ref().unwrap().focus_visible);
 
     app.printer_setup_dialog.as_mut().unwrap().focus = PrinterSetupFocus::Printer;
     let _ = app.update(Message::FocusCycle { backward: true });
@@ -40,6 +45,7 @@ fn setup_tab_cycles_forward_and_backward_over_enabled_controls() {
         app.printer_setup_dialog.as_ref().unwrap().focus,
         PrinterSetupFocus::Close
     );
+    assert!(app.printer_setup_dialog.as_ref().unwrap().focus_visible);
 }
 
 #[test]
@@ -133,7 +139,7 @@ fn property_tabs_start_on_favorites_and_show_focus_only_after_keyboard_navigatio
         properties.focus,
         PrinterPropertiesFocus::Tab(PrinterPropertiesTab::Favorites)
     );
-    assert!(!properties.tab_focus_visible);
+    assert!(!properties.focus_visible);
 
     let _ = app.update(Message::PrinterPropertiesFocusResolved {
         focused: None,
@@ -156,8 +162,19 @@ fn property_tabs_start_on_favorites_and_show_focus_only_after_keyboard_navigatio
             .properties
             .as_ref()
             .unwrap()
-            .tab_focus_visible
+            .focus_visible
     );
+
+    let _ = app.update(Message::EnterPressed);
+    let properties = app
+        .printer_setup_dialog
+        .as_ref()
+        .unwrap()
+        .properties
+        .as_ref()
+        .unwrap();
+    assert_eq!(properties.tab, PrinterPropertiesTab::General);
+    assert!(!properties.focus_visible);
 
     let _ = app.update(Message::PrinterPropertiesTabSelected(
         PrinterPropertiesTab::Paper,
@@ -173,7 +190,7 @@ fn property_tabs_start_on_favorites_and_show_focus_only_after_keyboard_navigatio
         properties.focus,
         PrinterPropertiesFocus::Tab(PrinterPropertiesTab::Paper)
     );
-    assert!(!properties.tab_focus_visible);
+    assert!(!properties.focus_visible);
 }
 
 #[test]

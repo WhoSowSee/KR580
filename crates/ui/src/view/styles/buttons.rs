@@ -5,8 +5,10 @@
 use iced::widget::button;
 use iced::{Background, Border, Color};
 
+use crate::app::TopMenuIndicator;
+
 use super::super::theme::{
-    tokyo_board, tokyo_border, tokyo_muted, tokyo_red, tokyo_surface, tokyo_surface_2,
+    tokyo_blue, tokyo_board, tokyo_border, tokyo_muted, tokyo_red, tokyo_surface, tokyo_surface_2,
     tokyo_surface_3, tokyo_surface_3_tint, tokyo_text,
 };
 
@@ -152,19 +154,29 @@ pub(crate) fn modal_dropdown_option_style(
     }
 }
 
-pub(crate) fn menu_button_style(status: button::Status) -> button::Style {
-    let background = if is_button_active(status) {
-        tokyo_surface_2()
-    } else {
-        Color::TRANSPARENT
+pub(crate) fn menu_button_style(
+    status: button::Status,
+    indicator: TopMenuIndicator,
+) -> button::Style {
+    let background = match indicator {
+        TopMenuIndicator::ArrowFill => tokyo_surface_2(),
+        TopMenuIndicator::TabRing => Color::TRANSPARENT,
+        TopMenuIndicator::Hidden if is_button_active(status) => tokyo_surface_2(),
+        TopMenuIndicator::Hidden => Color::TRANSPARENT,
     };
+    let keyboard_focused = indicator == TopMenuIndicator::TabRing;
 
     button::Style {
         background: Some(Background::Color(background)),
         text_color: tokyo_text(),
         border: Border {
             radius: 6.0.into(),
-            ..Border::default()
+            width: if keyboard_focused { 1.0 } else { 0.0 },
+            color: if keyboard_focused {
+                tokyo_blue()
+            } else {
+                Color::TRANSPARENT
+            },
         },
         ..button::Style::default()
     }
@@ -276,7 +288,7 @@ pub(crate) fn close_caption_button_style(status: button::Status) -> button::Styl
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::theme::tokyo_board;
+    use super::super::super::theme::{tokyo_blue, tokyo_board};
     use super::*;
 
     #[test]
@@ -293,5 +305,26 @@ mod tests {
         let style = enter_button_style(button::Status::Active);
 
         assert_eq!(style.background, Some(Background::Color(tokyo_board())));
+    }
+
+    #[test]
+    fn keyboard_focused_menu_item_uses_blue_border_without_fill() {
+        let style = menu_button_style(button::Status::Active, TopMenuIndicator::TabRing);
+
+        assert_eq!(
+            style.background,
+            Some(Background::Color(Color::TRANSPARENT))
+        );
+        assert_eq!(style.border.width, 1.0);
+        assert_eq!(style.border.color, tokyo_blue());
+    }
+
+    #[test]
+    fn arrow_focused_menu_item_uses_hover_fill_without_border() {
+        let style = menu_button_style(button::Status::Active, TopMenuIndicator::ArrowFill);
+
+        assert_eq!(style.background, Some(Background::Color(tokyo_surface_2())));
+        assert_eq!(style.border.width, 0.0);
+        assert_eq!(style.border.color, Color::TRANSPARENT);
     }
 }

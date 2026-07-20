@@ -117,7 +117,7 @@ pub(crate) struct PrinterPropertiesDialog {
     pub(crate) open_dropdown: Option<PrinterPropertyDropdown>,
     pub(crate) dropdown_highlight: Option<usize>,
     pub(crate) focus: PrinterPropertiesFocus,
-    pub(crate) tab_focus_visible: bool,
+    pub(crate) focus_visible: bool,
     pub(crate) preview_text: String,
     pub(crate) error: Option<String>,
 }
@@ -136,7 +136,7 @@ impl PrinterPropertiesDialog {
             open_dropdown: None,
             dropdown_highlight: None,
             focus: PrinterPropertiesFocus::default(),
-            tab_focus_visible: false,
+            focus_visible: false,
             preview_text,
             error: None,
         }
@@ -152,6 +152,10 @@ impl PrinterPropertiesDialog {
             .map(|parameter| (parameter.name.clone(), parameter.value.clone()))
             .collect();
     }
+
+    pub(crate) fn focus_is_visible(&self, focus: PrinterPropertiesFocus) -> bool {
+        self.focus_visible && self.focus == focus
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -165,6 +169,7 @@ pub(crate) struct PrinterSetupDialog {
     pub(crate) properties_pending: bool,
     pub(crate) properties: Option<PrinterPropertiesDialog>,
     pub(crate) focus: PrinterSetupFocus,
+    pub(crate) focus_visible: bool,
     pub(crate) open_dropdown: Option<PrinterSetupDropdown>,
     pub(crate) dropdown_highlight: Option<usize>,
     pub(crate) error: Option<String>,
@@ -182,6 +187,7 @@ impl PrinterSetupDialog {
             properties_pending: false,
             properties: None,
             focus: PrinterSetupFocus::default(),
+            focus_visible: false,
             open_dropdown: None,
             dropdown_highlight: None,
             error: None,
@@ -193,6 +199,10 @@ impl PrinterSetupDialog {
         self.printers
             .iter()
             .find(|printer| printer.name == selected)
+    }
+
+    pub(crate) fn focus_is_visible(&self, focus: PrinterSetupFocus) -> bool {
+        self.focus_visible && self.focus == focus
     }
 }
 

@@ -45,6 +45,12 @@ fn runtime_event_message(
     status: event::Status,
     window: iced::window::Id,
 ) -> Option<Message> {
+    if app.top_menu_focus.is_some()
+        && let iced::Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }) = &event
+        && let Some(message) = super::menu_keyboard::navigation_key_message(key, *modifiers)
+    {
+        return Some(message);
+    }
     let recording_shortcut = app
         .settings_dialog
         .as_ref()
@@ -103,31 +109,13 @@ fn runtime_event_message(
         ) if modifiers.alt() => shortcut_message(&app.shortcut_settings, physical_key, modifiers),
         (
             iced::Event::Keyboard(keyboard::Event::KeyPressed {
-                key: keyboard::Key::Named(keyboard::key::Named::Tab),
-                modifiers,
-                ..
-            }),
-            iced::event::Status::Ignored,
-        ) => Some(Message::FocusCycle {
-            backward: modifiers.shift(),
-        }),
-        (
-            iced::Event::Keyboard(keyboard::Event::KeyPressed {
                 key,
                 physical_key,
                 modifiers,
                 ..
             }),
             iced::event::Status::Ignored,
-        ) => match key {
-            keyboard::Key::Named(keyboard::key::Named::ArrowUp) => Some(Message::ArrowKey(1)),
-            keyboard::Key::Named(keyboard::key::Named::ArrowDown) => Some(Message::ArrowKey(-1)),
-            keyboard::Key::Named(keyboard::key::Named::ArrowLeft) => {
-                Some(Message::HorizontalArrowKey(-1))
-            }
-            keyboard::Key::Named(keyboard::key::Named::ArrowRight) => {
-                Some(Message::HorizontalArrowKey(1))
-            }
+        ) => super::menu_keyboard::navigation_key_message(&key, modifiers).or_else(|| match key {
             keyboard::Key::Named(keyboard::key::Named::PageUp) => {
                 Some(Message::MemoryAddressPageUp)
             }
@@ -135,9 +123,8 @@ fn runtime_event_message(
                 Some(Message::MemoryAddressPageDown)
             }
             keyboard::Key::Named(keyboard::key::Named::F1) => Some(Message::OpenHelp),
-            keyboard::Key::Named(keyboard::key::Named::Enter) => Some(Message::EnterPressed),
             _ => shortcut_message(&app.shortcut_settings, physical_key, modifiers),
-        },
+        }),
         (
             iced::Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }),
             iced::event::Status::Captured,

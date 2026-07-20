@@ -27,7 +27,8 @@ impl DesktopApp {
     pub(crate) fn open_discard_modal(&mut self, action: PendingAction) {
         self.pending_action = Some(action);
         self.discard_modal_focus = DiscardModalButton::Cancel;
-        self.open_menu = None;
+        self.discard_modal_keyboard_focus_visible = false;
+        self.close_top_menu();
         self.hide_opcode_dropdown();
     }
 
@@ -53,11 +54,16 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::EnterPressed => Some(self.submit_discard_modal_focus()),
+            Message::MousePressed | Message::MousePressedIgnored => {
+                self.discard_modal_keyboard_focus_visible = false;
+                Some(Task::none())
+            }
             _ => Some(Task::none()),
         }
     }
 
     pub(crate) fn cycle_discard_modal_focus(&mut self, backward: bool) {
+        self.discard_modal_keyboard_focus_visible = true;
         self.discard_modal_focus = if backward {
             self.discard_modal_focus.previous()
         } else {
@@ -80,6 +86,7 @@ impl DesktopApp {
             return Task::none();
         };
         self.discard_modal_focus = DiscardModalButton::Cancel;
+        self.discard_modal_keyboard_focus_visible = false;
         match action {
             PendingAction::OpenSnapshot => {
                 self.mark_saved();
@@ -107,6 +114,7 @@ impl DesktopApp {
     pub(crate) fn cancel_discard(&mut self) {
         self.pending_action = None;
         self.discard_modal_focus = DiscardModalButton::Cancel;
+        self.discard_modal_keyboard_focus_visible = false;
     }
 
     pub(crate) fn close_titlebar_popup_before_drag(&mut self) -> bool {
@@ -114,8 +122,8 @@ impl DesktopApp {
             self.hide_opcode_dropdown();
             return true;
         }
-        if self.open_menu.is_some() {
-            self.open_menu = None;
+        if self.open_menu.is_some() || self.top_menu_focus.is_some() {
+            self.close_top_menu();
             return true;
         }
         false
@@ -162,6 +170,7 @@ mod tests {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         app.dirty = true;
         app.open_discard_modal(PendingAction::OpenSnapshot);
+        assert!(!app.discard_modal_keyboard_focus_visible);
 
         let _task = app.update(Message::EnterPressed);
 
@@ -176,6 +185,7 @@ mod tests {
 
         let _task = app.update(Message::FocusCycle { backward: false });
         assert_eq!(app.discard_modal_focus, DiscardModalButton::Confirm);
+        assert!(app.discard_modal_keyboard_focus_visible);
 
         let _task = app.update(Message::FocusCycle { backward: false });
         assert_eq!(app.discard_modal_focus, DiscardModalButton::Cancel);

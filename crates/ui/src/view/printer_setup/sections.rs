@@ -39,7 +39,7 @@ pub(super) fn printer_section<'a>(
         DropdownControl {
             opened: dialog.open_dropdown == Some(PrinterSetupDropdown::Printer),
             enabled: !dialog.loading,
-            focused: dialog.focus == PrinterSetupFocus::Printer,
+            focused: dialog.focus_is_visible(PrinterSetupFocus::Printer),
             toggle: Message::PrinterSetupDropdownToggled(PrinterSetupDropdown::Printer),
             dismiss: Message::PrinterSetupDropdownDismissed(PrinterSetupDropdown::Printer),
             highlighted: dialog.dropdown_highlight,
@@ -51,7 +51,7 @@ pub(super) fn printer_section<'a>(
     let properties = footer_button(
         label(lang, Label::Properties),
         properties_ready,
-        dialog.focus == PrinterSetupFocus::Properties,
+        dialog.focus_is_visible(PrinterSetupFocus::Properties),
     )
     .width(Length::Fixed(132.0))
     .on_press_maybe(properties_ready.then_some(Message::PrinterSetupProperties));
@@ -130,7 +130,9 @@ pub(super) fn orientation_section<'a>(
         .size(18)
         .spacing(8)
         .text_size(13)
-        .style(radio_style(dialog.focus == PrinterSetupFocus::Portrait,)),
+        .style(radio_style(
+            dialog.focus_is_visible(PrinterSetupFocus::Portrait),
+        )),
         radio(
             label(lang, Label::Landscape),
             PrinterOrientation::Landscape,
@@ -140,7 +142,9 @@ pub(super) fn orientation_section<'a>(
         .size(18)
         .spacing(8)
         .text_size(13)
-        .style(radio_style(dialog.focus == PrinterSetupFocus::Landscape,)),
+        .style(radio_style(
+            dialog.focus_is_visible(PrinterSetupFocus::Landscape),
+        )),
     ]
     .spacing(12);
     container(
@@ -213,7 +217,7 @@ fn paper_dropdown(
         DropdownControl {
             opened: dialog.open_dropdown == Some(PrinterSetupDropdown::Paper),
             enabled: !dialog.configuration_loading,
-            focused: dialog.focus == PrinterSetupFocus::Paper,
+            focused: dialog.focus_is_visible(PrinterSetupFocus::Paper),
             toggle: Message::PrinterSetupDropdownToggled(PrinterSetupDropdown::Paper),
             dismiss: Message::PrinterSetupDropdownDismissed(PrinterSetupDropdown::Paper),
             highlighted: dialog.dropdown_highlight,
@@ -242,7 +246,7 @@ fn source_dropdown(
         DropdownControl {
             opened: dialog.open_dropdown == Some(PrinterSetupDropdown::Source),
             enabled: !dialog.configuration_loading,
-            focused: dialog.focus == PrinterSetupFocus::Source,
+            focused: dialog.focus_is_visible(PrinterSetupFocus::Source),
             toggle: Message::PrinterSetupDropdownToggled(PrinterSetupDropdown::Source),
             dismiss: Message::PrinterSetupDropdownDismissed(PrinterSetupDropdown::Source),
             highlighted: dialog.dropdown_highlight,

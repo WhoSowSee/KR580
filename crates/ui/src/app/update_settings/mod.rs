@@ -19,7 +19,7 @@ impl DesktopApp {
         match message {
             Message::OpenSettings => {
                 self.settings_saved_notice = None;
-                self.open_menu = None;
+                self.close_top_menu();
                 self.hide_opcode_dropdown();
                 self.close_open_device_panel();
                 let settings = load_settings();
@@ -92,6 +92,9 @@ impl DesktopApp {
             Message::SettingsCategorySelected(category) => {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.category = category;
+                    dialog.sidebar_focus = category;
+                    dialog.content_focus = Some(dialog.first_content_focus());
+                    dialog.keyboard_focus_visible = false;
                     if category != SettingsCategory::Shortcuts
                         && dialog.footer_focus == FooterFocus::ShortcutReset
                     {
@@ -247,6 +250,7 @@ impl DesktopApp {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.reset_confirm_open = true;
                     dialog.reset_confirm_focus = ResetConfirmFocus::Cancel;
+                    dialog.reset_confirm_keyboard_focus_visible = false;
                     dialog.language_dropdown_open = false;
                     dialog.dropdown_highlight = None;
                     dialog.recording_shortcut = None;
@@ -256,6 +260,7 @@ impl DesktopApp {
             Message::SettingsResetCancelled => {
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.reset_confirm_open = false;
+                    dialog.reset_confirm_keyboard_focus_visible = false;
                 }
                 Some(Task::none())
             }
@@ -294,6 +299,7 @@ impl DesktopApp {
                     dialog.original_printer_dialog_mode = default_printer_dialog_mode;
                     dialog.network_error = None;
                     dialog.reset_confirm_open = false;
+                    dialog.reset_confirm_keyboard_focus_visible = false;
                 }
                 self.follow_pc = default_follow_pc;
                 self.memory_operand_highlighting = default_memory_operand_highlighting;

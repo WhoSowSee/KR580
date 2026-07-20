@@ -6,7 +6,9 @@ use std::time::{Duration, Instant};
 
 use super::help::HelpDialog;
 use super::hex_stream_filter::HexStreamFilter;
-use super::messages::{ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier};
+use super::messages::{
+    ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier, TopMenuFocus, TopMenuIndicator,
+};
 use super::modal::DiscardModalButton;
 use super::printer::PrinterSetupDialog;
 use super::settings_modal::SettingsDialog;
@@ -83,6 +85,8 @@ pub(crate) struct DesktopApp {
     pub(crate) startup_frames_seen: u8,
     pub(crate) main_window_size: Size,
     pub(crate) open_menu: Option<MenuId>,
+    pub(crate) top_menu_focus: Option<TopMenuFocus>,
+    pub(crate) top_menu_indicator: TopMenuIndicator,
     pub(crate) about_dialog_open: bool,
     pub(crate) current_snapshot_path: Option<PathBuf>,
     pub(crate) speed_tier: SpeedTier,
@@ -109,6 +113,7 @@ pub(crate) struct DesktopApp {
     pub(crate) dirty: bool,
     pub(crate) saved_cpu: k580_core::Cpu8080State,
     pub(crate) discard_modal_focus: DiscardModalButton,
+    pub(crate) discard_modal_keyboard_focus_visible: bool,
     pub(crate) pending_action: Option<PendingAction>,
     pub(crate) export_modal_open: bool,
     pub(crate) export_tab: ExportTab,
@@ -259,6 +264,8 @@ impl DesktopApp {
             startup_frames_seen: 0,
             main_window_size: Size::new(1180.0, 720.0),
             open_menu: None,
+            top_menu_focus: None,
+            top_menu_indicator: TopMenuIndicator::Hidden,
             about_dialog_open: false,
             current_snapshot_path: None,
             speed_tier: default_speed,
@@ -281,6 +288,7 @@ impl DesktopApp {
             dirty: false,
             saved_cpu: k580_core::Cpu8080State::default(),
             discard_modal_focus: DiscardModalButton::Cancel,
+            discard_modal_keyboard_focus_visible: false,
             pending_action: None,
             export_modal_open: false,
             export_tab: ExportTab::Xlsx,

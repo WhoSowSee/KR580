@@ -4,7 +4,7 @@ use iced::{Background, Border, Color, Element, Length, alignment};
 use super::super::consts::toggle_segment_width;
 use super::super::setting_row::setting_row;
 use super::super::speed::segmented_button_width;
-use crate::app::{ContentFocus, Message, SettingsDialog, SettingsSection};
+use crate::app::{ContentFocus, Message, SettingsDialog};
 use crate::i18n::{Key, Lang};
 use crate::persistence::PrinterDialogMode;
 use crate::view::icons;
@@ -14,24 +14,21 @@ pub(super) fn follow_pc_toggle_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-
-    let kb_focused = kb_focus == Some(ContentFocus::FollowPc);
+    let on_focused = dialog.content_focus_is_visible(ContentFocus::FollowPcOn);
+    let off_focused = dialog.content_focus_is_visible(ContentFocus::FollowPcOff);
 
     let segments = row![
         segmented_button_width(
             lang.t(Key::SettingsToggleOn),
             dialog.draft_follow_pc,
-            kb_focused,
+            on_focused,
             Message::SettingsDraftFollowPcSet(true),
             toggle_segment_width(lang),
         ),
         segmented_button_width(
             lang.t(Key::SettingsToggleOff),
             !dialog.draft_follow_pc,
-            false,
+            off_focused,
             Message::SettingsDraftFollowPcSet(false),
             toggle_segment_width(lang),
         ),
@@ -49,24 +46,21 @@ pub(super) fn memory_operand_highlighting_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-
-    let kb_focused = kb_focus == Some(ContentFocus::MemoryOperandHighlighting);
+    let on_focused = dialog.content_focus_is_visible(ContentFocus::MemoryOperandHighlightingOn);
+    let off_focused = dialog.content_focus_is_visible(ContentFocus::MemoryOperandHighlightingOff);
 
     let segments = row![
         segmented_button_width(
             lang.t(Key::SettingsToggleOn),
             dialog.draft_memory_operand_highlighting,
-            kb_focused,
+            on_focused,
             Message::SettingsDraftMemoryOperandHighlightingSet(true),
             toggle_segment_width(lang),
         ),
         segmented_button_width(
             lang.t(Key::SettingsToggleOff),
             !dialog.draft_memory_operand_highlighting,
-            false,
+            off_focused,
             Message::SettingsDraftMemoryOperandHighlightingSet(false),
             toggle_segment_width(lang),
         ),
@@ -84,10 +78,7 @@ pub(super) fn hdd_directory_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-    let kb_focused = kb_focus == Some(ContentFocus::HddDirectory);
+    let kb_focused = dialog.content_focus_is_visible(ContentFocus::HddDirectory);
 
     let raw_path = dialog
         .draft_hdd_directory
@@ -125,10 +116,7 @@ pub(super) fn printer_default_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-    let kb_focused = kb_focus == Some(ContentFocus::PrinterDefault);
+    let kb_focused = dialog.content_focus_is_visible(ContentFocus::PrinterDefault);
 
     let display = dialog
         .draft_printer_settings
@@ -187,24 +175,22 @@ pub(super) fn printer_dialog_mode_row<'a>(
     lang: Lang,
 ) -> Element<'a, Message> {
     const MODE_SEGMENT_WIDTH: f32 = 136.0;
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-    let kb_focused = kb_focus == Some(ContentFocus::PrinterDialogMode);
+    let custom_focused = dialog.content_focus_is_visible(ContentFocus::PrinterDialogModeCustom);
+    let system_focused = dialog.content_focus_is_visible(ContentFocus::PrinterDialogModeSystem);
 
     let custom = dialog.draft_printer_dialog_mode == PrinterDialogMode::Custom;
     let segments = row![
         segmented_button_width(
             lang.t(Key::SettingsPrinterDialogModeCustom),
             custom,
-            kb_focused,
+            custom_focused,
             Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::Custom),
             MODE_SEGMENT_WIDTH,
         ),
         segmented_button_width(
             lang.t(Key::SettingsPrinterDialogModeSystem),
             !custom,
-            false,
+            system_focused,
             Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::System),
             MODE_SEGMENT_WIDTH,
         ),
@@ -222,10 +208,7 @@ pub(super) fn file_association_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-    let kb_focused = kb_focus == Some(ContentFocus::FileAssociation);
+    let kb_focused = dialog.content_focus_is_visible(ContentFocus::FileAssociation);
 
     let registered = k580_ui::file_assoc::is_registered();
     let label = if registered {
@@ -250,10 +233,7 @@ pub(super) fn file_association_row<'a>(
 }
 
 pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
-    let kb_focus = (dialog.section == SettingsSection::Content)
-        .then_some(dialog.content_focus)
-        .flatten();
-    let kb_focused = kb_focus == Some(ContentFocus::FloppyImage);
+    let kb_focused = dialog.content_focus_is_visible(ContentFocus::FloppyImage);
 
     // The floppy row carries both a browse and a clear button, so the
     // path text has a smaller budget than the single-button HDD row.
@@ -324,7 +304,6 @@ fn settings_button_style(status: button::Status, kb_focused: bool) -> button::St
     let bg = match status {
         button::Status::Pressed => tokyo_border(),
         button::Status::Hovered => tokyo_surface(),
-        _ if kb_focused => tokyo_surface(),
         _ => Color::TRANSPARENT,
     };
     button::Style {
@@ -333,7 +312,11 @@ fn settings_button_style(status: button::Status, kb_focused: bool) -> button::St
         border: Border {
             radius: 6.0.into(),
             width: 1.0,
-            color: tokyo_border(),
+            color: if kb_focused {
+                tokyo_text()
+            } else {
+                tokyo_border()
+            },
         },
         ..button::Style::default()
     }

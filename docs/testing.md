@@ -148,10 +148,36 @@ worth eyeballing after touching `crates/ui`:
   file opens with `kr` from the file manager;
 - on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/Applications/kr580.app` exists and `lsregister` reports it;
-- open the in-app Settings dialog (`,`), go to General, and confirm the
-  `.580 file association` row shows `Add` when the association is
-  missing and `Remove` when it is present; click it and verify the
-  button label flips and the OS association is created/removed;
+- open each top-menu dropdown and verify Up/Down wraps through enabled rows
+  without moving the selected RAM address, paints the current row with the
+  pointer-hover fill and no blue border; verify Left/Right cyclically opens the
+  previous/next dropdown category, skips Settings, and does not draw a blue
+  category border or move RAM;
+  use Tab/Shift+Tab to walk the blue-outlined category and rows through
+  File → MP-System → View → Settings → Help in both directions, confirm
+  Settings receives the category outline without opening a dropdown, category
+  outlines include comfortable padding around their labels, disabled Clear
+  Halt and separators are skipped, and Enter activates the outlined row or
+  opens Settings from its category stop;
+- open the in-app Settings dialog (`,`), confirm logical focus starts on the
+  language control without a white outline, and use Tab/Shift+Tab to visit both
+  On and Off segments for Follow PC and memory-operand highlighting; verify the
+  `.580` association plus Reset, Cancel, and Save show a white border without a
+  fill change, and that Enter or a mouse click clears the border before
+  activation; open the language dropdown and confirm its anchor gains the same
+  active fill as an opened printer selector; open the Reset confirmation and
+  confirm Cancel starts filled without a white border, then Tab/Shift+Tab removes
+  the focus fill and draws only the white border; in the Sidebar, verify
+  Tab/Shift+Tab moves the category cursor
+  without changing the page until Enter; finally confirm the `.580 file
+  association` row shows `Add` when the association is missing and `Remove`
+  when it is present, then click it and verify the button label flips and the
+  OS association is created/removed;
+- make the current file dirty and invoke Open, New, Import, Close, and HDD
+  deletion confirmations; in each shared confirmation overlay verify Cancel is
+  initially filled without a white border, the first Tab/Shift+Tab changes the
+  indication to a white border without focus fill, and Enter or pointer input
+  hides the border before activating the chosen button;
 - in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
   and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`;
 - paste `3E 41 D3 03 76` into a memory value field and confirm the five
@@ -196,7 +222,12 @@ worth eyeballing after touching `crates/ui`:
   instead of jumping upward; double-click must clear the editor while
   retaining the current value as its placeholder; while replacement is
   active, Left/Right must carry the empty editor across `A/B/C`, and all
-  four arrows must carry it through the multiplexer grid; Up/Down in the
+  four arrows must carry it through the multiplexer grid; with either a selected
+  register or its inline editor active, Tab/Shift+Tab must walk one wrapping ring
+  through `A/B/C` and multiplexer `B/C/D/E/H/L`; Up/Down on `A/B/C` must do
+  nothing, while Left/Right remains confined to that trio; selected `A/B/C`
+  blocks must use the standard selection-blue token without an alpha override,
+  matching RAM and mux cells; Up/Down in the
   inline RAM editor must do the same for adjacent memory cells; entering
   replacement again on an already empty field must keep its visible
   `00`, `0000`, or `A` placeholder without materializing it after Esc or
@@ -242,12 +273,15 @@ worth eyeballing after touching `crates/ui`:
   selector overlays the following rows instead of moving them;
   use `Tab` and `Shift+Tab` to traverse the enabled top-level controls and the
   complete Properties ring in both directions, including tabs, active feature
-  controls, parameter fields, profiles, and footer actions; then use
+  controls, parameter fields, profiles, and footer actions; confirm the blue
+  outline appears only after keyboard traversal and disappears on Enter or a
+  mouse click while the activated selector/tab/radio keeps only its normal
+  active fill, bottom indicator, or selected dot; then use
   `ArrowUp`/`ArrowDown` in each kind of open selector and
   confirm the highlight moves without committing until `Enter`; confirm `Esc`
   closes the selector before the modal; confirm Properties opens on Favorites
   without a focus outline, a mouse-selected tab shows only its bottom indicator,
-  and keyboard traversal then enables the tab focus outline; confirm the property
+  and keyboard traversal then enables the control focus outline; confirm the property
   lists remain scrollable without a visible scrollbar, the compact paper preview
   fits without a side-panel scroll, and the top-level Paper and Orientation
   groups have equal height; save and reload a named profile,

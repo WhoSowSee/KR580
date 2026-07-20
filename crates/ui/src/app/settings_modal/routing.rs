@@ -17,6 +17,15 @@ impl DesktopApp {
         &mut self,
         message: &Message,
     ) -> Option<Task<Message>> {
+        self.settings_dialog.as_ref()?;
+        if matches!(
+            message,
+            Message::EnterPressed | Message::MousePressed | Message::MousePressedIgnored
+        ) && let Some(dialog) = self.settings_dialog.as_mut()
+        {
+            dialog.keyboard_focus_visible = false;
+            dialog.reset_confirm_keyboard_focus_visible = false;
+        }
         let dialog = self.settings_dialog.as_ref()?;
         let reset_open = dialog.reset_confirm_open;
 
@@ -123,7 +132,10 @@ impl DesktopApp {
                 };
                 Task::done(action)
             }
-            SettingsSection::Sidebar | SettingsSection::Search => Task::none(),
+            SettingsSection::Sidebar => {
+                Task::done(Message::SettingsCategorySelected(dialog.sidebar_focus))
+            }
+            SettingsSection::Search => Task::none(),
             SettingsSection::Content => self.activate_focused_content(),
         }
     }
@@ -147,24 +159,23 @@ impl DesktopApp {
             ContentFocus::SpeedMax => {
                 Task::done(Message::SettingsDraftSpeedChanged(SpeedTier::Max))
             }
-            ContentFocus::FollowPc => {
-                let current = dialog.draft_follow_pc;
-                Task::done(Message::SettingsDraftFollowPcSet(!current))
+            ContentFocus::FollowPcOn => Task::done(Message::SettingsDraftFollowPcSet(true)),
+            ContentFocus::FollowPcOff => Task::done(Message::SettingsDraftFollowPcSet(false)),
+            ContentFocus::MemoryOperandHighlightingOn => {
+                Task::done(Message::SettingsDraftMemoryOperandHighlightingSet(true))
             }
-            ContentFocus::MemoryOperandHighlighting => {
-                let current = dialog.draft_memory_operand_highlighting;
-                Task::done(Message::SettingsDraftMemoryOperandHighlightingSet(!current))
+            ContentFocus::MemoryOperandHighlightingOff => {
+                Task::done(Message::SettingsDraftMemoryOperandHighlightingSet(false))
             }
             ContentFocus::FloppyImage => Task::done(Message::SettingsFloppyImageBrowse),
             ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),
             ContentFocus::PrinterDefault => Task::done(Message::SettingsPrinterSetup),
-            ContentFocus::PrinterDialogMode => {
-                let mode = match dialog.draft_printer_dialog_mode {
-                    PrinterDialogMode::Custom => PrinterDialogMode::System,
-                    PrinterDialogMode::System => PrinterDialogMode::Custom,
-                };
-                Task::done(Message::SettingsDraftPrinterDialogModeSet(mode))
-            }
+            ContentFocus::PrinterDialogModeCustom => Task::done(
+                Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::Custom),
+            ),
+            ContentFocus::PrinterDialogModeSystem => Task::done(
+                Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::System),
+            ),
             ContentFocus::NetworkDefaults => Task::none(),
             ContentFocus::FileAssociation => {
                 let registered = k580_ui::file_assoc::is_registered();
@@ -186,15 +197,17 @@ impl DesktopApp {
             return Task::none();
         };
         if reset_open {
+            dialog.reset_confirm_keyboard_focus_visible = true;
             dialog.reset_confirm_focus = dialog.reset_confirm_focus.toggled();
             return Task::none();
         }
+        dialog.keyboard_focus_visible = true;
         match dialog.section {
             SettingsSection::Search => {}
             SettingsSection::Sidebar => {
                 let cur = SettingsCategory::ALL
                     .iter()
-                    .position(|c| *c == dialog.category)
+                    .position(|c| *c == dialog.sidebar_focus)
                     .unwrap_or(0);
                 let len = SettingsCategory::ALL.len();
                 let next_idx = if backward {
@@ -202,8 +215,7 @@ impl DesktopApp {
                 } else {
                     (cur + 1) % len
                 };
-                let next = SettingsCategory::ALL[next_idx];
-                return Task::done(Message::SettingsCategorySelected(next));
+                dialog.sidebar_focus = SettingsCategory::ALL[next_idx];
             }
             SettingsSection::Content => {
                 let current = dialog
@@ -258,15 +270,14 @@ impl DesktopApp {
         if dialog.section == SettingsSection::Sidebar {
             let cur = SettingsCategory::ALL
                 .iter()
-                .position(|c| *c == dialog.category)
+                .position(|c| *c == dialog.sidebar_focus)
                 .unwrap_or(0) as i32;
             let len = SettingsCategory::ALL.len() as i32;
             let next = cur - direction;
             if next < 0 || next >= len {
                 return Task::none();
             }
-            let target = SettingsCategory::ALL[next as usize];
-            return Task::done(Message::SettingsCategorySelected(target));
+            dialog.sidebar_focus = SettingsCategory::ALL[next as usize];
         }
         Task::none()
     }

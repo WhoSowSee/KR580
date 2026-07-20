@@ -21,7 +21,7 @@ impl DesktopApp {
         self.import_target_highlight = None;
         self.import_target_scroll_visible_ticks = 0;
         self.import_error = None;
-        self.open_menu = None;
+        self.close_top_menu();
         self.hide_opcode_dropdown();
     }
 
