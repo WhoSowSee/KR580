@@ -273,7 +273,10 @@ worth eyeballing after touching `crates/ui`:
   landscape is selected; open Properties,
   visit Favorites, General, Paper, Graphics, and Advanced, and confirm feature,
   option, and parameter labels follow the selected app language without exposing
-  raw QName prefixes or `PageDevmodeSnapshot`; change a driver option, close it,
+  raw QName prefixes or `PageDevmodeSnapshot`; with Windows and the printer
+  driver using Russian, switch the application to English and confirm those
+  rows contain no Cyrillic, including altitude correction, print quality,
+  duplex mode, and automatic paper-source selection; change a driver option, close it,
   and confirm the emulator remains responsive and refreshes the top-level
   controls; confirm dropdown panels keep a gap below their anchors, retain
   the bottom border under the final option in both setup windows, and close

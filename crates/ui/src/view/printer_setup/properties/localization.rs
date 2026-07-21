@@ -1,6 +1,8 @@
 use crate::i18n::Lang;
 use k580_ui::devices::printer::{PrinterFeature, PrinterFeatureOption, PrinterParameter};
 
+mod en;
+
 #[cfg(test)]
 mod tests;
 
@@ -11,9 +13,7 @@ pub(super) fn feature_label(feature: &PrinterFeature, lang: Lang) -> String {
             .map(str::to_owned)
             .or_else(|| has_cyrillic(&feature.display_name).then(|| feature.display_name.clone()))
             .unwrap_or_else(|| humanize_ru(local)),
-        Lang::En => en_feature(local)
-            .map(str::to_owned)
-            .unwrap_or_else(|| feature.display_name.clone()),
+        Lang::En => en::feature(local, &feature.display_name),
     }
 }
 
@@ -41,7 +41,7 @@ pub(super) fn parameter_label(parameter: &PrinterParameter, lang: Lang) -> Strin
                 has_cyrillic(&parameter.display_name).then(|| parameter.display_name.clone())
             })
             .unwrap_or_else(|| humanize_ru(local)),
-        Lang::En => parameter.display_name.clone(),
+        Lang::En => en::parameter(local, &parameter.display_name),
     }
 }
 
@@ -51,7 +51,11 @@ pub(super) fn parameter_visible(parameter: &PrinterParameter) -> bool {
 
 fn option_label(feature: &PrinterFeature, option: &PrinterFeatureOption, lang: Lang) -> String {
     if lang == Lang::En {
-        return option.display_name.clone();
+        return en::option(
+            local_name(&feature.name),
+            local_name(&option.name),
+            &option.display_name,
+        );
     }
     let feature = local_name(&feature.name);
     let option_name = local_name(&option.name);
@@ -75,12 +79,7 @@ fn option_label(feature: &PrinterFeature, option: &PrinterFeatureOption, lang: L
     if let Some(translated) = ru_option(option_name) {
         return translated.to_owned();
     }
-    if has_cyrillic(&option.display_name)
-        || option_name.starts_with('k')
-            && option_name[1..]
-                .chars()
-                .all(|character| character.is_ascii_digit())
-    {
+    if has_cyrillic(&option.display_name) || is_opaque_option(option_name) {
         return option.display_name.clone();
     }
     humanize_ru(option_name)
@@ -139,26 +138,6 @@ fn ru_feature(name: &str) -> Option<&'static str> {
         "DocumentSkipBlankPages" => "Пропускать пустые страницы",
         "DocumentFineEdge" => "Усиление контуров",
         "JobAutoConfiguration" => "Автоматическая конфигурация",
-        _ => return None,
-    })
-}
-
-fn en_feature(name: &str) -> Option<&'static str> {
-    Some(match name {
-        "DocumentColorAdjust" => "Color adjustment",
-        "UsePreferredColor" => "Preferred colors",
-        "PageOutputColor" => "Color mode",
-        "DocumentBlackOptimization" => "Black optimization",
-        "DocumentFirstPageColorOnly" => "Color first page only",
-        "DocumentCmykColorPreservation" => "Preserve CMYK colors",
-        "DocumentDarkenText" => "Clear text",
-        "DocumentAllTextToBlack" => "Print all text in black",
-        "DocumentFineEdge" => "Edge enhancement",
-        "DocumentTonerSave" => "Toner saving",
-        "JobPageOrder" => "Page order",
-        "DocumentSkipBlankPages" => "Skip blank pages",
-        "PageWatermark" => "Watermark",
-        "DocumentNUp" => "Pages per sheet",
         _ => return None,
     })
 }
@@ -373,6 +352,12 @@ fn has_cyrillic(value: &str) -> bool {
     value
         .chars()
         .any(|character| matches!(character, '\u{0400}'..='\u{04FF}'))
+}
+
+fn is_opaque_option(name: &str) -> bool {
+    name.strip_prefix('k').is_some_and(|value| {
+        !value.is_empty() && value.chars().all(|character| character.is_ascii_digit())
+    })
 }
 
 fn local_name(name: &str) -> &str {
