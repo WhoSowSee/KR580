@@ -12,6 +12,9 @@ impl DesktopApp {
         message: &Message,
     ) -> Option<Task<Message>> {
         self.printer_setup_dialog.as_ref()?;
+        if let Message::PrinterSetupWindowPositionLoaded(position) = message {
+            return Some(self.open_detached_printer_setup_window(*position));
+        }
         if self
             .printer_setup_dialog
             .as_ref()
@@ -78,12 +81,14 @@ impl DesktopApp {
             }
             Message::PrinterSetupProperties => Some(self.open_selected_printer_properties()),
             Message::PrinterSetupConfirmed => {
+                let close = self.close_detached_printer_setup_window();
                 self.confirm_printer_setup_dialog();
-                Some(Task::none())
+                Some(close)
             }
             Message::ClosePrinterSetup => {
+                let close = self.close_detached_printer_setup_window();
                 self.close_printer_setup_dialog();
-                Some(Task::none())
+                Some(close)
             }
             Message::EscPressed => {
                 if self
@@ -93,7 +98,9 @@ impl DesktopApp {
                 {
                     self.close_printer_setup_dropdown();
                 } else {
+                    let close = self.close_detached_printer_setup_window();
                     self.close_printer_setup_dialog();
+                    return Some(close);
                 }
                 Some(Task::none())
             }
@@ -257,7 +264,7 @@ impl DesktopApp {
         }
     }
 
-    fn close_printer_setup_dialog(&mut self) {
+    pub(super) fn close_printer_setup_dialog(&mut self) {
         self.printer_setup_dialog = None;
         self.printer_setup_pending = false;
     }

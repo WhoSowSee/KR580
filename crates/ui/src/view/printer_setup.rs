@@ -34,6 +34,34 @@ pub(super) fn with_printer_setup_overlay<'a>(
     }
 }
 
+pub(super) fn printer_setup_window_view<'a>(
+    dialog: Option<&'a PrinterSetupDialog>,
+    lang: Lang,
+) -> Element<'a, Message> {
+    let Some(dialog) = dialog.filter(|dialog| dialog.owner_ready) else {
+        return Space::new().into();
+    };
+    printer_setup_panel(dialog, lang, Length::Fill, Length::Fill)
+}
+
+pub(super) fn printer_properties_window_view<'a>(
+    dialog: Option<&'a PrinterSetupDialog>,
+    lang: Lang,
+) -> Element<'a, Message> {
+    let Some((dialog, properties)) = dialog
+        .filter(|dialog| dialog.properties_surface_ready)
+        .and_then(|dialog| {
+            dialog
+                .properties
+                .as_ref()
+                .map(|properties| (dialog, properties))
+        })
+    else {
+        return Space::new().into();
+    };
+    properties::printer_properties_window_view(dialog, properties, lang)
+}
+
 pub(super) fn printer_setup_modal_overlay<'a>(
     dialog: &'a PrinterSetupDialog,
     lang: Lang,
@@ -48,11 +76,35 @@ pub(super) fn printer_setup_modal_overlay<'a>(
             .style(modal_backdrop_style),
     )
     .on_press(Message::ClosePrinterSetup);
+    let panel = printer_setup_panel(dialog, lang, Length::Fixed(DIALOG_WIDTH), Length::Shrink);
+    let centred = container(opaque(panel))
+        .center_x(Length::Fill)
+        .center_y(Length::Fill);
+
+    stack![opaque(backdrop), centred]
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+fn printer_setup_panel<'a>(
+    dialog: &'a PrinterSetupDialog,
+    lang: Lang,
+    width: Length,
+    height: Length,
+) -> Element<'a, Message> {
+    let properties_open = dialog.properties.is_some();
+    let close_enabled = !properties_open;
     let close = modal_icon_button_focused(
         icons::window_close(),
-        Message::ClosePrinterSetup,
+        Some(if properties_open {
+            Message::PrinterPropertiesAttentionRequested
+        } else {
+            Message::ClosePrinterSetup
+        }),
         label(lang, Label::Close),
         34.0,
+        close_enabled,
         dialog.focus_is_visible(PrinterSetupFocus::Close),
     );
     let header = row![
@@ -86,23 +138,32 @@ pub(super) fn printer_setup_modal_overlay<'a>(
     ]
     .spacing(16)
     .height(Length::Fixed(SETTINGS_GROUP_HEIGHT));
-    let ready = dialog.configuration.is_some()
+    let ready = !properties_open
+        && dialog.configuration.is_some()
         && !dialog.configuration_loading
         && !dialog.properties_pending;
     let footer = row![
         Space::new().width(Length::Fill),
         footer_button(
             label(lang, Label::Cancel),
-            true,
-            dialog.focus_is_visible(PrinterSetupFocus::Cancel),
+            close_enabled,
+            close_enabled && dialog.focus_is_visible(PrinterSetupFocus::Cancel),
         )
-        .on_press(Message::ClosePrinterSetup),
+        .on_press(if properties_open {
+            Message::PrinterPropertiesAttentionRequested
+        } else {
+            Message::ClosePrinterSetup
+        }),
         footer_button(
             label(lang, Label::Ok),
             ready,
             dialog.focus_is_visible(PrinterSetupFocus::Ok),
         )
-        .on_press_maybe(ready.then_some(Message::PrinterSetupConfirmed)),
+        .on_press_maybe(if properties_open {
+            Some(Message::PrinterPropertiesAttentionRequested)
+        } else {
+            ready.then_some(Message::PrinterSetupConfirmed)
+        }),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
@@ -113,29 +174,9 @@ pub(super) fn printer_setup_modal_overlay<'a>(
         let error: Element<'a, Message> = ui_text(error, 12, tokyo_red()).into();
         content = content.push(error);
     }
-    let panel = container(
-        content
-            .push(footer)
-            .spacing(12)
-            .padding(18)
-            .width(Length::Fixed(DIALOG_WIDTH)),
-    )
-    .style(panel_style);
-
-    let centred = column![
-        Space::new().height(Length::Fill),
-        row![
-            Space::new().width(Length::Fill),
-            opaque(panel),
-            Space::new().width(Length::Fill),
-        ],
-        Space::new().height(Length::Fill),
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill);
-
-    stack![opaque(backdrop), centred]
-        .width(Length::Fill)
-        .height(Length::Fill)
+    container(content.push(footer).spacing(12).padding(18).width(width))
+        .width(width)
+        .height(height)
+        .style(panel_style)
         .into()
 }

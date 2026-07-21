@@ -37,18 +37,19 @@ pub(crate) mod theme;
 mod tooltips;
 mod utils;
 mod widgets;
+mod windows;
 
 use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
 
 use modal::discard_modal_overlay;
-use monitor::{monitor_window, monitor_window_overlay};
-use network::{network_window, network_window_overlay};
+use monitor::monitor_window_overlay;
+use network::network_window_overlay;
 use notices::{error_notice_overlay, halt_notice_overlay, with_settings_saved_notice};
-use printer::{printer_window, printer_window_overlay};
+use printer::printer_window_overlay;
 use printer_setup::with_printer_setup_overlay;
 use settings_dialog::settings_modal_overlay;
-use storage::{floppy_window, floppy_window_overlay, hdd_window, hdd_window_overlay};
+use storage::{floppy_window_overlay, hdd_window_overlay};
 use styles::app_style;
 
 use about::about_modal_overlay;
@@ -76,73 +77,6 @@ pub(super) const VIEW_MENU_DROPDOWN_LEFT: f32 = 130.0;
 pub(super) const HELP_MENU_DROPDOWN_LEFT: f32 = 308.0;
 
 impl DesktopApp {
-    pub(crate) fn view(&self, window: iced::window::Id) -> Element<'_, Message> {
-        theme::set_active_color_scheme(self.color_scheme);
-        if self.monitor_window.id == Some(window) {
-            if !self.monitor_window.detached {
-                return Space::new().into();
-            }
-            return monitor_window(
-                &self.snapshot.devices.monitor,
-                self.monitor_split,
-                self.monitor_hex_popup,
-                self.monitor_hex_filter,
-                self.monitor_hex_scroll_visible_ticks > 0,
-                self.monitor_window.always_on_top,
-                self.lang,
-            );
-        }
-        if self.floppy_window.id == Some(window) {
-            if !self.floppy_window.detached {
-                return Space::new().into();
-            }
-            return floppy_window(
-                &self.snapshot.devices.floppy,
-                self.floppy_show_image_contents,
-                &self.floppy_image_contents,
-                self.floppy_image_error.as_deref(),
-                self.floppy_window.always_on_top,
-                self.lang,
-            );
-        }
-        if self.hdd_window.id == Some(window) {
-            if !self.hdd_window.detached {
-                return Space::new().into();
-            }
-            return hdd_window(
-                &self.snapshot.devices.hdd,
-                self.hdd_file_exists,
-                self.hdd_show_image_contents,
-                &self.hdd_image_contents,
-                self.hdd_image_error.as_deref(),
-                self.hdd_window.always_on_top,
-                self.lang,
-            );
-        }
-        if self.network_window.id == Some(window) {
-            if !self.network_window.detached {
-                return Space::new().into();
-            }
-            return network_window(self.network_view_state(), self.network_window.always_on_top);
-        }
-        if self.printer_window.id == Some(window) {
-            if !self.printer_window.detached {
-                return Space::new().into();
-            }
-            return printer_window(
-                &self.snapshot.devices.printer,
-                self.printer_text_view,
-                self.printer_target_label(),
-                self.printer_window.always_on_top,
-                self.lang,
-            );
-        }
-        if self.main_window_id != Some(window) {
-            return Space::new().into();
-        }
-        self.main_view()
-    }
-
     fn main_view(&self) -> Element<'_, Message> {
         let main = row![self.schematic_panel(), self.side_panel()]
             .spacing(8)
@@ -373,7 +307,13 @@ impl DesktopApp {
         };
 
         with_settings_saved_notice(
-            with_printer_setup_overlay(layered, self.printer_setup_dialog.as_ref(), self.lang),
+            with_printer_setup_overlay(
+                layered,
+                self.printer_setup_dialog
+                    .as_ref()
+                    .filter(|_| !self.printer_setup_uses_detached_window()),
+                self.lang,
+            ),
             self.settings_saved_notice,
             self.lang,
         )

@@ -1,8 +1,10 @@
+mod events;
+
 use std::path::PathBuf;
 
 use iced::{Size, Task, window};
 
-use super::{DesktopApp, Message, PendingAction, ToolWindowKind};
+use super::{DesktopApp, Message, ToolWindowKind};
 use crate::i18n::Key;
 use crate::platform;
 
@@ -178,78 +180,6 @@ impl DesktopApp {
         window::set_level(id, level)
     }
 
-    fn window_opened(&mut self, id: window::Id) -> Task<Message> {
-        if let Some(kind) = self.tool_window_kind(id) {
-            let detached = {
-                let state = self.tool_window_mut(kind);
-                state.ready = true;
-                state.detached
-            };
-            let prepare = iced::window::run(id, |window| {
-                platform::set_rounded_corners(window);
-            })
-            .discard();
-            return if detached {
-                prepare.chain(self.show_tool_window(kind, id))
-            } else {
-                prepare
-            };
-        }
-        if self.main_window_id != Some(id) {
-            return Task::none();
-        }
-        Task::batch([
-            iced::window::run(id, |window| platform::cloak_window(window, true)).discard(),
-            iced::window::run(id, |window| platform::set_rounded_corners(window)).discard(),
-            iced::window::set_mode(id, iced::window::Mode::Windowed),
-            iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
-        ])
-    }
-
-    fn window_closed(&mut self, id: window::Id) -> Task<Message> {
-        if let Some(kind) = self.tool_window_kind(id) {
-            *self.tool_window_mut(kind) = Default::default();
-            self.reset_tool_window_presentation(kind);
-            return Task::none();
-        }
-        if self.main_window_id != Some(id) {
-            return Task::none();
-        }
-        self.main_window_id = None;
-        let close_windows = TOOL_WINDOWS.into_iter().filter_map(|kind| {
-            self.reset_tool_window_presentation(kind);
-            self.tool_window_mut(kind).id.take().map(window::close)
-        });
-        Task::batch(close_windows).chain(iced::exit())
-    }
-
-    fn window_close_requested(&mut self, id: window::Id) -> Task<Message> {
-        if let Some(kind) = self.tool_window_kind(id) {
-            return self.close_tool_window(kind);
-        }
-        if self.main_window_id != Some(id) {
-            return Task::none();
-        }
-        if self.dirty {
-            self.open_discard_modal(PendingAction::CloseWindow);
-            Task::none()
-        } else {
-            window::close(id)
-        }
-    }
-
-    fn frame_rendered(&mut self) -> Task<Message> {
-        if self.startup_frames_seen < u8::MAX {
-            self.startup_frames_seen = self.startup_frames_seen.saturating_add(1);
-        }
-        if self.startup_frames_seen != 2 {
-            return Task::none();
-        }
-        self.main_window_id.map_or_else(Task::none, |id| {
-            iced::window::run(id, |window| platform::cloak_window(window, false)).discard()
-        })
-    }
-
     fn drag_main_window(&mut self) -> Task<Message> {
         if self.close_titlebar_popup_before_drag() {
             return Task::none();
@@ -276,8 +206,13 @@ impl DesktopApp {
     }
 
     fn close_tool_window(&mut self, kind: ToolWindowKind) -> Task<Message> {
+        let close_setup = if kind == ToolWindowKind::Printer {
+            self.cancel_detached_printer_setup()
+        } else {
+            Task::none()
+        };
         self.reset_tool_window_presentation(kind);
-        self.hide_or_close_tool_window(kind)
+        Task::batch([close_setup, self.hide_or_close_tool_window(kind)])
     }
 
     fn reset_tool_window_presentation(&mut self, kind: ToolWindowKind) {

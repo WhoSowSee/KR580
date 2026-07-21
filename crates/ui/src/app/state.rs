@@ -152,6 +152,8 @@ pub(crate) struct DesktopApp {
     pub(crate) printer_dialog_mode: PrinterDialogMode,
     pub(crate) printer_session_settings: Option<k580_ui::devices::printer::PrinterSettings>,
     pub(crate) printer_setup_dialog: Option<PrinterSetupDialog>,
+    pub(crate) printer_setup_window_id: Option<iced::window::Id>,
+    pub(crate) printer_properties_window_id: Option<iced::window::Id>,
     pub(crate) printer_setup_pending: bool,
     /// Bumped whenever the OS file-association state changes so the
     /// settings overlay re-renders even when the dialog struct itself
@@ -327,6 +329,8 @@ impl DesktopApp {
             printer_dialog_mode: settings.general.printer_dialog_mode,
             printer_session_settings: None,
             printer_setup_dialog: None,
+            printer_setup_window_id: None,
+            printer_properties_window_id: None,
             printer_setup_pending: false,
             file_association_toggle_revision: 0,
             file_association_last_registered: k580_ui::file_assoc::is_registered(),

@@ -3,6 +3,7 @@ mod properties;
 mod tasks;
 #[cfg(test)]
 mod tests;
+mod window;
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -16,6 +17,8 @@ use k580_ui::devices::printer::{
     PrinterConfiguration, PrinterInfo, PrinterPropertySheet, PrinterSettings,
 };
 use tasks::{configure_native_printer_blocking, list_native_printers_blocking};
+
+const PRINTER_PROPERTIES_ATTENTION_DURATION: Duration = Duration::from_millis(520);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PrinterSetupTarget {
@@ -120,6 +123,7 @@ pub(crate) struct PrinterPropertiesDialog {
     pub(crate) focus_visible: bool,
     pub(crate) preview_text: String,
     pub(crate) error: Option<String>,
+    attention_started_at: Option<Instant>,
 }
 
 impl PrinterPropertiesDialog {
@@ -139,7 +143,30 @@ impl PrinterPropertiesDialog {
             focus_visible: false,
             preview_text,
             error: None,
+            attention_started_at: None,
         }
+    }
+
+    fn restart_attention(&mut self, now: Instant) {
+        self.attention_started_at = Some(now);
+    }
+
+    fn expire_attention(&mut self, now: Instant) {
+        if self.attention_started_at.is_some_and(|started_at| {
+            now.saturating_duration_since(started_at) >= PRINTER_PROPERTIES_ATTENTION_DURATION
+        }) {
+            self.attention_started_at = None;
+        }
+    }
+
+    pub(crate) fn attention_strength(&self, now: Instant) -> f32 {
+        let Some(started_at) = self.attention_started_at else {
+            return 0.0;
+        };
+        let progress = (now.saturating_duration_since(started_at).as_secs_f32()
+            / PRINTER_PROPERTIES_ATTENTION_DURATION.as_secs_f32())
+        .clamp(0.0, 1.0);
+        (std::f32::consts::PI * progress).sin()
     }
 
     pub(crate) fn sync_parameter_values(&mut self) {
@@ -161,6 +188,9 @@ impl PrinterPropertiesDialog {
 #[derive(Clone, Debug)]
 pub(crate) struct PrinterSetupDialog {
     pub(crate) target: PrinterSetupTarget,
+    pub(crate) owner_ready: bool,
+    pub(crate) owner_position: Option<iced::Point>,
+    pub(crate) properties_surface_ready: bool,
     pub(crate) printers: Vec<PrinterInfo>,
     pub(crate) selected_name: Option<String>,
     pub(crate) configuration: Option<PrinterConfiguration>,
@@ -179,6 +209,9 @@ impl PrinterSetupDialog {
     fn new(target: PrinterSetupTarget, selected_name: Option<String>) -> Self {
         Self {
             target,
+            owner_ready: true,
+            owner_position: None,
+            properties_surface_ready: true,
             printers: Vec::new(),
             selected_name,
             configuration: None,
@@ -207,6 +240,15 @@ impl PrinterSetupDialog {
 }
 
 impl DesktopApp {
+    pub(crate) fn printer_setup_uses_detached_window(&self) -> bool {
+        self.printer_open
+            && self.printer_window.detached
+            && self
+                .printer_setup_dialog
+                .as_ref()
+                .is_some_and(|dialog| dialog.target == PrinterSetupTarget::Session)
+    }
+
     pub(crate) fn print_printer_native(&mut self) {
         self.dispatch_sync(crate::backend::AppCommand::PrintPrinterNative(
             self.active_printer_settings().cloned(),
@@ -326,9 +368,17 @@ impl DesktopApp {
         };
         self.printer_setup_pending = true;
         self.printer_setup_dialog = Some(PrinterSetupDialog::new(target, selected_name));
-        Task::perform(
-            list_native_printers_blocking(),
-            crate::app::Message::PrinterSetupLoaded,
-        )
+        if self.printer_setup_uses_detached_window()
+            && let Some(dialog) = self.printer_setup_dialog.as_mut()
+        {
+            dialog.owner_ready = false;
+        }
+        Task::batch([
+            self.prepare_detached_printer_dialog(),
+            Task::perform(
+                list_native_printers_blocking(),
+                crate::app::Message::PrinterSetupLoaded,
+            ),
+        ])
     }
 }

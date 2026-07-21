@@ -24,6 +24,11 @@ pub(super) fn footer_button(
     .height(Length::Fixed(36.0))
     .padding(0)
     .style(move |_theme, status| {
+        let status = if enabled {
+            status
+        } else {
+            button::Status::Disabled
+        };
         let mut style = modal_field_button_style(status);
         if focused {
             style.border.color = tokyo_blue();

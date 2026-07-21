@@ -291,6 +291,18 @@ worth eyeballing after touching `crates/ui`:
   dialog appears, then switch back to the emulator window; with a long printer
   name, confirm the clear icon stays fixed at the right edge of the row; clear
   the row and confirm it returns to the OS default target;
+- detach the Printer device window, open Print Setup from its header, and confirm
+  setup plus nested Properties render over the detached printer instead of the
+  main emulator; verify each native dialog hugs its panel with no empty backdrop,
+  stays centred over the Printer, and uses a separate `1040×680` Properties
+  window above the unchanged `720×500` Setup window; neither dialog may resize
+  the Printer from its original `760×340` bounds, and Properties must appear at
+  its final text scale immediately without stretching the Setup window; while
+  Properties is open, confirm Setup's close glyph, Cancel, and OK buttons stay
+  muted with unchanged borders; try each control and a native Setup close request,
+  confirm Properties receives focus plus a clearly visible but restrained 520 ms
+  surface-and-border pulse that rises and fades once, then close Properties and
+  confirm the parent controls become active;
 - send bytes to port `04h`, open the Принтер quick-access chip, and confirm
   the buffer renders as uppercase HEX with four-digit offsets and 16 bytes
   per line; toggle the `type` button and confirm CP866 text appears without

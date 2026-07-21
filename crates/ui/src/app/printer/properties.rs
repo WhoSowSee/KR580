@@ -35,18 +35,23 @@ impl DesktopApp {
             .filter(|preset| preset.settings.printer_name == printer.name)
             .collect();
         let preview_text = decode_oem_text(&self.snapshot.devices.printer.spool);
+        let detached_surface = self.printer_setup_uses_detached_window();
         if let Some(dialog) = self.printer_setup_dialog.as_mut() {
             dialog.properties_pending = true;
             dialog.properties = Some(PrinterPropertiesDialog::new(preview_text, presets));
+            dialog.properties_surface_ready = !detached_surface;
         }
         let printer_name = printer.name.clone();
-        Task::perform(
-            load_native_printer_properties_blocking(printer, settings),
-            move |result| Message::PrinterPropertiesLoaded {
-                printer_name,
-                result,
-            },
-        )
+        Task::batch([
+            self.open_detached_printer_properties_window(),
+            Task::perform(
+                load_native_printer_properties_blocking(printer, settings),
+                move |result| Message::PrinterPropertiesLoaded {
+                    printer_name,
+                    result,
+                },
+            ),
+        ])
     }
 
     pub(super) fn route_printer_properties_message(
@@ -54,6 +59,9 @@ impl DesktopApp {
         message: &Message,
     ) -> Option<Task<Message>> {
         match message {
+            Message::PrinterPropertiesAttentionRequested => {
+                Some(self.request_printer_properties_attention())
+            }
             Message::PrinterPropertiesLoaded {
                 printer_name,
                 result,
@@ -161,11 +169,11 @@ impl DesktopApp {
             }
             Message::PrinterPropertyConfirmed => {
                 self.confirm_printer_properties();
-                Some(Task::none())
+                Some(self.close_detached_printer_properties_window())
             }
             Message::ClosePrinterProperties => {
                 self.close_printer_properties();
-                Some(Task::none())
+                Some(self.close_detached_printer_properties_window())
             }
             Message::EscPressed => {
                 if self
@@ -173,10 +181,11 @@ impl DesktopApp {
                     .is_some_and(|properties| properties.open_dropdown.is_some())
                 {
                     self.close_property_dropdown();
+                    Some(Task::none())
                 } else {
                     self.close_printer_properties();
+                    Some(self.close_detached_printer_properties_window())
                 }
-                Some(Task::none())
             }
             Message::EnterPressed => Some(self.activate_printer_properties_focus()),
             Message::FocusCycle { backward } => {
@@ -195,8 +204,13 @@ impl DesktopApp {
                 }
                 Some(Task::none())
             }
-            Message::Tick
-            | Message::CursorMoved(_)
+            Message::Tick => {
+                if let Some(properties) = self.properties_mut() {
+                    properties.expire_attention(std::time::Instant::now());
+                }
+                None
+            }
+            Message::CursorMoved(_)
             | Message::ModifiersChanged(_)
             | Message::FocusReconciled { .. }
             | Message::ResolveFocusedTracker(_) => None,
@@ -322,7 +336,7 @@ impl DesktopApp {
         }
     }
 
-    fn close_printer_properties(&mut self) {
+    pub(super) fn close_printer_properties(&mut self) {
         if let Some(dialog) = self.printer_setup_dialog.as_mut() {
             dialog.properties = None;
             dialog.properties_pending = false;

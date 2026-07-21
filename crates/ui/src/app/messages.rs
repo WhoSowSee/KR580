@@ -1,9 +1,7 @@
 use super::register_inline::RegisterMove;
 use crate::i18n::Lang;
 use crate::persistence::{ColorScheme, PrinterDialogMode, ShortcutAction, ShortcutBinding};
-use iced::Point;
-use iced::keyboard;
-use iced::widget::text_editor;
+use iced::{Point, keyboard, widget::text_editor};
 use k580_core::RegisterName;
 use k580_ui::devices::printer::{
     PrinterConfiguration, PrinterInfo, PrinterOrientation, PrinterPropertyChange,
@@ -319,6 +317,7 @@ pub(crate) enum Message {
     PrintPrinterNative,
     ConfigurePrinterSession,
     PrinterSessionSetupFinished(Result<Option<PrinterSettings>, String>),
+    PrinterSetupWindowPositionLoaded(Option<Point>),
     PrinterSetupLoaded(Result<Vec<PrinterInfo>, String>),
     PrinterSetupSelected(String),
     PrinterSetupConfigurationLoaded {
@@ -331,6 +330,7 @@ pub(crate) enum Message {
     PrinterSetupSourceSelected(i16),
     PrinterSetupOrientationSelected(PrinterOrientation),
     PrinterSetupProperties,
+    PrinterPropertiesAttentionRequested,
     PrinterPropertiesLoaded {
         printer_name: String,
         result: Result<PrinterPropertySheet, String>,

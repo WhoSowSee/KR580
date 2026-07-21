@@ -1,7 +1,31 @@
 use iced::widget::{button, container, text_input};
 use iced::{Background, Border, Color, Shadow};
 
-use super::super::super::theme::{tokyo_blue, tokyo_border, tokyo_muted, tokyo_text};
+use super::super::super::theme::{
+    tokyo_blue, tokyo_board, tokyo_border, tokyo_muted, tokyo_surface_2, tokyo_text,
+};
+
+pub(super) fn attention_panel_style(theme: &iced::Theme, strength: f32) -> container::Style {
+    let mut style = crate::view::styles::panel_style(theme);
+    let strength = strength.clamp(0.0, 1.0);
+    style.background = Some(Background::Color(mix_color(
+        tokyo_board(),
+        tokyo_surface_2(),
+        strength * 0.32,
+    )));
+    style.border.color = mix_color(tokyo_border(), tokyo_blue(), strength * 0.6);
+    style.border.width = 1.0 + strength * 0.4;
+    style
+}
+
+fn mix_color(from: Color, to: Color, amount: f32) -> Color {
+    Color {
+        r: from.r + (to.r - from.r) * amount,
+        g: from.g + (to.g - from.g) * amount,
+        b: from.b + (to.b - from.b) * amount,
+        a: from.a + (to.a - from.a) * amount,
+    }
+}
 
 pub(super) fn tab_style(
     active: bool,

@@ -244,23 +244,25 @@ pub(super) fn modal_icon_button(
     tooltip_text: &'static str,
     size: f32,
 ) -> Element<'static, Message> {
-    modal_icon_button_focused(handle, message, tooltip_text, size, false)
+    modal_icon_button_focused(handle, Some(message), tooltip_text, size, true, false)
 }
 
 pub(super) fn modal_icon_button_focused(
     handle: svg::Handle,
-    message: Message,
+    message: Option<Message>,
     tooltip_text: &'static str,
     size: f32,
+    enabled: bool,
     focused: bool,
 ) -> Element<'static, Message> {
     const GLYPH_SIZE: f32 = 18.0;
 
+    let glyph_color = if enabled { tokyo_text() } else { tokyo_muted() };
     let glyph = svg(handle)
         .width(Length::Fixed(GLYPH_SIZE))
         .height(Length::Fixed(GLYPH_SIZE))
-        .style(|_theme, _status| svg::Style {
-            color: Some(tokyo_text()),
+        .style(move |_theme, _status| svg::Style {
+            color: Some(glyph_color),
         });
     let face = button(
         container(glyph)
@@ -269,13 +271,18 @@ pub(super) fn modal_icon_button_focused(
             .align_x(alignment::Horizontal::Center)
             .align_y(alignment::Vertical::Center),
     )
-    .on_press(message)
+    .on_press_maybe(message)
     .padding(0)
     .width(Length::Fixed(size))
     .height(Length::Fixed(size))
     .style(move |_theme, status| {
+        let status = if enabled {
+            status
+        } else {
+            button::Status::Disabled
+        };
         let mut style = super::styles::modal_field_button_style(status);
-        if focused {
+        if focused && enabled {
             style.border.color = tokyo_blue();
         }
         style

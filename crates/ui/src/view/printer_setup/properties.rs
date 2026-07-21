@@ -6,7 +6,7 @@ mod preview;
 mod styles;
 
 use self::labels::{PropertyLabel, label};
-use self::styles::{active_tab_line, tab_style};
+use self::styles::{active_tab_line, attention_panel_style, tab_style};
 use super::styles::{footer_button, separator};
 use crate::app::{
     Message, PrinterPropertiesDialog, PrinterPropertiesFocus, PrinterPropertiesTab,
@@ -14,11 +14,12 @@ use crate::app::{
 };
 use crate::i18n::Lang;
 use crate::view::icons;
-use crate::view::styles::{modal_backdrop_style, panel_style};
+use crate::view::styles::modal_backdrop_style;
 use crate::view::theme::{tokyo_red, tokyo_text, ui_text};
 use crate::view::widgets::modal_icon_button_focused;
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack};
 use iced::{Alignment, Element, Length, alignment};
+use std::time::Instant;
 
 const DIALOG_WIDTH: f32 = 1040.0;
 
@@ -34,13 +35,45 @@ pub(super) fn printer_properties_modal_overlay<'a>(
             .style(modal_backdrop_style),
     )
     .on_press(Message::ClosePrinterProperties);
+    let panel = printer_properties_panel(
+        setup,
+        properties,
+        lang,
+        Length::Fixed(DIALOG_WIDTH),
+        Length::Shrink,
+    );
+    let centred = container(opaque(panel))
+        .center_x(Length::Fill)
+        .center_y(Length::Fill);
+    stack![opaque(backdrop), centred]
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
+}
+
+pub(super) fn printer_properties_window_view<'a>(
+    setup: &'a PrinterSetupDialog,
+    properties: &'a PrinterPropertiesDialog,
+    lang: Lang,
+) -> Element<'a, Message> {
+    printer_properties_panel(setup, properties, lang, Length::Fill, Length::Fill)
+}
+
+fn printer_properties_panel<'a>(
+    setup: &'a PrinterSetupDialog,
+    properties: &'a PrinterPropertiesDialog,
+    lang: Lang,
+    width: Length,
+    height: Length,
+) -> Element<'a, Message> {
     let printer_name = setup.selected_name.as_deref().unwrap_or_default();
     let title = format!("{}: {}", label(lang, PropertyLabel::Title), printer_name);
     let close = modal_icon_button_focused(
         icons::window_close(),
-        Message::ClosePrinterProperties,
+        Some(Message::ClosePrinterProperties),
         label(lang, PropertyLabel::Cancel),
         34.0,
+        true,
         properties.focus_is_visible(PrinterPropertiesFocus::Close),
     );
     let header = row![
@@ -78,30 +111,19 @@ pub(super) fn printer_properties_modal_overlay<'a>(
         let error: Element<'a, Message> = ui_text(error, 12, tokyo_red()).into();
         panel_content = panel_content.push(error);
     }
-    let panel = container(
+    let attention = properties.attention_strength(Instant::now());
+    container(
         panel_content
             .push(separator())
             .push(footer)
             .spacing(12)
             .padding(18)
-            .width(Length::Fixed(DIALOG_WIDTH)),
+            .width(width),
     )
-    .style(panel_style);
-    let centred = column![
-        Space::new().height(Length::Fill),
-        row![
-            Space::new().width(Length::Fill),
-            opaque(panel),
-            Space::new().width(Length::Fill),
-        ],
-        Space::new().height(Length::Fill),
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill);
-    stack![opaque(backdrop), centred]
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    .width(width)
+    .height(height)
+    .style(move |theme| attention_panel_style(theme, attention))
+    .into()
 }
 
 fn tabs(properties: &PrinterPropertiesDialog, lang: Lang) -> Element<'static, Message> {
