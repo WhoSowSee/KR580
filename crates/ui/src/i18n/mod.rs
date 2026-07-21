@@ -25,6 +25,14 @@ pub(crate) use printer::PrinterKey;
 
 use crate::persistence::Language as PersistedLanguage;
 
+pub(crate) fn lowercase_initial(value: &str) -> String {
+    let mut characters = value.chars();
+    let Some(first) = characters.next() else {
+        return String::new();
+    };
+    first.to_lowercase().chain(characters).collect()
+}
+
 /// Active UI language. Mirrors `crate::persistence::Language` so the two
 /// can be converted explicitly without persistence depending on UI.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -63,7 +71,7 @@ impl Lang {
 
 #[cfg(test)]
 mod tests {
-    use super::{Key, Lang};
+    use super::{Key, Lang, lowercase_initial};
     use crate::persistence::Language as PersistedLanguage;
 
     #[test]
@@ -95,6 +103,14 @@ mod tests {
         }
         assert_eq!(Lang::from_persistence(PersistedLanguage::Ru), Lang::Ru);
         assert_eq!(Lang::from_persistence(PersistedLanguage::En), Lang::En);
+    }
+
+    #[test]
+    fn localized_footer_values_lowercase_unicode_initials() {
+        assert_eq!(lowercase_initial("Refused"), "refused");
+        assert_eq!(lowercase_initial("Отклонено"), "отклонено");
+        assert_eq!(lowercase_initial("127.0.0.1"), "127.0.0.1");
+        assert_eq!(lowercase_initial(""), "");
     }
 
     #[test]

@@ -14,7 +14,7 @@ use self::chrome::{device_backdrop_style, device_buffer_style};
 use super::styles::{panel_style as dialog_style, scrollable_style};
 use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
 use crate::app::Message;
-use crate::i18n::{Key, Lang};
+use crate::i18n::{Key, Lang, lowercase_initial};
 use text::storage_buffer_text;
 
 const WINDOW_WIDTH: f32 = 760.0;
@@ -284,7 +284,7 @@ fn storage_footer<'a>(
 }
 
 pub(in crate::view) fn status_label(status: &DeviceStatus, lang: Lang) -> String {
-    match status {
+    let label = match status {
         DeviceStatus::Ready => lang.t(Key::DeviceStatusReady).to_owned(),
         DeviceStatus::NotReady => lang.t(Key::DeviceStatusNotReady).to_owned(),
         DeviceStatus::Busy => lang.t(Key::DeviceStatusBusy).to_owned(),
@@ -293,7 +293,8 @@ pub(in crate::view) fn status_label(status: &DeviceStatus, lang: Lang) -> String
         DeviceStatus::Listening => lang.t(Key::DeviceStatusListening).to_owned(),
         DeviceStatus::Disconnected => lang.t(Key::DeviceStatusDisconnected).to_owned(),
         DeviceStatus::Error(error) => error.clone(),
-    }
+    };
+    lowercase_initial(&label)
 }
 
 fn buffer_padding(empty: bool) -> Padding {

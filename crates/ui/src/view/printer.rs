@@ -12,7 +12,7 @@ use super::storage::status_label;
 use super::styles::{panel_style, scrollable_style};
 use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
 use crate::app::{Message, ToolWindowKind};
-use crate::i18n::{Key, Lang, PrinterKey};
+use crate::i18n::{Key, Lang, PrinterKey, lowercase_initial};
 
 const WINDOW_WIDTH: f32 = 760.0;
 const WINDOW_HEIGHT: f32 = 340.0;
@@ -209,10 +209,10 @@ fn buffer_panel<'a>(state: &'a PrinterState, text_view: bool, lang: Lang) -> Ele
 }
 
 fn footer(state: &PrinterState, printer_target: String, lang: Lang) -> Element<'static, Message> {
-    let status = match &state.status {
+    let status = lowercase_initial(&match &state.status {
         DeviceStatus::Error(_) => lang.t(Key::Printer(PrinterKey::PrintFailed)).to_owned(),
         status => status_label(status, lang),
-    };
+    });
     let status = format!(
         "{}: {}",
         lang.t(Key::Printer(PrinterKey::Status)),

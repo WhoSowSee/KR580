@@ -8,10 +8,11 @@ use super::icons;
 use super::storage::chrome::{
     device_backdrop_style, device_buffer_style, icon_button, window_controls,
 };
+use super::storage::status_label;
 use super::styles::{panel_style, scrollable_style};
 use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
 use crate::app::{DesktopApp, Message, ToolWindowKind};
-use crate::i18n::{Key, Lang, NetworkKey};
+use crate::i18n::{Key, Lang, NetworkKey, lowercase_initial};
 
 const WINDOW_WIDTH: f32 = 760.0;
 const WINDOW_HEIGHT: f32 = 340.0;
@@ -216,10 +217,10 @@ fn buffer_panel(title: &'static str, text: String) -> Element<'static, Message> 
 }
 
 fn footer<'a>(state: &'a NetworkState, lang: Lang) -> Element<'a, Message> {
-    let mode = match state.mode {
+    let mode = lowercase_initial(match state.mode {
         NetworkMode::Client => lang.t(Key::Network(NetworkKey::ModeClient)),
         NetworkMode::Server => lang.t(Key::Network(NetworkKey::ModeServer)),
-    };
+    });
     let status = network_status(state, lang);
     let meta = format!(
         "{}: {status}   {}: {mode}   {}: {}:{}   {}: {}   {}: {}",
@@ -282,7 +283,7 @@ fn format_last_transmitted_value(bytes: &[u8]) -> String {
 }
 
 fn network_status(state: &NetworkState, lang: Lang) -> String {
-    match &state.connection {
+    let status = match &state.connection {
         ConnectionState::Refused => lang
             .t(Key::Network(NetworkKey::ConnectionRefused))
             .to_owned(),
@@ -291,16 +292,11 @@ fn network_status(state: &NetworkState, lang: Lang) -> String {
             .to_owned(),
         ConnectionState::Error(_) => lang.t(Key::Network(NetworkKey::ConnectionError)).to_owned(),
         _ => match &state.status {
-            DeviceStatus::Ready => lang.t(Key::DeviceStatusReady).to_owned(),
-            DeviceStatus::NotReady => lang.t(Key::DeviceStatusNotReady).to_owned(),
-            DeviceStatus::Busy => lang.t(Key::DeviceStatusBusy).to_owned(),
-            DeviceStatus::NoData => lang.t(Key::DeviceStatusNoData).to_owned(),
-            DeviceStatus::Connected => lang.t(Key::DeviceStatusConnected).to_owned(),
-            DeviceStatus::Listening => lang.t(Key::DeviceStatusListening).to_owned(),
-            DeviceStatus::Disconnected => lang.t(Key::DeviceStatusDisconnected).to_owned(),
             DeviceStatus::Error(_) => lang.t(Key::Network(NetworkKey::ConnectionError)).to_owned(),
+            status => status_label(status, lang),
         },
-    }
+    };
+    lowercase_initial(&status)
 }
 
 #[cfg(test)]
@@ -348,9 +344,10 @@ mod tests {
             status: DeviceStatus::Error("os error 10061".to_owned()),
         };
 
-        assert_eq!(network_status(&state, Lang::Ru), "Ошибка");
+        assert_eq!(network_status(&state, Lang::Ru), "ошибка");
 
         state.connection = ConnectionState::Refused;
-        assert_eq!(network_status(&state, Lang::Ru), "Отклонено");
+        assert_eq!(network_status(&state, Lang::Ru), "отклонено");
+        assert_eq!(network_status(&state, Lang::En), "refused");
     }
 }

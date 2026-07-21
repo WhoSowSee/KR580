@@ -452,6 +452,12 @@ window size is the current main-window size minus the attached modal's two
 60-px edge insets, so detaching preserves the dialog dimensions instead of
 switching to a separate fixed size.
 
+Localized categorical values in every device footer start with a lowercase
+letter after their label and colon in both Russian and English. This contextual
+normalization covers device and connection statuses plus network client/server
+mode without changing standalone button labels, paths, endpoints, printer names,
+or other user-provided values.
+
 The window is a pure read-only view over `AppSnapshot.devices.monitor`
 (`MonitorState`, re-exported through the internal backend module);
 nothing in the window mutates device state.
