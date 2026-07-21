@@ -1,11 +1,3 @@
-//! Left-hand "board" that imitates a CPU schematic with live readouts.
-//!
-//! Everything in this module is a pure function of the latest
-//! `AppSnapshot`: status strip, registers, multiplexer, control lamps,
-//! and the I/O device row. The multiplexer panel lives in `mux.rs` and
-//! the lamp strip in `lamps.rs` so this file stays focused on the
-//! framing logic that ties the panels together.
-
 use iced::widget::{Space, column, container, mouse_area, row};
 use iced::{Element, Length, Padding, alignment};
 use k580_core::{RegisterName, decode_opcode};
@@ -285,14 +277,19 @@ impl DesktopApp {
         .spacing(CENTRAL_COLUMN_SECTION_SPACING)
         .width(Length::Fixed(240.0));
 
+        let (column_spacer, column_spacing) = if fullscreen_layout {
+            (Length::Fixed(FULLSCREEN_SCHEMATIC_COLUMN_GAP), 0.0)
+        } else {
+            (Length::Fill, 20.0)
+        };
         let schematic_body = container(
-            row![left_board, central_column]
-                .spacing(if fullscreen_layout {
-                    FULLSCREEN_SCHEMATIC_COLUMN_GAP
-                } else {
-                    20.0
-                })
-                .align_y(alignment::Vertical::Top),
+            row![
+                left_board,
+                Space::new().width(column_spacer),
+                central_column
+            ]
+            .spacing(column_spacing)
+            .align_y(alignment::Vertical::Top),
         )
         .width(Length::Fill)
         .height(Length::Fill)

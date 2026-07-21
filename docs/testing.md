@@ -90,6 +90,10 @@ forget to rerun the generator.
 Some UI behavior cannot be unit-tested directly with iced 0.14, so it is
 worth eyeballing after touching `crates/ui`:
 
+- at the default `1180×720` window size, confirm the left CPU stack and the
+  mux/status column retain their original wide separation; maximize the window
+  and confirm the two columns remain centred as a compact group with a 72 px gap;
+
 - launch the `k580` binary and confirm there is no white flash on
   Windows (cloak/uncloak via DWM, see `docs/ui_app.md`);
 - run `cargo build --release -p kr580` and double-click
