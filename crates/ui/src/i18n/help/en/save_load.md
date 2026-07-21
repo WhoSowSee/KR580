@@ -1,13 +1,7 @@
-Saving and loading full emulator state:
+A .580 file stores the full 64 KB RAM image and PC. Other registers, flags, HLT, interrupt state, and devices are not stored; they take initial values after opening.
 
-- Save (Ctrl+S): quick save to current file. Prompts for path if none selected.
-- Save As (Ctrl+Shift+S): always prompts for path.
+Ctrl+O opens .580. Ctrl+S saves to the current path or asks for one on first save. Ctrl+Shift+S always saves under a new name.
 
-- Open (Ctrl+O): auto-detects format (.kr580 or .sav). Updates schematic and RAM table.
-File path shown in status bar.
+Ctrl+N starts an empty session by zeroing RAM and resetting the processor. Unsaved changes require confirmation before open, new, or close.
 
-- Legacy files are auto-detected by Open and written through Save As when the selected path uses that format.
-
-- New file (Ctrl+N): clears RAM and registers. Warns if unsaved changes exist.
-
-A confirmation dialog appears when opening/creating with unsaved changes.
+Use TXT/XLSX import and export to exchange selected registers, flags, and RAM ranges.

@@ -1770,6 +1770,16 @@ Opened via `Ctrl+H`, `F1`, or the Help menu dropdown. The dialog
 tree, and a right content pane displaying static reference text in a
 scrollable container.
 
+The user-facing tree contains eight task-oriented categories in this order:
+Introduction, Interface & Execution, Main Menu, Files/Import/Export,
+Peripheral Devices, Settings, KR580VM80 Processor, and Instruction Set. Quick
+start, memory navigation, the View menu, all four Settings categories, current
+shortcut defaults, and the actual monitor command protocol are first-class
+articles. Overlapping architecture, RAM-table, reset, command-panel,
+file-format, duplicate register-editing, and duplicate device-workflow pages
+are intentionally absent; their actionable content is consolidated into the
+remaining 34 articles. Russian and English trees have identical structure.
+
 Clicking a topic node switches the content. The regular article view is a
 read-only `text_editor`: it keeps `on_action` wired so drag selection,
 double-click word selection, triple-click line selection, Ctrl+A, and

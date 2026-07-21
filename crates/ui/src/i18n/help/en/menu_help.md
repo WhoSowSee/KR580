@@ -1,6 +1,7 @@
-Help menu:
+**Show help** opens this dialog. Ctrl+H and F1 are the defaults; the Ctrl+H action can be reassigned.
 
-- Show help (Ctrl+H / F1) - opens this window
-- About - version info and GitHub link
+The left field searches article names and bodies. The tree button expands or collapses all categories. Selecting a result clears the query and opens the article.
 
-The help window has a tree structure: categories on the left (click arrow to expand), content on the right. Close with Esc or click outside.
+Article text supports selection and Ctrl+A/Ctrl+C copying. Esc, a backdrop click, or the close button closes the dialog.
+
+**About** shows the application version and repository link.

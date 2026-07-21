@@ -1,10 +1,9 @@
-Stack instructions save and restore 16-bit values via the stack. Stack grows downward.
+The stack grows toward lower addresses. Set SP to usable RAM before PUSH, CALL, or interrupts.
 
-- PUSH rp - save pair (1 byte, 11 tacts): SP-=1, [SP]=high; SP-=1, [SP]=low. rp in {BC, DE, HL, PSW}
-- POP rp - restore pair (1 byte, 10 tacts): low=[SP], SP+=1; high=[SP], SP+=1
+**PUSH rp**
+Decrements SP by two and stores BC, DE, HL, or PSW. For PSW, the high byte is A and the low byte is F.
 
-Notes:
-- PUSH PSW saves A and F to stack
-- POP PSW restores A and F (can change all flags)
-- Stack depth is limited only by RAM size
-- In the emulator, the stack area is highlighted yellow in the RAM table (cells with address >= SP)
+**POP rp**
+Restores a pair from two bytes at SP and increments SP by two. POP PSW restores A and flags while preserving the required F layout.
+
+CALL, RET, conditional calls/returns, RST, and accepted interrupts use the same stack. The View menu can temporarily show FF00h–FFFFh for inspecting high memory.

@@ -1,8 +1,11 @@
-Processor control instructions modify CPU operating mode.
+**NOP (00h)**
+Changes no processor state except PC and the timing counter.
 
-- NOP (00h) - no operation (1 byte, 4 tacts). Useful for delays and placeholders.
-- HLT (76h) - halt CPU (1 byte, 7 tacts). CPU stops until interrupt or reset. In the emulator, a notification appears, Run is blocked until registers/HLT flag are reset, and the RAM row stays on the 76h byte. Manually toggling the HLT indicator changes only the halt flag and does not move the selected memory cell.
-- DI (F3h) - disable interrupts (1 byte, 4 tacts). Clears INTE immediately.
-- EI (FBh) - enable interrupts (1 byte, 4 tacts). Sets INTE after next instruction.
+**HLT (76h)**
+Stops execution. Continue after an accepted interrupt, processor reset, or the manual Clear HLT action. Run and step actions show a halt notice while HLT remains active.
 
-Note: interrupts are not implemented in the current emulator version. DI/EI execute for compatibility but have no visible effect.
+**DI (F3h)**
+Disables interrupts immediately and cancels a pending enable.
+
+**EI (FBh)**
+Enables interrupts after the next instruction boundary. A request received while interrupts are disabled remains pending until accepted.

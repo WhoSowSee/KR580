@@ -1,16 +1,11 @@
-KR580VM80A Instruction Summary
+The emulator supports 244 documented KR580VM80A / Intel 8080 opcode encodings. Undocumented slots do not run as compatibility aliases; they stop execution with an error.
 
-Complete table of all 244 documented instructions is available in the opcode picker dropdown (the '...' button on a selected memory cell).
+**Instruction groups**
+• Transfer – MOV, MVI, LXI, LDA, STA, LHLD, SHLD, LDAX, STAX, XCHG, XTHL, SPHL
+• Arithmetic – ADD, ADC, SUB, SBB, INR, DCR, INX, DCX, DAD, DAA
+• Logic – ANA, ORA, XRA, CMP, CMA, STC, CMC, RLC, RRC, RAL, RAR
+• Control – JMP, CALL, RET, conditional forms, RST, PCHL, NOP, HLT, DI, EI
+• I/O – IN, OUT
+• Stack – PUSH, POP
 
-Categories:
-- Data Transfer - MOV, MVI, LDA, STA, LHLD, SHLD, LDAX, STAX, XCHG, XTHL, SPHL, PCHL
-- Arithmetic - ADD, ADC, SUB, SBB, INR, DCR, INX, DCX, DAD, DAA
-- Logic - ANA, ORA, XRA, CMP, CMA, STC, CMC, RLC, RRC, RAL, RAR
-- Control Transfer - JMP, Jcond, CALL, Ccond, RET, Rcond, RST
-- Processor Control - NOP, HLT, DI, EI
-- I/O - IN, OUT
-- Stack - PUSH, POP
-
-Instruction format: 1-3 bytes. Execution time: 4-18 tacts.
-
-Detailed descriptions are in the Instruction Set section.
+Press E or the “…” button in the RAM editor to search the opcode table by hexadecimal code or mnemonic.

@@ -1,17 +1,7 @@
-Register and Value panel: select and edit any software-accessible register.
+**Right panel**
+Select A, F, B, C, D, E, H, L, SP, or PC, enter a hexadecimal value, and press Enter. 8-bit registers accept two digits; SP and PC accept four. The ± buttons change the value by one.
 
-- Dropdown: A, F, B, C, D, E, H, L, SP, PC
-Navigate with arrows or click
-- Value field (2 or 4 hex digits depending on register width)
-- +/- buttons for step changes
-- Apply button
+**Structural diagram**
+Click an editable value to open its inline editor. Enter applies, Esc cancels, and Tab / Shift+Tab move to an adjacent field. Arrow keys move within register and multiplexer groups.
 
-Inline editing on the schematic:
-- Hover over register, click - input field appears
-- Enter value, press Enter or click anywhere
-- Esc to cancel
-- Tab/Shift+Tab to navigate between registers
-- Left/Right move between the accumulator and buffer registers
-- In the multiplexer, Left/Right move between columns and Up/Down between rows
-- Ctrl+arrows provide the same grid navigation
-- Replacement mode carries over to the destination register
+All manual changes are range-checked and recorded by Undo/Redo. Editing F preserves the required PSW layout: bit 1 is 1 and bits 3 and 5 are 0.

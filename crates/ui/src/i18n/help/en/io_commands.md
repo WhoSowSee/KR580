@@ -1,12 +1,10 @@
-I/O instructions exchange data between A and external devices via ports.
+**IN d8** reads a byte from a port into A. **OUT d8** sends A to a port.
 
-- IN port - read from port to A (2 bytes, 10 tacts)
-- OUT port - write A to port (2 bytes, 10 tacts)
+**Port map**
+• 00h – monitor: text and graphics commands
+• 01h – floppy: write to the attached image; IN returns status
+• 02h – HDD: write to hdd.kpd; IN returns status
+• 03h – network: OUT transmits a byte; IN pops RX or returns 00h
+• 04h – printer: OUT appends a byte to the print spool
 
-Port assignments in the emulator:
-- Monitor port - character and pixel output
-- Floppy/HDD ports - storage device I/O
-- Network ports - data transmission/reception
-- Printer port - print output
-
-Device state is shown in the Quick Access panel and device windows.
+The 8080 presents the port number on both halves of the address bus, while the emulator selects the device from the low byte.

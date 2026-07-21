@@ -206,12 +206,12 @@ mod tests {
     fn category_labels_match_child_topics_through_breadcrumbs() {
         let index = HelpSearchIndex::new(Lang::Ru);
 
-        let results = index.search("состав");
+        let results = index.search("главное");
 
         assert!(
             results
                 .iter()
-                .any(|result| result.node == HelpNode::TopicSystemComponents)
+                .any(|result| result.node == HelpNode::TopicMenuView)
         );
     }
 

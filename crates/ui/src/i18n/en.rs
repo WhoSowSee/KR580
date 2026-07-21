@@ -22,24 +22,19 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HelpSearchPlaceholder => "Search help…",
         Key::HnAbout => "About",
         Key::HnAppearance => "Appearance",
-        Key::HnArchitecture => "CPU Architecture",
         Key::HnArithmeticCommands => "Arithmetic",
-        Key::HnCommandPanel => "Command Panel",
-        Key::HnCommandReference => "Command Reference",
-        Key::HnCommandSummary => "Appendix: Command Summary",
+        Key::HnCommandSummary => "Command Summary",
         Key::HnControlTransferCommands => "Control Transfer",
         Key::HnCpuArchitecture => "KR580VM80 Processor",
         Key::HnDataTransferCommands => "Data Transfer",
-        Key::HnDeviceWorkflow => "Working with Devices",
         Key::HnExport => "Export",
         Key::HnExternalDevices => "Peripheral Devices",
         Key::HnFeatures => "Features",
-        Key::HnFileFormats => "File Formats",
-        Key::HnFilesExport => "Export & Files",
+        Key::HnFilesExport => "Files, Import & Export",
         Key::HnFlagsRegister => "Flags Register",
         Key::HnFloppy => "KR580 Floppy",
-        Key::HnGeneralPrinciples => "General Principles",
-        Key::HnGeneralSettings => "General",
+        Key::HnGeneralPrinciples => "Quick Start",
+        Key::HnGeneralSettings => "All Settings",
         Key::HnHdd => "KR580 Hard Disk",
         Key::HnImport => "Import",
         Key::HnInstructionSet => "Instruction Set",
@@ -49,36 +44,28 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HnMainMenu => "Main Menu",
         Key::HnMainWindow => "Main Window",
         Key::HnMemoryIoSpaces => "Memory & I/O Spaces",
-        Key::HnMemorySearch => "Memory Search",
+        Key::HnMemorySearch => "Memory Navigation",
         Key::HnMenuFile => "File Menu",
         Key::HnMenuHelp => "Help Menu",
         Key::HnMenuMpSystem => "MP-System Menu",
+        Key::HnMenuView => "View Menu",
         Key::HnMonitor => "KR580 Monitor",
         Key::HnNetwork => "KR580 Network Adapter",
         Key::HnPrinter => "KR580 Printer",
         Key::HnProcessorControlCommands => "Processor Control",
-        Key::HnProgramInterface => "Program Description",
-        Key::HnRamEditing => "RAM Editing Panel",
-        Key::HnRamTable => "RAM Table",
-        Key::HnRegisterEdit => "Register Editing",
-        Key::HnRegisterEditing => "Register Editing Panel",
+        Key::HnProgramInterface => "Interface & Execution",
+        Key::HnRamEditing => "Viewing & Editing RAM",
+        Key::HnRegisterEditing => "Register Editing",
         Key::HnRegisters => "Registers",
-        Key::HnResetButtons => "Reset Buttons",
-        Key::HnRunButtons => "Run Buttons",
-        Key::HnSaveLoad => "Save & Load",
-        Key::HnSchematic => "Structural Diagram",
+        Key::HnRunButtons => "Execution & Reset",
+        Key::HnSaveLoad => ".580 Files",
         Key::HnSettings => "Settings",
-        Key::HnShortcuts => "Keyboard Shortcuts",
         Key::HnStackCommands => "Stack",
-        Key::HnSystemComponents => "MPS Components",
-        Key::HnSystemComposition => "MP-System Composition",
-        Key::HnTopicShortcuts => "Shortcuts Table",
-        Key::HnWorkflow => "Working with the Program",
+        Key::HnTopicShortcuts => "Keyboard Shortcuts",
 
         Key::HcAbout
         | Key::HcFeatures
-        | Key::HcSystemComponents
-        | Key::HcArchitecture
+        | Key::HcGeneralPrinciples
         | Key::HcRegisters
         | Key::HcFlagsRegister
         | Key::HcMemoryIoSpaces
@@ -90,31 +77,24 @@ pub(super) fn translate(key: Key) -> &'static str {
         | Key::HcIoCommands
         | Key::HcStackCommands
         | Key::HcMainWindow
+        | Key::HcRamEditing
+        | Key::HcRegisterEditing
+        | Key::HcRunButtons
+        | Key::HcMemorySearch
         | Key::HcMenuFile
         | Key::HcMenuMpSystem
+        | Key::HcMenuView
         | Key::HcMenuHelp
-        | Key::HcSchematic
-        | Key::HcRamTable
+        | Key::HcSaveLoad
+        | Key::HcImport
+        | Key::HcExport
         | Key::HcMonitor
         | Key::HcFloppy
         | Key::HcHdd
         | Key::HcNetwork
         | Key::HcPrinter
-        | Key::HcRamEditing
-        | Key::HcRegisterEditing
-        | Key::HcResetButtons
-        | Key::HcCommandPanel
-        | Key::HcRunButtons
-        | Key::HcSaveLoad
-        | Key::HcImport
-        | Key::HcExport
-        | Key::HcFileFormats
         | Key::HcGeneralSettings
         | Key::HcAppearance
-        | Key::HcGeneralPrinciples
-        | Key::HcMemorySearch
-        | Key::HcRegisterEdit
-        | Key::HcDeviceWorkflow
         | Key::HcCommandSummary
         | Key::HcShortcuts => help_en::translate(key),
         Key::AboutTitle => "About",

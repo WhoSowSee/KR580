@@ -1,16 +1,11 @@
-RAM Cell and Value panel (right side, below the memory table):
+**Selecting an address**
+Click a RAM row or enter four hexadecimal digits in the address field. Arrow keys move the selection, PageUp/PageDown scroll, and Alt+Q / Alt+E jump to 0000h / FFFFh.
 
-- Address field (4 hex digits, 0000-FFFF) with +/- buttons
-- Value field (2 hex digits, 00-FF) with +/- buttons
-- The value field previews in the selected RAM row immediately, but writes memory only on Enter
-- Ctrl+V with space-separated HEX pairs writes a sequence from the selected row even outside edit mode
-- Apply button
-- '...' button - opcode picker dropdown (all 244 instructions)
+**Writing bytes**
+Enter two hexadecimal digits in the value field and press Enter or the apply button. The editor advances after a write. Pasting space-separated hexadecimal pairs writes a block from the selected cell; a block extending beyond FFFFh is rejected.
 
-Enter in address field jumps to that cell and moves focus to value field.
+**Opcodes**
+Press E or “…” to open the 244 documented encodings. Search by hexadecimal code or mnemonic and press Enter to write the selected opcode.
 
-Opcode picker:
-- Search by hex code (e.g., '3E') or mnemonic ('MVI A')
-- Arrow keys and Tab/Shift+Tab move the highlighted filtered command
-- Enter writes the highlighted opcode to the current cell
-- Columns: code, mnemonic, operand, length, kind, addressing
+**Operands and stack**
+When operand highlighting is enabled, addresses, data, and port numbers use distinct states. Alt+Enter acts on the selected cell; Alt+Shift+Enter returns to the source operand. Ctrl+Shift+C shows or hides FF00h–FFFFh.

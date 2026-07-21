@@ -1,10 +1,7 @@
-File menu operations:
+**New file** (Ctrl+N) clears RAM and resets the processor.
 
-- New file (Ctrl+N) - reset RAM and registers
-- Open (Ctrl+O) - load snapshot (.kr580 or .sav, auto-detected)
-- Save (Ctrl+S) - quick save to current file
-- Save as (Ctrl+Shift+S) - save to new file
-- Import (Ctrl+I) - choose a TXT/XLSX file and a sheet or section when the file provides one
-- Export (Ctrl+E) - choose MS Excel or Text file, page or sections, RAM range, columns, registers, and flags, then save data. TXT sections are saved as several named blocks in one file
+**Open** (Ctrl+O) loads a .580 file. **Save** (Ctrl+S) writes the current file, while **Save as** (Ctrl+Shift+S) always requests a new path.
 
-Unsaved changes trigger a confirmation dialog.
+**Import** (Ctrl+I) overlays TXT or XLSX data on the current session. **Export** (Ctrl+E) writes selected RAM ranges, registers, and flags to TXT or XLSX.
+
+The application asks before opening, creating, importing over, or closing a session with unsaved changes.

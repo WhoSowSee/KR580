@@ -1,11 +1,13 @@
-Execution button group (right panel):
+**Execution**
+• Ctrl+R – start or stop continuous execution
+• Ctrl+T – execute one instruction
+• Ctrl+Y – execute one T-state of the current instruction
 
-- Run / Pause (Ctrl+R) - starts/stops automatic execution. Button color: green (run) <-> red (pause).
-Checks: program exists at PC (byte != 00h), HLT not blocking.
+Choose 5, 20, 120, or 1000 instructions per second on the left. When Follow PC is enabled, the RAM list follows the next instruction at execution boundaries.
 
-- Step Instruction (Ctrl+T) - executes one instruction, then stops. PC advances to next instruction.
-Also works as Restart: Ctrl+click resets PC to start before execution.
+**Reset**
+• Ctrl+Shift+R – fill RAM with zeroes
+• Ctrl+Shift+G – reset registers, flags, PC, SP, interrupts, HLT, and timing
+• Ctrl+Shift+H – clear only HLT
 
-- Step Tact (Ctrl+Y) - executes one machine tact. Allows observing microprogram execution.
-
-Execution speed is set via the Speed panel (left, bottom) and in settings.
+After HLT, run and step actions remain blocked until an accepted interrupt, processor reset, or Clear HLT. Manual RAM and processor resets can be undone with Ctrl+Z.

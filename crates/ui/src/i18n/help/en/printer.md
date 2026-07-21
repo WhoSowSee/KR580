@@ -1,11 +1,7 @@
-The KR580 printer accumulates bytes sent by a program to port `04h` with `OUT`.
+The printer receives bytes through OUT 04h and spools them until a separate print action.
 
-**Buffer window**
-- Opens from the printer chip in Quick Access
-- Shows a HEX dump by default, with offsets and 16 bytes per line
-- The text-symbol button toggles between HEX and CP866-decoded text
-- Can detach into a separate always-on-top window
-- Clear removes the accumulated bytes
-- The settings gear opens printer, paper, source, and orientation setup
-- Properties opens the selected printer driver's complete settings
-- Print sends CP866-decoded text to the system printer without clearing the buffer
+The window displays a hexadecimal dump or CP866 text. Clear removes the spool; Print sends it to the selected system printer without clearing it automatically.
+
+The gear opens printer, paper, source, and orientation selection. Properties uses the custom or system dialog selected in Settings. The default printer and dialog mode are saved under External Devices.
+
+The window can be detached, pinned above other windows, and attached again.

@@ -1,14 +1,12 @@
-General Settings (Ctrl+, > General tab):
+Open Settings with Ctrl+,. The dialog searches across every setting.
 
-- Interface language: Russian or English. Applied immediately to menus, labels, status, help.
+**General**
+Language, default speed, Follow PC, operand-type highlighting, and system .580 file association.
 
-- Default speed for new sessions:
-Slow (5 instr/sec) - step-by-step observation
-Medium (20 instr/sec) - moderate speed
-Fast (120 instr/sec) - default speed
-Max (1000 instr/sec) - maximum emulation performance
-Speed can be changed anytime via the Speed panel.
+**External Devices**
+Default floppy image, HDD directory, printer and properties-dialog mode, plus TCP client/server endpoints.
 
-- HDD directory: default folder for the virtual hard disk buffer file (`hdd.kpd`). The Browse button opens a system folder picker; the chosen directory is validated for write access. If not set, the user's home directory is used. This setting applies on the next application start, not immediately in the current session.
+**Appearance and Shortcuts**
+Interface theme and assignments for 27 actions. Reusing a binding unassigns it from its previous action.
 
-Reset button restores defaults (system language, fast speed at 120 instr/sec, Follow PC off, home directory for HDD). Settings persist between sessions.
+Save applies and stores changes while keeping the dialog open and showing a notice. Reset restores defaults after confirmation.

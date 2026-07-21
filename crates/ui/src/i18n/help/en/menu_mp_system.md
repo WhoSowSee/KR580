@@ -1,10 +1,11 @@
-MP-System menu controls program execution:
+**Execution**
+• Run program – start or pause
+• Run instruction – one instruction
+• Run T-state – one T-state
 
-- Run program (Ctrl+R) - start/stop automatic execution
-- Step instruction (Ctrl+T) - execute exactly one instruction
-- Step tact (Ctrl+Y) - execute one machine tact
-- Clear RAM (Ctrl+Shift+R) - zero all memory
-- Clear registers (Ctrl+Shift+G) - zero A, F, B-H, SP, PC
-- Clear HLT flag (Ctrl+Shift+H) - remove HLT block
+**Reset**
+• Clear RAM – zero all 64 KB
+• Reset processor – registers, flags, PC, SP, interrupts, HLT, and timing
+• Clear HLT – enabled only while the processor is halted
 
-Reset buttons are also on the right panel (red and purple buttons).
+The shortcuts shown beside menu items are current assignments and update when shortcut settings change.

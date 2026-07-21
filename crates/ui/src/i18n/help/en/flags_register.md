@@ -1,23 +1,13 @@
-The Flags Register (F) records result attributes. Together with A, it forms the PSW (Program Status Word).
+The F register stores result conditions. Together with A, it forms the PSW.
 
-Format (8 bits, 5 used):
-Bit 7 (S) - Sign = MSB of result
-Bit 6 (Z) - Zero = 1 if result is 0
-Bit 5 - always 0
-Bit 4 (AC) - Auxiliary Carry from bit 3 to bit 4
-Bit 3 - always 0
-Bit 2 (P) - Parity = 1 if even number of 1-bits
-Bit 1 - always 1
-Bit 0 (CY) - Carry from MSB
+**F bits**
+• S, bit 7 – sign
+• Z, bit 6 – zero result
+• AC, bit 4 – auxiliary carry
+• P, bit 2 – even parity
+• CY, bit 0 – carry or borrow
+• Bit 1 is always 1; bits 3 and 5 are 0
 
-Flag updates:
-- S, Z, P - updated by most instructions
-- AC - arithmetic and DAA only
-- CY - arithmetic, shifts, STC, CMC
+Arithmetic, logic, and compare instructions update flags using 8080 rules. INR/DCR preserve CY, DAD changes only CY, ANA sets AC according to the 8080 rule, and ORA/XRA clear AC and CY. Rotates change only CY; CMA changes no flags.
 
-Key flags:
-- CY: enables multi-byte arithmetic on 8-bit CPU
-- Z: loops and branching
-- S: sign-based branching
-
-On the schematic, flags show as colored indicators: green = 1, grey = 0.
+The diagram displays active and inactive flags using colours from the selected theme.

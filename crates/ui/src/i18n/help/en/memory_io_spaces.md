@@ -1,17 +1,14 @@
-Memory address space: 64 KB (0000h-FFFFh), formed by 16-bit address bus A0-A15.
+**RAM**
+All 65,536 bytes from 0000h through FFFFh are available. M in a mnemonic means the cell addressed by HL. PC marks the next instruction and SP marks the stack top.
 
-Typical layout:
-- 0000h-3FFFh - ROM area (16 KB, in emulator all 64 KB is usable RAM)
-- 4000h-FFFFh - RAM area (48 KB)
+**I/O ports**
+• 00h – monitor
+• 01h – floppy
+• 02h – HDD
+• 03h – network adapter
+• 04h – printer
 
-In the emulator, all 64 KB is RAM initialized to 00h. Programs can be loaded at any address.
+IN and OUT use an 8-bit port number. Accessing any other port stops with an invalid-port error.
 
-I/O space: 256 ports (00h-FFh). 8-bit address duplicated on A0-A7 and A8-A15. Accessible via IN/OUT instructions.
-
-Port assignments:
-- Monitor port - character and pixel output
-- Floppy/HDD ports - storage device I/O
-- Network adapter ports - network communication
-- Printer port - print output
-
-Stack: RAM region addressed via SP. Grows downward (high to low addresses). Power-on: SP = 0000h (requires program initialization).
+**Stack area**
+The View menu or Ctrl+Shift+C switches the RAM list to FF00h–FFFFh. Repeat the action or press Esc to return to the normal list and its previous position.

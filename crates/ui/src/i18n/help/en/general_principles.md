@@ -1,18 +1,11 @@
-General workflow:
+**1. Prepare memory**
+Press Ctrl+N for a new session or Ctrl+O to open a .580 file. Select a RAM address, enter a byte in the value field, and press Enter. Press E to open the opcode list. Pasting space-separated hexadecimal pairs writes a block from the selected address.
 
-1. Create a new session (Ctrl+N) or open a file (Ctrl+O).
+**2. Set the initial state**
+Set PC to the first instruction address. Set SP and other registers from the right panel or directly on the structural diagram when needed.
 
-2. Enter a program into RAM:
-- Select a cell in the memory table (mouse or arrows)
-- Type the hex opcode in the RAM Cell editor
-- Press Enter
-- Or open the opcode picker ('...' button) and select a command
+**3. Execute**
+Ctrl+T runs one instruction, Ctrl+Y runs one T-state, and Ctrl+R starts or stops continuous execution. Clear HLT before continuing after a halt.
 
-3. Configure initial register values via the Register editor or inline editing on the schematic.
-
-4. Ensure PC points to the program start (green highlight in table).
-Select the target cell: PC syncs with the cursor.
-
-5. Start execution (Ctrl+R) or step through (Ctrl+T / Ctrl+Y).
-
-6. Watch the schematic, RAM table, and status bar update.
+**4. Inspect the result**
+Watch PC, registers, flags, the selected RAM cell, and device windows. Ctrl+Z reverses the latest manual change.

@@ -22,24 +22,19 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HelpSearchPlaceholder => "Поиск по справке…",
         Key::HnAbout => "О программе",
         Key::HnAppearance => "Внешний вид",
-        Key::HnArchitecture => "Архитектура МП КР580ВМ80А",
         Key::HnArithmeticCommands => "Арифметические команды",
-        Key::HnCommandPanel => "Панель системных команд",
-        Key::HnCommandReference => "Сводка команд КР580ВМ80А",
-        Key::HnCommandSummary => "Приложение: сводка команд",
+        Key::HnCommandSummary => "Сводка команд",
         Key::HnControlTransferCommands => "Команды передачи управления",
         Key::HnCpuArchitecture => "Микропроцессор КР580ВМ80",
         Key::HnDataTransferCommands => "Команды пересылок",
-        Key::HnDeviceWorkflow => "Работа с устройствами",
         Key::HnExport => "Экспорт",
         Key::HnExternalDevices => "Внешние устройства",
         Key::HnFeatures => "Возможности эмулятора",
-        Key::HnFileFormats => "Форматы файлов",
-        Key::HnFilesExport => "Экспорт и загрузка данных",
+        Key::HnFilesExport => "Файлы, импорт и экспорт",
         Key::HnFlagsRegister => "Регистр флагов",
         Key::HnFloppy => "Дисковод КР580",
-        Key::HnGeneralPrinciples => "Общие принципы работы",
-        Key::HnGeneralSettings => "Общие настройки",
+        Key::HnGeneralPrinciples => "Быстрый старт",
+        Key::HnGeneralSettings => "Все настройки",
         Key::HnHdd => "Жёсткий диск КР580",
         Key::HnImport => "Импорт",
         Key::HnInstructionSet => "Система команд",
@@ -49,35 +44,27 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::HnMainMenu => "Главное меню",
         Key::HnMainWindow => "Главное окно программы",
         Key::HnMemoryIoSpaces => "Пространства памяти и ввода-вывода",
-        Key::HnMemorySearch => "Поиск в памяти",
+        Key::HnMemorySearch => "Навигация по памяти",
         Key::HnMenuFile => "Меню «Файл»",
         Key::HnMenuHelp => "Меню «Справка»",
         Key::HnMenuMpSystem => "Меню «МП-Система»",
+        Key::HnMenuView => "Меню «Вид»",
         Key::HnMonitor => "Монитор КР580",
         Key::HnNetwork => "Сетевой адаптер КР580",
         Key::HnPrinter => "Принтер КР580",
         Key::HnProcessorControlCommands => "Команды управления процессором",
-        Key::HnProgramInterface => "Описание программы",
-        Key::HnRamEditing => "Панель редактирования ОЗУ",
-        Key::HnRamTable => "Таблица содержимого ОЗУ",
-        Key::HnRegisterEdit => "Редактирование регистров",
-        Key::HnRegisterEditing => "Панель редактирования регистров",
+        Key::HnProgramInterface => "Интерфейс и выполнение",
+        Key::HnRamEditing => "ОЗУ: просмотр и редактирование",
+        Key::HnRegisterEditing => "Редактирование регистров",
         Key::HnRegisters => "Регистры МП",
-        Key::HnResetButtons => "Кнопки сброса",
-        Key::HnRunButtons => "Кнопки выполнения",
-        Key::HnSaveLoad => "Сохранение и загрузка состояния",
-        Key::HnSchematic => "Структурная схема МП-системы",
+        Key::HnRunButtons => "Выполнение и сброс",
+        Key::HnSaveLoad => "Файлы .580",
         Key::HnSettings => "Настройки программы",
-        Key::HnShortcuts => "Горячие клавиши",
         Key::HnStackCommands => "Стековые команды",
-        Key::HnSystemComponents => "Компоненты МПС на базе КР580",
-        Key::HnSystemComposition => "Состав МП-системы",
-        Key::HnTopicShortcuts => "Таблица горячих клавиш",
-        Key::HnWorkflow => "Работа с программой",
+        Key::HnTopicShortcuts => "Горячие клавиши",
         Key::HcAbout
         | Key::HcFeatures
-        | Key::HcSystemComponents
-        | Key::HcArchitecture
+        | Key::HcGeneralPrinciples
         | Key::HcRegisters
         | Key::HcFlagsRegister
         | Key::HcMemoryIoSpaces
@@ -89,31 +76,24 @@ pub(super) fn translate(key: Key) -> &'static str {
         | Key::HcIoCommands
         | Key::HcStackCommands
         | Key::HcMainWindow
+        | Key::HcRamEditing
+        | Key::HcRegisterEditing
+        | Key::HcRunButtons
+        | Key::HcMemorySearch
         | Key::HcMenuFile
         | Key::HcMenuMpSystem
+        | Key::HcMenuView
         | Key::HcMenuHelp
-        | Key::HcSchematic
-        | Key::HcRamTable
+        | Key::HcSaveLoad
+        | Key::HcImport
+        | Key::HcExport
         | Key::HcMonitor
         | Key::HcFloppy
         | Key::HcHdd
         | Key::HcNetwork
         | Key::HcPrinter
-        | Key::HcRamEditing
-        | Key::HcRegisterEditing
-        | Key::HcResetButtons
-        | Key::HcCommandPanel
-        | Key::HcRunButtons
-        | Key::HcSaveLoad
-        | Key::HcImport
-        | Key::HcExport
-        | Key::HcFileFormats
         | Key::HcGeneralSettings
         | Key::HcAppearance
-        | Key::HcGeneralPrinciples
-        | Key::HcMemorySearch
-        | Key::HcRegisterEdit
-        | Key::HcDeviceWorkflow
         | Key::HcCommandSummary
         | Key::HcShortcuts => help_ru::translate(key),
         Key::AboutTitle => "О программе",

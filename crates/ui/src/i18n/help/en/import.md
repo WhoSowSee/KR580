@@ -1,5 +1,5 @@
-Import (Ctrl+I) loads data from a TXT or XLSX file into the current session without fully resetting state.
+Import (Ctrl+I) overlays TXT or XLSX data on the current session.
 
-Choose the file in the import window first. XLSX files expose a sheet selector when the workbook has sheets. TXT files expose a section selector when the file was saved as several named blocks. If a TXT file has no separate sections, the whole file is imported.
+Choose a file, then an XLSX sheet or named TXT section. A TXT file without sections is imported as a whole. Only RAM cells, registers, and flags present in the selected data are changed; all other values remain intact.
 
-After confirmation, imported registers, flags, and RAM cells overwrite the current values. Other memory cells stay unchanged.
+The application asks before importing over unsaved changes. Invalid hexadecimal values, unknown registers, and malformed file structures produce an error.

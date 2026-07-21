@@ -1,13 +1,9 @@
-KR580 Monitor (Ctrl+M) - virtual display device.
+The monitor uses port 00h and accepts variable-length commands.
 
-Two independent layers:
-- Text layer: 64x20 characters, monochrome. Output via OUT to monitor port.
-- Graphics layer: 256x256 pixels, 1 bit/pixel. Frame buffer filled sequentially.
+**Text command – 2 bytes**
+The first byte has bit 7=0 and intensity 0–127. The second byte is a CP866 character. It is written to the next position of the 64×20 text layer; the position wraps after the last cell.
 
-Monitor window features:
-- Detach into a separate borderless window, drag it by the custom title bar, or return it to the emulator window
-- Pin the detached window above other windows; press again to restore normal stacking
-- Split/Unified view toggle
-- Byte stream filter: all data / graphics only / text only
-- Clear buffer, Save image as PNG
-- Raw byte stream viewer
+**Graphics command – 3 bytes**
+The first byte has bit 7=1 and intensity 0–127. The next bytes are X and Y in a 256×256 plane. Writing the same coordinate replaces the pixel intensity.
+
+Text and graphics layers are independent. The window can combine or split them, filter the raw stream, clear the screen, and save PNG. It can be detached, moved, pinned above other windows, and attached again.
