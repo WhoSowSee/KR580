@@ -24,7 +24,12 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
     if searching {
         for (i, cat) in SettingsCategory::ALL.iter().enumerate() {
             let mut group: Vec<Element<'a, Message>> = Vec::new();
-            collect_category_rows(*cat, dialog, lang, &lower_query, &mut group, &mut |idx| {
+            let category_query = if category_matches_query(*cat, lang, &lower_query) {
+                ""
+            } else {
+                &lower_query
+            };
+            collect_category_rows(*cat, dialog, lang, category_query, &mut group, &mut |idx| {
                 language_row_index = Some(rows.len() + 1 + idx);
             });
             if group.is_empty() {
@@ -248,23 +253,26 @@ fn collect_category_rows<'a>(
             }
         }
         SettingsCategory::Appearance => {
-            if matches_query(
+            let setting_matches = matches_query(
                 &[Key::SettingsThemeLabel, Key::SettingsThemeHint],
                 lang,
                 lower_query,
-            ) || theme_search_matches(lang, lower_query)
-            {
-                out.push(theme_setting_row(dialog, lang));
+            );
+            if setting_matches || theme_search_matches(lang, lower_query) {
+                let option_query = if setting_matches { "" } else { lower_query };
+                out.push(theme_setting_row(dialog, lang, option_query));
             }
         }
         SettingsCategory::Shortcuts => {
-            if matches_query(
+            let setting_matches = matches_query(
                 &[Key::SettingsShortcutsLabel, Key::SettingsShortcutsHint],
                 lang,
                 lower_query,
-            ) || crate::app::shortcuts::shortcut_search_matches(lang, lower_query)
+            );
+            if setting_matches || crate::app::shortcuts::shortcut_search_matches(lang, lower_query)
             {
-                out.push(shortcuts_setting_row(dialog, lang));
+                let action_query = if setting_matches { "" } else { lower_query };
+                out.push(shortcuts_setting_row(dialog, lang, action_query));
             }
         }
     }
@@ -272,6 +280,14 @@ fn collect_category_rows<'a>(
 
 fn group_header(label: &'static str) -> Element<'static, Message> {
     ui_text(label, 11, tokyo_muted()).into()
+}
+
+pub(super) fn category_matches_query(
+    category: SettingsCategory,
+    lang: Lang,
+    lower_query: &str,
+) -> bool {
+    matches_query(&[category.label_key()], lang, lower_query)
 }
 
 pub(super) fn matches_query(keys: &[Key], lang: Lang, lower_query: &str) -> bool {

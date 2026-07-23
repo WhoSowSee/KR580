@@ -41,7 +41,7 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         }
         Key::SettingsToggleOn => "Включено",
         Key::SettingsToggleOff => "Выключено",
-        Key::SettingsThemeLabel => "Тема",
+        Key::SettingsThemeLabel => "Темы",
         Key::SettingsThemeHint => "Тема оформления интерфейса",
         Key::SettingsShortcutsLabel => "Горячие клавиши",
         Key::SettingsShortcutsHint => "Настройка сочетаний клавиш",

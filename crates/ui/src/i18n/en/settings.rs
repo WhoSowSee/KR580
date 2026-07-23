@@ -41,7 +41,7 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::ErrHddDirectoryNotWritable => "Cannot use this directory – no write permission",
         Key::SettingsToggleOn => "On",
         Key::SettingsToggleOff => "Off",
-        Key::SettingsThemeLabel => "Theme",
+        Key::SettingsThemeLabel => "Themes",
         Key::SettingsThemeHint => "Interface theme",
         Key::SettingsShortcutsLabel => "Keyboard shortcuts",
         Key::SettingsShortcutsHint => "Customize keyboard shortcuts",

@@ -13,25 +13,29 @@ use crate::persistence::ColorScheme;
 pub(super) fn theme_setting_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
+    lower_query: &str,
 ) -> Element<'a, Message> {
     let keyboard_focused = dialog.content_focus_is_visible(ContentFocus::Theme);
 
-    let control = Column::new()
-        .spacing(12)
-        .push(theme_group(
-            color_scheme_group_label(true, lang),
-            &DARK_COLOR_SCHEMES,
-            dialog.draft_color_scheme,
-            keyboard_focused,
-            lang,
-        ))
-        .push(theme_group(
-            color_scheme_group_label(false, lang),
-            &LIGHT_COLOR_SCHEMES,
-            dialog.draft_color_scheme,
-            keyboard_focused,
-            lang,
-        ));
+    let mut control = Column::new().spacing(12);
+    for (dark, schemes) in [
+        (true, DARK_COLOR_SCHEMES.as_slice()),
+        (false, LIGHT_COLOR_SCHEMES.as_slice()),
+    ] {
+        if schemes
+            .iter()
+            .any(|scheme| theme_option_matches_query(*scheme, lang, lower_query))
+        {
+            control = control.push(theme_group(
+                color_scheme_group_label(dark, lang),
+                schemes,
+                dialog.draft_color_scheme,
+                keyboard_focused,
+                lang,
+                lower_query,
+            ));
+        }
+    }
 
     container(control).width(Length::Fill).into()
 }
@@ -42,12 +46,15 @@ fn theme_group<'a>(
     active: ColorScheme,
     keyboard_focused: bool,
     lang: Lang,
+    lower_query: &str,
 ) -> Element<'a, Message> {
     let mut column = Column::new()
         .spacing(6)
         .push(ui_text(label, 13, tokyo_muted()));
     for scheme in schemes {
-        column = column.push(theme_option(*scheme, active, keyboard_focused, lang));
+        if theme_option_matches_query(*scheme, lang, lower_query) {
+            column = column.push(theme_option(*scheme, active, keyboard_focused, lang));
+        }
     }
     column.into()
 }
@@ -85,11 +92,18 @@ pub(super) fn theme_search_matches(lang: Lang, lower_query: &str) -> bool {
     DARK_COLOR_SCHEMES
         .iter()
         .chain(LIGHT_COLOR_SCHEMES.iter())
-        .any(|scheme| {
-            color_scheme_label(*scheme, lang)
-                .to_lowercase()
-                .contains(lower_query)
-        })
+        .any(|scheme| theme_option_matches_query(*scheme, lang, lower_query))
+}
+
+pub(super) fn theme_option_matches_query(
+    scheme: ColorScheme,
+    lang: Lang,
+    lower_query: &str,
+) -> bool {
+    lower_query.is_empty()
+        || color_scheme_label(scheme, lang)
+            .to_lowercase()
+            .contains(lower_query)
 }
 
 fn palette_square<'a>(color: Color) -> Element<'a, Message> {

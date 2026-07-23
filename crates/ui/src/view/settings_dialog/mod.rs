@@ -107,10 +107,14 @@ pub(super) fn settings_modal_overlay<'a>(
 mod tests {
     use crate::app::SettingsCategory;
 
+    use super::super::theme::{DARK_COLOR_SCHEMES, LIGHT_COLOR_SCHEMES};
     use super::consts::DIALOG_HEIGHT;
-    use super::content::{matches_query, settings_content_needs_scroll};
+    use super::content::{category_matches_query, matches_query, settings_content_needs_scroll};
     use super::language::language_label_key;
+    use super::shortcuts_row::shortcut_action_matches_query;
+    use super::theme_row::theme_option_matches_query;
     use crate::i18n::{Key, Lang};
+    use crate::persistence::{ColorScheme, ShortcutAction};
 
     #[test]
     fn empty_query_matches_every_row() {
@@ -136,9 +140,54 @@ mod tests {
     }
 
     #[test]
+    fn localized_category_name_matches_search() {
+        for (category, query) in [
+            (SettingsCategory::General, "общие"),
+            (SettingsCategory::ExternalDevices, "внешние устройства"),
+            (SettingsCategory::Appearance, "внешний вид"),
+            (SettingsCategory::Shortcuts, "горячие клавиши"),
+        ] {
+            assert!(category_matches_query(category, Lang::Ru, query));
+        }
+    }
+
+    #[test]
+    fn plural_theme_name_matches_search() {
+        for (lang, query) in [(Lang::Ru, "темы"), (Lang::En, "themes")] {
+            assert!(matches_query(
+                &[Key::SettingsThemeLabel, Key::SettingsThemeHint],
+                lang,
+                query
+            ));
+        }
+    }
+
+    #[test]
     fn language_label_key_round_trips_per_lang() {
         assert_eq!(language_label_key(Lang::Ru), Key::LangRussian);
         assert_eq!(language_label_key(Lang::En), Key::LangEnglish);
+    }
+
+    #[test]
+    fn shortcut_query_matches_only_the_requested_action() {
+        let matches: Vec<_> = ShortcutAction::ALL
+            .into_iter()
+            .filter(|action| shortcut_action_matches_query(*action, Lang::Ru, "перейти к ffff"))
+            .collect();
+
+        assert_eq!(matches, vec![ShortcutAction::JumpMemoryEnd]);
+    }
+
+    #[test]
+    fn theme_query_matches_only_the_requested_option() {
+        let matches: Vec<_> = DARK_COLOR_SCHEMES
+            .iter()
+            .chain(LIGHT_COLOR_SCHEMES.iter())
+            .copied()
+            .filter(|scheme| theme_option_matches_query(*scheme, Lang::En, "material ocean"))
+            .collect();
+
+        assert_eq!(matches, vec![ColorScheme::MaterialOcean]);
     }
 
     #[test]

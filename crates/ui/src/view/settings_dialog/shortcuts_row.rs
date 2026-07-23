@@ -16,13 +16,27 @@ const ROW_HEIGHT: f32 = 34.0;
 pub(super) fn shortcuts_setting_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
+    lower_query: &str,
 ) -> Element<'a, Message> {
     let mut table = column![].spacing(6);
     for action in ShortcutAction::ALL {
-        table = table.push(shortcut_row(dialog, lang, action));
+        if shortcut_action_matches_query(action, lang, lower_query) {
+            table = table.push(shortcut_row(dialog, lang, action));
+        }
     }
 
     container(table).width(Length::Fill).into()
+}
+
+pub(super) fn shortcut_action_matches_query(
+    action: ShortcutAction,
+    lang: Lang,
+    lower_query: &str,
+) -> bool {
+    lower_query.is_empty()
+        || shortcut_action_label(action, lang)
+            .to_lowercase()
+            .contains(lower_query)
 }
 
 fn shortcut_row<'a>(

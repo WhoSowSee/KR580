@@ -1741,7 +1741,11 @@ light surfaces and softened text contrast instead of stark white panels.
 Shortcuts holds the keyboard
 shortcut map. Live-editing language/speed/theme with
 Cancel/Reset/Save footer. Reset opens a sub-modal confirmation. Search
-filters settings rows across all categories, including theme names.
+filters settings rows across all categories. Theme-name and shortcut-action
+matches narrow those compound controls to the matching individual options;
+matching the parent setting label or hint keeps the complete control visible.
+Localized sidebar category names also participate in search and show the
+complete matching category.
 
 **State:** `settings_dialog: Option<SettingsDialog>` and the transient
 `settings_saved_notice: Option<SettingsSavedNotice>` from
