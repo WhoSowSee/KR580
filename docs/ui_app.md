@@ -1448,6 +1448,13 @@ reuses the same surface fill as the hover state while keeping the
 regular neutral border; mouse clicks on either button still dispatch the
 same `CancelDiscard` / `ConfirmDiscard` messages.
 
+Confirming `Open` or `Import` starts the corresponding selection flow
+without clearing `dirty`. The session becomes clean only after a file is
+successfully opened or imported, so cancelling either the native picker
+or the import modal keeps the discard gate active for the next attempt.
+`New` marks the reset state clean immediately; confirmed window close is
+routed directly to the window subsystem.
+
 The opcode/mnemonic picker uses `opcode_dropdown_style` with a 7 px
 radius on all four corners. The popup floats over the memory rows, so
 the top edge keeps the same rounding as the bottom edge instead of

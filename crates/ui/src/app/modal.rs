@@ -89,21 +89,18 @@ impl DesktopApp {
         self.discard_modal_keyboard_focus_visible = false;
         match action {
             PendingAction::OpenSnapshot => {
-                self.mark_saved();
-                Task::done(Message::OpenSnapshot)
+                self.open_program();
+                Task::none()
             }
             PendingAction::NewFile => {
-                self.mark_saved();
-                Task::done(Message::NewFile)
+                self.run_new_file();
+                Task::none()
             }
             PendingAction::Import => {
-                self.mark_saved();
-                Task::done(Message::Import)
+                self.open_import_modal();
+                Task::none()
             }
-            PendingAction::CloseWindow => {
-                self.mark_saved();
-                Task::done(Message::WindowClose)
-            }
+            PendingAction::CloseWindow => Task::done(Message::WindowClose),
             PendingAction::DeleteHdd => {
                 self.delete_hdd_file();
                 Task::none()
@@ -205,6 +202,23 @@ mod tests {
 
         assert!(app.pending_action.is_none());
         assert!(!app.dirty);
+    }
+
+    #[test]
+    fn cancelled_import_after_discard_confirmation_keeps_dirty_gate() {
+        let (mut app, _task) = DesktopApp::with_initial_path(None);
+        app.dirty = true;
+        app.open_discard_modal(PendingAction::Import);
+
+        let _task = app.update(Message::ConfirmDiscard);
+
+        assert!(app.dirty);
+        assert!(app.import_modal_open);
+
+        let _task = app.update(Message::CancelImport);
+        let _task = app.update(Message::Import);
+
+        assert!(matches!(app.pending_action, Some(PendingAction::Import)));
     }
 
     #[test]
