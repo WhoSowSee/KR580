@@ -3,8 +3,8 @@ use iced::{Background, Border, Color, Element, Length, alignment};
 
 use super::super::theme::{
     DARK_COLOR_SCHEMES, LIGHT_COLOR_SCHEMES, color_scheme_group_label, color_scheme_label,
-    color_scheme_palette, tokyo_blue, tokyo_border, tokyo_muted, tokyo_selection_blue,
-    tokyo_surface, tokyo_surface_2, tokyo_text, ui_text,
+    color_scheme_palette, tokyo_border, tokyo_muted, tokyo_selection_blue, tokyo_surface,
+    tokyo_surface_2, tokyo_text, ui_text,
 };
 use crate::app::{ContentFocus, Message, SettingsDialog};
 use crate::i18n::Lang;
@@ -136,9 +136,7 @@ fn theme_option_style(
         (false, button::Status::Hovered) => tokyo_surface(),
         _ => Color::TRANSPARENT,
     };
-    let border_color = if selected {
-        tokyo_blue()
-    } else if keyboard_focused {
+    let border_color = if keyboard_focused {
         tokyo_text()
     } else {
         Color::TRANSPARENT
@@ -148,13 +146,25 @@ fn theme_option_style(
         text_color: tokyo_text(),
         border: Border {
             radius: 6.0.into(),
-            width: if selected || keyboard_focused {
-                1.0
-            } else {
-                0.0
-            },
+            width: if keyboard_focused { 1.0 } else { 0.0 },
             color: border_color,
         },
         ..button::Style::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn selected_theme_uses_fill_without_border_unless_keyboard_focused() {
+        let selected = theme_option_style(button::Status::Active, true, false);
+        assert_eq!(selected.border.width, 0.0);
+        assert_eq!(selected.border.color, Color::TRANSPARENT);
+
+        let focused = theme_option_style(button::Status::Active, true, true);
+        assert_eq!(focused.border.width, 1.0);
+        assert_eq!(focused.border.color, tokyo_text());
     }
 }

@@ -1745,6 +1745,9 @@ separate setting label column; each option renders a medium-size theme name in
 the left visual column and larger palette swatches in the right visual
 column. The Black & White Light and Catppuccin Latte palettes use muted
 light surfaces and softened text contrast instead of stark white panels.
+The selected theme uses its blue selection fill without a surrounding
+border; a one-pixel outline appears only while the theme row has keyboard
+focus.
 Shortcuts holds the keyboard
 shortcut map. Live-editing language/speed/theme with
 Cancel/Reset/Save footer. Reset opens a sub-modal confirmation. Search
