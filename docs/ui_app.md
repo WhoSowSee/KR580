@@ -2179,8 +2179,10 @@ captured when the modal opens.
   routing a `Task::done(SpeedTierChanged)` that the router would
   swallow.
 - `Cancel` / backdrop click / `Esc` in the empty dialog rolls back to
-  the snapshot (`original_*`) and re-applies the original speed tier
-  through the same chokepoint.
+  the snapshot (`original_*`) and re-applies the original active speed tier
+  through the same chokepoint. The active `speed_tier` snapshot is distinct
+  from `default_speed`, so closing Settings after changing an unrelated option
+  does not replace the speed selected in the main window with the saved default.
 - `Save` keeps the dialog open, keeps the live state, writes the complete dialog
   snapshot to JSON once, and advances `original_*` so a later `Cancel` returns
   to the latest saved values. A text-only top-centre `Настройки сохранены` /

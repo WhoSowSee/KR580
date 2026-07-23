@@ -65,6 +65,33 @@ fn cancel_rolls_back_live_speed_to_pre_open_snapshot() {
 }
 
 #[test]
+fn closing_settings_preserves_active_speed_before_and_after_save() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.default_speed = SpeedTier::High;
+    app.speed_tier = SpeedTier::High;
+    app.follow_pc = false;
+
+    let _ = app.update(Message::SpeedTierChanged(SpeedTier::Slow));
+    let _ = app.update(Message::OpenSettings);
+    let _ = app.update(Message::SettingsDraftFollowPcSet(true));
+    let _ = app.update(Message::CloseSettings);
+
+    assert_eq!(app.speed_tier, SpeedTier::Slow);
+    assert_eq!(app.default_speed, SpeedTier::High);
+    assert!(!app.follow_pc);
+
+    let _ = app.update(Message::OpenSettings);
+    let _ = app.update(Message::SettingsDraftFollowPcSet(true));
+    app.commit_settings_dialog_state();
+    let _ = app.update(Message::CloseSettings);
+
+    assert_eq!(app.speed_tier, SpeedTier::Slow);
+    assert_eq!(app.default_speed, SpeedTier::High);
+    assert!(app.follow_pc);
+    assert!(app.settings_dialog.is_none());
+}
+
+#[test]
 fn live_theme_change_updates_active_scheme_immediately() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     app.color_scheme = ColorScheme::TokyoNight;
@@ -162,6 +189,7 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     assert!(!dialog.reset_confirm_open);
     assert_eq!(dialog.original_lang, expected_lang);
     assert_eq!(dialog.original_speed, SpeedTier::High);
+    assert_eq!(dialog.original_active_speed, SpeedTier::High);
     assert!(!app.follow_pc);
     assert!(!dialog.original_follow_pc);
     assert!(app.memory_operand_highlighting);

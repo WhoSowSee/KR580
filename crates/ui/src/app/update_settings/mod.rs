@@ -23,7 +23,7 @@ impl DesktopApp {
                 self.hide_opcode_dropdown();
                 self.close_open_device_panel();
                 let settings = load_settings();
-                self.settings_dialog = Some(SettingsDialog::new_with_shortcuts_and_printer(
+                let mut dialog = SettingsDialog::new_with_shortcuts_and_printer(
                     self.lang,
                     self.default_speed,
                     self.color_scheme,
@@ -35,7 +35,9 @@ impl DesktopApp {
                     settings.general.printer_dialog_mode,
                     settings.network,
                     settings.shortcuts,
-                ));
+                );
+                dialog.original_active_speed = self.speed_tier;
+                self.settings_dialog = Some(dialog);
                 Some(Task::none())
             }
             Message::CloseSettings => {
@@ -45,14 +47,14 @@ impl DesktopApp {
                     self.lang = dialog.original_lang;
                     self.color_scheme = dialog.original_color_scheme;
                     let speed_changed = self.default_speed != dialog.original_speed
-                        || self.speed_tier != dialog.original_speed;
+                        || self.speed_tier != dialog.original_active_speed;
                     self.default_speed = dialog.original_speed;
                     self.follow_pc = dialog.original_follow_pc;
                     self.memory_operand_highlighting = dialog.original_memory_operand_highlighting;
                     self.printer_dialog_mode = dialog.original_printer_dialog_mode;
                     self.shortcut_settings = dialog.original_shortcuts;
                     if speed_changed {
-                        self.apply_speed_tier(dialog.original_speed);
+                        self.apply_speed_tier(dialog.original_active_speed);
                     }
                     if lang_changed {
                         self.refresh_localized_status();
@@ -283,6 +285,7 @@ impl DesktopApp {
                     dialog.draft_printer_dialog_mode = default_printer_dialog_mode;
                     dialog.original_lang = default_lang;
                     dialog.original_speed = default_speed;
+                    dialog.original_active_speed = default_speed;
                     dialog.original_color_scheme = default_color_scheme;
                     dialog.draft_network_client_host = network.host;
                     dialog.draft_network_client_port = network.port.to_string();
@@ -348,6 +351,7 @@ impl DesktopApp {
     }
 
     pub(super) fn commit_settings_dialog_state(&mut self) {
+        let active_speed = self.speed_tier;
         let Some(dialog) = self.settings_dialog.as_mut() else {
             return;
         };
@@ -356,6 +360,7 @@ impl DesktopApp {
         self.printer_dialog_mode = dialog.draft_printer_dialog_mode;
         dialog.original_lang = dialog.draft_lang;
         dialog.original_speed = dialog.draft_speed;
+        dialog.original_active_speed = active_speed;
         dialog.original_color_scheme = dialog.draft_color_scheme;
         dialog.original_follow_pc = dialog.draft_follow_pc;
         dialog.original_memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
