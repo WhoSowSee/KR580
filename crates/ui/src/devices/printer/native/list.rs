@@ -1,4 +1,4 @@
-use super::super::PrinterInfo;
+use super::super::{PrinterInfo, PrinterStatus};
 use super::{last_os_error, read_wide_z};
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Graphics::Printing::{
@@ -87,43 +87,49 @@ fn printer_info(printer: &PRINTER_INFO_2W, default_name: Option<&str>) -> Option
         port: read_wide_ptr(printer.pPortName).unwrap_or_default(),
         location: read_wide_ptr(printer.pLocation).unwrap_or_default(),
         comment: read_wide_ptr(printer.pComment).unwrap_or_default(),
-        status: printer_status_label(printer.Status).to_owned(),
+        status: printer_status(printer.Status),
         is_default,
     })
 }
 
-fn printer_status_label(status: u32) -> &'static str {
+fn printer_status(status: u32) -> PrinterStatus {
     if status == 0 {
-        return "Ready";
+        return PrinterStatus::Ready;
     }
-    for (flag, label) in [
-        (PRINTER_STATUS_PAUSED, "Paused"),
-        (PRINTER_STATUS_ERROR, "Error"),
-        (PRINTER_STATUS_PENDING_DELETION, "Pending deletion"),
-        (PRINTER_STATUS_PAPER_JAM, "Paper jam"),
-        (PRINTER_STATUS_PAPER_OUT, "Paper out"),
-        (PRINTER_STATUS_MANUAL_FEED, "Manual feed"),
-        (PRINTER_STATUS_PAPER_PROBLEM, "Paper problem"),
-        (PRINTER_STATUS_OFFLINE, "Offline"),
-        (PRINTER_STATUS_BUSY, "Busy"),
-        (PRINTER_STATUS_PRINTING, "Printing"),
-        (PRINTER_STATUS_OUTPUT_BIN_FULL, "Output bin full"),
-        (PRINTER_STATUS_NOT_AVAILABLE, "Not available"),
-        (PRINTER_STATUS_WAITING, "Waiting"),
-        (PRINTER_STATUS_PROCESSING, "Processing"),
-        (PRINTER_STATUS_INITIALIZING, "Initializing"),
-        (PRINTER_STATUS_WARMING_UP, "Warming up"),
-        (PRINTER_STATUS_TONER_LOW, "Toner low"),
-        (PRINTER_STATUS_NO_TONER, "No toner"),
-        (PRINTER_STATUS_USER_INTERVENTION, "User intervention"),
-        (PRINTER_STATUS_OUT_OF_MEMORY, "Out of memory"),
-        (PRINTER_STATUS_DOOR_OPEN, "Door open"),
+    for (flag, reported) in [
+        (PRINTER_STATUS_PAUSED, PrinterStatus::Paused),
+        (PRINTER_STATUS_ERROR, PrinterStatus::Error),
+        (
+            PRINTER_STATUS_PENDING_DELETION,
+            PrinterStatus::PendingDeletion,
+        ),
+        (PRINTER_STATUS_PAPER_JAM, PrinterStatus::PaperJam),
+        (PRINTER_STATUS_PAPER_OUT, PrinterStatus::PaperOut),
+        (PRINTER_STATUS_MANUAL_FEED, PrinterStatus::ManualFeed),
+        (PRINTER_STATUS_PAPER_PROBLEM, PrinterStatus::PaperProblem),
+        (PRINTER_STATUS_OFFLINE, PrinterStatus::Offline),
+        (PRINTER_STATUS_BUSY, PrinterStatus::Busy),
+        (PRINTER_STATUS_PRINTING, PrinterStatus::Printing),
+        (PRINTER_STATUS_OUTPUT_BIN_FULL, PrinterStatus::OutputBinFull),
+        (PRINTER_STATUS_NOT_AVAILABLE, PrinterStatus::NotAvailable),
+        (PRINTER_STATUS_WAITING, PrinterStatus::Waiting),
+        (PRINTER_STATUS_PROCESSING, PrinterStatus::Processing),
+        (PRINTER_STATUS_INITIALIZING, PrinterStatus::Initializing),
+        (PRINTER_STATUS_WARMING_UP, PrinterStatus::WarmingUp),
+        (PRINTER_STATUS_TONER_LOW, PrinterStatus::TonerLow),
+        (PRINTER_STATUS_NO_TONER, PrinterStatus::NoToner),
+        (
+            PRINTER_STATUS_USER_INTERVENTION,
+            PrinterStatus::UserIntervention,
+        ),
+        (PRINTER_STATUS_OUT_OF_MEMORY, PrinterStatus::OutOfMemory),
+        (PRINTER_STATUS_DOOR_OPEN, PrinterStatus::DoorOpen),
     ] {
         if (status & flag) != 0 {
-            return label;
+            return reported;
         }
     }
-    "Unknown"
+    PrinterStatus::Unknown
 }
 
 fn read_wide_ptr(ptr: *const u16) -> Result<String, String> {

@@ -147,7 +147,13 @@ store emulator state in widgets.
     (`find_focusable_at`, `find_focused_optional`, `unfocus_except`)
     used by post-click focus reconciliation.
   - `runtime/humanize_error.rs` – translates English `AppError` Display
-    strings into short Russian phrases for the floating overlay.
+    strings into short Russian phrases for the floating overlay. The
+    patterns are matched in order and must stay narrow enough that an
+    unrecognized error falls through to the honest fallback rather than
+    being labelled as something else: `os error N` is matched with its
+    closing paren, because `os error 2` is also a prefix of `os error 28`
+    (disk full), and disk exhaustion is matched by its actual phrases
+    rather than by the word `disk`.
   - `runtime/parse.rs` – small free helpers (hex parsing,
     `saturating_step_u8`, `scroll_memory_to`).
   - `runtime/undo.rs` – applies a popped `UndoEntry` back to live
@@ -652,9 +658,56 @@ global printer, then the OS default printer.
 
 Native printing belongs to the internal printer device module, not the UI. The device copies the spool, enters `Busy`, and renders CP866-decoded text through the OS print stack with the selected `DEVMODEW`; completion returns through the actor's 50 ms device poll. Printing and clearing do not reset either global or session printer settings.
 
-Printer setup is custom by default. `view/printer_setup.rs` renders a 720 px emulator-styled modal with the system dialog's structure: printer selector, compact Properties button, status/type/location/comment details, paper size, paper source, and portrait/landscape orientation. Session setup follows the printer device window: when the printer is detached, `view/windows.rs` routes Setup to an undecorated `720×500` OS window centred over the unchanged `760×340` Printer. Like the detached Monitor view, the panel fills that native surface directly instead of being rendered over an empty backdrop. Properties has its own `printer_properties_window_id`: it opens hidden at its final `1040×680` bounds above the still-compact Setup window, renders its panel only after `WindowOpened`, and then becomes visible and focused. While that child window exists, Setup's close glyph, Cancel, and OK buttons use muted disabled styling with unchanged borders. Trying any of them, or sending a native close request to Setup, refocuses Properties and restarts a visible but restrained 520 ms surface/border pulse instead of closing either window. The pulse rises after focus transfer before fading, so the blocked window remains identifiable without a bright flash. Closing Properties destroys only that window and returns focus to Setup; closing Setup or its Printer owner closes both descendant windows. Neither child dialog resizes or replaces another window. Setup launched from the application Settings dialog remains an overlay owned by the main emulator. The modal reserves the final Printer group height before the asynchronous printer and driver configuration calls complete, so it opens at its final size instead of resizing after the first frame; that height also keeps the Name and Comment text margins visually balanced. It keeps footer buttons at a stable height, draws left-aligned section legends through their borders, uses the standard framed 34 px modal close button, and omits decorative header/footer separators. The Paper and Orientation groups share one fixed row height; the orientation controls are vertically centred inside that row, while the preview changes between portrait and landscape dimensions with the selected radio option. Printer, paper, and source selectors use a controlled anchored overlay with a 6 px gap and 4 px panel padding, so an opened menu neither participates in parent layout nor obscures its final border. Clicking elsewhere inside the modal closes the open selector. `Tab` and `Shift+Tab` cycle the enabled controls in both directions and enable the blue keyboard ring through `PrinterSetupDialog::focus_visible`; `Enter` or a left click clears that ring before activating the control, so an opened selector uses its normal active fill instead of retaining a focus outline. Selected orientation radios keep the blue dot but return to the resting border when the ring is hidden. Arrow keys move the highlighted option inside an open selector without committing it, and `Esc` closes the selector before closing the modal. `EnumPrintersW` loads printer metadata, `DeviceCapabilitiesW` loads the paper and source lists, and `DocumentPropertiesW` loads and normalizes the complete driver `DEVMODEW`.
+Printer setup is custom by default. `view/printer_setup.rs` renders a 720 px emulator-styled modal with the system dialog's structure: printer selector, compact Properties button, status/type/location/comment details, paper size, paper source, and portrait/landscape orientation. Session setup follows the printer device window: when the printer is detached, `view/windows.rs` routes Setup to an undecorated `720×500` OS window centred over the unchanged `760×340` Printer. Like the detached Monitor view, the panel fills that native surface directly instead of being rendered over an empty backdrop. Properties has its own `printer_properties_window_id`: it opens hidden at its final `1040×680` bounds above the still-compact Setup window, renders its panel only after `WindowOpened`, and then becomes visible and focused. While that child window exists, Setup's close glyph, Cancel, and OK buttons use muted disabled styling with unchanged borders. Trying any of them, or sending a native close request to Setup, refocuses Properties and restarts a visible but restrained 520 ms surface/border pulse instead of closing either window. The pulse rises after focus transfer before fading, so the blocked window remains identifiable without a bright flash. Closing Properties destroys only that window and returns focus to Setup; closing Setup or its Printer owner closes both descendant windows. Neither child dialog resizes or replaces another window. Setup launched from the application Settings dialog remains an overlay owned by the main emulator. The modal reserves the final Printer group height before the asynchronous printer and driver configuration calls complete, so it opens at its final size instead of resizing after the first frame; that height also keeps the Name and Comment text margins visually balanced. It keeps footer buttons at a stable height, draws left-aligned section legends through their borders, uses the standard framed 34 px modal close button, and omits decorative header/footer separators. The Paper and Orientation groups share one fixed row height; the orientation controls are vertically centred inside that row, while the preview changes between portrait and landscape dimensions with the selected radio option. Printer, paper, and source selectors use a controlled anchored overlay with a 6 px gap and 4 px panel padding, so an opened menu neither participates in parent layout nor obscures its final border. Clicking elsewhere inside the modal closes the open selector. `Tab` and `Shift+Tab` cycle the enabled controls in both directions and enable the blue keyboard ring through `PrinterSetupDialog::focus_visible`; `Enter` or a left click clears that ring before activating the control, so an opened selector uses its normal active fill instead of retaining a focus outline. Selected orientation radios keep the blue dot but return to the resting border when the ring is hidden. Arrow keys move the highlighted option inside an open selector without committing it, and `Esc` closes the selector before closing the modal. `EnumPrintersW` loads printer metadata, `DeviceCapabilitiesW` loads the paper and source lists, and `DocumentPropertiesW` loads and normalizes the complete driver `DEVMODEW`. The Status row renders the `PrinterStatus` enum through `labels.rs::localized_status`, which covers all 23 spooler states in both languages, including `Замятие бумаги`, `Мало тонера`, and `Открыта крышка`.
 
-Properties opens a second emulator-styled modal instead of the driver window. Its Favorites, General, Paper, Graphics, and Advanced tabs are built from the driver's PrintCapabilities XML; changes are merged into the current PrintTicket with `PTMergeAndValidatePrintTicket` and converted back to a validated `DEVMODEW`. Standard and vendor-defined features, constrained options, numeric/string parameters, named per-printer profiles, and a live paper preview are supported. Feature, option, and parameter labels follow the application's selected locale rather than the Windows or driver locale. Russian localization covers the known HP names, preserves useful driver-provided Cyrillic, and falls back to readable QName splitting. English localization maps the same canonical QNames and recognized Russian driver values; an unknown Cyrillic driver label falls back to its readable QName, or to a neutral numbered option for opaque vendor names, so mixed-language rows cannot appear. Opaque internal values such as `PageDevmodeSnapshot` remain hidden. Property selectors use the same anchored overlay as top-level setup: a 6 px gap separates the panel, 4 px inner padding preserves the final option's bottom border, and long lists scroll without a visible scrollbar. Because the panel is an iced overlay instead of an inline column, opening it never moves adjacent property rows or the preview panel; clicking elsewhere inside Properties closes it. Arrow keys move the controlled highlight, `Enter` commits it, and `Esc` closes the list first. The property body remains scrollable by wheel or touchpad but does not draw a scrollbar. The profiles/preview side column is fixed rather than scrollable, with a compact paper preview that fits the dialog body in both orientations. Properties starts with logical focus on Favorites but suppresses every control outline until `Tab` or `Shift+Tab` is used. Keyboard traversal enables the blue outline through `PrinterPropertiesDialog::focus_visible`; `Enter` and mouse input clear it before activation. Active tabs therefore draw only their bottom indicator, active selectors use their normal fill, and selected radios do not keep a blue border. PrintTicket provider open/use/close stays on one MTA worker thread, and every driver call runs through `tokio::task::spawn_blocking`, so the iced update loop remains responsive. If `general.printerDialogMode` is `system`, top-level setup uses `PrintDlgW` instead.
+Paper and source labels are localized at render time in both Setup and
+Properties. English uses the stable Windows paper/bin identifiers for
+standard capabilities and translates common driver-specific names such
+as `Автовыбор`, `Лоток N`, and `Конверт N`; unknown Cyrillic capability
+names fall back to a neutral English identifier instead of leaking the
+driver locale into the UI. Printer names and user-created preset names
+remain unchanged because they are external proper names.
+
+The same rule holds one level up, in the application-wide registry.
+`i18n/ru.rs` and `i18n/en.rs` both end in a wildcard arm, so a `Key` with
+only one language's string compiles and panics inside `view()`. `i18n/keys.rs`
+generates the `Key` enum and a `SCALAR_KEYS` list from one macro
+invocation, and `i18n/mod.rs` resolves all 402 keys in both languages in a
+test, so a missing translation fails the build instead of the running app.
+
+Values that originate below the view layer never carry display text at
+all: `PrinterInfo::status` is a `PrinterStatus` enum, and the exhaustive
+`match` in `localized_status` makes a new spooler state a compile error
+until both languages have a string. `PrinterPaper` and `PrinterSource`
+deliberately have no `Display` impl, so a stray `paper.to_string()`
+cannot silently reintroduce the driver locale.
+
+`view/printer_setup/driver_locale.rs` owns the single Russian-to-English
+table for driver-supplied strings, together with the one Cyrillic range
+test used across the feature. Top-level Setup reaches it through
+`labels.rs` and Properties through `properties/localization/en.rs`, so the
+two dialogs cannot drift apart: adding `Автовыбор` or `Лоток N` once makes
+it render identically in the Paper group and in the PrintTicket rows.
+Layer-specific vocabulary stays where it belongs – numeric Windows
+paper/bin identifiers in `labels.rs`, canonical PrintTicket QNames in
+`properties/localization/`.
+
+The PrintTicket vocabulary follows the same rule one level down.
+`properties/localization/tables.rs` holds one `(QName, Russian, English)`
+table per kind – feature, option, parameter – and `localization.rs` and
+`localization/en.rs` read the column for the active language. A QName
+therefore cannot gain a translation in one language and silently keep the
+raw schema keyword in the other. Feature-specific option meanings live in the same
+file as `contextual`, keyed by `(feature, option)`, and both languages
+consult it before anything else, so `PageMediaType=OFF` reads `Не указано`
+and `Unspecified` rather than picking up the generic on/off vocabulary.
+Russian then prefers the driver's own Cyrillic label over the generic
+table, because a Russian driver names its own bins better than a canonical
+list can. Only genuinely language-specific rules stay split: `humanize_ru`
+word splitting on the Russian side, opaque-vendor numbering on the English
+side.
+
+Properties opens a second emulator-styled modal instead of the driver window. Its Favorites, General, Paper, Graphics, and Advanced tabs are built from the driver's PrintCapabilities XML; changes are merged into the current PrintTicket with `PTMergeAndValidatePrintTicket` and converted back to a validated `DEVMODEW`. Standard and vendor-defined features, constrained options, numeric/string parameters, named per-printer profiles, and a live paper preview are supported. Feature, option, and parameter labels follow the application's selected locale rather than the Windows or driver locale. Both languages resolve canonical QNames through the shared `localization/tables.rs` entries. Russian localization covers the known HP names, preserves useful driver-provided Cyrillic, and falls back to readable QName splitting. English localization maps the same canonical QNames and looks recognized Russian driver values up in the shared `driver_locale` table; an unknown Cyrillic driver label falls back to its readable QName, or to a neutral numbered option for opaque vendor names, so mixed-language rows cannot appear. Opaque internal values such as `PageDevmodeSnapshot` remain hidden. Property selectors use the same anchored overlay as top-level setup: a 6 px gap separates the panel, 4 px inner padding preserves the final option's bottom border, and long lists scroll without a visible scrollbar. Because the panel is an iced overlay instead of an inline column, opening it never moves adjacent property rows or the preview panel; clicking elsewhere inside Properties closes it. Arrow keys move the controlled highlight, `Enter` commits it, and `Esc` closes the list first. The property body remains scrollable by wheel or touchpad but does not draw a scrollbar. The profiles/preview side column is fixed rather than scrollable, with a compact paper preview that fits the dialog body in both orientations. Properties starts with logical focus on Favorites but suppresses every control outline until `Tab` or `Shift+Tab` is used. Keyboard traversal enables the blue outline through `PrinterPropertiesDialog::focus_visible`; `Enter` and mouse input clear it before activation. Active tabs therefore draw only their bottom indicator, active selectors use their normal fill, and selected radios do not keep a blue border. PrintTicket provider open/use/close stays on one MTA worker thread, and every driver call runs through `tokio::task::spawn_blocking`, so the iced update loop remains responsive. If `general.printerDialogMode` is `system`, top-level setup uses `PrintDlgW` instead.
 
 The older "I/O Controller" capsule that used to sit on the right of
 the same row was removed: it duplicated the role of the device strip
@@ -1959,8 +2012,10 @@ selected field.
 
 **View:** `view/printer.rs` – `printer_window_overlay()` and
 `printer_window()`; `view/printer_setup.rs` – the emulator-styled printer
-selection modal; `view/printer_setup/properties.rs` and its submodules – the
-embedded properties tabs, feature controls, profiles, and preview.
+selection modal; `view/printer_setup/driver_locale.rs` – the shared
+Russian-to-English table for driver-supplied labels;
+`view/printer_setup/properties.rs` and its submodules – the embedded
+properties tabs, feature controls, profiles, and preview.
 
 ## Keyboard shortcuts
 
@@ -2246,7 +2301,16 @@ with its provenance (`Ready`, `Stopped`, `SavedTo { display, legacy }`,
 …) so a language switch can re-render the cached `self.status` from
 its tag instead of leaving a stale Russian phrase under an English UI.
 Custom error strings keep the `StatusKind::Custom` tag and are not
-re-translated.
+re-translated, so `Custom` is reserved for text that genuinely comes from
+outside the application – an OS error, a port log line. Anything the
+application itself phrases gets a tag: rejected hex input reports
+`InvalidByteHex` / `InvalidAddressHex` rather than a formatted message,
+and attaching or deleting the hard-disk file reports `HddImageAttached` /
+`HddFileDeleted` instead of a hardcoded `HDD:` prefix. Hex parsing
+therefore returns `Option` rather than `Result<_, String>`: a rejected
+field carries no information beyond the rejection, and the only way to
+reach it is to clear the field, since `bounded_hex_input` filters every
+other bad character as it is typed.
 
 ### Settings dialog: file layout
 

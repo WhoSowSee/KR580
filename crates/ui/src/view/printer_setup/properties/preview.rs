@@ -1,3 +1,4 @@
+use super::super::labels::localized_paper_name;
 use super::super::styles::{footer_button, group_style};
 use super::dropdown;
 use super::labels::{PropertyLabel, label};
@@ -112,8 +113,8 @@ fn preview<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Element<'
     let paper_name = properties
         .sheet
         .as_ref()
-        .and_then(|sheet| sheet.configuration.settings.paper_name.as_deref())
-        .unwrap_or("—");
+        .and_then(|sheet| sheet.configuration.selected_paper())
+        .map_or_else(|| "—".to_owned(), |paper| localized_paper_name(paper, lang));
     bordered(
         column![
             ui_text(label(lang, PropertyLabel::Preview), 13, tokyo_text()),
@@ -130,7 +131,7 @@ fn preview<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Element<'
                 .height(Length::Fixed(196.0))
             )
             .width(Length::Fill),
-            ui_text(paper_name.to_owned(), 11, tokyo_muted()),
+            ui_text(paper_name, 11, tokyo_muted()),
         ]
         .spacing(8)
         .align_x(Alignment::Center)

@@ -1,6 +1,20 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+macro_rules! scalar_keys {
+    ($($name:ident),* $(,)?) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        #[rustfmt::skip]
+        pub(crate) enum Key {
+            $($name,)*
+            Network(super::network::NetworkKey),
+            Printer(super::printer::PrinterKey),
+        }
+
+        #[cfg(test)]
+        pub(super) const SCALAR_KEYS: &[Key] = &[$(Key::$name),*];
+    };
+}
+
 #[rustfmt::skip]
-pub(crate) enum Key {
+scalar_keys! {
     MenuFile, MenuMp, MenuView, MenuSettings, MenuHelp,
     HelpShowDocs, HelpAbout, HelpDialogTitle, HelpSearchPlaceholder,
 
@@ -91,7 +105,6 @@ pub(crate) enum Key {
     HddContent, HddImageContent, HddStatus, HddPath, HddPathMissing, HddImagePathMissing,
     HddBytesQueued, HddClearBuffer, HddClose, HddChooseDirectory, HddShowImageContents,
     HddDebugBuffer, HddDeleteFile, HddCreateFile, HddDebugEnabled, HddFileDeleted,
-    Network(super::network::NetworkKey), Printer(super::printer::PrinterKey),
     DeviceStatusReady, DeviceStatusNotReady, DeviceStatusBusy, DeviceStatusNoData,
     DeviceStatusConnected, DeviceStatusListening, DeviceStatusDisconnected,
 
@@ -103,6 +116,7 @@ pub(crate) enum Key {
     OpcodeSearchPlaceholder,
     StatusByteHeader, StatusPrefix, StatusNoProgramAt, StatusNothingToUndo, StatusNothingToRedo,
     StatusEnterHexPattern, StatusInvalidMemoryBytes, StatusMemoryBytesOutOfRange,
+    StatusInvalidByteHex, StatusInvalidAddressHex, HddImageAttached,
     StatusPatternFound, StatusAtAddress, StatusNoMatchesFor,
     ErrNotA580File, ErrFileEmpty, ErrWrong580Size, ErrLegacyTrailerCorrupt,
     ErrSettingsNewerVersion, ErrSettingsCorrupt, ErrCannotReadFileFormat, ErrCannotReadFile,

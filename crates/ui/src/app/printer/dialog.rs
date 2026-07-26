@@ -1,7 +1,7 @@
 mod keyboard;
 
 use super::tasks::load_native_printer_configuration_blocking;
-use super::{PrinterSetupDialog, PrinterSetupTarget};
+use super::{PrinterSetupDialog, PrinterSetupError, PrinterSetupTarget};
 use crate::app::{DesktopApp, Message};
 use iced::Task;
 use k580_ui::devices::printer::{PrinterConfiguration, PrinterInfo, PrinterSettings};
@@ -141,11 +141,7 @@ impl DesktopApp {
         dialog.loading = false;
         match result {
             Ok(printers) => {
-                dialog.error = if printers.is_empty() {
-                    Some("No printers found".to_owned())
-                } else {
-                    None
-                };
+                dialog.error = printers.is_empty().then_some(PrinterSetupError::NoPrinters);
                 dialog.printers = printers;
                 if !selected_printer_exists(dialog) {
                     dialog.selected_name = default_printer_name(dialog)
@@ -155,7 +151,7 @@ impl DesktopApp {
             Err(error) => {
                 dialog.printers.clear();
                 dialog.selected_name = None;
-                dialog.error = Some(error);
+                dialog.error = Some(PrinterSetupError::Driver(error));
             }
         }
         self.load_selected_printer_configuration()
@@ -202,7 +198,7 @@ impl DesktopApp {
             }
             Err(error) => {
                 dialog.configuration = None;
-                dialog.error = Some(error);
+                dialog.error = Some(PrinterSetupError::Driver(error));
             }
         }
     }

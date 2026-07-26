@@ -6,7 +6,7 @@ use super::{
 use crate::app::{DesktopApp, Message};
 use crate::persistence::PrinterPreset;
 use iced::Point;
-use k580_ui::devices::printer::{PrinterInfo, PrinterSettings};
+use k580_ui::devices::printer::{PrinterInfo, PrinterSettings, PrinterStatus};
 use std::time::{Duration, Instant};
 
 #[test]
@@ -360,7 +360,7 @@ fn printer(name: &str) -> PrinterInfo {
         port: String::new(),
         location: String::new(),
         comment: String::new(),
-        status: String::new(),
+        status: PrinterStatus::Unknown,
         is_default: false,
     }
 }

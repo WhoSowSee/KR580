@@ -85,6 +85,52 @@ fn unknown_russian_driver_labels_fall_back_to_qnames() {
 }
 
 #[test]
+fn one_qname_table_serves_both_languages() {
+    let envelope = feature(
+        "psk:PageMediaSize",
+        "Размер бумаги",
+        "psk:ISOC5Envelope",
+        "Envelope C5",
+    );
+
+    assert_eq!(feature_label(&envelope, Lang::Ru), "Размер бумаги");
+    assert_eq!(feature_label(&envelope, Lang::En), "Paper size");
+    assert_eq!(
+        localized_options(&envelope, Lang::Ru)[0].display_name,
+        "Конверт C5"
+    );
+    assert_eq!(
+        localized_options(&envelope, Lang::En)[0].display_name,
+        "C5 envelope"
+    );
+}
+
+#[test]
+fn driver_bin_names_reuse_the_shared_setup_dictionary() {
+    let numbered = feature(
+        "psk:PageInputBin",
+        "Источник бумаги",
+        "vendor:k7",
+        "Лоток 1",
+    );
+    let bypass = feature(
+        "psk:PageDefaultSource",
+        "Источник бумаги",
+        "vendor:k8",
+        "Обходной лоток",
+    );
+
+    assert_eq!(
+        localized_options(&numbered, Lang::En)[0].display_name,
+        "Tray 1"
+    );
+    assert_eq!(
+        localized_options(&bypass, Lang::En)[0].display_name,
+        "Bypass tray"
+    );
+}
+
+#[test]
 fn localizes_installed_hp_media_and_resolution_options() {
     let cases = [
         (
@@ -119,6 +165,59 @@ fn localizes_installed_hp_media_and_resolution_options() {
         );
         assert_eq!(
             localized_options(&feature, Lang::En)[0].display_name,
+            expected
+        );
+    }
+}
+
+#[test]
+fn contextual_options_outrank_generic_entries_in_russian() {
+    let media = feature(
+        "psk:PageMediaType",
+        "Тип бумаги",
+        "vendor:OFF",
+        "Не указано",
+    );
+    let source = feature(
+        "psk:PageDefaultSource",
+        "Источник бумаги",
+        "vendor:AUTO",
+        "Автовыбор",
+    );
+
+    assert_eq!(
+        localized_options(&media, Lang::Ru)[0].display_name,
+        "Не указано"
+    );
+    assert_eq!(
+        localized_options(&source, Lang::Ru)[0].display_name,
+        "Автовыбор"
+    );
+}
+
+#[test]
+fn russian_labels_survive_an_english_only_driver() {
+    let cases = [
+        ("PageMediaType", "ENV", "Envelope", "Конверт"),
+        (
+            "PageMediaType",
+            "THICK",
+            "Thick 90-120g",
+            "Плотная бумага (90–120 г/м²)",
+        ),
+        ("PageResolution", "1_600x600_dpi", "600 dpi", "Стандартное"),
+        ("JobPageOrder", "Reverse", "Reverse", "Обратный (3, 2, 1)"),
+    ];
+
+    for (feature_name, option_name, driver_label, expected) in cases {
+        let feature = feature(
+            &format!("psk:{feature_name}"),
+            feature_name,
+            &format!("psk:{option_name}"),
+            driver_label,
+        );
+        assert_eq!(
+            localized_options(&feature, Lang::Ru)[0].display_name,
             expected
         );
     }

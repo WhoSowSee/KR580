@@ -122,11 +122,21 @@ fn paper_content<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Ele
     let standard = column![
         standard_row(
             label(lang, PropertyLabel::Size),
-            dropdown::paper(configuration.papers.clone(), selected_paper, properties),
+            dropdown::paper(
+                configuration.papers.clone(),
+                selected_paper,
+                properties,
+                lang,
+            ),
         ),
         standard_row(
             label(lang, PropertyLabel::Source),
-            dropdown::source(configuration.sources.clone(), selected_source, properties),
+            dropdown::source(
+                configuration.sources.clone(),
+                selected_source,
+                properties,
+                lang,
+            ),
         ),
         row![
             crate::view::theme::ui_text(

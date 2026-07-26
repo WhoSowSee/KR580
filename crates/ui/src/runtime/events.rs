@@ -75,7 +75,7 @@ impl DesktopApp {
                         "{:02X}",
                         self.snapshot.cpu.registers.get(self.selected_register)
                     );
-        let memory_address = parse_hex_u16(&self.memory_address_input).ok();
+        let memory_address = parse_hex_u16(&self.memory_address_input);
         let old_memory_value =
             memory_address.map(|address| format!("{:02X}", self.snapshot.cpu.memory.read(address)));
         let memory_value_follows_snapshot = old_memory_value

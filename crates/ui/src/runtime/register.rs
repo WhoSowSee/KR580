@@ -1,6 +1,6 @@
 use crate::app::{
     DesktopApp, Message, REGISTER_INLINE_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_ORDER,
-    REGISTER_VALUE_INPUT_ID, RegisterInlineTarget, RegisterMove, parse_register_name,
+    REGISTER_VALUE_INPUT_ID, RegisterInlineTarget, RegisterMove, StatusKind, parse_register_name,
     register_name,
 };
 use crate::backend::AppCommand;
@@ -231,7 +231,7 @@ impl DesktopApp {
         }
 
         match parse_hex_u8(&self.register_value_input) {
-            Ok(value) => {
+            Some(value) => {
                 self.undo_stack.break_coalescing();
                 let before = self.snapshot.cpu.clone();
                 self.dispatch_sync(AppCommand::SetRegister(self.selected_register, value));
@@ -248,7 +248,7 @@ impl DesktopApp {
                     None => self.undo_stack.push_cpu(before, after),
                 }
             }
-            Err(error) => self.set_status_custom(error),
+            None => self.set_status(StatusKind::InvalidByteHex),
         }
     }
 

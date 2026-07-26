@@ -1,5 +1,5 @@
 use super::dropdown::{self, DropdownControl, DropdownItem};
-use super::labels::{Label, label, localized_status};
+use super::labels::{Label, label, localized_paper_name, localized_source_name, localized_status};
 use super::styles::{footer_button, group_style, radio_style};
 use crate::app::{Message, PrinterSetupDialog, PrinterSetupDropdown, PrinterSetupFocus};
 use crate::i18n::Lang;
@@ -69,7 +69,7 @@ pub(super) fn printer_section<'a>(
             column![
                 detail_row(
                     label(lang, Label::Status),
-                    localized_status(&printer.status, lang),
+                    localized_status(printer.status, lang),
                 ),
                 detail_row(label(lang, Label::Type), &printer.driver),
                 detail_row(label(lang, Label::Place), place),
@@ -97,13 +97,13 @@ pub(super) fn paper_section<'a>(
     column![
         row![
             field_label(label(lang, Label::Size)),
-            paper_dropdown(dialog, configuration.papers.clone(), paper),
+            paper_dropdown(dialog, configuration.papers.clone(), paper, lang),
         ]
         .spacing(10)
         .align_y(Alignment::Center),
         row![
             field_label(label(lang, Label::Source)),
-            source_dropdown(dialog, configuration.sources.clone(), source),
+            source_dropdown(dialog, configuration.sources.clone(), source, lang),
         ]
         .spacing(10)
         .align_y(Alignment::Center),
@@ -200,14 +200,18 @@ fn paper_dropdown(
     dialog: &PrinterSetupDialog,
     options: Vec<PrinterPaper>,
     selected: Option<PrinterPaper>,
+    lang: Lang,
 ) -> Element<'static, Message> {
     let selected_id = selected.as_ref().map(|paper| paper.id);
-    let label = selected.map_or_else(|| "—".to_owned(), |paper| paper.to_string());
+    let label = selected.map_or_else(
+        || "—".to_owned(),
+        |paper| localized_paper_name(&paper, lang),
+    );
     let items = options
         .into_iter()
         .map(|paper| DropdownItem {
             selected: Some(paper.id) == selected_id,
-            label: paper.to_string(),
+            label: localized_paper_name(&paper, lang),
             message: Message::PrinterSetupPaperSelected(paper.id),
         })
         .collect();
@@ -229,14 +233,18 @@ fn source_dropdown(
     dialog: &PrinterSetupDialog,
     options: Vec<PrinterSource>,
     selected: Option<PrinterSource>,
+    lang: Lang,
 ) -> Element<'static, Message> {
     let selected_id = selected.as_ref().map(|source| source.id);
-    let label = selected.map_or_else(|| "—".to_owned(), |source| source.to_string());
+    let label = selected.map_or_else(
+        || "—".to_owned(),
+        |source| localized_source_name(&source, lang),
+    );
     let items = options
         .into_iter()
         .map(|source| DropdownItem {
             selected: Some(source.id) == selected_id,
-            label: source.to_string(),
+            label: localized_source_name(&source, lang),
             message: Message::PrinterSetupSourceSelected(source.id),
         })
         .collect();

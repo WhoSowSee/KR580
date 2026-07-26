@@ -67,7 +67,7 @@ pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};
 pub(crate) use printer::{
     PRINTER_PROPERTIES_PRESET_INPUT_ID, PrinterPropertiesDialog, PrinterPropertiesFocus,
     PrinterPropertiesTab, PrinterPropertyDropdown, PrinterSetupDialog, PrinterSetupDropdown,
-    PrinterSetupFocus, printer_property_parameter_input_id,
+    PrinterSetupError, PrinterSetupFocus, printer_property_parameter_input_id,
 };
 pub(crate) use register_inline::RegisterMove;
 pub(crate) use settings_modal::{

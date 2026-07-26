@@ -202,7 +202,13 @@ pub(crate) struct PrinterSetupDialog {
     pub(crate) focus_visible: bool,
     pub(crate) open_dropdown: Option<PrinterSetupDropdown>,
     pub(crate) dropdown_highlight: Option<usize>,
-    pub(crate) error: Option<String>,
+    pub(crate) error: Option<PrinterSetupError>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum PrinterSetupError {
+    NoPrinters,
+    Driver(String),
 }
 
 impl PrinterSetupDialog {

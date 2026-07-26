@@ -74,7 +74,7 @@ impl DesktopApp {
         } else {
             self.snapshot.cpu.pc
         };
-        let current_address = parse_hex_u16(&self.memory_address_input).ok();
+        let current_address = parse_hex_u16(&self.memory_address_input);
         if current_address == Some(target) {
             return Task::none();
         }

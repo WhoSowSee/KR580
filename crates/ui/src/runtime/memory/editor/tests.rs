@@ -296,3 +296,32 @@ fn inline_memory_enter_keeps_replacement_mode_on_next_cell() {
     assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "00");
     assert_eq!(app.snapshot.cpu.memory.read(0x0010), 0x3E);
 }
+
+#[test]
+fn clearing_a_hex_field_reports_a_localized_status() {
+    let mut app = app_with_clean_startup();
+    app.lang = crate::i18n::Lang::Ru;
+    app.memory_address_input = "0100".to_owned();
+    app.memory_value_input = String::new();
+
+    let _ = app.apply_memory();
+
+    assert_eq!(app.status, "Неверное шестнадцатеричное значение байта");
+    assert!(matches!(app.status_kind, StatusKind::InvalidByteHex));
+
+    app.lang = crate::i18n::Lang::En;
+    app.refresh_localized_status();
+    assert_eq!(app.status, "Invalid hex byte value");
+}
+
+#[test]
+fn clearing_the_address_field_reports_the_address_status() {
+    let mut app = app_with_clean_startup();
+    app.lang = crate::i18n::Lang::Ru;
+    app.memory_address_input = String::new();
+
+    let _ = app.jump_memory_address();
+
+    assert_eq!(app.status, "Неверный шестнадцатеричный адрес");
+    assert!(matches!(app.status_kind, StatusKind::InvalidAddressHex));
+}

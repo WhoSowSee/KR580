@@ -262,7 +262,11 @@ worth eyeballing after touching `crates/ui`:
   while paths, endpoints, and printer names must preserve their original case;
 - on Windows, open Settings → External Devices, choose a printer with the
   custom Printer row setup modal, confirm its status/driver/port details,
-  paper sizes, paper sources, and orientation are populated; confirm the modal
+  paper sizes, paper sources, and orientation are populated; with the
+  application in Russian confirm the Status row is Russian for whatever the
+  spooler reports, including states past the common ones - pause the printer,
+  open its cover, or unload paper to see `Приостановлен`, `Открыта крышка`,
+  `Нет бумаги` rather than English; confirm the modal
   appears at its final size before the asynchronous printer details arrive,
   the Name and Comment text have balanced outer margins, the compact dialog
   does not clip long printer, paper, or source values, the orientation content
@@ -276,7 +280,11 @@ worth eyeballing after touching `crates/ui`:
   raw QName prefixes or `PageDevmodeSnapshot`; with Windows and the printer
   driver using Russian, switch the application to English and confirm those
   rows contain no Cyrillic, including altitude correction, print quality,
-  duplex mode, and automatic paper-source selection; change a driver option, close it,
+  duplex mode, and automatic paper-source selection; also inspect the paper
+  and source selectors in both Setup and the Properties Paper tab and confirm
+  standard bins such as `Автовыбор` / `Лоток 1` render as `Auto select` /
+  `Tray 1` identically in both dialogs, since they share one table in
+  `view/printer_setup/driver_locale.rs`; change a driver option, close it,
   and confirm the emulator remains responsive and refreshes the top-level
   controls; confirm dropdown panels keep a gap below their anchors, retain
   the bottom border under the final option in both setup windows, and close

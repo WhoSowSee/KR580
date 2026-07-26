@@ -52,6 +52,14 @@ pub(crate) enum StatusKind {
     FloppyImageAttached {
         display: String,
     },
+    HddImageAttached {
+        display: String,
+    },
+    HddFileDeleted {
+        display: String,
+    },
+    InvalidByteHex,
+    InvalidAddressHex,
     NothingToUndo,
     NothingToRedo,
     EnterHexPattern,
@@ -87,7 +95,10 @@ impl StatusKind {
             Self::InstructionAt {
                 mnemonic,
                 pc_before,
-            } => format!("{mnemonic} at {pc_before:04X}"),
+            } => format!(
+                "{mnemonic} {} {pc_before:04X}",
+                lang.t(Key::StatusAtAddress)
+            ),
             Self::PortRead { port, value } => format!("IN {port:02X} -> {value:02X}"),
             Self::PortWrite { port, value } => format!("OUT {port:02X} <- {value:02X}"),
             Self::NoProgramAt { pc } => {
@@ -107,6 +118,14 @@ impl StatusKind {
             Self::FloppyImageAttached { display } => {
                 format!("{}: {display}", lang.t(Key::FloppyImageAttached))
             }
+            Self::HddImageAttached { display } => {
+                format!("{}: {display}", lang.t(Key::HddImageAttached))
+            }
+            Self::HddFileDeleted { display } => {
+                format!("{}: {display}", lang.t(Key::HddFileDeleted))
+            }
+            Self::InvalidByteHex => lang.t(Key::StatusInvalidByteHex).to_owned(),
+            Self::InvalidAddressHex => lang.t(Key::StatusInvalidAddressHex).to_owned(),
             Self::NothingToUndo => lang.t(Key::StatusNothingToUndo).to_owned(),
             Self::NothingToRedo => lang.t(Key::StatusNothingToRedo).to_owned(),
             Self::EnterHexPattern => lang.t(Key::StatusEnterHexPattern).to_owned(),

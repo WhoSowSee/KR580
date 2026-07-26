@@ -9,6 +9,11 @@
 //! and the two enums map to each other via [`Lang::from_persistence`] and
 //! [`Lang::to_persistence`]. Keeping the on-disk type separate from the
 //! UI type means the persistence crate never has to know about strings.
+//!
+//! Both language tables end in a wildcard, so a half-translated [`Key`]
+//! compiles and only panics when the view renders it. `keys.rs` therefore
+//! generates `SCALAR_KEYS` from the same list that defines the enum, and
+//! the tests below resolve every key in every language.
 
 mod en;
 mod help_en;
@@ -111,6 +116,24 @@ mod tests {
         assert_eq!(lowercase_initial("Отклонено"), "отклонено");
         assert_eq!(lowercase_initial("127.0.0.1"), "127.0.0.1");
         assert_eq!(lowercase_initial(""), "");
+    }
+
+    #[test]
+    fn every_key_resolves_in_both_languages() {
+        for lang in [Lang::Ru, Lang::En] {
+            for key in super::keys::SCALAR_KEYS {
+                assert!(!lang.t(*key).is_empty(), "{lang:?} {key:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn translations_use_en_dash_instead_of_em_dash() {
+        for lang in [Lang::Ru, Lang::En] {
+            for key in super::keys::SCALAR_KEYS {
+                assert!(!lang.t(*key).contains('—'), "{lang:?} {key:?}");
+            }
+        }
     }
 
     #[test]

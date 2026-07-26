@@ -1,4 +1,5 @@
 use super::super::dropdown::{DropdownControl, DropdownItem, control};
+use super::super::labels::{localized_paper_name, localized_source_name};
 use super::localization::localized_options;
 use crate::app::{
     Message, PrinterPropertiesDialog, PrinterPropertiesFocus, PrinterPropertyDropdown,
@@ -49,16 +50,17 @@ pub(super) fn paper(
     papers: Vec<PrinterPaper>,
     selected: Option<PrinterPaper>,
     properties: &PrinterPropertiesDialog,
+    lang: Lang,
 ) -> Element<'static, Message> {
     let selected_id = selected.as_ref().map(|paper| paper.id);
     let label = selected
-        .map(|paper| paper.to_string())
+        .map(|paper| localized_paper_name(&paper, lang))
         .unwrap_or_else(|| "—".to_owned());
     let items = papers
         .into_iter()
         .map(|paper| DropdownItem {
             selected: Some(paper.id) == selected_id,
-            label: paper.to_string(),
+            label: localized_paper_name(&paper, lang),
             message: Message::PrinterPropertyPaperSelected(paper.id),
         })
         .collect();
@@ -69,16 +71,17 @@ pub(super) fn source(
     sources: Vec<PrinterSource>,
     selected: Option<PrinterSource>,
     properties: &PrinterPropertiesDialog,
+    lang: Lang,
 ) -> Element<'static, Message> {
     let selected_id = selected.as_ref().map(|source| source.id);
     let label = selected
-        .map(|source| source.to_string())
+        .map(|source| localized_source_name(&source, lang))
         .unwrap_or_else(|| "—".to_owned());
     let items = sources
         .into_iter()
         .map(|source| DropdownItem {
             selected: Some(source.id) == selected_id,
-            label: source.to_string(),
+            label: localized_source_name(&source, lang),
             message: Message::PrinterPropertySourceSelected(source.id),
         })
         .collect();

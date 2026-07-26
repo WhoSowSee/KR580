@@ -1,3 +1,4 @@
+mod driver_locale;
 mod dropdown;
 mod labels;
 mod properties;
@@ -11,7 +12,7 @@ use super::icons;
 use super::styles::{modal_backdrop_style, panel_style};
 use super::theme::{tokyo_red, tokyo_text, ui_text};
 use super::widgets::modal_icon_button_focused;
-use crate::app::{Message, PrinterSetupDialog, PrinterSetupFocus};
+use crate::app::{Message, PrinterSetupDialog, PrinterSetupError, PrinterSetupFocus};
 use crate::i18n::Lang;
 use labels::{Label, label};
 use styles::footer_button;
@@ -168,7 +169,10 @@ fn printer_setup_panel<'a>(
     .spacing(10)
     .align_y(Alignment::Center);
 
-    let error = dialog.error.clone();
+    let error = dialog.error.as_ref().map(|error| match error {
+        PrinterSetupError::NoPrinters => label(lang, Label::NoPrinters).to_owned(),
+        PrinterSetupError::Driver(message) => message.clone(),
+    });
     let mut content = column![header, printer_group, settings_groups].spacing(16);
     if let Some(error) = error {
         let error: Element<'a, Message> = ui_text(error, 12, tokyo_red()).into();

@@ -23,7 +23,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn selected_memory_address(&self) -> Option<u16> {
-        parse_hex_u16(&self.memory_address_input).ok()
+        parse_hex_u16(&self.memory_address_input)
     }
 
     pub(crate) fn memory_view(&self) -> (u16, usize) {

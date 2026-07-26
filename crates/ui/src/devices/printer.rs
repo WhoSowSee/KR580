@@ -6,7 +6,10 @@ use tokio::sync::mpsc;
 
 mod native;
 mod properties;
+mod status;
 mod text;
+
+pub use status::PrinterStatus;
 
 pub use properties::{
     PrinterFeature, PrinterFeatureGroup, PrinterFeatureOption, PrinterParameter,
@@ -30,7 +33,7 @@ pub struct PrinterInfo {
     pub port: String,
     pub location: String,
     pub comment: String,
-    pub status: String,
+    pub status: PrinterStatus,
     pub is_default: bool,
 }
 
@@ -48,22 +51,10 @@ pub struct PrinterPaper {
     pub name: String,
 }
 
-impl std::fmt::Display for PrinterPaper {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.name)
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PrinterSource {
     pub id: i16,
     pub name: String,
-}
-
-impl std::fmt::Display for PrinterSource {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.name)
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

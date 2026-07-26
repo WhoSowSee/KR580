@@ -26,7 +26,7 @@ impl DesktopApp {
             before,
             self.memory_address_input.clone(),
         );
-        if let Ok(address) = parse_hex_u16(&self.memory_address_input) {
+        if let Some(address) = parse_hex_u16(&self.memory_address_input) {
             self.refresh_memory_value(address);
             self.sync_pc_to_cursor(address);
         } else {
@@ -38,7 +38,7 @@ impl DesktopApp {
         match parse_hex_byte_sequence_edit(&value, &self.memory_value_input) {
             Ok(Some(values)) => {
                 self.materialize_input_fallback(MEMORY_ADDRESS_INPUT_ID);
-                if let Ok(address) = parse_hex_u16(&self.memory_address_input) {
+                if let Some(address) = parse_hex_u16(&self.memory_address_input) {
                     self.write_memory_block(address, values);
                 }
                 return;
@@ -121,19 +121,19 @@ impl DesktopApp {
     pub(crate) fn apply_inline_memory_value(&mut self, address: u16) {
         self.commit_replacement(MEMORY_INLINE_INPUT_ID);
         match parse_hex_u8(&self.memory_inline_value_input) {
-            Ok(value) => {
+            Some(value) => {
                 self.memory_address_input = format!("{address:04X}");
                 self.memory_value_input = format!("{value:02X}");
                 self.memory_inline_value_input = self.memory_value_input.clone();
                 self.undo_stack.break_coalescing();
                 self.dispatch_with_undo(AppCommand::SetMemory(address, value));
             }
-            Err(error) => self.set_status_custom(error),
+            None => self.set_status(StatusKind::InvalidByteHex),
         }
     }
 
     pub(crate) fn cancel_inline_memory_edit(&mut self) -> Task<Message> {
-        if let Ok(address) = parse_hex_u16(&self.memory_address_input) {
+        if let Some(address) = parse_hex_u16(&self.memory_address_input) {
             let stored = format!("{:02X}", self.snapshot.cpu.memory.read(address));
             self.memory_inline_value_input = stored.clone();
             self.memory_value_input = stored;
@@ -211,14 +211,18 @@ impl DesktopApp {
             parse_hex_u16(&self.memory_address_input),
             parse_hex_u8(&self.memory_value_input),
         ) {
-            (Ok(address), Ok(value)) => {
+            (Some(address), Some(value)) => {
                 self.memory_inline_value_input = format!("{value:02X}");
                 self.undo_stack.break_coalescing();
                 self.dispatch_with_undo(AppCommand::SetMemory(address, value));
                 Task::none()
             }
-            (Err(error), _) | (_, Err(error)) => {
-                self.set_status_custom(error);
+            (None, _) => {
+                self.set_status(StatusKind::InvalidAddressHex);
+                Task::none()
+            }
+            (_, None) => {
+                self.set_status(StatusKind::InvalidByteHex);
                 Task::none()
             }
         }

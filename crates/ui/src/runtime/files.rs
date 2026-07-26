@@ -85,7 +85,7 @@ impl DesktopApp {
     }
 
     fn commit_pending_inline_edit(&mut self) {
-        let Ok(address) = parse_hex_u16(&self.memory_address_input) else {
+        let Some(address) = parse_hex_u16(&self.memory_address_input) else {
             return;
         };
         let Ok(value) = u8::from_str_radix(self.memory_inline_value_input.trim(), 16) else {

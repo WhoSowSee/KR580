@@ -36,17 +36,30 @@ pub(crate) fn humanize(raw: &str, lang: Lang) -> String {
         return lang.t(Key::ErrCannotWriteFile).to_owned();
     }
 
-    if lower.contains("not found") || lower.contains("no such file") || lower.contains("os error 2")
+    // `os error N` is matched with its closing paren: "os error 2" is also a
+    // prefix of "os error 28" (disk full) and "os error 21".
+    if lower.contains("not found")
+        || lower.contains("no such file")
+        || lower.contains("cannot find the file")
+        || lower.contains("cannot find the path")
+        || lower.contains("os error 2)")
+        || lower.contains("os error 3)")
     {
         return lang.t(Key::ErrFileNotFound).to_owned();
     }
-    if lower.contains("permission denied") || lower.contains("os error 5") {
+    if lower.contains("permission denied") || lower.contains("os error 5)") {
         return lang.t(Key::ErrPermissionDenied).to_owned();
     }
     if lower.contains("already exists") {
         return lang.t(Key::ErrFileAlreadyExists).to_owned();
     }
-    if lower.contains("disk") || lower.contains("space") {
+    if lower.contains("no space left")
+        || lower.contains("not enough space")
+        || lower.contains("disk is full")
+        || lower.contains("disk full")
+        || lower.contains("os error 28)")
+        || lower.contains("os error 112)")
+    {
         return lang.t(Key::ErrDiskFull).to_owned();
     }
     if lower.starts_with("i/o error") || lower.starts_with("io error") {
@@ -126,6 +139,40 @@ mod tests {
             humanize("core error: device is not ready", Lang::En),
             "Floppy image file is not attached"
         );
+    }
+
+    #[test]
+    fn os_error_codes_do_not_match_by_prefix() {
+        assert_eq!(
+            humanize(
+                "There is not enough space on the disk. (os error 112)",
+                Lang::Ru
+            ),
+            "На диске недостаточно места"
+        );
+        assert_eq!(
+            humanize("No space left on device (os error 28)", Lang::Ru),
+            "На диске недостаточно места"
+        );
+        assert_eq!(
+            humanize(
+                "The system cannot find the path specified. (os error 3)",
+                Lang::Ru
+            ),
+            "Файл не найден"
+        );
+    }
+
+    #[test]
+    fn incidental_disk_wording_is_not_reported_as_a_full_disk() {
+        for raw in [
+            "The disk is write protected. (os error 19)",
+            "Cannot read from the disk. (os error 1117)",
+        ] {
+            let humanized = humanize(raw, Lang::Ru);
+            assert_ne!(humanized, "На диске недостаточно места", "{raw}");
+            assert!(humanized.contains(raw), "{raw}");
+        }
     }
 
     #[test]

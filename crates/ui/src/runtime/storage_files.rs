@@ -185,7 +185,9 @@ impl DesktopApp {
             return;
         }
 
-        self.set_status_custom(format!("HDD: {}", hdd_path.display()));
+        self.set_status(StatusKind::HddImageAttached {
+            display: hdd_path.display().to_string(),
+        });
     }
     pub(crate) fn delete_hdd_file(&mut self) {
         let Some(path) = self.snapshot.devices.hdd.path.clone() else {
@@ -202,11 +204,9 @@ impl DesktopApp {
         }
         self.hdd_file_exists = false;
         self.dispatch_sync(crate::backend::AppCommand::DetachHddFile);
-        self.set_status_custom(format!(
-            "{}: {}",
-            self.lang.t(Key::HddFileDeleted),
-            path.display()
-        ));
+        self.set_status(StatusKind::HddFileDeleted {
+            display: path.display().to_string(),
+        });
     }
 
     pub(crate) fn create_hdd_file(&mut self) {
@@ -222,7 +222,9 @@ impl DesktopApp {
             return;
         }
         self.hdd_file_exists = true;
-        self.set_status_custom(format!("HDD: {}", path.display()));
+        self.set_status(StatusKind::HddImageAttached {
+            display: path.display().to_string(),
+        });
     }
 
     pub(crate) fn refresh_hdd_file_exists(&mut self) {

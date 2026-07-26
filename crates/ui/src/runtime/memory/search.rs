@@ -1,4 +1,4 @@
-use crate::app::{DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_ROW_HEIGHT, Message};
+use crate::app::{DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_ROW_HEIGHT, Message, StatusKind};
 use iced::Task;
 use iced::widget::operation;
 
@@ -8,7 +8,7 @@ impl DesktopApp {
     pub(crate) fn jump_memory_address(&mut self) -> Task<Message> {
         self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         match parse_hex_u16(&self.memory_address_input) {
-            Ok(address) => {
+            Some(address) => {
                 self.refresh_memory_value(address);
                 if let Some(target_offset) = self.scroll_offset_to_reveal(address) {
                     self.scroll_memory(target_offset);
@@ -16,8 +16,8 @@ impl DesktopApp {
                 }
                 Task::none()
             }
-            Err(error) => {
-                self.set_status_custom(error);
+            None => {
+                self.set_status(StatusKind::InvalidAddressHex);
                 Task::none()
             }
         }
