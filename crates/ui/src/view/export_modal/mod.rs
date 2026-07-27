@@ -164,9 +164,34 @@ fn footer(lang: Lang) -> Element<'static, Message> {
 #[cfg(test)]
 mod tests {
     use super::super::theme::{tokyo_border, tokyo_surface};
+    use super::GROUP_HEIGHT;
     use super::styles::{checkbox_style, flag_checkbox_style, tab_button_style};
+    use super::target::dropdown_list_height;
     use iced::Background;
     use iced::widget::button;
+
+    #[test]
+    fn short_target_list_is_not_capped() {
+        assert_eq!(dropdown_list_height(1), 28.0);
+        assert_eq!(dropdown_list_height(6), 168.0);
+    }
+
+    #[test]
+    fn long_target_list_is_capped_at_six_rows_so_it_scrolls() {
+        assert_eq!(dropdown_list_height(7), 168.0);
+        assert_eq!(dropdown_list_height(64), 168.0);
+    }
+
+    #[test]
+    fn capped_target_list_stays_inside_the_memory_group() {
+        const PANEL_PADDING: f32 = 4.0 + 4.0;
+        const DROPDOWN_OFFSET: f32 = 35.0;
+        const GROUP_CONTENT_HEIGHT: f32 = GROUP_HEIGHT - 9.0 - 18.0 - 12.0;
+
+        let bottom = DROPDOWN_OFFSET + dropdown_list_height(64) + PANEL_PADDING;
+
+        assert!(bottom <= GROUP_CONTENT_HEIGHT);
+    }
 
     #[test]
     fn active_tab_uses_fill_without_accent_border() {

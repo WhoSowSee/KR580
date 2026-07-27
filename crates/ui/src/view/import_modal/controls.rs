@@ -1,7 +1,7 @@
 use super::super::icons;
 use super::super::styles::scrollable_style;
 use super::super::theme::{tokyo_muted, tokyo_red, tokyo_text, ui_text};
-use super::super::widgets::{modal_footer_button, modal_icon_button};
+use super::super::widgets::{modal_footer_button, modal_icon_button, shorten_middle};
 use super::styles::{
     badge_style, dropdown_option_style, dropdown_panel_style, field_button_style,
     footer_button_style, group_label_style, group_panel_style,
@@ -318,17 +318,4 @@ fn format_badge(label: &'static str, format: ImportFileFormat) -> Element<'stati
         .align_x(alignment::Horizontal::Center)
         .style(badge_style)
         .into()
-}
-
-pub(super) fn shorten_middle(value: &str, budget: usize) -> String {
-    let chars: Vec<char> = value.chars().collect();
-    if chars.len() <= budget {
-        return value.to_owned();
-    }
-    let remaining = budget.saturating_sub(1);
-    let head_len = remaining / 2;
-    let tail_len = remaining - head_len;
-    let head: String = chars.iter().take(head_len).collect();
-    let tail: String = chars.iter().skip(chars.len() - tail_len).collect();
-    format!("{head}…{tail}")
 }

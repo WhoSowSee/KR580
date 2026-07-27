@@ -1,10 +1,12 @@
-use iced::widget::{Space, button, column, container, opaque, row, svg, text_input};
+use iced::widget::{
+    Space, button, column, container, opaque, row, scrollable, svg, text, text_input,
+};
 use iced::{Element, Length, Padding, alignment};
 
 use super::super::icons;
 use super::super::styles::{input_borderless_style, input_shell_style};
 use super::super::theme::{tokyo_muted, tokyo_text, ui_text};
-use super::super::widgets::modal_icon_button;
+use super::super::widgets::{modal_icon_button, shorten_middle};
 use super::controls::label;
 use super::local_icons;
 use super::styles::{combo_arrow_style, dropdown_option_style, dropdown_panel_style};
@@ -18,6 +20,9 @@ const TARGET_HEIGHT: f32 = 32.0;
 const DROPDOWN_OFFSET: f32 = TARGET_HEIGHT + 3.0;
 const ARROW_WIDTH: f32 = 28.0;
 const ICON_SIZE: f32 = TARGET_HEIGHT;
+const DROPDOWN_OPTION_HEIGHT: f32 = 28.0;
+const DROPDOWN_MAX_LIST_HEIGHT: f32 = 6.0 * DROPDOWN_OPTION_HEIGHT;
+const DROPDOWN_OPTION_CHARS: usize = 20;
 
 pub(super) fn target_selector<'a>(
     tab: ExportTab,
@@ -143,11 +148,21 @@ fn combo_box<'a>(value: &'a str, open: bool) -> Element<'a, Message> {
     .into()
 }
 
+pub(super) fn dropdown_list_height(count: usize) -> f32 {
+    (count as f32 * DROPDOWN_OPTION_HEIGHT).min(DROPDOWN_MAX_LIST_HEIGHT)
+}
+
 fn dropdown(options: &[String], highlighted: Option<usize>) -> Element<'static, Message> {
     let mut list = column![].spacing(0);
     for (index, option) in options.iter().enumerate() {
         list = list.push(dropdown_option(option.clone(), highlighted == Some(index)));
     }
+    let list = scrollable(list)
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::hidden(),
+        ))
+        .height(Length::Fixed(dropdown_list_height(options.len())));
+
     container(list)
         .padding(4)
         .width(Length::Fixed(FIELD_WIDTH))
@@ -156,13 +171,21 @@ fn dropdown(options: &[String], highlighted: Option<usize>) -> Element<'static, 
 }
 
 fn dropdown_option(label_text: String, highlighted: bool) -> Element<'static, Message> {
-    let message_value = label_text.clone();
-    button(
-        container(ui_text(label_text, 13, tokyo_text()))
-            .padding([6, 9])
-            .width(Length::Fill),
+    let label = ui_text(
+        shorten_middle(&label_text, DROPDOWN_OPTION_CHARS),
+        13,
+        tokyo_text(),
     )
-    .on_press(Message::ExportTargetSelected(message_value))
+    .wrapping(text::Wrapping::None);
+    button(
+        container(label)
+            .padding([0, 9])
+            .width(Length::Fill)
+            .height(Length::Fixed(DROPDOWN_OPTION_HEIGHT))
+            .align_y(alignment::Vertical::Center)
+            .clip(true),
+    )
+    .on_press(Message::ExportTargetSelected(label_text))
     .padding(0)
     .width(Length::Fill)
     .style(move |_theme, status| dropdown_option_style(status, highlighted))

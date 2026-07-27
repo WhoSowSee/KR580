@@ -6,9 +6,11 @@
 
 mod anchored_overlay;
 mod inputs;
+mod text_fit;
 
 pub(super) use anchored_overlay::anchored_overlay;
 pub(super) use inputs::{compact_text_input_shell, text_input_shell};
+pub(super) use text_fit::shorten_middle;
 
 use iced::widget::{Space, button, column, container, row, stack, svg, text_input};
 use iced::{Color, Element, Length, Padding, alignment};

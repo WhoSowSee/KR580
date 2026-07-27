@@ -1,6 +1,4 @@
 mod controls;
-#[cfg(test)]
-mod controls_tests;
 mod styles;
 
 use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};

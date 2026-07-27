@@ -87,8 +87,11 @@ store emulator state in widgets.
     `run_new_file`).
   - `app/hex_stream_filter.rs` – the monitor hex-popup stream filter.
   - `app/state_helpers.rs` – `DesktopApp` status, dirty-state, new-file, theme, and speed helpers.
-  - `app/messages.rs` – the `Message`, `MenuId`, `TopMenuFocus`, and
-    `TopMenuIndicator` enums.
+  - `app/messages/mod.rs` – the `Message`, `MenuId`, `TopMenuFocus`, and
+    `TopMenuIndicator` enums, plus `app/messages/export.rs` for the
+    export-modal value types (`ExportTab`, `ExportMemoryColumn`,
+    `ExportRegister`, `ExportFlag`), split out to keep the module root
+    inside the 400-line budget.
   - `app/menu_keyboard.rs` – keyboard ownership, focus ring, category
     transitions, and action dispatch for an open top-menu dropdown.
   - `app/constants.rs` – widget identifiers, register order, and name
@@ -830,12 +833,18 @@ with a wide remaining row.
 - `view/modal.rs` (~250 строк) – modal overlay несохранённых
   изменений, его backdrop, кнопки и focused-button styling.
 - `view/export_modal/{mod,groups,target,styles}.rs` – всплывающее окно
-  экспорта с вкладками, editable dropdown для страницы/раздела,
+  экспорта с вкладками, прокручиваемым editable dropdown для
+  страницы/раздела,
   настройками ОЗУ, выбором регистров, тёмным backdrop и footer-кнопками
   без иконок.
 - `view/import_modal/{mod,controls,styles}.rs` – всплывающее окно
   импорта с выбором файла, формата и листа/раздела поверх фиксированной
   раскладки без reflow.
+- `view/widgets/text_fit.rs` – единственная реализация `shorten_middle`:
+  усечение значения по центру через `…` до заданного числа символов.
+  Используется и модалом импорта (путь к файлу), и dropdown экспорта
+  (имена подпрограмм/разделов), поэтому живёт в общем `view/widgets`,
+  а не копируется по модалам.
 - `view/menu_labels.rs` (~10 строк) – localized labels for inactive
   top-level menu categories (`Вид`, `Настройки`, `Справка`) plus a
   regression test.
@@ -1713,7 +1722,37 @@ fields or checkbox rows. The add/delete target buttons are icon-only
 controls with localized hover tooltips; adding while the current name
 already exists creates the next numbered page or section without opening
 a closed dropdown. Add and delete actions keep an already open dropdown
-open and highlight the selected entry after the list changes. RAM
+open and highlight the selected entry after the list changes. The option
+list is capped at six rows (`6 × 28 px` – `target::dropdown_list_height`)
+and scrolls beyond that, so a
+long page/section list stays inside the RAM group instead of growing past
+its lower border. It scrolls with the wheel or touchpad and draws **no
+scrollbar**: the direction is `Vertical(Scrollbar::hidden())`, which is
+`width(0).scroller_width(0)`, the same rail-less treatment the printer
+setup/properties selectors and the Settings content pane use. A dropdown
+this small reads better without a rail, and because nothing is painted
+there is no reveal state to keep – no scroll message, no tick counter, no
+`scroll_reveal` flag threaded through the view. The import target list
+keeps its auto-hiding rail; the two are deliberately not shared.
+Option labels never wrap:
+they are shortened from the middle to 20 characters with `…`, rendered
+with `text::Wrapping::None`, and their row clips. 20 is the measured fit
+for the 174 px label slot (`FIELD_WIDTH` 200 − panel padding 8 − row
+padding 18) at 13 px in the UI font: the widest realistic name, all-caps
+Cyrillic, runs ~8.6 px per character, and the `…` glyph alone costs
+9.5 px. 21 characters of all-caps Cyrillic already measures 181 px and
+would be swallowed by the clip with no ellipsis to show for it. Default
+`Wrapping::Word` was what the user reported: a long name broke onto a
+second line, and because the row height is `Fixed(28)` that second line
+was sliced through the middle of its glyphs. The row height itself never
+moved — `Fixed` ignores the taller intrinsic size — so the `n × 28`
+scroll geometry was never at risk; only the label was unreadable.
+The middle is what gets dropped rather than the tail because a truncated
+name is one the user typed over the generated `Подпрограмма N` base, and
+in that case both the opening words and the trailing distinguishing part
+carry meaning. The row still carries the full untruncated name in
+`Message::ExportTargetSelected`, so selection matches the real target.
+RAM
 settings also include the exported address range (`0000..FFFF` by
 default), and XLSX memory-table columns: address, value, command, and
 optional comment. The comment column is hidden for TXT because the text
