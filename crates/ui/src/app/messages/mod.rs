@@ -193,6 +193,7 @@ pub(crate) enum Message {
     FrameRendered,
     MenuCategoriesToggled,
     MenuToggled(MenuId),
+    MenuHovered(MenuId),
     MenuClosed,
     /// Used by menu items to close the dropdown before dispatching their action.
     MenuBatch(Vec<Message>),

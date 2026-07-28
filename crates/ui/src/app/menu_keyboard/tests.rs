@@ -24,6 +24,23 @@ fn pointer_open_starts_on_category_without_keyboard_ring() {
 }
 
 #[test]
+fn hover_switches_only_between_open_dropdown_categories() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+
+    let _ = app.update(Message::MenuHovered(MenuId::Mp));
+    assert_eq!(app.open_menu, None);
+    assert_eq!(app.top_menu_focus, None);
+
+    open_menu(&mut app, MenuId::File);
+    press(&mut app, Message::ArrowKey(1));
+    let _ = app.update(Message::MenuHovered(MenuId::Mp));
+
+    assert_eq!(app.open_menu, Some(MenuId::Mp));
+    assert_eq!(app.top_menu_focus, Some(TopMenuFocus::Category(MenuId::Mp)));
+    assert_eq!(app.top_menu_indicator, TopMenuIndicator::Hidden);
+}
+
+#[test]
 fn vertical_arrows_stay_in_open_menu_and_horizontal_arrows_switch_categories() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     app.memory_address_input = "0010".to_owned();

@@ -93,9 +93,13 @@ impl DesktopApp {
         if self.open_menu == Some(menu) {
             self.close_top_menu();
         } else {
-            self.open_menu = Some(menu);
-            self.top_menu_focus = Some(TopMenuFocus::Category(menu));
-            self.top_menu_indicator = TopMenuIndicator::Hidden;
+            self.set_top_menu_focus(TopMenuFocus::Category(menu), TopMenuIndicator::Hidden);
+        }
+    }
+
+    pub(crate) fn hover_top_menu(&mut self, menu: MenuId) {
+        if self.open_menu.is_some() && self.open_menu != Some(menu) && menu != MenuId::Settings {
+            self.set_top_menu_focus(TopMenuFocus::Category(menu), TopMenuIndicator::Hidden);
         }
     }
 

@@ -164,6 +164,9 @@ worth eyeballing after touching `crates/ui`:
   pointer-hover fill and no blue border; verify Left/Right cyclically opens the
   previous/next dropdown category, skips Settings, and does not draw a blue
   category border or move RAM;
+- with one top-menu dropdown open, hover File, MP-System, View, and Help and
+  confirm the dropdown switches without another click; close it and confirm
+  hovering those categories alone does not open anything;
   use Tab/Shift+Tab to walk the blue-outlined category and rows through
   File → MP-System → View → Settings → Help in both directions, confirm
   Settings receives the category outline without opening a dropdown, category

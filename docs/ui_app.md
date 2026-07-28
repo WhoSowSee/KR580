@@ -209,6 +209,11 @@ quieter surface while the dropdown offsets stay unchanged. Dropdowns
 still open at the same 34 px vertical offset and keep their own framed
 panel border.
 
+After any dropdown category is opened by click, entering another dropdown-backed
+top-level label immediately switches the open dropdown to that category. Hover
+does nothing while all dropdowns are closed, and the category-only Settings
+action remains click- or keyboard-activated instead of opening on hover.
+
 The visible top-level categories are localized as `Файл`,
 `МП-Система`, `Вид`, `Настройки`, and `Справка`. `Файл` and
 `МП-Система` open dropdowns; `Справка` opens a dropdown with

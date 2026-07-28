@@ -372,6 +372,7 @@ impl DesktopApp {
             Message::MenuToggled(menu) => {
                 self.toggle_top_menu(menu);
             }
+            Message::MenuHovered(menu) => self.hover_top_menu(menu),
             Message::MenuClosed => {
                 self.close_top_menu();
             }

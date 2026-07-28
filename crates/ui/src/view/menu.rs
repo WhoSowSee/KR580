@@ -239,6 +239,7 @@ fn menu_trigger(
             .style(move |_theme| menu_trigger_style(keyboard_focused)),
     )
     .on_press(Message::MenuToggled(menu))
+    .on_enter(Message::MenuHovered(menu))
     .interaction(iced::mouse::Interaction::Pointer)
     .into()
 }
