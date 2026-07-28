@@ -77,7 +77,11 @@ pub fn unregister_for_executable(
 }
 
 pub fn is_registered() -> bool {
-    applications_dir().join("kr580.app").is_dir()
+    let plist = applications_dir()
+        .join("kr580.app")
+        .join("Contents")
+        .join("Info.plist");
+    std::fs::read_to_string(plist).is_ok_and(|plist| plist_registration_is_current(&plist))
 }
 
 fn applications_dir() -> PathBuf {
@@ -128,7 +132,7 @@ fn info_plist() -> &'static str {
     <array>
         <dict>
             <key>CFBundleTypeName</key>
-            <string>KR580 Snapshot</string>
+            <string>KR580 Program File</string>
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
             <key>LSItemContentTypes</key>
@@ -143,7 +147,7 @@ fn info_plist() -> &'static str {
             <key>UTTypeIdentifier</key>
             <string>com.kr580.snapshot</string>
             <key>UTTypeDescription</key>
-            <string>KR580 Snapshot</string>
+            <string>KR580 Program File</string>
             <key>UTTypeConformsTo</key>
             <array>
                 <string>public.data</string>
@@ -153,6 +157,7 @@ fn info_plist() -> &'static str {
                 <key>public.filename-extension</key>
                 <array>
                     <string>580</string>
+                    <string>krs</string>
                 </array>
             </dict>
         </dict>
@@ -160,6 +165,10 @@ fn info_plist() -> &'static str {
 </dict>
 </plist>
 "#
+}
+
+fn plist_registration_is_current(plist: &str) -> bool {
+    plist.contains("<string>580</string>") && plist.contains("<string>krs</string>")
 }
 
 fn register_bundle(bundle: &Path) -> Result<(), String> {
@@ -172,5 +181,16 @@ fn register_bundle(bundle: &Path) -> Result<(), String> {
         Ok(())
     } else {
         Err("lsregister returned non-zero".to_owned())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{info_plist, plist_registration_is_current};
+
+    #[test]
+    fn document_registration_covers_snapshots_and_subprograms() {
+        assert!(plist_registration_is_current(info_plist()));
+        assert!(!plist_registration_is_current("<string>580</string>"));
     }
 }

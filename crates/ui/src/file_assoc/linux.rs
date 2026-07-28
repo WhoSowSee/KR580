@@ -59,8 +59,10 @@ pub fn unregister_for_executable(
 }
 
 pub fn is_registered() -> bool {
-    mime_dir().join("application-x-kr580.xml").is_file()
-        && apps_dir().join("kr580.desktop").is_file()
+    let Ok(mime) = std::fs::read_to_string(mime_dir().join("application-x-kr580.xml")) else {
+        return false;
+    };
+    apps_dir().join("kr580.desktop").is_file() && mime_registration_is_current(&mime)
 }
 
 fn home_dir() -> PathBuf {
@@ -85,11 +87,16 @@ fn mime_xml() -> &'static str {
     r#"<?xml version="1.0" encoding="UTF-8"?>
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
   <mime-type type="application/x-kr580">
-    <comment>KR580 snapshot</comment>
+    <comment>KR580 program file</comment>
     <glob pattern="*.580"/>
+    <glob pattern="*.krs"/>
   </mime-type>
 </mime-info>
 "#
+}
+
+fn mime_registration_is_current(mime: &str) -> bool {
+    mime.contains(r#"<glob pattern="*.580"/>"#) && mime.contains(r#"<glob pattern="*.krs"/>"#)
 }
 
 fn desktop_entry(exec: &str) -> String {
@@ -114,4 +121,15 @@ fn update_databases() {
     let _ = std::process::Command::new("update-desktop-database")
         .arg(apps_dir())
         .status();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{mime_registration_is_current, mime_xml};
+
+    #[test]
+    fn mime_registration_covers_snapshots_and_subprograms() {
+        assert!(mime_registration_is_current(mime_xml()));
+        assert!(!mime_registration_is_current(r#"<glob pattern="*.580"/>"#));
+    }
 }

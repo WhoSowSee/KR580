@@ -88,8 +88,9 @@
               <?xml version="1.0" encoding="UTF-8"?>
               <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
                 <mime-type type="application/x-kr580">
-                  <comment>KR580 snapshot</comment>
+                  <comment>KR580 program file</comment>
                   <glob pattern="*.580"/>
+                  <glob pattern="*.krs"/>
                 </mime-type>
               </mime-info>
               MIME

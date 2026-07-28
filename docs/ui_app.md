@@ -15,7 +15,8 @@ notifications.
 Register and memory edits are parsed and validated before commands are
 sent.
 
-Native file dialogs use `rfd`. The UI exposes `.580` open/save,
+Native file dialogs use `rfd`. The UI exposes `.580` snapshot open/save and
+`.krs` raw subprogram open/save with an explicit RAM address range,
 `.txt`/`.xlsx` import, and `.txt`/`.xlsx` export actions. Import first
 opens an in-app source modal, then uses `rfd` for choosing the file.
 Export first opens an in-app format modal, then uses `rfd` for the save
@@ -29,7 +30,7 @@ store emulator state in widgets.
   windows. The binary also pins the Windows subsystem to GUI on release builds (see
   "Console window suppression").
 - `bin/kr.rs` is the terminal launcher. It opens `k580`, registers or removes
-  `.580` file associations, and opens the setup UI through `--install` for
+  `.580` / `.krs` file associations, and opens the setup UI through `--install` for
   developer layouts. New users get the standalone setup artifact produced by
   `scripts/build_installer.*`; they do not need `kr` first. Installed layouts
   resolve `bin/kr` to `app/k580`, and `--install` launches `app/uninstaller`
@@ -47,7 +48,7 @@ store emulator state in widgets.
   desktop/search integration, and uninstall cleanup. On Windows, System mode
   writes Start Menu/Desktop shortcuts and an Apps & Features uninstall entry
   that calls `uninstaller --uninstall <root>`. Both System and Portable mode
-  can optionally associate `.580` files with the installed `app/k580` binary;
+  can optionally associate `.580` and `.krs` files with the installed `app/k580` binary;
   Portable mode writes no Start Menu, desktop, or uninstall entry. On Windows,
   the standalone setup binary uses the setup PE icon, while the installed
   `app/uninstaller.exe` is a separate payload binary with the uninstall PE
@@ -64,7 +65,7 @@ store emulator state in widgets.
   Portable installs offer to open the install folder; system installs offer to
   launch KR580. Portable mode hides the Windows scope selector and defaults to
   `%USERPROFILE%\KR580`; System mode exposes the desktop-shortcut option, while
-  both modes expose the `.580` association option before installation. Windows
+  both modes expose the `.580` / `.krs` association option before installation. Windows
   shortcut helpers run with `CREATE_NO_WINDOW`, so System installs do not flash
   a terminal while creating Start Menu or desktop links. The setup view is
   split into `bin/installer/view.rs` for composition plus
@@ -72,7 +73,7 @@ store emulator state in widgets.
   `bin/installer/view/finish.rs`. The uninstaller uses
   `bin/installer/uninstaller.rs` for progress/close workflow and
   `bin/installer/uninstaller_chrome.rs` for its smaller custom title bar; it
-  removes recorded `.580` associations and the exact launcher PATH entry for
+  removes recorded `.580` / `.krs` associations and the exact launcher PATH entry for
   both modes, removes system entries only for System installs, then schedules
   install-folder deletion after the final localized Close/`Закрыть` action.
 - `app/` defines `DesktopApp`, message routing, theme, and the keyboard
@@ -124,6 +125,8 @@ store emulator state in widgets.
     selection.
   - `app/import_modal.rs` and `app/import_modal_state.rs` – import
     modal routing, source format detection, and sheet/section selection.
+  - `app/subprogram_modal.rs` – `.krs` raw-byte loading and saving,
+    address-range validation, and modal focus routing.
   - `app/printer.rs` and `app/printer/` – printer setup/dispatch helpers,
     asynchronous driver calls, capability loading, and session override state.
   - `app/register_inline.rs` – inline register-cell editor (Tab/Shift+Tab
@@ -139,8 +142,8 @@ store emulator state in widgets.
     `toggle_run` / `restart_program` control flow.
   - `runtime/events.rs` – `pull_events`, `consume_event`, and the
     `apply_snapshot` reconciler.
-  - `runtime/files.rs` – Open / Save / Save-As / Save-legacy /
-    Open-legacy / selected-format Export and the export-path normaliser.
+  - `runtime/files.rs` – Open / Save / Save-As for `.580` snapshots and
+    `.krs` subprograms, selected-format Export, and the export-path normaliser.
   - `runtime/register.rs` – register name/value editing including
     `step_register_value_input` for ArrowUp/ArrowDown ±1 stepping.
   - `runtime/memory/` – memory list, address spinner, inline editor,
@@ -1860,7 +1863,7 @@ ring.
 Opened via default `Ctrl+,` or the menu bar. Four categories (General,
 External Devices, Appearance, Shortcuts) with keyboard-navigable
 sidebar chips. General holds language, speed, follow-PC, memory operand
-highlighting, and the `.580` file association; External Devices holds
+highlighting, and the `.580` / `.krs` file associations; External Devices holds
 the floppy image, HDD directory, and network defaults. Appearance holds
 the color-scheme picker, grouped into Dark and Light lists without a
 separate setting label column; each option renders a medium-size theme name in
@@ -2286,7 +2289,7 @@ dialog is open. This prevents the global coordinate-based focus reconciler from
 activating a text input underneath transparent or rounded parts of the modal.
 Tab/Shift+Tab focus is rendered as a white border without changing the resting
 fill. Enter or mouse input hides the border before activation, including the
-language and `.580` controls plus the Reset, Cancel, and Save footer buttons.
+language and file-association controls plus the Reset, Cancel, and Save footer buttons.
 Opening the language dropdown gives its anchor the same active surface fill as
 the printer selectors while keeping the keyboard border hidden after Enter or
 pointer activation.
@@ -2539,7 +2542,7 @@ The UI ships two binaries:
 
 - `k580` – the GUI process. It is meant to be launched by `kr` or by
   the OS shell (Explorer double-click). It accepts a single optional
-  positional argument, the `.580` snapshot to open, and nothing else.
+  positional argument: a `.580` snapshot or `.krs` subprogram to open.
 - `kr` – the terminal launcher. It parses CLI options, spawns `k580`
   in the background, and exits immediately, like `zed` or `code`.
 
@@ -2554,19 +2557,19 @@ without a manual `cargo build` step. Use `cargo run -p kr580 --bin k580`
 to start the GUI binary directly.
 
 - `kr` – launch the GUI with an empty snapshot.
-- `kr <file.580>` – open the specified `.580` snapshot in the GUI.
+- `kr <file.580|file.krs>` – open the specified `.580` snapshot or `.krs` subprogram in the GUI.
 - `kr --help` / `kr -h` – print usage to stdout and exit.
 - `kr --version` / `kr -V` – print the version and exit.
-- `kr --register-file-type` / `kr -r` – register the `.580` file
-  association. The open command points directly to the neighboring
-  `k580` GUI binary, so double-clicking a `.580` file from the file
+- `kr --register-file-type` / `kr -r` – register the `.580` and `.krs` file
+  associations. The open command points directly to the neighboring
+  `k580` GUI binary, so double-clicking either file type from the file
   manager does not show a transient console window.
-- `kr --unregister-file-type` / `kr -u` – remove the `.580` file
-  association.
+- `kr --unregister-file-type` / `kr -u` – remove the `.580` and `.krs` file
+  associations.
 
 The same toggle is available in the in-app Settings dialog under
-General → `.580 file association`. The button reads `Add` when the
-association is missing and `Remove` when it is present. While the dialog
+General → `.580 and .krs file associations`. The button reads `Add` when either
+association is missing and `Remove` when both are present. While the dialog
 is open the UI polls the OS state on every frame tick, so changes made
 from the terminal (e.g. `kr -r`) or any other source are reflected in
 the button label without closing and reopening the dialog.
@@ -2575,14 +2578,14 @@ the button label without closing and reopening the dialog.
 (`k580.exe` on Windows, `k580` elsewhere), redirects its stdio to `/dev/null`,
 spawns it, and returns without waiting.
 
-On Windows, registering the `.580` association from either `kr.exe` or
+On Windows, registering the `.580` and `.krs` associations from either `kr.exe` or
 `k580.exe` writes the same Explorer open command: `"k580.exe" "%1"` in the
 same directory as the registering binary. Existing registry entries that
 still point at `kr.exe` are treated as stale by the settings toggle and are
 overwritten on the next register action.
 
 If the given path does not exist, is not a file, or is not a valid `.580`
-snapshot, the GUI still launches and surfaces a localized error notice
+snapshot or `.krs` subprogram, the GUI still launches and surfaces a localized error notice
 instead of failing silently.
 
 ## Window icon

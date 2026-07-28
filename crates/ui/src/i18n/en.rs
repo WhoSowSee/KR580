@@ -111,6 +111,13 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FileSaveAs => "Save as",
         Key::FileImport => "Import",
         Key::FileExport => "Export",
+        Key::SubprogramTitleOpen => "Open subprogram",
+        Key::SubprogramTitleSave => "Save subprogram",
+        Key::SubprogramStartAddress => "Start address",
+        Key::SubprogramEndAddress => "End address",
+        Key::SubprogramAddressHint => {
+            "A .krs file contains raw bytes. Specify the RAM address range."
+        }
         Key::ExportFormatXlsx => "MS Excel",
         Key::ExportFormatText => "Text file",
         Key::ExportPageLabel => "On page",
@@ -330,9 +337,11 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusAtAddress => "at address",
         Key::StatusNoMatchesFor => "No addresses match",
         Key::ErrNotA580File => "Not a .580 file – only .580 extension is supported",
+        Key::ErrNotAKrsFile => "Not a .krs file – only .krs extension is supported",
         Key::ErrFileEmpty => "File is empty",
         Key::ErrWrong580Size => "Not a valid .580 file (must be exactly 65549 bytes)",
         Key::ErrLegacyTrailerCorrupt => "File trailer is corrupted – this is not a valid .580 file",
+        Key::SubprogramRangeInvalid => "The start address must not exceed the end address",
         Key::ErrSettingsNewerVersion => {
             "Settings file was saved by a newer version – please update the application"
         }

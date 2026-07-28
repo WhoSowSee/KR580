@@ -1,5 +1,8 @@
 **1. Prepare memory**
-Press Ctrl+N for a new session or Ctrl+O to open a .580 file. Select a RAM address, enter a byte in the value field, and press Enter. Press E to open the opcode list. Pasting space-separated hexadecimal pairs writes a block from the selected address.
+Press Ctrl+N for a new session or Ctrl+O to open a .580/.krs file. For .krs,
+the application asks for the load address. Select a RAM address, enter a byte
+in the value field, and press Enter. Press E to open the opcode list. Pasting
+space-separated hexadecimal pairs writes a block from the selected address.
 
 **2. Set the initial state**
 Set PC to the first instruction address. Set SP and other registers from the right panel or directly on the structural diagram when needed.

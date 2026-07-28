@@ -56,7 +56,7 @@ folder" action, and system installs offer a checked "Launch KR580" action. The
 closes the installer; if that action fails, the installer stays open and shows
 the error below the checkbox.
 System mode also shows a checked "Create desktop shortcut" option. Both System
-and Portable mode show a checked "Associate .580 files with KR580" option.
+and Portable mode show a checked "Associate .580 and .krs files with KR580" option.
 Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
 Selected option tiles keep a dark fill with a white border instead of an
@@ -78,7 +78,7 @@ monochrome progress bar, and the final localized Close/`Закрыть` button.
 Uninstall cleanup starts after the window opens so the user sees immediate
 progress instead of a silent background operation. The first phase removes the
 managed PATH entry, Start Menu/search launcher, optional desktop shortcut,
-optional `.580` association recorded in `install.json`, and uninstall
+optional `.580` / `.krs` associations recorded in `install.json`, and uninstall
 registration. The install directory itself is scheduled for deletion only when
 the user presses the final Close/`Закрыть` button, letting the uninstaller
 process exit before Windows or Unix removes the folder that contains it.
@@ -122,7 +122,7 @@ release build has already completed.
 
 `flake.nix` exposes a Nix package for `x86_64-linux` and `aarch64-linux`.
 That package installs the ready-to-run `k580` and `kr` binaries, desktop entry,
-icons, and `.580` MIME metadata into the Nix store. It does not run the
+icons, and `.580` / `.krs` MIME metadata into the Nix store. It does not run the
 graphical setup flow because NixOS owns PATH, desktop integration, and package
 activation declaratively.
 
@@ -199,19 +199,19 @@ on Unix/macOS. It stores settings in `<install root>/data/settings.json`.
 Temporary floppy-buffer and image files still use `std::env::temp_dir()`, so
 throwaway files stay in the OS temp area instead of the portable data folder.
 Portable mode does not create Start Menu/search entries, desktop shortcuts,
-or uninstall registry/application entries. If its `.580` checkbox is selected,
-the file association points directly to that portable `app/k580` binary.
-Running the portable `app/uninstaller` removes the recorded `.580` association,
+or uninstall registry/application entries. If its file-association checkbox is selected,
+the `.580` and `.krs` associations point directly to that portable `app/k580` binary.
+Running the portable `app/uninstaller` removes the recorded associations,
 removes the exact `<install root>/bin` PATH entry if it exists, and then removes
 the portable folder after the final Close/`Закрыть` action. Manual folder
 deletion removes only the files; use `uninstaller` or `kr --unregister-file-type`
-first if a portable `.580` association was created and must be removed.
+first if portable file associations were created and must be removed.
 
 Uninstall is integrated into System mode. Windows registers `KR580` in Apps &
 Features with an uninstall command that runs the installed `uninstaller
 --uninstall <install root>`. That command opens the graphical uninstaller, shows
 cleanup progress, removes the exact KR580 PATH entry, Start Menu/search
-launcher, optional desktop shortcut, optional `.580` association recorded in
+launcher, optional desktop shortcut, optional `.580` / `.krs` associations recorded in
 `install.json`, uninstall registry entry, and then schedules the install root
 for deletion after the user presses `Закрыть`. Linux/Unix and macOS remove their
 user launcher entries and the managed PATH block through the same GUI flow

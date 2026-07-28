@@ -1,23 +1,25 @@
 use std::path::PathBuf;
 
-use crate::app::{DesktopApp, ExportTab, StatusKind};
+use crate::app::{DesktopApp, ExportTab, StatusKind, SubprogramDialogMode};
 use crate::backend::AppCommand;
 use crate::i18n::Key;
+use crate::persistence::SubprogramSerializer;
 use crate::view::monitor_image::MonitorImageFormat;
 
 use super::parse::parse_hex_u16;
 
 impl DesktopApp {
     pub(crate) fn open_program(&mut self) {
-        if let Some(path) = rfd::FileDialog::new()
-            .add_filter("KR580 file", &["580"])
-            .pick_file()
-        {
+        if let Some(path) = program_file_dialog().pick_file() {
             self.load_program_from_path(path);
         }
     }
 
     pub(crate) fn load_program_from_path(&mut self, path: PathBuf) {
+        if SubprogramSerializer::supports_path(&path) {
+            self.open_subprogram_dialog(path, SubprogramDialogMode::Open);
+            return;
+        }
         self.clear_error_notice();
         let display = path.display().to_string();
         self.running = false;
@@ -26,6 +28,7 @@ impl DesktopApp {
             return;
         }
         self.current_snapshot_path = Some(path);
+        self.current_subprogram_range = None;
         self.undo_stack.clear();
         self.mark_saved();
         self.speed_tier = self.default_speed;
@@ -40,16 +43,36 @@ impl DesktopApp {
         let path = match &self.current_snapshot_path {
             Some(path) => path.clone(),
             None => {
-                let Some(path) = rfd::FileDialog::new()
-                    .add_filter("KR580 file", &["580"])
-                    .save_file()
-                else {
+                let Some(path) = program_file_dialog().save_file() else {
                     return;
                 };
+                if SubprogramSerializer::supports_path(&path) {
+                    self.open_subprogram_dialog(path, SubprogramDialogMode::Save);
+                    return;
+                }
                 self.current_snapshot_path = Some(path.clone());
                 path
             }
         };
+        if SubprogramSerializer::supports_path(&path) {
+            let Some((start, end)) = self.current_subprogram_range else {
+                self.open_subprogram_dialog(path, SubprogramDialogMode::Save);
+                return;
+            };
+            self.dispatch_sync(crate::backend::AppCommand::SaveSubprogram {
+                path: path.clone(),
+                start,
+                end,
+            });
+            if self.error_notice.is_some() {
+                return;
+            }
+            self.mark_saved();
+            self.set_status(StatusKind::SavedTo {
+                display: path.display().to_string(),
+            });
+            return;
+        }
         let display = path.display().to_string();
         self.dispatch_sync(AppCommand::SaveProgram(path));
         if self.error_notice.is_some() {
@@ -61,7 +84,7 @@ impl DesktopApp {
 
     pub(crate) fn save_program_as(&mut self) {
         self.commit_pending_inline_edit();
-        let mut dialog = rfd::FileDialog::new().add_filter("KR580 file", &["580"]);
+        let mut dialog = program_file_dialog();
         if let Some(current) = &self.current_snapshot_path {
             if let Some(parent) = current.parent() {
                 dialog = dialog.set_directory(parent);
@@ -73,6 +96,10 @@ impl DesktopApp {
         let Some(path) = dialog.save_file() else {
             return;
         };
+        if SubprogramSerializer::supports_path(&path) {
+            self.open_subprogram_dialog(path, SubprogramDialogMode::Save);
+            return;
+        }
         self.clear_error_notice();
         let display = path.display().to_string();
         self.dispatch_sync(AppCommand::SaveProgram(path.clone()));
@@ -80,6 +107,7 @@ impl DesktopApp {
             return;
         }
         self.current_snapshot_path = Some(path);
+        self.current_subprogram_range = None;
         self.mark_saved();
         self.set_status(StatusKind::SavedTo { display });
     }
@@ -127,6 +155,13 @@ impl DesktopApp {
         }
         self.set_status(StatusKind::ExportTo { display });
     }
+}
+
+fn program_file_dialog() -> rfd::FileDialog {
+    rfd::FileDialog::new()
+        .add_filter("KR580 program", &["580", "krs"])
+        .add_filter("KR580 snapshot", &["580"])
+        .add_filter("KR580 subprogram", &["krs"])
 }
 
 pub(super) fn normalise_export_path_for_format(path: PathBuf, format: ExportTab) -> PathBuf {

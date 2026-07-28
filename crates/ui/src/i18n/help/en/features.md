@@ -9,7 +9,7 @@
 • Paste hexadecimal byte sequences, use Undo/Redo, and follow operands
 
 **Files and data exchange**
-• .580 program files containing RAM and PC
+• .580 program snapshots and raw .krs subprograms loaded at an explicit address
 • TXT/XLSX import and export with selectable memory, registers, and flags
 
 **Devices and interface**

@@ -50,7 +50,7 @@ pub struct Installer {
     install_dir: String,
     add_to_path: bool,
     create_desktop_shortcut: bool,
-    associate_580_files: bool,
+    associate_program_files: bool,
     installing: bool,
     pending_install: Option<InstallRequest>,
     install_progress: f32,
@@ -109,7 +109,7 @@ impl Installer {
                 install_dir: default_install_dir(mode, scope).display().to_string(),
                 add_to_path: true,
                 create_desktop_shortcut: true,
-                associate_580_files: true,
+                associate_program_files: true,
                 installing: false,
                 pending_install: None,
                 install_progress: 0.0,
@@ -178,7 +178,7 @@ impl Installer {
                 self.post_install_error = None;
             }
             Message::FileAssociationToggled(value) => {
-                self.associate_580_files = value;
+                self.associate_program_files = value;
                 self.result = None;
                 self.post_install_error = None;
             }
@@ -317,7 +317,7 @@ impl Installer {
             install_dir: PathBuf::from(install_dir),
             add_to_path: self.add_to_path,
             create_desktop_shortcut: self.create_desktop_shortcut,
-            associate_580_files: self.associate_580_files,
+            associate_program_files: self.associate_program_files,
         })
     }
 
@@ -360,8 +360,8 @@ impl Installer {
         self.create_desktop_shortcut
     }
 
-    pub fn associate_580_files(&self) -> bool {
-        self.associate_580_files
+    pub fn associate_program_files(&self) -> bool {
+        self.associate_program_files
     }
 
     pub fn installing(&self) -> bool {

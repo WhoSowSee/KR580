@@ -35,7 +35,7 @@ The project focuses on inspectable execution: edit RAM and registers, step by in
 > - Native iced desktop UI with RAM list, register editor, status register, machine-cycle view, control schematic, and localized Russian/English installer text.
 > - External device windows for monitor, floppy, HDD, network adapter, and printer.
 > - Versioned `.580` snapshots, raw `.krs` subprogram loading, direct `.txt` / `.xlsx` import and export, and native printing with driver settings.
-> - Graphical installer, uninstaller, terminal launcher, optional `.580` file association, and portable or system install layouts.
+> - Graphical installer, uninstaller, terminal launcher, optional `.580` and `.krs` file associations, and portable or system install layouts.
 
 ## Screenshots
 
@@ -92,7 +92,7 @@ nix run github:WhoSowSee/KR580
 nix profile install github:WhoSowSee/KR580
 ```
 
-The NixOS package installs ready-to-run `k580` and `kr` binaries, the desktop entry, icons, and the `.580` MIME type directly through the Nix store. The standalone setup wizard is not used for this path.
+The NixOS package installs ready-to-run `k580` and `kr` binaries, the desktop entry, icons, and the `.580` / `.krs` MIME types directly through the Nix store. The standalone setup wizard is not used for this path.
 
 ### Run from source
 
@@ -132,14 +132,14 @@ The setup artifact is written to `dist/`.
 # Launch the emulator from source
 cargo run -p kr580
 
-# Open a snapshot through the launcher
+# Open a snapshot or subprogram through the launcher
 cargo run -p kr580 --bin kr -- path/to/program.580
 
 # Show launcher help
 cargo run -p kr580 --bin kr -- --help
 ```
 
-After installation, `kr` can open `.580` snapshots from the terminal and can register or remove the file association when the platform supports it.
+After installation, `kr` can open `.580` snapshots and `.krs` subprograms from the terminal and can register or remove their file associations when the platform supports it.
 
 ## File formats
 

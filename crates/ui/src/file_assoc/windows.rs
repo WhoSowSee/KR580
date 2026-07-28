@@ -1,11 +1,15 @@
-//! Windows file-type association: register `.580` so Explorer launches
+//! Windows file-type association: register `.580` and `.krs` so Explorer launches
 //! the emulator on double-click and shows our embedded icon. The
 //! second icon resource (id `2`) baked into the `.exe` by `build.rs`
-//! is what Explorer renders for any file with this extension.
+//! is what Explorer renders for files with these extensions.
 
 use crate::install_mode::InstallScope;
 use std::path::{Path, PathBuf};
 use windows_sys::Win32::System::Registry::{HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+
+const PROG_ID: &str = "K580.Snapshot";
+const EXTENSION_KEYS: [&str; 2] = ["Software\\Classes\\.580", "Software\\Classes\\.krs"];
+const OPEN_COMMAND_KEY: &str = "Software\\Classes\\K580.Snapshot\\shell\\open\\command";
 
 pub fn register() -> Result<(), String> {
     let exe = association_executable()?;
@@ -18,12 +22,14 @@ pub fn register_for_executable(exe: &Path, scope: InstallScope) -> Result<(), St
     let open_command = open_command_for(&exe)?;
     let root = class_root(scope);
 
-    write_string(root, "Software\\Classes\\.580", "", "K580.Snapshot")?;
+    for extension_key in EXTENSION_KEYS {
+        write_string(root, extension_key, "", PROG_ID)?;
+    }
     write_string(
         root,
         "Software\\Classes\\K580.Snapshot",
         "",
-        "Снимок KR580 (.580)",
+        "Файл KR580 (.580, .krs)",
     )?;
     write_string(
         root,
@@ -31,12 +37,7 @@ pub fn register_for_executable(exe: &Path, scope: InstallScope) -> Result<(), St
         "",
         &icon_resource,
     )?;
-    write_string(
-        root,
-        "Software\\Classes\\K580.Snapshot\\shell\\open\\command",
-        "",
-        &open_command,
-    )?;
+    write_string(root, OPEN_COMMAND_KEY, "", &open_command)?;
 
     notify_shell();
     Ok(())
@@ -48,14 +49,19 @@ pub fn unregister() -> Result<(), String> {
 
 pub fn unregister_for_executable(exe: &Path, scope: InstallScope) -> Result<(), String> {
     let exe = association_executable_from(exe.to_path_buf());
-    if is_registered_for_executable(&exe, scope) {
+    let Ok(open_command) = open_command_for(&exe) else {
+        return Ok(());
+    };
+    if association_owned_by(class_root(scope), &open_command) {
         delete_association(class_root(scope))?;
     }
     Ok(())
 }
 
 fn delete_association(root: HKEY) -> Result<(), String> {
-    delete_tree(root, "Software\\Classes\\.580")?;
+    for extension_key in EXTENSION_KEYS {
+        delete_tree(root, extension_key)?;
+    }
     delete_tree(root, "Software\\Classes\\K580.Snapshot")?;
     notify_shell();
     Ok(())
@@ -71,25 +77,24 @@ pub fn is_registered() -> bool {
     association_matches(class_root(InstallScope::User), &open_command)
 }
 
-fn is_registered_for_executable(exe: &Path, scope: InstallScope) -> bool {
-    let Ok(open_command) = open_command_for(exe) else {
-        return false;
-    };
-    association_matches(class_root(scope), &open_command)
+fn association_matches(root: HKEY, open_command: &str) -> bool {
+    EXTENSION_KEYS
+        .iter()
+        .all(|extension_key| read_string(root, extension_key, "").as_deref() == Some(PROG_ID))
+        && command_matches(root, open_command)
 }
 
-fn association_matches(root: HKEY, open_command: &str) -> bool {
-    let extension = read_string(root, "Software\\Classes\\.580", "");
-    let command = read_string(
-        root,
-        "Software\\Classes\\K580.Snapshot\\shell\\open\\command",
-        "",
-    );
+fn association_owned_by(root: HKEY, open_command: &str) -> bool {
+    EXTENSION_KEYS
+        .iter()
+        .any(|extension_key| read_string(root, extension_key, "").as_deref() == Some(PROG_ID))
+        && command_matches(root, open_command)
+}
 
-    extension.as_deref() == Some("K580.Snapshot")
-        && command
-            .as_deref()
-            .is_some_and(|value| value.eq_ignore_ascii_case(open_command))
+fn command_matches(root: HKEY, open_command: &str) -> bool {
+    read_string(root, OPEN_COMMAND_KEY, "")
+        .as_deref()
+        .is_some_and(|value| value.eq_ignore_ascii_case(open_command))
 }
 
 fn association_executable() -> Result<PathBuf, String> {
@@ -301,6 +306,15 @@ mod tests {
         assert!(!is_registered());
         register().unwrap();
         assert!(is_registered());
+        assert_eq!(
+            read_string(
+                class_root(InstallScope::User),
+                "Software\\Classes\\.krs",
+                ""
+            )
+            .as_deref(),
+            Some(PROG_ID)
+        );
         unregister().unwrap();
         assert!(!is_registered());
         if was_registered {

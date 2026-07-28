@@ -26,11 +26,14 @@ fn main() {
         CliAction::RegisterFileType => {
             run_assoc(
                 k580_ui::file_assoc::register,
-                "Ассоциация .580 зарегистрирована",
+                "Ассоциации .580 и .krs зарегистрированы",
             );
         }
         CliAction::UnregisterFileType => {
-            run_assoc(k580_ui::file_assoc::unregister, "Ассоциация .580 удалена");
+            run_assoc(
+                k580_ui::file_assoc::unregister,
+                "Ассоциации .580 и .krs удалены",
+            );
         }
         CliAction::Install => {
             if let Err(error) = spawn_installer() {
@@ -74,13 +77,13 @@ fn print_usage() {
         "kr [ПАРАМЕТР] [ФАЙЛ]
 
 Аргументы:
-  ФАЙЛ  снимок .580 для открытия
+  ФАЙЛ  снимок .580 или подпрограмма .krs для открытия
 
 Параметры:
   -h, --help                  Показать справку
   -V, --version               Показать версию
-  -r, --register-file-type    Зарегистрировать ассоциацию .580
-  -u, --unregister-file-type  Удалить ассоциацию .580
+  -r, --register-file-type    Зарегистрировать ассоциации .580 и .krs
+  -u, --unregister-file-type  Удалить ассоциации .580 и .krs
   -i, --install               Открыть установщик KR580"
     );
 }

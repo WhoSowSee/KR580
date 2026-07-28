@@ -1,4 +1,5 @@
 use crate::persistence::program::ProgramError;
+use crate::persistence::subprogram::SubprogramError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -33,6 +34,8 @@ pub enum ImportError {
 pub enum PersistenceError {
     #[error(transparent)]
     Program(#[from] ProgramError),
+    #[error(transparent)]
+    Subprogram(#[from] SubprogramError),
     #[error(transparent)]
     Settings(#[from] SettingsError),
     #[error(transparent)]

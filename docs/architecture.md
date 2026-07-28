@@ -29,7 +29,7 @@ keeps `k580` under `app/`, keeps the installed maintenance binary as
 requested.
 Portable installs default to the user's `KR580` folder and store settings under
 `<install root>/data`; both install modes can optionally associate `.580`
-files with `app/k580`. System installs use the platform config directory and
+snapshots and `.krs` subprograms with `app/k580`. System installs use the platform config directory and
 add OS integration: Start Menu/search launchers, optional desktop launchers,
 and uninstall cleanup where the platform supports them. See
 `docs/installer.md`.

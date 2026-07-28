@@ -13,7 +13,7 @@ pub struct InstallRequest {
     pub install_dir: PathBuf,
     pub add_to_path: bool,
     pub create_desktop_shortcut: bool,
-    pub associate_580_files: bool,
+    pub associate_program_files: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -67,7 +67,7 @@ pub fn install(request: InstallRequest) -> Result<InstallReport, String> {
     } else {
         None
     };
-    let file_association_created = if request.associate_580_files {
+    let file_association_created = if request.associate_program_files {
         k580_ui::file_assoc::register_for_executable(&k580_path, request.scope)?;
         true
     } else {

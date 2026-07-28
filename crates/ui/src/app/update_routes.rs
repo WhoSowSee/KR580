@@ -10,6 +10,9 @@ impl DesktopApp {
         if let Some(task) = self.route_discard_modal_message(message) {
             return Some(task);
         }
+        if let Some(task) = self.route_subprogram_modal_message(message) {
+            return Some(task);
+        }
         if let Some(task) = self.route_import_modal_message(message) {
             return Some(task);
         }

@@ -6,6 +6,9 @@ pub(crate) fn humanize(raw: &str, lang: Lang) -> String {
     if lower.contains("not a .580 file") {
         return lang.t(Key::ErrNotA580File).to_owned();
     }
+    if lower.contains("not a .krs file") {
+        return lang.t(Key::ErrNotAKrsFile).to_owned();
+    }
     if lower.contains("file is empty") {
         return lang.t(Key::ErrFileEmpty).to_owned();
     }
@@ -62,11 +65,14 @@ pub(crate) fn humanize(raw: &str, lang: Lang) -> String {
     {
         return lang.t(Key::ErrDiskFull).to_owned();
     }
-    if lower.starts_with("i/o error") || lower.starts_with("io error") {
+    if lower.starts_with("i/o error")
+        || lower.starts_with("io error")
+        || lower.contains("subprogram i/o error")
+    {
         return lang.t(Key::ErrIoGeneric).to_owned();
     }
 
-    if lower.contains("address range") {
+    if lower.contains("address range") || lower.contains("does not fit") {
         return lang.t(Key::ErrAddressOutOfRange).to_owned();
     }
     if lower.contains("invalid register name") {
@@ -96,8 +102,10 @@ mod tests {
     #[test]
     fn program_diagnostics_are_localized() {
         assert!(humanize("not a .580 file", Lang::Ru).contains(".580"));
+        assert!(humanize("not a .krs file", Lang::Ru).contains(".krs"));
         assert!(humanize("file is empty", Lang::Ru).contains("пуст"));
         assert!(humanize("expected 65549 bytes, got 70000", Lang::Ru).contains("65549"));
+        assert!(humanize("subprogram of 2 bytes does not fit", Lang::Ru).contains("диапазона"));
     }
 
     #[test]

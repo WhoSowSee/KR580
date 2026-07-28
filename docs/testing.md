@@ -104,6 +104,9 @@ worth eyeballing after touching `crates/ui`:
   `target/release/k580.exe`: no console window should pop up;
 - run `cargo run -p kr580 --bin kr -- <path/to/file.580>` and confirm
   the GUI loads the snapshot and the terminal prompt returns immediately;
+- open a `.krs` file from File → Open, enter a start address, and confirm its
+  bytes appear at that RAM address; use Save as with `.krs` to verify the
+  selected inclusive RAM range is written without a header;
 - run `cargo run -p kr580 --bin kr -- --help` and confirm usage prints
   to stdout;
 - run `cargo run -p kr580 --bin kr -- --install` and confirm the
@@ -127,11 +130,11 @@ worth eyeballing after touching `crates/ui`:
   "Create desktop shortcut" checkbox is
   visible, and in Portable mode confirm it is hidden, the Windows scope selector
   is hidden, and the default folder is `%USERPROFILE%\KR580`; in both modes
-  confirm the "Associate .580 files with KR580" checkbox is visible;
+  confirm the "Associate .580 and .krs files with KR580" checkbox is visible;
 - after a System-mode smoke install on Windows, confirm `KR580.lnk` exists in
   the selected Start Menu scope, the optional desktop shortcut follows the
   checkbox, no terminal window flashes while shortcuts are created, the `.580`
-  association follows its checkbox, the install root contains `app/k580.exe`,
+  and `.krs` associations follow their checkbox, the install root contains `app/k580.exe`,
   `app/uninstaller.exe`, and `bin/kr.exe`, no installed `app/k580-installer.exe`,
   the setup file shows the setup icon, the installed `app/uninstaller.exe`
   shows the uninstall icon, and Apps & Features receives a `KR580` uninstall
@@ -141,8 +144,8 @@ worth eyeballing after touching `crates/ui`:
   state with `Close` on English/other systems or `Закрыть` on Russian systems,
   and removes the install folder only after that button is pressed; after a
   portable smoke install, confirm none of those OS entries are created and that
-  `.580` is associated only when its checkbox was selected; run the portable
-  `app/uninstaller` and confirm it removes the portable `.580` association and
+  `.580` and `.krs` are associated only when their checkbox was selected; run the portable
+  `app/uninstaller` and confirm it removes the portable file associations and
   the `<install root>/bin` PATH entry when those checkboxes were selected;
 - run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1`
   on Windows or `bash scripts/build_installer.sh` on Unix/macOS and confirm
@@ -152,8 +155,8 @@ worth eyeballing after touching `crates/ui`:
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/.local/share/mime/packages/application-x-kr580.xml` and
-  `~/.local/share/applications/kr580.desktop` were created and a `.580`
-  file opens with `kr` from the file manager;
+  `~/.local/share/applications/kr580.desktop` were created and `.580` and `.krs`
+  files open with `kr` from the file manager;
 - on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/Applications/kr580.app` exists and `lsregister` reports it;
 - open each top-menu dropdown and verify Up/Down wraps through enabled rows
@@ -170,15 +173,15 @@ worth eyeballing after touching `crates/ui`:
 - open the in-app Settings dialog (`,`), confirm logical focus starts on the
   language control without a white outline, and use Tab/Shift+Tab to visit both
   On and Off segments for Follow PC and memory-operand highlighting; verify the
-  `.580` association plus Reset, Cancel, and Save show a white border without a
+  `.580` / `.krs` associations plus Reset, Cancel, and Save show a white border without a
   fill change, and that Enter or a mouse click clears the border before
   activation; open the language dropdown and confirm its anchor gains the same
   active fill as an opened printer selector; open the Reset confirmation and
   confirm Cancel starts filled without a white border, then Tab/Shift+Tab removes
   the focus fill and draws only the white border; in the Sidebar, verify
   Tab/Shift+Tab moves the category cursor
-  without changing the page until Enter; finally confirm the `.580 file
-  association` row shows `Add` when the association is missing and `Remove`
+  without changing the page until Enter; finally confirm the `.580 and .krs file
+  associations` row shows `Add` when either association is missing and `Remove`
   when it is present, then click it and verify the button label flips and the
   OS association is created/removed;
 - make the current file dirty and invoke Open, New, Import, Close, and HDD

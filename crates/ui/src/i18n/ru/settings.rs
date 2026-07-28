@@ -32,8 +32,8 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::SettingsPrinterDialogModeHint => "Как открывать выбор принтера",
         Key::SettingsPrinterDialogModeCustom => "В эмуляторе",
         Key::SettingsPrinterDialogModeSystem => "Системное",
-        Key::SettingsFileAssociationLabel => "Ассоциация .580",
-        Key::SettingsFileAssociationHint => "Открывать файлы .580 в KR580 по двойному клику",
+        Key::SettingsFileAssociationLabel => "Ассоциации .580 и .krs",
+        Key::SettingsFileAssociationHint => "Открывать файлы .580 и .krs в KR580 по двойному клику",
         Key::SettingsFileAssociationAdd => "Добавить",
         Key::SettingsFileAssociationRemove => "Удалить",
         Key::ErrHddDirectoryNotWritable => {

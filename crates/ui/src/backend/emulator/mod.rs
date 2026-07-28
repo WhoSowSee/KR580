@@ -2,7 +2,9 @@ mod tick;
 
 use crate::backend::{AppCommand, AppError, AppEvent, AppSnapshot, RunMode};
 use crate::devices::IoBus;
-use crate::persistence::{ExportModel, ExportOptions, Exporters, Importers, ProgramSerializer};
+use crate::persistence::{
+    ExportModel, ExportOptions, Exporters, Importers, ProgramSerializer, SubprogramSerializer,
+};
 use k580_core::{Cpu8080State, PortBus};
 use std::time::Duration;
 
@@ -219,6 +221,18 @@ impl Emulator {
             }
             AppCommand::LoadProgram(path) => {
                 self.cpu = ProgramSerializer::load_file(path)?;
+            }
+            AppCommand::LoadSubprogram { path, start } => {
+                let was_running = self.running;
+                SubprogramSerializer::load_into_state(path, start, &mut self.cpu)?;
+                self.running = false;
+                self.instructions_since_run = 0;
+                if was_running {
+                    events.push(AppEvent::Stopped);
+                }
+            }
+            AppCommand::SaveSubprogram { path, start, end } => {
+                SubprogramSerializer::save_file(path, &self.cpu, start, end)?;
             }
             AppCommand::ExportTxt(path) => Exporters::write_txt(path, &self.export_model())?,
             AppCommand::ExportXlsx(path) => Exporters::write_xlsx(path, &self.export_model())?,

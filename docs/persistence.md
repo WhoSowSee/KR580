@@ -17,7 +17,11 @@ Snapshot tests verify roundtrip fidelity, deterministic byte output, unsupported
 
 Subprograms are raw byte slices. The base address is supplied by the caller and is not hidden in the file.
 
-`SubprogramSerializer::load_into_state` rejects memory overflows before mutating RAM. This keeps `.krs` deterministic and avoids adding a second headered format.
+The UI's Open and Save dialogs expose a start address and, when saving, an
+inclusive end address. `SubprogramSerializer::load_into_state` rejects memory
+overflows before mutating RAM, while `save_file` writes exactly the selected
+inclusive range. This keeps `.krs` deterministic and avoids adding a second
+headered format.
 
 ## Settings
 

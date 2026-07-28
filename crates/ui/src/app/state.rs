@@ -15,6 +15,7 @@ use super::printer::PrinterSetupDialog;
 use super::settings_modal::SettingsDialog;
 use super::settings_saved_notice::SettingsSavedNotice;
 use super::status::StatusKind;
+use super::subprogram_modal::SubprogramDialog;
 use super::undo::UndoStack;
 use super::windows::ToolWindowState;
 use super::{
@@ -91,6 +92,8 @@ pub(crate) struct DesktopApp {
     pub(crate) top_menu_indicator: TopMenuIndicator,
     pub(crate) about_dialog_open: bool,
     pub(crate) current_snapshot_path: Option<PathBuf>,
+    pub(crate) current_subprogram_range: Option<(u16, u16)>,
+    pub(crate) subprogram_dialog: Option<SubprogramDialog>,
     pub(crate) speed_tier: SpeedTier,
     pub(crate) halt_notice: Option<String>,
     pub(crate) halt_notice_dismiss_at: Option<Instant>,
@@ -100,7 +103,6 @@ pub(crate) struct DesktopApp {
     pub(crate) run_blocked_after_halt: bool,
     pub(crate) error_notice: Option<String>,
     pub(crate) error_notice_dismiss_at: Option<Instant>,
-
     pub(crate) main_window_id: Option<iced::window::Id>,
     pub(crate) monitor_window: ToolWindowState,
     pub(crate) floppy_window: ToolWindowState,
@@ -276,6 +278,8 @@ impl DesktopApp {
             top_menu_indicator: TopMenuIndicator::Hidden,
             about_dialog_open: false,
             current_snapshot_path: None,
+            current_subprogram_range: None,
+            subprogram_dialog: None,
             speed_tier: default_speed,
             halt_notice: None,
             halt_notice_dismiss_at: None,

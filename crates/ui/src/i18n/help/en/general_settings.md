@@ -1,7 +1,7 @@
 Open Settings with Ctrl+,. The dialog searches across every setting.
 
 **General**
-Language, default speed, Follow PC, operand-type highlighting, and system .580 file association.
+Language, default speed, Follow PC, operand-type highlighting, and system .580/.krs file associations.
 
 **External Devices**
 Default floppy image, HDD directory, printer and properties-dialog mode, plus TCP client/server endpoints.

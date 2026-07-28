@@ -13,6 +13,15 @@ pub enum AppCommand {
     SetHalted(bool),
     LoadProgram(PathBuf),
     SaveProgram(PathBuf),
+    LoadSubprogram {
+        path: PathBuf,
+        start: u16,
+    },
+    SaveSubprogram {
+        path: PathBuf,
+        start: u16,
+        end: u16,
+    },
     ResetRam,
     StepTact,
     RunForTStates(u64),

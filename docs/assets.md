@@ -34,8 +34,8 @@ These files are documentation screenshots. They are not embedded into the applic
 | `icon.png` | Application icon master. Treated as the source of truth; every `icon-*.png` and `icon.ico` is regenerated from it. |
 | `icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-64.png`, `icon-128.png`, `icon-256.png` | Standalone PNGs used at runtime (currently `icon-64.png` is embedded as the iced window icon) and reserved for future installer/desktop-entry packaging. |
 | `icon.ico` | Multi-resolution Windows application icon containing `256, 96, 64, 48, 40, 32, 24, 20, 16` frames in that order so default Windows previewers (Photos, Paint, IconViewer) display the 256×256 layer when the file is opened directly. Embedded into the `.exe` PE resource via `winresource`. |
-| `file-580.png` | `.580` file-type icon master. Treated as the source of truth; `file-580.ico` is regenerated from it. |
-| `file-580.ico` | Multi-resolution Windows `.580` file-type icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded into the `.exe` PE resource as resource id `2` via `winresource`, so Explorer can show it for files associated with the application. |
+| `file-580.png` | `.580` / `.krs` file-type icon master. Treated as the source of truth; `file-580.ico` is regenerated from it. |
+| `file-580.ico` | Multi-resolution Windows `.580` / `.krs` file-type icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded into the `.exe` PE resource as resource id `2` via `winresource`, so Explorer can show it for files associated with the application. |
 | `installer-setup.png` | Standalone setup icon master. Treated as the source of truth for `installer-setup.ico`. |
 | `installer-setup.ico` | Multi-resolution Windows setup icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded as the main PE icon when `KR580_WINDOWS_ICON_KIND=setup`. |
 | `installer-uninstall.png` | Installed uninstaller icon master. Treated as the source of truth for `installer-uninstall.ico`. |
@@ -100,7 +100,7 @@ to keep the PNG/ICO files small.
   `crates/ui/assets/icons/installer-uninstall.ico`.
 - `crates/ui/build.rs` (Windows only) also embeds
   `crates/ui/assets/icons/file-580.ico` as PE resource id `2`. This drives the
-  Explorer icon shown for `.580` files once the file association points at the
+  Explorer icon shown for `.580` and `.krs` files once the file associations point at the
   built `.exe`.
 
 When you replace any master PNG, run the appropriate script and rebuild.

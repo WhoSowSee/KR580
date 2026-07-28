@@ -4,6 +4,7 @@ pub mod import;
 pub mod program;
 pub mod settings;
 pub mod shortcuts;
+pub mod subprogram;
 
 pub use error::{ExportError, ImportError, PersistenceError, SettingsError};
 pub use export::{
@@ -21,3 +22,4 @@ pub use shortcuts::{
     ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutModifiers, ShortcutOverride,
     ShortcutSettings, default_binding,
 };
+pub use subprogram::{SubprogramError, SubprogramSerializer};

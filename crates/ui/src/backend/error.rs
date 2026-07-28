@@ -30,6 +30,12 @@ impl From<crate::persistence::ProgramError> for AppError {
     }
 }
 
+impl From<crate::persistence::SubprogramError> for AppError {
+    fn from(value: crate::persistence::SubprogramError) -> Self {
+        Self::Persistence(value.to_string())
+    }
+}
+
 impl From<crate::persistence::ExportError> for AppError {
     fn from(value: crate::persistence::ExportError) -> Self {
         Self::Persistence(value.to_string())

@@ -50,6 +50,8 @@ impl DesktopApp {
         self.dispatch(crate::backend::AppCommand::ResetCpu);
         self.running = false;
         self.current_snapshot_path = None;
+        self.current_subprogram_range = None;
+        self.subprogram_dialog = None;
         self.undo_stack.clear();
         self.mark_saved();
         self.speed_tier = self.default_speed;

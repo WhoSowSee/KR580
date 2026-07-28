@@ -112,6 +112,13 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::FileSaveAs => "Сохранить как",
         Key::FileImport => "Импорт",
         Key::FileExport => "Экспорт",
+        Key::SubprogramTitleOpen => "Открыть подпрограмму",
+        Key::SubprogramTitleSave => "Сохранить подпрограмму",
+        Key::SubprogramStartAddress => "Начальный адрес",
+        Key::SubprogramEndAddress => "Конечный адрес",
+        Key::SubprogramAddressHint => {
+            "Файл .krs содержит сырые байты. Укажите диапазон адресов ОЗУ."
+        }
         Key::ExportFormatXlsx => "MS Excel",
         Key::ExportFormatText => "Текстовый файл",
         Key::ExportPageLabel => "На странице",
@@ -330,9 +337,11 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusAtAddress => "по адресу",
         Key::StatusNoMatchesFor => "Нет адресов, соответствующих",
         Key::ErrNotA580File => "Не .580 файл – поддерживается только расширение .580",
+        Key::ErrNotAKrsFile => "Не .krs файл – поддерживается только расширение .krs",
         Key::ErrFileEmpty => "Файл пуст",
         Key::ErrWrong580Size => "Не похоже на .580 файл (должно быть ровно 65549 байт)",
         Key::ErrLegacyTrailerCorrupt => "Конец файла повреждён – это не .580 файл",
+        Key::SubprogramRangeInvalid => "Начальный адрес не может быть больше конечного",
         Key::ErrSettingsNewerVersion => {
             "Настройки сохранены в более новой версии – обновите программу"
         }

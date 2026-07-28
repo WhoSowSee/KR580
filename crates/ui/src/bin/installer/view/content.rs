@@ -114,8 +114,8 @@ fn desktop_shortcut_checkbox(app: &Installer) -> Element<'_, Message> {
 }
 
 fn file_association_checkbox(app: &Installer) -> Element<'_, Message> {
-    checkbox(app.associate_580_files())
-        .label(app.locale().t(T::Associate580))
+    checkbox(app.associate_program_files())
+        .label(app.locale().t(T::AssociateProgramFiles))
         .on_toggle(Message::FileAssociationToggled)
         .font(style::FONT)
         .text_size(15)

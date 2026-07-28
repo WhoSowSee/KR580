@@ -34,6 +34,7 @@ mod speed;
 mod status_register;
 mod storage;
 mod styles;
+mod subprogram_modal;
 pub(crate) mod theme;
 mod tooltips;
 mod utils;
@@ -58,6 +59,7 @@ use changelog::changelog_modal_overlay;
 use export_modal::{ExportModalViewState, export_modal_overlay};
 use help::help_modal_overlay;
 use import_modal::{ImportModalViewState, import_modal_overlay};
+use subprogram_modal::{SubprogramModalViewState, subprogram_modal_overlay};
 
 use crate::app::{DesktopApp, MenuId, Message, PendingAction};
 
@@ -221,6 +223,23 @@ impl DesktopApp {
                     target_dropdown_open: self.import_target_dropdown_open,
                     target_highlight: self.import_target_highlight,
                     error: self.import_error.as_deref(),
+                    lang: self.lang,
+                })
+            ]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
+        } else if let Some(dialog) = self.subprogram_dialog.as_ref() {
+            stack![
+                scrimmed,
+                subprogram_modal_overlay(SubprogramModalViewState {
+                    mode: dialog.mode,
+                    focus: dialog.focus,
+                    keyboard_focus_visible: dialog.keyboard_focus_visible,
+                    path: &dialog.path,
+                    start: &dialog.start_input,
+                    end: &dialog.end_input,
+                    error: dialog.error.as_deref(),
                     lang: self.lang,
                 })
             ]

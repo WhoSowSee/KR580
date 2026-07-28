@@ -32,6 +32,7 @@ mod speed;
 mod state;
 mod state_helpers;
 mod status;
+mod subprogram_modal;
 mod subscription;
 mod undo;
 mod update;
@@ -81,4 +82,5 @@ pub(crate) use settings_saved_notice::{SettingsSavedNotice, SettingsSavedNoticeP
 pub(crate) use speed::tier_hz;
 pub(crate) use state::{DesktopApp, PendingAction};
 pub(crate) use status::{StatusKind, shorten_status_for_width};
+pub(crate) use subprogram_modal::{SubprogramDialogFocus, SubprogramDialogMode};
 pub(crate) use undo::UndoEntry;
