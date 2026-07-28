@@ -271,6 +271,10 @@ worth eyeballing after touching `crates/ui`:
   between `bug-off` and active blue `bug`, the empty buffer state has no
   cursor glyph, and the clear button empties the visible buffer without
   changing the device footer state.
+- while file-content mode is active, modify or atomically replace the
+  attached floppy image and `hdd.kpd` from another process; both open
+  windows must refresh without toggling file-content mode, while unchanged
+  files must not be read again on every UI tick;
 - switch between Russian and English and inspect the Floppy, HDD, Network, and
   Printer footers; every localized status or mode value after a colon must begin
   with a lowercase letter (`Статус: готов`, `Status: refused`, `Mode: client`),

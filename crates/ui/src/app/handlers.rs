@@ -15,6 +15,7 @@ use super::state::DesktopApp;
 impl DesktopApp {
     pub(crate) fn handle_tick(&mut self) -> Task<Message> {
         self.pull_events();
+        self.refresh_open_image_contents();
         let now = Instant::now();
         let help_search_task = self.due_help_search_task(now);
         let registered = k580_ui::file_assoc::is_registered();

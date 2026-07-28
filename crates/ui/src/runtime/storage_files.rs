@@ -3,8 +3,25 @@ use crate::backend::AppCommand;
 use crate::i18n::Key;
 use crate::settings_storage::{load_settings, save_settings};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct FileStamp {
+    path: PathBuf,
+    modified: Option<SystemTime>,
+    length: u64,
+}
 
 impl DesktopApp {
+    pub(crate) fn refresh_open_image_contents(&mut self) {
+        if self.floppy_open && self.floppy_show_image_contents {
+            self.refresh_floppy_image_contents();
+        }
+        if self.hdd_open && self.hdd_show_image_contents {
+            self.refresh_hdd_image_contents();
+        }
+    }
+
     pub(crate) fn open_floppy_image(&mut self) {
         let settings = load_settings();
         let mut dialog =
@@ -91,17 +108,20 @@ impl DesktopApp {
     pub(crate) fn refresh_floppy_image_contents(&mut self) {
         let Some(path) = self.snapshot.devices.floppy.path.as_ref() else {
             self.floppy_image_contents.clear();
+            self.floppy_image_file_stamp = None;
             self.floppy_image_error = Some(self.lang.t(Key::FloppyPathMissing).into());
             return;
         };
 
-        match read_floppy_image_contents(path) {
-            Ok(bytes) => {
+        match read_file_if_changed(path, &mut self.floppy_image_file_stamp) {
+            Ok(Some(bytes)) => {
                 self.floppy_image_contents = bytes;
                 self.floppy_image_error = None;
             }
+            Ok(None) => {}
             Err(error) => {
                 self.floppy_image_contents.clear();
+                self.floppy_image_file_stamp = None;
                 self.floppy_image_error =
                     Some(format!("{}: {error}", self.lang.t(Key::ErrCannotReadFile)));
             }
@@ -109,8 +129,23 @@ impl DesktopApp {
     }
 }
 
-fn read_floppy_image_contents(path: &Path) -> std::io::Result<Vec<u8>> {
-    std::fs::read(path)
+fn read_file_if_changed(
+    path: &Path,
+    known_stamp: &mut Option<FileStamp>,
+) -> std::io::Result<Option<Vec<u8>>> {
+    let metadata = std::fs::metadata(path)?;
+    let current_stamp = FileStamp {
+        path: path.to_path_buf(),
+        modified: metadata.modified().ok(),
+        length: metadata.len(),
+    };
+    if known_stamp.as_ref() == Some(&current_stamp) {
+        return Ok(None);
+    }
+
+    let bytes = std::fs::read(path)?;
+    *known_stamp = Some(current_stamp);
+    Ok(Some(bytes))
 }
 
 fn floppy_buffer_save_filters() -> [(&'static str, &'static [&'static str]); 3] {
@@ -240,17 +275,20 @@ impl DesktopApp {
     pub(crate) fn refresh_hdd_image_contents(&mut self) {
         let Some(path) = self.snapshot.devices.hdd.path.as_ref() else {
             self.hdd_image_contents.clear();
+            self.hdd_image_file_stamp = None;
             self.hdd_image_error = Some(self.lang.t(Key::HddPathMissing).into());
             return;
         };
 
-        match std::fs::read(path) {
-            Ok(bytes) => {
+        match read_file_if_changed(path, &mut self.hdd_image_file_stamp) {
+            Ok(Some(bytes)) => {
                 self.hdd_image_contents = bytes;
                 self.hdd_image_error = None;
             }
+            Ok(None) => {}
             Err(error) => {
                 self.hdd_image_contents.clear();
+                self.hdd_image_file_stamp = None;
                 self.hdd_image_error =
                     Some(format!("{}: {error}", self.lang.t(Key::ErrCannotReadFile)));
             }
@@ -261,24 +299,34 @@ impl DesktopApp {
 #[cfg(test)]
 mod tests {
     use super::floppy_buffer_save_filters;
-    use super::read_floppy_image_contents;
+    use super::read_file_if_changed;
     use super::save_floppy_buffer_file;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
-    fn read_floppy_image_contents_returns_file_bytes() {
+    fn read_file_if_changed_skips_unchanged_image_and_reads_new_bytes() {
         let stamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path = std::env::temp_dir().join(format!("kr580-floppy-image-{stamp}.kpd"));
-        fs::write(&path, [b'K', b'R', 0x80]).unwrap();
+        let path = std::env::temp_dir().join(format!("kr580-floppy-refresh-{stamp}.kpd"));
+        let mut known_stamp = None;
+        fs::write(&path, b"before").unwrap();
 
-        let bytes = read_floppy_image_contents(&path).unwrap();
+        assert_eq!(
+            read_file_if_changed(&path, &mut known_stamp).unwrap(),
+            Some(b"before".to_vec())
+        );
+        assert_eq!(read_file_if_changed(&path, &mut known_stamp).unwrap(), None);
 
-        fs::remove_file(&path).unwrap();
-        assert_eq!(bytes, [b'K', b'R', 0x80]);
+        fs::write(&path, b"after image").unwrap();
+
+        assert_eq!(
+            read_file_if_changed(&path, &mut known_stamp).unwrap(),
+            Some(b"after image".to_vec())
+        );
+        fs::remove_file(path).unwrap();
     }
 
     #[test]

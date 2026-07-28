@@ -1,8 +1,10 @@
 use super::handlers::{alt_shortcut, ctrl_shortcut, plain_shortcut};
-use crate::app::Message;
+use crate::app::{DesktopApp, Message};
 use iced::keyboard;
 use iced::keyboard::key::{Code, Physical};
+use std::fs;
 use std::mem::discriminant;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn char_key(value: &str) -> keyboard::Key {
     keyboard::Key::Character(value.into())
@@ -145,4 +147,36 @@ fn shifted_and_alt_ctrl_shortcuts_use_physical_key_for_russian_layout() {
         ),
         Message::OpenSettings,
     );
+}
+
+#[test]
+fn tick_refreshes_external_floppy_and_hdd_file_changes() {
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let floppy_path = std::env::temp_dir().join(format!("kr580-floppy-tick-{stamp}.kpd"));
+    let hdd_path = std::env::temp_dir().join(format!("kr580-hdd-tick-{stamp}.kpd"));
+    fs::write(&floppy_path, b"floppy before").unwrap();
+    fs::write(&hdd_path, b"hdd before").unwrap();
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.snapshot.devices.floppy.path = Some(floppy_path.clone());
+    app.snapshot.devices.hdd.path = Some(hdd_path.clone());
+    app.floppy_open = true;
+    app.hdd_open = true;
+    app.floppy_show_image_contents = true;
+    app.hdd_show_image_contents = true;
+
+    let _ = app.handle_tick();
+    assert_eq!(app.floppy_image_contents, b"floppy before");
+    assert_eq!(app.hdd_image_contents, b"hdd before");
+
+    fs::write(&floppy_path, b"floppy after external edit").unwrap();
+    fs::write(&hdd_path, b"hdd after external edit").unwrap();
+
+    let _ = app.handle_tick();
+    assert_eq!(app.floppy_image_contents, b"floppy after external edit");
+    assert_eq!(app.hdd_image_contents, b"hdd after external edit");
+    fs::remove_file(floppy_path).unwrap();
+    fs::remove_file(hdd_path).unwrap();
 }

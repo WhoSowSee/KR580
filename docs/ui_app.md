@@ -602,6 +602,11 @@ surface and `active border token` frame as the monitor. Its `Содержимо�
 it is visible only while the active byte source is empty and disappears
 as soon as content is present. The footer shows the storage status,
 configured path, queued byte count, and last device error when present.
+While the file-content view is open, each UI tick compares the attached
+path, file length, and modification time with the last loaded revision.
+Floppy and HDD contents are read again only when that revision changes,
+so edits or atomic replacements made by another process appear without
+toggling the file-content view off and on.
 
 The header buttons are icon-only and mirror the monitor menu chrome:
 

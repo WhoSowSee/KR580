@@ -86,9 +86,7 @@ impl DesktopApp {
             .is_some_and(|value| self.memory_inline_value_input == *value);
 
         self.snapshot = snapshot;
-        if self.floppy_open && self.floppy_show_image_contents {
-            self.refresh_floppy_image_contents();
-        }
+        self.refresh_open_image_contents();
 
         if !self.snapshot.cpu.halted {
             self.clear_halt_notice();

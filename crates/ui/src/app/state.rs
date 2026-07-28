@@ -23,6 +23,7 @@ use super::{
 };
 use crate::i18n::{Key, Lang};
 use crate::persistence::{ColorScheme, PrinterDialogMode, ShortcutSettings};
+use crate::runtime::storage_files::FileStamp;
 use crate::settings_storage::{lang_from_language, load_settings, speed_tier_from_preset};
 
 #[derive(Clone, Debug)]
@@ -185,9 +186,11 @@ pub(crate) struct DesktopApp {
     pub(crate) hdd_show_image_contents: bool,
     pub(crate) hdd_image_contents: Vec<u8>,
     pub(crate) hdd_image_error: Option<String>,
+    pub(crate) hdd_image_file_stamp: Option<FileStamp>,
     pub(crate) floppy_show_image_contents: bool,
     pub(crate) floppy_image_contents: Vec<u8>,
     pub(crate) floppy_image_error: Option<String>,
+    pub(crate) floppy_image_file_stamp: Option<FileStamp>,
     pub(crate) changelog_dialog: Option<ChangelogDialog>,
     pub(crate) help_dialog: Option<HelpDialog>,
     pub(crate) monitor_hex_filter: HexStreamFilter,
@@ -361,9 +364,11 @@ impl DesktopApp {
             hdd_show_image_contents: false,
             hdd_image_contents: Vec::new(),
             hdd_image_error: None,
+            hdd_image_file_stamp: None,
             floppy_show_image_contents: false,
             floppy_image_contents: Vec::new(),
             floppy_image_error: None,
+            floppy_image_file_stamp: None,
             monitor_hex_filter: HexStreamFilter::default(),
         };
         app.apply_speed_tier(default_speed);
