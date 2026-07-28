@@ -29,6 +29,9 @@ while preserving the stable `StepInstruction` / `Run` execution path.
 - `run_for_t_states(bus, n)` calls `step_tact` exactly `n` times, so it never overshoots the requested T-state quantum.
 - `run_until_halt(bus, max_instructions)` executes instruction boundaries until `HLT` or the explicit safety cap.
 
+`k580-core` exposes processor primitives rather than desktop actor messages.
+The internal UI backend owns `AppCommand` and `AppEvent`.
+
 ## Executor layout
 
 `execute.rs` now owns instruction-boundary orchestration only. Family-specific execution lives in:

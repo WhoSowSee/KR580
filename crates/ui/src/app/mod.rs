@@ -1,3 +1,5 @@
+mod changelog;
+mod changelog_routing;
 mod constants;
 mod export_modal;
 mod export_modal_state;
@@ -21,6 +23,7 @@ mod modal;
 mod network;
 mod opcode_picker;
 mod printer;
+mod read_only_text;
 mod register_inline;
 pub(crate) mod settings_modal;
 mod settings_saved_notice;
@@ -39,6 +42,7 @@ mod update_settings;
 mod window_tests;
 mod windows;
 
+pub(crate) use changelog::ChangelogDialog;
 pub(crate) use constants::{
     MEMORY_ADDRESS_COUNT, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS,
     MEMORY_RENDER_ROWS, MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, MEMORY_SCROLL_VISIBLE_TICKS,

@@ -188,35 +188,7 @@ impl HelpDialog {
     }
 
     pub(crate) fn perform_text_action(&mut self, action: text_editor::Action) {
-        match action {
-            text_editor::Action::Click(point) => {
-                self.article_content
-                    .perform(text_editor::Action::Click(point));
-                self.suppress_article_caret();
-            }
-            text_editor::Action::Drag(point) => {
-                self.article_content
-                    .perform(text_editor::Action::Drag(point));
-                self.suppress_empty_article_caret();
-            }
-            text_editor::Action::Edit(_) | text_editor::Action::Move(_) => {}
-            action => self.article_content.perform(action),
-        }
-    }
-
-    fn suppress_empty_article_caret(&mut self) {
-        match self.article_content.selection() {
-            Some(selection) if !selection.is_empty() => {}
-            _ => self.suppress_article_caret(),
-        }
-    }
-
-    fn suppress_article_caret(&mut self) {
-        let cursor = self.article_content.cursor();
-        self.article_content.move_to(text_editor::Cursor {
-            position: cursor.position,
-            selection: Some(cursor.position),
-        });
+        super::super::read_only_text::perform_action(&mut self.article_content, action);
     }
 
     fn clear_search_results(&mut self) {

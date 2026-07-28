@@ -103,6 +103,9 @@ pub(super) fn translate(key: Key) -> &'static str {
         }
         Key::AboutVersion => "Версия",
         Key::AboutGithubLabel => "GitHub",
+        Key::AboutChangelogLabel => "Changelog",
+        Key::ChangelogTitle => "История изменений",
+        Key::ChangelogAllVersions => "Все версии",
         Key::FileNew => "Новый файл",
         Key::FileOpen => "Открыть",
         Key::FileSave => "Сохранить",

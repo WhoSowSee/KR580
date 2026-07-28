@@ -1,9 +1,10 @@
 use iced::widget::{Space, button, container, radio};
 use iced::{Background, Border, Color, Element, Length, alignment};
 
+pub(super) use super::super::styles::dropdown_panel_style;
 use super::super::styles::modal_field_button_style;
 use super::super::theme::{
-    tokyo_blue, tokyo_board, tokyo_border, tokyo_muted, tokyo_surface, tokyo_text, ui_text,
+    tokyo_blue, tokyo_border, tokyo_muted, tokyo_surface, tokyo_text, ui_text,
 };
 use crate::app::Message;
 
@@ -70,18 +71,6 @@ pub(super) fn dropdown_anchor_style(
             },
         },
         ..button::Style::default()
-    }
-}
-
-pub(super) fn dropdown_panel_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(tokyo_board())),
-        border: Border {
-            radius: 6.0.into(),
-            width: 1.0,
-            color: tokyo_border(),
-        },
-        ..container::Style::default()
     }
 }
 

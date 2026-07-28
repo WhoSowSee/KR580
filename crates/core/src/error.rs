@@ -4,8 +4,6 @@ use thiserror::Error;
 pub enum ValidationError {
     #[error("address range {start:#06X}..{end:#06X} is outside 64 KiB memory")]
     MemoryRange { start: u16, end: u32 },
-    #[error("invalid register name: {0}")]
-    InvalidRegister(String),
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -44,6 +42,4 @@ pub enum CoreError {
     Decode(#[from] DecodeError),
     #[error(transparent)]
     Port(#[from] PortError),
-    #[error(transparent)]
-    Validation(#[from] ValidationError),
 }

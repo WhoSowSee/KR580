@@ -132,6 +132,15 @@ GitHub release is published. The derivation installs from Cargo's
 target-specific output directory because the nixpkgs Cargo hook passes
 `--target` even for native Linux builds.
 
+## GitHub Release Notes
+
+Tagged builds publish a GitHub release after every platform packaging job
+completes. The release job extracts the matching version section from the
+Russian `CHANGELOG.md`, appends GitHub's generated notes and `Full Changelog`
+comparison, then adds an `English Changelog: [CHANGELOG-EN.md](...)` link to
+the same tag. The link points at the exact release source so the English
+archive stays available alongside the localized notes.
+
 ## Installed Layout
 
 The setup writes a split layout under the selected root:

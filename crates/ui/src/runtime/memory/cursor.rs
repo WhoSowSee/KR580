@@ -93,16 +93,7 @@ impl DesktopApp {
         let address = parse_hex_u16(&self.memory_address_input).unwrap_or(0);
         let next = self.clamp_memory_address_to_view(step_address(address, delta));
         self.select_memory(next);
-
-        if self.memory_viewport_height <= 0.0 {
-            return Task::none();
-        }
-        let Some(target_offset) = self.scroll_offset_to_reveal(next) else {
-            return Task::none();
-        };
-        self.scroll_memory(target_offset);
-        self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
-        scroll_memory_to(target_offset)
+        self.reveal_memory_address(next)
     }
 
     /// Skips `SetPc` dispatch – sync round-trips were eating focus
@@ -123,11 +114,14 @@ impl DesktopApp {
         self.memory_address_input = format!("{next:04X}");
         self.refresh_memory_value(next);
         self.memory_search_pattern = None;
+        self.reveal_memory_address(next)
+    }
 
+    fn reveal_memory_address(&mut self, address: u16) -> Task<Message> {
         if self.memory_viewport_height <= 0.0 {
             return Task::none();
         }
-        let Some(target_offset) = self.scroll_offset_to_reveal(next) else {
+        let Some(target_offset) = self.scroll_offset_to_reveal(address) else {
             return Task::none();
         };
         self.scroll_memory(target_offset);

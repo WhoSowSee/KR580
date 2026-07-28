@@ -1,5 +1,6 @@
 use iced::Task;
 
+use super::changelog::ChangelogDialog;
 use super::constants::MEMORY_SCROLL_VISIBLE_TICKS;
 use super::help::HelpDialog;
 use super::messages::Message;
@@ -15,6 +16,22 @@ impl DesktopApp {
             }
             Message::CloseAbout => {
                 self.about_dialog_open = false;
+            }
+            Message::OpenChangelog => {
+                self.changelog_dialog = Some(ChangelogDialog::new(self.lang));
+            }
+            Message::CloseChangelog => {
+                self.changelog_dialog = None;
+            }
+            Message::ChangelogReleaseSelected(selected) => {
+                if let Some(dialog) = self.changelog_dialog.as_mut() {
+                    dialog.select_release(*selected);
+                }
+            }
+            Message::ChangelogTextAction(action) => {
+                if let Some(dialog) = self.changelog_dialog.as_mut() {
+                    dialog.perform_text_action(action.clone());
+                }
             }
             Message::OpenHelp => {
                 self.close_top_menu();

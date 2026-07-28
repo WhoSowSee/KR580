@@ -319,11 +319,14 @@ jobs:
 
       - name: Compose release body
         run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          ENGLISH_CHANGELOG_URL="https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/CHANGELOG-EN.md"
           {
             printf '%s\n\n' "$TAG_MESSAGE";
             echo '---';
             echo;
             printf '%s\n' "$GENERATED_NOTES";
+            printf '\nEnglish Changelog: [CHANGELOG-EN.md](%s)\n' "$ENGLISH_CHANGELOG_URL";
           } > release-notes.md
         env:
           TAG_MESSAGE: ${{ steps.tag_meta.outputs.message }}

@@ -38,7 +38,8 @@ scalar_keys! {
     HcSaveLoad, HcImport, HcExport, HcGeneralSettings, HcAppearance,
     HcCommandSummary, HcShortcuts,
 
-    AboutTitle, AppName, AboutDescription, AboutVersion, AboutGithubLabel,
+    AboutTitle, AppName, AboutDescription, AboutVersion, AboutGithubLabel, AboutChangelogLabel,
+    ChangelogTitle, ChangelogAllVersions,
     FileNew, FileOpen, FileSave, FileSaveAs, FileImport, FileExport,
     ExportFormatXlsx, ExportFormatText, ExportPageLabel, ExportPageDefault,
     ExportPageNameBase, ExportSectionLabel, ExportSectionDefault, ExportSectionNameBase,

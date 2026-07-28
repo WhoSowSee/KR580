@@ -155,60 +155,37 @@ fn build_k580() -> std::io::Result<()> {
 }
 
 fn k580_executable() -> std::io::Result<PathBuf> {
-    let kr = std::env::current_exe()?;
-    let dir = kr
-        .parent()
-        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no parent directory"))?;
-    let k580 = dir.join(k580_binary_name());
-    if k580.is_file() {
-        return Ok(k580);
-    }
-    if let Some(k580) = installed_app_binary_from_launcher(&kr, k580_binary_name())
-        && k580.is_file()
-    {
-        return Ok(k580);
-    }
-
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let profile = if cfg!(debug_assertions) {
-        "debug"
-    } else {
-        "release"
-    };
-    let fallback = manifest_dir
-        .join("..")
-        .join("..")
-        .join("target")
-        .join(profile)
-        .join(k580_binary_name());
-    if fallback.is_file() {
-        return Ok(fallback);
-    }
-
-    Err(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
-        format!("k580 executable not found at {}", k580.display()),
-    ))
+    find_executable(k580_binary_name(), &[], "k580")
 }
 
 fn installer_executable() -> std::io::Result<PathBuf> {
+    find_executable(
+        installer_binary_name(),
+        &[uninstaller_binary_name()],
+        "installer",
+    )
+}
+
+fn find_executable(
+    binary_name: &str,
+    installed_alternatives: &[&str],
+    display_name: &str,
+) -> std::io::Result<PathBuf> {
     let kr = std::env::current_exe()?;
     let dir = kr
         .parent()
         .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no parent directory"))?;
-    let installer = dir.join(installer_binary_name());
-    if installer.is_file() {
-        return Ok(installer);
+    let adjacent = dir.join(binary_name);
+    if adjacent.is_file() {
+        return Ok(adjacent);
     }
-    if let Some(installer) = installed_app_binary_from_launcher(&kr, installer_binary_name())
-        && installer.is_file()
+    for candidate_name in std::iter::once(binary_name).chain(installed_alternatives.iter().copied())
     {
-        return Ok(installer);
-    }
-    if let Some(uninstaller) = installed_app_binary_from_launcher(&kr, uninstaller_binary_name())
-        && uninstaller.is_file()
-    {
-        return Ok(uninstaller);
+        if let Some(candidate) = installed_app_binary_from_launcher(&kr, candidate_name)
+            && candidate.is_file()
+        {
+            return Ok(candidate);
+        }
     }
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -222,14 +199,17 @@ fn installer_executable() -> std::io::Result<PathBuf> {
         .join("..")
         .join("target")
         .join(profile)
-        .join(installer_binary_name());
+        .join(binary_name);
     if fallback.is_file() {
         return Ok(fallback);
     }
 
     Err(std::io::Error::new(
         std::io::ErrorKind::NotFound,
-        format!("installer executable not found at {}", installer.display()),
+        format!(
+            "{display_name} executable not found at {}",
+            adjacent.display()
+        ),
     ))
 }
 

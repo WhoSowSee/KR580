@@ -69,9 +69,7 @@ impl Importers {
         let sheet = workbook
             .worksheet_range(sheet_name)
             .map_err(|e| ImportError::Spreadsheet(e.to_string()))?;
-        let mut registers: Vec<(String, String)> = Vec::new();
-        let mut flags: Vec<(String, bool)> = Vec::new();
-        let mut memory: Vec<(u16, u8)> = Vec::new();
+        let mut model = empty_export_model();
         let mut section: Option<Section> = None;
 
         for row in sheet.rows() {
@@ -92,42 +90,16 @@ impl Importers {
                 section = Some(Section::Memory);
                 continue;
             }
-            match section {
-                Some(Section::Registers) => registers.push((key, value)),
-                Some(Section::Flags) => {
-                    let set = parse_bool(&value).ok_or_else(|| {
-                        ImportError::Malformed(format!("invalid flag value `{value}` for `{key}`"))
-                    })?;
-                    flags.push((key, set));
-                }
-                Some(Section::Memory) => {
-                    let address = parse_u16_hex(&key).ok_or_else(|| {
-                        ImportError::Malformed(format!("invalid memory address `{key}`"))
-                    })?;
-                    let cell = parse_u8_hex(&value).ok_or_else(|| {
-                        ImportError::Malformed(format!("invalid memory value `{value}`"))
-                    })?;
-                    memory.push((address, cell));
-                }
-                None => {
-                    return Err(ImportError::Malformed(format!(
-                        "data row `{key}`/`{value}` outside of any section"
-                    )));
-                }
-            }
+            push_import_row(&mut model, section, key, value, |key, value| {
+                format!("data row `{key}`/`{value}` outside of any section")
+            })?;
         }
 
-        Ok(ExportModel {
-            registers,
-            flags,
-            memory,
-        })
+        Ok(model)
     }
 
     fn parse_txt(text: &str) -> Result<ExportModel, ImportError> {
-        let mut registers: Vec<(String, String)> = Vec::new();
-        let mut flags: Vec<(String, bool)> = Vec::new();
-        let mut memory: Vec<(u16, u8)> = Vec::new();
+        let mut model = empty_export_model();
         let mut section: Option<Section> = None;
 
         for raw_line in text.lines() {
@@ -161,37 +133,50 @@ impl Importers {
             };
             let key = key.trim().to_owned();
             let value = value.trim().to_owned();
-            match section {
-                Some(Section::Registers) => registers.push((key, value)),
-                Some(Section::Flags) => {
-                    let set = parse_bool(&value).ok_or_else(|| {
-                        ImportError::Malformed(format!("invalid flag value `{value}` for `{key}`"))
-                    })?;
-                    flags.push((key, set));
-                }
-                Some(Section::Memory) => {
-                    let address = parse_u16_hex(&key).ok_or_else(|| {
-                        ImportError::Malformed(format!("invalid memory address `{key}`"))
-                    })?;
-                    let cell = parse_u8_hex(&value).ok_or_else(|| {
-                        ImportError::Malformed(format!("invalid memory value `{value}`"))
-                    })?;
-                    memory.push((address, cell));
-                }
-                None => {
-                    return Err(ImportError::Malformed(format!(
-                        "data line `{line}` outside of any section"
-                    )));
-                }
-            }
+            push_import_row(&mut model, section, key, value, |_, _| {
+                format!("data line `{line}` outside of any section")
+            })?;
         }
 
-        Ok(ExportModel {
-            registers,
-            flags,
-            memory,
-        })
+        Ok(model)
     }
+}
+
+fn empty_export_model() -> ExportModel {
+    ExportModel {
+        registers: Vec::new(),
+        flags: Vec::new(),
+        memory: Vec::new(),
+    }
+}
+
+fn push_import_row(
+    model: &mut ExportModel,
+    section: Option<Section>,
+    key: String,
+    value: String,
+    outside_section: impl FnOnce(&str, &str) -> String,
+) -> Result<(), ImportError> {
+    match section {
+        Some(Section::Registers) => model.registers.push((key, value)),
+        Some(Section::Flags) => {
+            let set = parse_bool(&value).ok_or_else(|| {
+                ImportError::Malformed(format!("invalid flag value `{value}` for `{key}`"))
+            })?;
+            model.flags.push((key, set));
+        }
+        Some(Section::Memory) => {
+            let address = parse_u16_hex(&key)
+                .ok_or_else(|| ImportError::Malformed(format!("invalid memory address `{key}`")))?;
+            let cell = parse_u8_hex(&value)
+                .ok_or_else(|| ImportError::Malformed(format!("invalid memory value `{value}`")))?;
+            model.memory.push((address, cell));
+        }
+        None => {
+            return Err(ImportError::Malformed(outside_section(&key, &value)));
+        }
+    }
+    Ok(())
 }
 
 struct TextSection {

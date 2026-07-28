@@ -131,6 +131,8 @@ static INFO: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("info").as_slice()));
 static GITHUB: LazyLock<svg::Handle> =
     LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("github").as_slice()));
+static CHANGELOG: LazyLock<svg::Handle> =
+    LazyLock::new(|| svg::Handle::from_memory(action_icon_bytes!("changelog").as_slice()));
 
 /// 128px PNG variant of the application icon – large enough that the
 /// About-dialog plate (64×64 px logical) downscales without visible
@@ -364,6 +366,10 @@ pub(super) fn info() -> svg::Handle {
 
 pub(super) fn github() -> svg::Handle {
     GITHUB.clone()
+}
+
+pub(super) fn changelog() -> svg::Handle {
+    CHANGELOG.clone()
 }
 
 pub(super) fn app_icon() -> iced_image::Handle {

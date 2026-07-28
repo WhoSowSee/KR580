@@ -1,7 +1,7 @@
 use iced::widget::{button, container};
 use iced::{Background, Border, Color};
 
-pub(super) use super::super::styles::modal_backdrop_style;
+pub(super) use super::super::styles::{dropdown_panel_style, modal_backdrop_style};
 use super::super::theme::{
     tokyo_board, tokyo_border, tokyo_surface, tokyo_surface_2, tokyo_surface_3, tokyo_text,
 };
@@ -218,18 +218,6 @@ pub(super) fn confirmation_button_style(
             },
         },
         ..button::Style::default()
-    }
-}
-
-pub(super) fn dropdown_panel_style(_theme: &iced::Theme) -> container::Style {
-    container::Style {
-        background: Some(Background::Color(tokyo_board())),
-        border: Border {
-            radius: 6.0.into(),
-            width: 1.0,
-            color: tokyo_border(),
-        },
-        ..container::Style::default()
     }
 }
 

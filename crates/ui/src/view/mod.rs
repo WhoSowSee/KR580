@@ -1,6 +1,7 @@
 //! View layer for the desktop UI.
 
 mod about;
+mod changelog;
 mod chips;
 mod current_command;
 mod cycles;
@@ -53,6 +54,7 @@ use storage::{floppy_window_overlay, hdd_window_overlay};
 use styles::app_style;
 
 use about::about_modal_overlay;
+use changelog::changelog_modal_overlay;
 use export_modal::{ExportModalViewState, export_modal_overlay};
 use help::help_modal_overlay;
 use import_modal::{ImportModalViewState, import_modal_overlay};
@@ -230,6 +232,14 @@ impl DesktopApp {
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
+        } else if let Some(dialog) = self.changelog_dialog.as_ref() {
+            let about = stack![scrimmed, about_modal_overlay(self.lang)]
+                .width(Length::Fill)
+                .height(Length::Fill);
+            stack![about, changelog_modal_overlay(dialog, self.lang)]
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
         } else if self.about_dialog_open {
             stack![scrimmed, about_modal_overlay(self.lang)]
                 .width(Length::Fill)

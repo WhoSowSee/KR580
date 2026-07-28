@@ -325,29 +325,24 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SettingsFileAssociationRegister => {
-                if let Err(error) = k580_ui::file_assoc::register() {
-                    self.error_notice =
-                        Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
-                    self.error_notice_dismiss_at =
-                        Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
-                }
-                self.file_association_toggle_revision =
-                    self.file_association_toggle_revision.wrapping_add(1);
-                Some(Task::none())
+                Some(self.update_file_association(k580_ui::file_assoc::register))
             }
             Message::SettingsFileAssociationUnregister => {
-                if let Err(error) = k580_ui::file_assoc::unregister() {
-                    self.error_notice =
-                        Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
-                    self.error_notice_dismiss_at =
-                        Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
-                }
-                self.file_association_toggle_revision =
-                    self.file_association_toggle_revision.wrapping_add(1);
-                Some(Task::none())
+                Some(self.update_file_association(k580_ui::file_assoc::unregister))
             }
             _ => None,
         }
+    }
+
+    fn update_file_association(&mut self, operation: fn() -> Result<(), String>) -> Task<Message> {
+        if let Err(error) = operation() {
+            self.error_notice = Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
+            self.error_notice_dismiss_at =
+                Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
+        }
+        self.file_association_toggle_revision =
+            self.file_association_toggle_revision.wrapping_add(1);
+        Task::none()
     }
 
     pub(super) fn commit_settings_dialog_state(&mut self) {

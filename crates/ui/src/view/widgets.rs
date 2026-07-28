@@ -35,45 +35,22 @@ pub(super) fn legend_panel<'a>(
     content: impl Into<Element<'a, Message>>,
     height: Length,
 ) -> Element<'a, Message> {
-    let panel: Element<'a, Message> = container(content)
-        .padding(Padding {
-            top: 18.0,
-            right: 10.0,
-            bottom: 10.0,
-            left: 10.0,
-        })
-        .width(Length::Fill)
-        .height(height)
-        .style(panel_style)
-        .into();
-    let framed_panel: Element<'a, Message> = column![
-        Space::new().height(Length::Fixed(LEGEND_LINE_OFFSET)),
-        panel,
-    ]
-    .spacing(0)
-    .width(Length::Fill)
-    .height(height)
-    .into();
-    let legend: Element<'a, Message> = row![
-        Space::new().width(Length::Fill),
-        container(ui_text(title, 14, tokyo_text()))
-            .padding([0, 5])
-            .style(legend_label_style),
-        Space::new().width(Length::Fill),
-    ]
-    .width(Length::Fill)
-    .into();
-
-    stack(vec![framed_panel, legend])
-        .width(Length::Fill)
-        .height(height)
-        .into()
+    legend_panel_with_style(title, content, height, panel_style)
 }
 
 pub(super) fn legend_panel_left<'a>(
     title: impl Into<String>,
     content: impl Into<Element<'a, Message>>,
     height: Length,
+) -> Element<'a, Message> {
+    legend_panel_with_style(title, content, height, schematic_block_style)
+}
+
+fn legend_panel_with_style<'a>(
+    title: impl Into<String>,
+    content: impl Into<Element<'a, Message>>,
+    height: Length,
+    style: fn(&iced::Theme) -> iced::widget::container::Style,
 ) -> Element<'a, Message> {
     let panel: Element<'a, Message> = container(content)
         .padding(Padding {
@@ -84,7 +61,7 @@ pub(super) fn legend_panel_left<'a>(
         })
         .width(Length::Fill)
         .height(height)
-        .style(schematic_block_style)
+        .style(style)
         .into();
     let framed_panel: Element<'a, Message> = column![
         Space::new().height(Length::Fixed(LEGEND_LINE_OFFSET)),

@@ -4,6 +4,7 @@ use k580_core::RegisterName;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use super::changelog::ChangelogDialog;
 use super::help::HelpDialog;
 use super::hex_stream_filter::HexStreamFilter;
 use super::messages::{
@@ -186,6 +187,7 @@ pub(crate) struct DesktopApp {
     pub(crate) floppy_show_image_contents: bool,
     pub(crate) floppy_image_contents: Vec<u8>,
     pub(crate) floppy_image_error: Option<String>,
+    pub(crate) changelog_dialog: Option<ChangelogDialog>,
     pub(crate) help_dialog: Option<HelpDialog>,
     pub(crate) monitor_hex_filter: HexStreamFilter,
 }
@@ -334,6 +336,7 @@ impl DesktopApp {
             printer_setup_pending: false,
             file_association_toggle_revision: 0,
             file_association_last_registered: k580_ui::file_assoc::is_registered(),
+            changelog_dialog: None,
             help_dialog: None,
             monitor_open: false,
             monitor_split: false,

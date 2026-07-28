@@ -2,14 +2,14 @@ use iced::widget::{button, container, scrollable, text_editor, text_input};
 use iced::{Background, Border, Color};
 
 use crate::view::styles::input_borderless_style;
-pub(super) use crate::view::styles::{
+pub(in crate::view) use crate::view::styles::{
     large_dialog_style as modal_dialog_style, modal_backdrop_style,
 };
 use crate::view::theme::{
     tokyo_border, tokyo_muted, tokyo_surface, tokyo_surface_2, tokyo_text, tokyo_text_selection,
 };
 
-pub(super) fn sidebar_chip_style(
+pub(in crate::view) fn sidebar_chip_style(
     status: button::Status,
     active: bool,
     keyboard_focused: bool,
@@ -35,7 +35,7 @@ pub(super) fn sidebar_chip_style(
     }
 }
 
-pub(super) fn breadcrumb_button_style(status: button::Status) -> button::Style {
+pub(in crate::view) fn breadcrumb_button_style(status: button::Status) -> button::Style {
     let text_color = match status {
         button::Status::Hovered | button::Status::Pressed => tokyo_text(),
         _ => tokyo_muted(),
@@ -52,7 +52,7 @@ pub(super) fn breadcrumb_button_style(status: button::Status) -> button::Style {
     }
 }
 
-pub(super) fn help_search_input_style(
+pub(in crate::view) fn help_search_input_style(
     theme: &iced::Theme,
     status: text_input::Status,
 ) -> text_input::Style {
@@ -62,7 +62,7 @@ pub(super) fn help_search_input_style(
     }
 }
 
-pub(super) fn help_text_editor_style(
+pub(in crate::view) fn help_text_editor_style(
     _theme: &iced::Theme,
     _status: text_editor::Status,
 ) -> text_editor::Style {
@@ -79,7 +79,7 @@ pub(super) fn help_text_editor_style(
     }
 }
 
-pub(super) fn separator_horizontal() -> container::Style {
+pub(in crate::view) fn separator_horizontal() -> container::Style {
     container::Style {
         background: Some(Background::Color(iced::Color {
             a: 0.35,
@@ -89,11 +89,11 @@ pub(super) fn separator_horizontal() -> container::Style {
     }
 }
 
-pub(super) fn separator_vertical() -> container::Style {
+pub(in crate::view) fn separator_vertical() -> container::Style {
     separator_horizontal()
 }
 
-pub(super) fn hidden_scrollbar_style(
+pub(in crate::view) fn hidden_scrollbar_style(
     _theme: &iced::Theme,
     _status: scrollable::Status,
 ) -> scrollable::Style {

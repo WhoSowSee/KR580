@@ -49,14 +49,6 @@ impl EmulatorHandle {
             }
         }
     }
-
-    pub fn command_sender(&self) -> Sender<AppCommand> {
-        self.command_tx.clone()
-    }
-
-    pub fn event_receiver(&self) -> Receiver<AppEvent> {
-        self.event_rx.clone()
-    }
 }
 
 pub fn spawn_emulator() -> EmulatorHandle {

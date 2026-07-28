@@ -22,6 +22,10 @@ pub(crate) fn board_style(_theme: &Theme) -> container::Style {
     surface_style(Some(tokyo_board()), 8.0, 1.0, tokyo_border())
 }
 
+pub(crate) fn dropdown_panel_style(_theme: &Theme) -> container::Style {
+    surface_style(Some(tokyo_board()), 6.0, 1.0, tokyo_border())
+}
+
 /// Outline-only variant of `board_style` for the left schematic panel:
 /// the schematic already provides its own outline language, so an extra
 /// rounded border around it reads as redundant.

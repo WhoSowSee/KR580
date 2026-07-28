@@ -81,6 +81,11 @@ store emulator state in widgets.
   - `app/mod.rs` – module root, re-exports the public surface
     (`DesktopApp`, `Message`, `MenuId`, `TopMenuFocus`, `TopMenuIndicator`,
     `SpeedTier`, widget identifiers).
+  - `app/changelog.rs` and `app/changelog_routing.rs` – compile-time
+    localized `CHANGELOG.md` / `CHANGELOG-EN.md` parsing, release
+    selection, read-only article state, and modal message ownership.
+  - `app/read_only_text.rs` – shared selectable-but-non-editable
+    `text_editor` action handling used by Help and Changelog readers.
   - `app/state.rs` – the `DesktopApp` struct, `PendingAction`,
     `with_initial_path`, and the floating-notice helpers
     (`clear_*_notice` / `raise_halt_notice` / `raise_info_notice` /
@@ -205,7 +210,9 @@ The visible top-level categories are localized as `Файл`,
 `МП-Система`, `Вид`, `Настройки`, and `Справка`. `Файл` and
 `МП-Система` open dropdowns; `Справка` opens a dropdown with
 «Вызвать справку» (Ctrl+H – opens the Help dialog) and «О программе»
-(opens the About dialog). `Вид` now opens a dropdown with the five
+(opens the About dialog). The About card exposes GitHub and Changelog
+actions; Changelog opens a second modal layer with an all-releases view
+and direct release selection. `Вид` now opens a dropdown with the five
 peripheral windows (Monitor, Floppy, HDD, Network, Printer) and a
 «Показать стековую область памяти» item. Selecting the stack view
 restricts the RAM list to the last 256 bytes (`0xFF00..=0xFFFF`) and
@@ -1862,17 +1869,36 @@ kept in sync with the draft while editing, then rolled back to
 ### About dialog
 
 A small centred card with app icon, name, Cargo package version,
-description, and GitHub button. No keyboard navigation beyond Esc
-to close.
+description, and matching GitHub / Changelog buttons. Changelog uses the
+provided document-history glyph and opens the release reader above the
+About card. No keyboard navigation beyond Esc to close.
 
 **State:** `about_dialog_open: bool`.
 
 **View:** `view/about.rs` – `about_modal_overlay()`.
 
+### Changelog dialog
+
+The reader embeds the workspace `CHANGELOG.md` for Russian and
+`CHANGELOG-EN.md` for English at compile time. It selects the source from
+the active application language, discovers every `## [version] - date`
+section automatically, and presents the localized `All releases` label
+plus each release in a left sidebar. The right pane uses the same
+selectable, read-only iced `text_editor` and outer pixel-scrolling
+container as Help, so wheel scrolling, text selection, and copying behave
+consistently. Closing the reader returns to the still-open About card.
+
+**State:** `changelog_dialog: Option<ChangelogDialog>`.
+
+**Routing:** `app/changelog_routing.rs` –
+`route_changelog_dialog_message()`.
+
+**View:** `view/changelog.rs` – `changelog_modal_overlay()`.
+
 ### Help dialog
 
 Opened via `Ctrl+H`, `F1`, or the Help menu dropdown. The dialog
-(820×540 px) has a left sidebar with a search field, an expand/collapse
+(860×560 px) has a left sidebar with a search field, an expand/collapse
 tree, and a right content pane displaying static reference text in a
 scrollable container.
 

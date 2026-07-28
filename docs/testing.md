@@ -8,6 +8,10 @@ cargo clippy --workspace --all-targets --manifest-path /d/kr-580/Cargo.toml -- -
 cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
 ```
 
+Dependency audits use `cargo machete --with-metadata --skip-target-dir .`.
+The Windows-only `winresource` build dependency is explicitly ignored by that
+scanner because `crates/ui/build.rs` consumes it behind a target `cfg`.
+
 On Windows, the installed-driver PrintTicket roundtrip has an explicit ignored
 smoke test:
 

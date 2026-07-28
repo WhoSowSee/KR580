@@ -3,15 +3,15 @@ use super::super::super::{
     PrinterPropertiesTab, PrinterPropertyDropdown, printer_property_parameter_input_id,
 };
 use crate::app::{DesktopApp, Message};
-use iced::advanced::widget::operation::focusable::{Focusable, unfocus};
-use iced::advanced::widget::operation::{Operation, Outcome};
+use crate::runtime::find_focused_optional;
+use iced::Task;
+use iced::advanced::widget::operation::focusable::unfocus;
 use iced::widget::{Id, operation};
-use iced::{Rectangle, Task};
 use k580_ui::devices::printer::{PrinterFeature, PrinterFeatureGroup, PrinterOrientation};
 
 impl DesktopApp {
     pub(super) fn begin_printer_properties_focus_cycle(&self, backward: bool) -> Task<Message> {
-        iced::advanced::widget::operate(find_focused_or_none())
+        iced::advanced::widget::operate(find_focused_optional())
             .map(move |focused| Message::PrinterPropertiesFocusResolved { focused, backward })
     }
 
@@ -278,28 +278,4 @@ fn is_favorite(name: &str) -> bool {
 
 fn local_name(name: &str) -> &str {
     name.rsplit_once(':').map_or(name, |(_, local)| local)
-}
-
-fn find_focused_or_none() -> impl Operation<Option<Id>> {
-    struct FindFocused {
-        focused: Option<Id>,
-    }
-
-    impl Operation<Option<Id>> for FindFocused {
-        fn focusable(&mut self, id: Option<&Id>, _bounds: Rectangle, state: &mut dyn Focusable) {
-            if state.is_focused() {
-                self.focused = id.cloned();
-            }
-        }
-
-        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<Option<Id>>)) {
-            operate(self);
-        }
-
-        fn finish(&self) -> Outcome<Option<Id>> {
-            Outcome::Some(self.focused.clone())
-        }
-    }
-
-    FindFocused { focused: None }
 }

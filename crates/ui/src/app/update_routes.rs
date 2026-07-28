@@ -16,6 +16,9 @@ impl DesktopApp {
         if let Some(task) = self.route_export_modal_message(message) {
             return Some(task);
         }
+        if let Some(task) = self.route_changelog_dialog_message(message) {
+            return Some(task);
+        }
         if let Some(task) = self.route_help_dialog_message(message) {
             return Some(task);
         }

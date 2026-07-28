@@ -2,7 +2,7 @@
 //!
 //! Centred dialog with the title at the top-left, an app-icon plate
 //! next to a name + version block, a description paragraph spanning
-//! the dialog width, and a pill-shaped GitHub button at the bottom.
+//! the dialog width, and GitHub / Changelog actions at the bottom.
 //! Click outside or Esc dismisses it.
 
 use iced::widget::{Space, button, column, container, image, mouse_area, opaque, row, stack, svg};
@@ -20,7 +20,7 @@ const DIALOG_WIDTH: f32 = 388.0;
 const DIALOG_PADDING: u16 = 24;
 const APP_ICON_PLATE_SIZE: f32 = 64.0;
 const APP_ICON_GLYPH_SIZE: f32 = 64.0;
-const GITHUB_ICON_SIZE: f32 = 17.0;
+const ACTION_ICON_SIZE: f32 = 17.0;
 /// Polar opposite of "rectangular" – large radius collapses container
 /// corners to a perfect pill shape regardless of inner content size.
 const PILL_RADIUS: f32 = 999.0;
@@ -67,8 +67,8 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
     let description = ui_text(lang.t(Key::AboutDescription), 14, tokyo_text());
 
     let github_glyph = svg(icons::github())
-        .width(Length::Fixed(GITHUB_ICON_SIZE))
-        .height(Length::Fixed(GITHUB_ICON_SIZE))
+        .width(Length::Fixed(ACTION_ICON_SIZE))
+        .height(Length::Fixed(ACTION_ICON_SIZE))
         .style(|_theme, _status| svg::Style {
             color: Some(tokyo_text()),
         });
@@ -87,7 +87,33 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
     .padding(0)
     .style(|_theme, status| pill_button_style(status));
 
-    let github_row = row![github_button, Space::new().width(Length::Fill),];
+    let changelog_glyph = svg(icons::changelog())
+        .width(Length::Fixed(ACTION_ICON_SIZE))
+        .height(Length::Fixed(ACTION_ICON_SIZE))
+        .style(|_theme, _status| svg::Style {
+            color: Some(tokyo_text()),
+        });
+    let changelog_button = button(
+        container(
+            row![
+                changelog_glyph,
+                ui_text(lang.t(Key::AboutChangelogLabel), 13, tokyo_text()),
+            ]
+            .spacing(10)
+            .align_y(alignment::Vertical::Center),
+        )
+        .padding(iced::Padding::ZERO.left(18).right(22).top(9).bottom(9)),
+    )
+    .on_press(Message::OpenChangelog)
+    .padding(0)
+    .style(|_theme, status| pill_button_style(status));
+
+    let action_row = row![
+        github_button,
+        changelog_button,
+        Space::new().width(Length::Fill),
+    ]
+    .spacing(8);
 
     let body = container(
         column![
@@ -97,7 +123,7 @@ pub(super) fn about_modal_overlay<'a>(lang: Lang) -> Element<'a, Message> {
             Space::new().height(Length::Fixed(20.0)),
             description,
             Space::new().height(Length::Fixed(20.0)),
-            github_row,
+            action_row,
         ]
         .width(Length::Fixed(DIALOG_WIDTH)),
     )

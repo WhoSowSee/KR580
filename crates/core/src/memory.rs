@@ -36,11 +36,6 @@ impl Memory64K {
         lo | (hi << 8)
     }
 
-    pub fn write_word(&mut self, address: u16, value: u16) {
-        self.write(address, value as u8);
-        self.write(address.wrapping_add(1), (value >> 8) as u8);
-    }
-
     pub fn as_slice(&self) -> &[u8] {
         self.bytes.as_slice()
     }

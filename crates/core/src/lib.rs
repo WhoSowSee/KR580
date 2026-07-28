@@ -1,5 +1,4 @@
 pub mod bus;
-pub mod command;
 pub mod decode;
 pub mod error;
 pub mod flags;
@@ -14,7 +13,6 @@ mod ops;
 mod tact;
 
 pub use bus::{NullBus, PortBus};
-pub use command::{CoreCommand, CoreEvent};
 pub use decode::{InstructionInfo, decode_opcode, is_undocumented_opcode};
 pub use error::{CoreError, DecodeError, PortError, ValidationError};
 pub use flags::Flags;

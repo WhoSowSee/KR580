@@ -1,7 +1,7 @@
 mod consts;
 mod content;
 mod sidebar;
-mod styles;
+pub(in crate::view) mod styles;
 
 use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
