@@ -1,5 +1,6 @@
-use iced::widget::{Space, button, column, container, row, stack, text_input};
-use iced::{Element, Length, Padding, alignment};
+use iced::mouse;
+use iced::widget::{Space, button, canvas, column, container, row, stack, text_input};
+use iced::{Color, Element, Length, Padding, Point, Rectangle, Renderer, Theme, alignment};
 
 use super::super::styles::{input_borderless_style, input_shell_style};
 use super::super::theme::{MONO_FONT, mono_text, tokyo_green, tokyo_text, ui_text};
@@ -11,6 +12,51 @@ use crate::app::Message;
 
 const CHECKBOX_SIZE: f32 = 16.0;
 const FLAG_CHECKBOX_SIZE: f32 = 16.0;
+const CHECK_MARK_WIDTH: f32 = 11.0;
+const CHECK_MARK_HEIGHT: f32 = 9.0;
+
+#[derive(Debug, Clone, Copy)]
+struct CheckMark {
+    color: Color,
+}
+
+impl canvas::Program<Message> for CheckMark {
+    type State = ();
+
+    fn draw(
+        &self,
+        _state: &Self::State,
+        renderer: &Renderer,
+        _theme: &Theme,
+        bounds: Rectangle,
+        _cursor: mouse::Cursor,
+    ) -> Vec<canvas::Geometry> {
+        let mut frame = canvas::Frame::new(renderer, bounds.size());
+        let mark = canvas::Path::new(|path| {
+            path.move_to(Point::new(bounds.width * 0.10, bounds.height * 0.52));
+            path.line_to(Point::new(bounds.width * 0.39, bounds.height * 0.80));
+            path.line_to(Point::new(bounds.width * 0.90, bounds.height * 0.20));
+        });
+        frame.stroke(
+            &mark,
+            canvas::Stroke::default()
+                .with_color(self.color)
+                .with_width(1.8)
+                .with_line_cap(canvas::LineCap::Round)
+                .with_line_join(canvas::LineJoin::Round),
+        );
+        vec![frame.into_geometry()]
+    }
+}
+
+fn check_mark() -> Element<'static, Message> {
+    canvas(CheckMark {
+        color: tokyo_green(),
+    })
+    .width(Length::Fixed(CHECK_MARK_WIDTH))
+    .height(Length::Fixed(CHECK_MARK_HEIGHT))
+    .into()
+}
 
 pub(super) fn group_box<'a>(
     title: &'static str,
@@ -53,9 +99,7 @@ pub(super) fn checkbox_row(
     message: Message,
 ) -> Element<'static, Message> {
     let mark: Element<'static, Message> = if checked {
-        mono_text("✓", 13, tokyo_green())
-            .align_x(alignment::Horizontal::Center)
-            .into()
+        check_mark()
     } else {
         Space::new().into()
     };
@@ -84,9 +128,7 @@ pub(super) fn flag_checkbox(
     message: Message,
 ) -> Element<'static, Message> {
     let mark: Element<'static, Message> = if checked {
-        mono_text("✓", 12, tokyo_green())
-            .align_x(alignment::Horizontal::Center)
-            .into()
+        check_mark()
     } else {
         Space::new().into()
     };

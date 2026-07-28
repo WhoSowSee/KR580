@@ -53,18 +53,9 @@ pub(super) fn checkbox_style(checked: bool) -> container::Style {
     } else {
         tokyo_border()
     };
-    let background = if checked {
-        Some(Background::Color(Color {
-            a: 0.18,
-            ..tokyo_green()
-        }))
-    } else {
-        None
-    };
-
     container::Style {
         text_color: Some(tokyo_text()),
-        background,
+        background: None,
         border: Border {
             radius: 3.0.into(),
             width: 1.0,

@@ -202,10 +202,10 @@ mod tests {
     }
 
     #[test]
-    fn checked_box_has_background_fill() {
+    fn checked_box_background_is_transparent() {
         let style = checkbox_style(true);
 
-        assert!(matches!(style.background, Some(Background::Color(_))));
+        assert_eq!(style.background, None);
     }
 
     #[test]
