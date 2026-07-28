@@ -186,6 +186,17 @@ worth eyeballing after touching `crates/ui`:
   initially filled without a white border, the first Tab/Shift+Tab changes the
   indication to a white border without focus fill, and Enter or pointer input
   hides the border before activating the chosen button;
+- open Export and Import and use Tab/Shift+Tab from their native text inputs and
+  buttons; confirm captured keyboard events still traverse each custom wrapping
+  focus ring in both directions, draw a white outline on the active tab,
+  field, checkbox, or footer control without replacing its selected fill/check,
+  skip the unavailable Import target selector, move directly from Export's Text
+  file tab to its target selector without an invisible intermediate stop, and
+  let Enter or pointer input clear the keyboard-only outline before activating
+  the current control; load an import file with enough long target names to
+  overflow the two-row dropdown, confirm the wheel/touchpad still scrolls it
+  without painting a scrollbar, and confirm every target stays on one clipped,
+  middle-shortened row;
 - in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
   and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`;
 - paste `3E 41 D3 03 76` into a memory value field and confirm the five

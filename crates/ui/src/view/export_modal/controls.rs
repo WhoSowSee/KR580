@@ -2,11 +2,11 @@ use iced::mouse;
 use iced::widget::{Space, button, canvas, column, container, row, stack, text_input};
 use iced::{Color, Element, Length, Padding, Point, Rectangle, Renderer, Theme, alignment};
 
-use super::super::styles::{input_borderless_style, input_shell_style};
+use super::super::styles::input_borderless_style;
 use super::super::theme::{MONO_FONT, mono_text, tokyo_green, tokyo_text, ui_text};
 use super::styles::{
     checkbox_style, checklist_button_style, flag_checkbox_style, group_label_style,
-    group_panel_style,
+    group_panel_style, keyboard_input_shell_style,
 };
 use crate::app::Message;
 
@@ -97,6 +97,7 @@ pub(super) fn checkbox_row(
     label_text: &'static str,
     checked: bool,
     message: Message,
+    focused: bool,
 ) -> Element<'static, Message> {
     let mark: Element<'static, Message> = if checked {
         check_mark()
@@ -118,7 +119,7 @@ pub(super) fn checkbox_row(
     .on_press(message)
     .padding([2, 4])
     .width(Length::Fill)
-    .style(move |_theme, status| checklist_button_style(status))
+    .style(move |_theme, status| checklist_button_style(status, focused))
     .into()
 }
 
@@ -126,6 +127,7 @@ pub(super) fn flag_checkbox(
     label_text: &'static str,
     checked: bool,
     message: Message,
+    focused: bool,
 ) -> Element<'static, Message> {
     let mark: Element<'static, Message> = if checked {
         check_mark()
@@ -148,7 +150,7 @@ pub(super) fn flag_checkbox(
     .on_press(message)
     .padding([2, 4])
     .width(Length::Fill)
-    .style(move |_theme, status| checklist_button_style(status))
+    .style(move |_theme, status| checklist_button_style(status, focused))
     .into()
 }
 
@@ -157,6 +159,7 @@ pub(super) fn input_shell<'a>(
     width: f32,
     on_input: fn(String) -> Message,
     mono: bool,
+    focused: bool,
 ) -> Element<'a, Message> {
     let mut input = text_input("", value)
         .on_input(on_input)
@@ -177,7 +180,7 @@ pub(super) fn input_shell<'a>(
 
     container(input)
         .width(Length::Fixed(width))
-        .style(|theme| input_shell_style(theme, false))
+        .style(move |theme| keyboard_input_shell_style(theme, focused))
         .into()
 }
 

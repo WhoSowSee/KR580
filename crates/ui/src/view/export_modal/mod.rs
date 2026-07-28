@@ -11,9 +11,10 @@ use groups::{MemoryGroupState, flags_group, memory_group, register_group};
 use styles::{footer_button_style, modal_backdrop_style, modal_dialog_style, tab_button_style};
 
 use super::theme::{tokyo_text, ui_text};
-use super::widgets::modal_footer_button;
+use super::widgets::modal_footer_button_focused;
 use crate::app::{
-    ExportFlagSelection, ExportMemoryColumns, ExportRegisterSelection, ExportTab, Message,
+    ExportFlagSelection, ExportMemoryColumns, ExportModalFocus, ExportRegisterSelection, ExportTab,
+    Message,
 };
 use crate::i18n::{Key, Lang};
 
@@ -24,6 +25,8 @@ const TAB_HEIGHT: f32 = 34.0;
 
 pub(super) struct ExportModalViewState<'a> {
     pub(super) tab: ExportTab,
+    pub(super) focus: ExportModalFocus,
+    pub(super) keyboard_focus_visible: bool,
     pub(super) target_input: &'a str,
     pub(super) target_options: &'a [String],
     pub(super) target_dropdown_open: bool,
@@ -39,6 +42,8 @@ pub(super) struct ExportModalViewState<'a> {
 pub(super) fn export_modal_overlay<'a>(state: ExportModalViewState<'a>) -> Element<'a, Message> {
     let ExportModalViewState {
         tab,
+        focus,
+        keyboard_focus_visible,
         target_input,
         target_options,
         target_dropdown_open,
@@ -61,10 +66,12 @@ pub(super) fn export_modal_overlay<'a>(state: ExportModalViewState<'a>) -> Eleme
 
     let body = container(
         column![
-            tabs(tab, lang),
+            tabs(tab, focus, keyboard_focus_visible, lang),
             row![
                 memory_group(MemoryGroupState {
                     tab,
+                    focus,
+                    keyboard_focus_visible,
                     target_input,
                     target_options,
                     target_dropdown_open,
@@ -74,14 +81,14 @@ pub(super) fn export_modal_overlay<'a>(state: ExportModalViewState<'a>) -> Eleme
                     columns,
                     lang,
                 }),
-                register_group(registers, lang),
+                register_group(registers, focus, keyboard_focus_visible, lang),
             ]
             .spacing(12)
             .height(Length::Fixed(GROUP_HEIGHT)),
-            container(flags_group(flags, lang))
+            container(flags_group(flags, focus, keyboard_focus_visible, lang))
                 .height(Length::Fixed(FLAGS_GROUP_HEIGHT))
                 .width(Length::Fill),
-            footer(lang),
+            footer(focus, keyboard_focus_visible, lang),
         ]
         .spacing(12)
         .width(Length::Fixed(DIALOG_WIDTH)),
@@ -108,17 +115,24 @@ pub(super) fn export_modal_overlay<'a>(state: ExportModalViewState<'a>) -> Eleme
         .into()
 }
 
-fn tabs(tab: ExportTab, lang: Lang) -> Element<'static, Message> {
+fn tabs(
+    tab: ExportTab,
+    focus: ExportModalFocus,
+    keyboard_focus_visible: bool,
+    lang: Lang,
+) -> Element<'static, Message> {
     row![
         tab_button(
             lang.t(Key::ExportFormatXlsx),
             ExportTab::Xlsx,
             tab == ExportTab::Xlsx,
+            keyboard_focus_visible && focus == ExportModalFocus::TabXlsx,
         ),
         tab_button(
             lang.t(Key::ExportFormatText),
             ExportTab::Text,
             tab == ExportTab::Text,
+            keyboard_focus_visible && focus == ExportModalFocus::TabText,
         ),
     ]
     .spacing(4)
@@ -126,7 +140,12 @@ fn tabs(tab: ExportTab, lang: Lang) -> Element<'static, Message> {
     .into()
 }
 
-fn tab_button(label: &'static str, target: ExportTab, active: bool) -> Element<'static, Message> {
+fn tab_button(
+    label: &'static str,
+    target: ExportTab,
+    active: bool,
+    focused: bool,
+) -> Element<'static, Message> {
     button(
         container(ui_text(label, 15, tokyo_text()))
             .width(Length::Fill)
@@ -138,22 +157,28 @@ fn tab_button(label: &'static str, target: ExportTab, active: bool) -> Element<'
     .padding(0)
     .width(Length::FillPortion(1))
     .height(Length::Fixed(TAB_HEIGHT))
-    .style(move |_theme, status| tab_button_style(status, active))
+    .style(move |_theme, status| tab_button_style(status, active, focused))
     .into()
 }
 
-fn footer(lang: Lang) -> Element<'static, Message> {
+fn footer(
+    focus: ExportModalFocus,
+    keyboard_focus_visible: bool,
+    lang: Lang,
+) -> Element<'static, Message> {
     row![
         Space::new().width(Length::Fill),
-        modal_footer_button(
+        modal_footer_button_focused(
             lang.t(Key::DiscardCancel),
             Message::CancelExport,
             footer_button_style,
+            keyboard_focus_visible && focus == ExportModalFocus::Cancel,
         ),
-        modal_footer_button(
+        modal_footer_button_focused(
             lang.t(Key::FileExport),
             Message::ConfirmExport,
             footer_button_style,
+            keyboard_focus_visible && focus == ExportModalFocus::Confirm,
         ),
     ]
     .spacing(12)
@@ -163,9 +188,11 @@ fn footer(lang: Lang) -> Element<'static, Message> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::theme::{tokyo_border, tokyo_surface};
+    use super::super::theme::{tokyo_border, tokyo_surface, tokyo_text};
     use super::GROUP_HEIGHT;
-    use super::styles::{checkbox_style, flag_checkbox_style, tab_button_style};
+    use super::styles::{
+        checkbox_style, checklist_button_style, flag_checkbox_style, tab_button_style,
+    };
     use super::target::dropdown_list_height;
     use iced::Background;
     use iced::widget::button;
@@ -195,10 +222,26 @@ mod tests {
 
     #[test]
     fn active_tab_uses_fill_without_accent_border() {
-        let style = tab_button_style(button::Status::Active, true);
+        let style = tab_button_style(button::Status::Active, true, false);
 
         assert_eq!(style.background, Some(Background::Color(tokyo_surface())));
         assert_eq!(style.border.color, tokyo_border());
+    }
+
+    #[test]
+    fn keyboard_focused_tab_uses_text_border_without_changing_fill() {
+        let style = tab_button_style(button::Status::Active, true, true);
+
+        assert_eq!(style.background, Some(Background::Color(tokyo_surface())));
+        assert_eq!(style.border.color, tokyo_text());
+    }
+
+    #[test]
+    fn keyboard_focused_checkbox_uses_text_border() {
+        let style = checklist_button_style(button::Status::Active, true);
+
+        assert_eq!(style.border.color, tokyo_text());
+        assert_eq!(style.border.width, 1.0);
     }
 
     #[test]

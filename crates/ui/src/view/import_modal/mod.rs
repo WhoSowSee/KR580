@@ -7,7 +7,7 @@ use iced::{Element, Length};
 use controls::{SourceGroupState, footer, source_group, target_dropdown_overlay};
 use styles::{modal_backdrop_style, modal_dialog_style};
 
-use crate::app::{ImportFileFormat, Message};
+use crate::app::{ImportFileFormat, ImportModalFocus, Message};
 use crate::i18n::Lang;
 
 const DIALOG_WIDTH: f32 = 500.0;
@@ -15,26 +15,28 @@ const COMPACT_CONTENT_HEIGHT: f32 = 126.0;
 const TARGET_CONTENT_HEIGHT: f32 = 164.0;
 
 pub(super) struct ImportModalViewState<'a> {
+    pub(super) focus: ImportModalFocus,
+    pub(super) keyboard_focus_visible: bool,
     pub(super) file_display: &'a str,
     pub(super) format: Option<ImportFileFormat>,
     pub(super) target_input: &'a str,
     pub(super) target_options: &'a [String],
     pub(super) target_dropdown_open: bool,
     pub(super) target_highlight: Option<usize>,
-    pub(super) target_scroll_reveal: bool,
     pub(super) error: Option<&'a str>,
     pub(super) lang: Lang,
 }
 
 pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Element<'a, Message> {
     let ImportModalViewState {
+        focus,
+        keyboard_focus_visible,
         file_display,
         format,
         target_input,
         target_options,
         target_dropdown_open,
         target_highlight,
-        target_scroll_reveal,
         error,
         lang,
     } = state;
@@ -49,6 +51,8 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
 
     let body_content = column![
         source_group(SourceGroupState {
+            focus,
+            keyboard_focus_visible,
             file_display,
             format,
             target_input,
@@ -56,7 +60,7 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
             error,
             lang,
         }),
-        footer(lang),
+        footer(focus, keyboard_focus_visible, lang),
     ]
     .spacing(14)
     .width(Length::Fixed(DIALOG_WIDTH));
@@ -78,7 +82,7 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
             stack![
                 body_content,
                 close_layer,
-                target_dropdown_overlay(target_options, target_highlight, target_scroll_reveal),
+                target_dropdown_overlay(target_options, target_highlight),
             ]
             .width(Length::Fixed(DIALOG_WIDTH))
             .height(Length::Fixed(content_height))

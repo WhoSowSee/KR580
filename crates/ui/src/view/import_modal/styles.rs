@@ -1,4 +1,4 @@
-use iced::widget::container;
+use iced::widget::{button, container};
 use iced::{Background, Border, Color};
 
 pub(super) use super::super::styles::{
@@ -8,7 +8,15 @@ pub(super) use super::super::styles::{
     modal_field_button_style as field_button_style,
     modal_field_button_style as footer_button_style, panel_style as modal_dialog_style,
 };
-use super::super::theme::{tokyo_border, tokyo_surface};
+use super::super::theme::{tokyo_border, tokyo_surface, tokyo_text};
+
+pub(super) fn field_button_style_focused(status: button::Status, focused: bool) -> button::Style {
+    let mut style = field_button_style(status);
+    if focused {
+        style.border.color = tokyo_text();
+    }
+    style
+}
 
 pub(super) fn badge_style(_theme: &iced::Theme) -> container::Style {
     container::Style {
@@ -22,5 +30,19 @@ pub(super) fn badge_style(_theme: &iced::Theme) -> container::Style {
             color: tokyo_border(),
         },
         ..container::Style::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::field_button_style_focused;
+    use crate::view::theme::tokyo_text;
+    use iced::widget::button;
+
+    #[test]
+    fn keyboard_focused_field_uses_text_border() {
+        let style = field_button_style_focused(button::Status::Active, true);
+
+        assert_eq!(style.border.color, tokyo_text());
     }
 }

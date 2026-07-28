@@ -1,11 +1,11 @@
 use iced::widget::{button, container};
-use iced::{Background, Border, Color};
+use iced::{Background, Border, Color, Theme};
 
 pub(super) use super::super::styles::{
     inset_style as dropdown_panel_style, inset_style as group_panel_style,
     legend_label_style as group_label_style, modal_backdrop_style,
-    modal_dropdown_option_style as dropdown_option_style,
-    modal_tab_button_style as tab_button_style, panel_style as modal_dialog_style,
+    modal_dropdown_option_style as dropdown_option_style, modal_tab_button_style,
+    panel_style as modal_dialog_style,
 };
 use super::super::theme::{tokyo_border, tokyo_green, tokyo_surface, tokyo_surface_2, tokyo_text};
 
@@ -22,7 +22,15 @@ pub(super) fn combo_arrow_style(_status: button::Status, _open: bool) -> button:
     }
 }
 
-pub(super) fn checklist_button_style(status: button::Status) -> button::Style {
+pub(super) fn keyboard_input_shell_style(theme: &Theme, focused: bool) -> container::Style {
+    let mut style = super::super::styles::input_shell_style(theme, focused);
+    if focused {
+        style.border.color = tokyo_text();
+    }
+    style
+}
+
+pub(super) fn checklist_button_style(status: button::Status, focused: bool) -> button::Style {
     let background = match status {
         button::Status::Hovered => Color {
             a: 0.32,
@@ -35,7 +43,7 @@ pub(super) fn checklist_button_style(status: button::Status) -> button::Style {
         _ => Color::TRANSPARENT,
     };
 
-    button::Style {
+    let mut style = button::Style {
         background: Some(Background::Color(background)),
         text_color: tokyo_text(),
         border: Border {
@@ -44,7 +52,24 @@ pub(super) fn checklist_button_style(status: button::Status) -> button::Style {
             color: Color::TRANSPARENT,
         },
         ..button::Style::default()
+    };
+    if focused {
+        style.border.color = tokyo_text();
+        style.border.width = 1.0;
     }
+    style
+}
+
+pub(super) fn tab_button_style(
+    status: button::Status,
+    active: bool,
+    focused: bool,
+) -> button::Style {
+    let mut style = modal_tab_button_style(status, active);
+    if focused {
+        style.border.color = tokyo_text();
+    }
+    style
 }
 
 pub(super) fn checkbox_style(checked: bool) -> container::Style {

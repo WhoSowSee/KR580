@@ -191,6 +191,8 @@ impl DesktopApp {
                 scrimmed,
                 export_modal_overlay(ExportModalViewState {
                     tab: self.export_tab,
+                    focus: self.export_modal_focus,
+                    keyboard_focus_visible: self.export_modal_keyboard_focus_visible,
                     target_input: self.export_target_input(),
                     target_options: self.export_target_options(),
                     target_dropdown_open: self.export_target_dropdown_open,
@@ -210,13 +212,14 @@ impl DesktopApp {
             stack![
                 scrimmed,
                 import_modal_overlay(ImportModalViewState {
+                    focus: self.import_modal_focus,
+                    keyboard_focus_visible: self.import_modal_keyboard_focus_visible,
                     file_display: &self.import_file_display,
                     format: self.import_file_format,
                     target_input: &self.import_target_input,
                     target_options: &self.import_target_options,
                     target_dropdown_open: self.import_target_dropdown_open,
                     target_highlight: self.import_target_highlight,
-                    target_scroll_reveal: self.import_target_scroll_visible_ticks > 0,
                     error: self.import_error.as_deref(),
                     lang: self.lang,
                 })

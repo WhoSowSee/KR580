@@ -217,15 +217,6 @@ pub(super) fn enter_button_disabled() -> Element<'static, Message> {
     .into()
 }
 
-pub(super) fn modal_icon_button(
-    handle: svg::Handle,
-    message: Message,
-    tooltip_text: &'static str,
-    size: f32,
-) -> Element<'static, Message> {
-    modal_icon_button_focused(handle, Some(message), tooltip_text, size, true, false)
-}
-
 pub(super) fn modal_icon_button_focused(
     handle: svg::Handle,
     message: Option<Message>,
@@ -233,6 +224,26 @@ pub(super) fn modal_icon_button_focused(
     size: f32,
     enabled: bool,
     focused: bool,
+) -> Element<'static, Message> {
+    modal_icon_button_focused_with_color(
+        handle,
+        message,
+        tooltip_text,
+        size,
+        enabled,
+        focused,
+        tokyo_blue(),
+    )
+}
+
+pub(super) fn modal_icon_button_focused_with_color(
+    handle: svg::Handle,
+    message: Option<Message>,
+    tooltip_text: &'static str,
+    size: f32,
+    enabled: bool,
+    focused: bool,
+    focus_color: Color,
 ) -> Element<'static, Message> {
     const GLYPH_SIZE: f32 = 18.0;
 
@@ -262,7 +273,7 @@ pub(super) fn modal_icon_button_focused(
         };
         let mut style = super::styles::modal_field_button_style(status);
         if focused && enabled {
-            style.border.color = tokyo_blue();
+            style.border.color = focus_color;
         }
         style
     });
@@ -281,6 +292,15 @@ pub(super) fn modal_footer_button(
     message: Message,
     style: fn(button::Status) -> button::Style,
 ) -> Element<'static, Message> {
+    modal_footer_button_focused(label_text, message, style, false)
+}
+
+pub(super) fn modal_footer_button_focused(
+    label_text: &'static str,
+    message: Message,
+    style: fn(button::Status) -> button::Style,
+    focused: bool,
+) -> Element<'static, Message> {
     button(
         container(ui_text(label_text, 14, tokyo_text()))
             .padding([7, 22])
@@ -288,7 +308,13 @@ pub(super) fn modal_footer_button(
     )
     .on_press(message)
     .padding(0)
-    .style(move |_theme, status| style(status))
+    .style(move |_theme, status| {
+        let mut style = style(status);
+        if focused {
+            style.border.color = tokyo_text();
+        }
+        style
+    })
     .into()
 }
 

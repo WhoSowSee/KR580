@@ -1,5 +1,5 @@
 use super::{DesktopApp, ImportFileFormat, ImportModalFocus};
-use crate::app::{MEMORY_SCROLL_VISIBLE_TICKS, Message};
+use crate::app::Message;
 use crate::persistence::{ExportModel, ExportOptions, Exporters};
 use std::path::PathBuf;
 
@@ -16,6 +16,22 @@ fn import_opens_modal_instead_of_file_dialog_path() {
 }
 
 #[test]
+fn tab_cycles_import_modal_focus_in_both_directions() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.open_import_modal();
+
+    let _task = app.update(Message::FocusCycle { backward: false });
+    assert_eq!(app.import_modal_focus, ImportModalFocus::Cancel);
+    assert!(app.import_modal_keyboard_focus_visible);
+
+    let _task = app.update(Message::FocusCycle { backward: false });
+    assert_eq!(app.import_modal_focus, ImportModalFocus::Confirm);
+
+    let _task = app.update(Message::FocusCycle { backward: true });
+    assert_eq!(app.import_modal_focus, ImportModalFocus::Cancel);
+}
+
+#[test]
 fn esc_closes_import_modal_without_focus_clear_step() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
 
@@ -26,33 +42,6 @@ fn esc_closes_import_modal_without_focus_clear_step() {
 
     assert!(!app.import_modal_open);
     assert!(!app.import_target_dropdown_open);
-}
-
-#[test]
-fn import_target_dropdown_reveals_scrollbar_then_hides_until_scrolled() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-
-    app.open_import_modal();
-    app.import_target_options = vec!["1".to_owned(), "2".to_owned(), "3".to_owned()];
-    app.import_target_input = "1".to_owned();
-    let _task = app.update(Message::ImportTargetDropdownToggled);
-
-    assert!(app.import_target_dropdown_open);
-    assert_eq!(
-        app.import_target_scroll_visible_ticks,
-        MEMORY_SCROLL_VISIBLE_TICKS
-    );
-    for _ in 0..MEMORY_SCROLL_VISIBLE_TICKS {
-        let _task = app.update(Message::Tick);
-    }
-    assert_eq!(app.import_target_scroll_visible_ticks, 0);
-
-    let _task = app.update(Message::ImportTargetScrolled);
-
-    assert_eq!(
-        app.import_target_scroll_visible_ticks,
-        MEMORY_SCROLL_VISIBLE_TICKS
-    );
 }
 
 #[test]

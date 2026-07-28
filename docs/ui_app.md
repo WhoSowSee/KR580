@@ -1740,7 +1740,7 @@ setup/properties selectors and the Settings content pane use. A dropdown
 this small reads better without a rail, and because nothing is painted
 there is no reveal state to keep – no scroll message, no tick counter, no
 `scroll_reveal` flag threaded through the view. The import target list
-keeps its auto-hiding rail; the two are deliberately not shared.
+uses the same rail-less scrolling.
 Option labels never wrap:
 they are shortened from the middle to 20 characters with `…`, rendered
 with `text::Wrapping::None`, and their row clips. 20 is the measured fit
@@ -1768,8 +1768,16 @@ B, C, D, E, H, L, SP, PC, and cycle count. Flag settings use the same
 order as the main flag strip: Z, S, P, C, AC. The flag row uses small round
 checkboxes with the flag labels centred below the circles. Register and
 flag export are opt-in by default; none of those checkboxes start
-selected. Keyboard focus is still tracked for Tab/Enter routing, but the
-export modal does not draw a separate focus highlight.
+selected. Keyboard focus is tracked by a wrapping Tab/Shift+Tab ring for
+tabs, target selector, range, checkbox, and footer controls. The editable
+target value and its dropdown are one stop: after Text file, the next Tab
+moves directly to the target selector instead of visiting the invisible
+`ExportModalFocus::Page` editing state. The modal owns those keys even
+when an iced widget reports the keyboard event as captured,
+matching Settings and printer-dialog routing. Once keyboard traversal starts,
+the focused control gets a white outline; active tab and checked controls keep
+their normal fill/check state underneath it. Enter or pointer input clears the
+keyboard-only outline.
 
 Clicking a tab or pressing Enter while a tab is focused selects it
 without closing the modal. Enter on a checkbox toggles it. Esc clears
@@ -1783,7 +1791,8 @@ TXT writes every current text section with that section's own range and
 selections.
 
 **State:** `export_modal_open: bool`, `export_tab: ExportTab`,
-`export_modal_focus: ExportModalFocus`, `export_xlsx_page_input`,
+`export_modal_focus: ExportModalFocus`, `export_modal_keyboard_focus_visible`,
+`export_xlsx_page_input`,
 `export_text_section_input`, `export_xlsx_pages`,
 `export_text_sections`, `export_xlsx_page_settings`,
 `export_text_section_settings`,
@@ -1808,22 +1817,31 @@ single-model path and import the whole file.
 
 The target selector is a fixed stacked dialog overlay anchored to the
 source group, so opening it does not reflow the source rows or footer.
-Long target lists scroll inside the dropdown, with the rail hidden and
-the scroller briefly revealed on open and while scrolling. Confirm dispatches the
+Long target lists scroll with the wheel or touchpad through
+`Vertical(Scrollbar::hidden())`; neither a rail nor a scroller is painted.
+Selected and listed target names are shortened from the middle to 35
+characters, rendered with `text::Wrapping::None`, and clipped inside their
+fixed-height rows. Selection messages retain the full target name. Confirm dispatches the
 specific worker command for the selected target: `ImportXlsxSheet`,
 `ImportTxtSection`, `ImportXlsx`, or `ImportTxt`. Successful import
 clears the undo stack and marks the session clean, matching the previous
 file-import behavior. Esc closes the import modal directly, including
 when the file picker, target selector, or footer button has focus.
+Tab and Shift+Tab wrap through the file picker, available target
+selector, Cancel, and Import; the modal intercepts both keys before
+iced's captured-widget path so native widget focus cannot swallow the
+custom ring. The focused row receives the same white keyboard outline as
+the export modal, including the file-picker icon button; opened target
+selectors keep their active surface fill.
 Import validation errors render as a plain red text row inside the
 source group, without the field shell border used by editable inputs.
 
 **State:** `import_modal_open: bool`,
-`import_modal_focus: ImportModalFocus`, `import_file_path`,
+`import_modal_focus: ImportModalFocus`,
+`import_modal_keyboard_focus_visible`, `import_file_path`,
 `import_file_display`, `import_file_format`, `import_target_options`,
 `import_target_input`, `import_target_dropdown_open`,
-`import_target_highlight`, `import_target_scroll_visible_ticks`, and
-`import_error`.
+`import_target_highlight`, and `import_error`.
 
 **Routing:** `app/import_modal.rs` – `route_import_modal_message()`.
 `app/import_modal_state.rs` owns format detection and the compact focus

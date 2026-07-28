@@ -31,9 +31,10 @@ fn tab_cycles_export_modal_focus_through_tabs_and_settings() {
 
     let _task = app.update(Message::FocusCycle { backward: false });
     assert_eq!(app.export_modal_focus, ExportModalFocus::TabText);
+    assert!(app.export_modal_keyboard_focus_visible);
 
     let _task = app.update(Message::FocusCycle { backward: false });
-    assert_eq!(app.export_modal_focus, ExportModalFocus::Page);
+    assert_eq!(app.export_modal_focus, ExportModalFocus::TargetDropdown);
 
     let _task = app.update(Message::FocusCycle { backward: true });
     assert_eq!(app.export_modal_focus, ExportModalFocus::TabText);
@@ -49,6 +50,7 @@ fn selecting_text_tab_changes_active_tab_without_closing_modal() {
     assert!(app.export_modal_open);
     assert_eq!(app.export_tab, ExportTab::Text);
     assert_eq!(app.export_modal_focus, ExportModalFocus::TabText);
+    assert!(!app.export_modal_keyboard_focus_visible);
 }
 
 #[test]

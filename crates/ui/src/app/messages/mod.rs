@@ -107,7 +107,6 @@ pub(crate) enum Message {
     ImportFileBrowse,
     ImportTargetDropdownToggled,
     ImportTargetSelected(String),
-    ImportTargetScrolled,
     ConfirmImport,
     CancelImport,
     RegisterNameChanged(String),

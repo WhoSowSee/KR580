@@ -4,13 +4,15 @@ use iced::widget::{
 use iced::{Element, Length, Padding, alignment};
 
 use super::super::icons;
-use super::super::styles::{input_borderless_style, input_shell_style};
+use super::super::styles::input_borderless_style;
 use super::super::theme::{tokyo_muted, tokyo_text, ui_text};
-use super::super::widgets::{modal_icon_button, shorten_middle};
+use super::super::widgets::{modal_icon_button_focused, shorten_middle};
 use super::controls::label;
 use super::local_icons;
-use super::styles::{combo_arrow_style, dropdown_option_style, dropdown_panel_style};
-use crate::app::{ExportTab, Message};
+use super::styles::{
+    combo_arrow_style, dropdown_option_style, dropdown_panel_style, keyboard_input_shell_style,
+};
+use crate::app::{ExportModalFocus, ExportTab, Message};
 use crate::i18n::{Key, Lang};
 
 const PAGE_LABEL_WIDTH: f32 = 76.0;
@@ -28,6 +30,8 @@ pub(super) fn target_selector<'a>(
     tab: ExportTab,
     value: &'a str,
     dropdown_open: bool,
+    focus: ExportModalFocus,
+    keyboard_focus_visible: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     let label_key = match tab {
@@ -53,18 +57,26 @@ pub(super) fn target_selector<'a>(
             .width(Length::Fixed(label_width))
             .height(Length::Fixed(TARGET_HEIGHT))
             .align_y(alignment::Vertical::Center),
-        combo_box(value, dropdown_open),
-        modal_icon_button(
+        combo_box(
+            value,
+            dropdown_open,
+            keyboard_focus_visible && focus == ExportModalFocus::TargetDropdown,
+        ),
+        modal_icon_button_focused(
             add_icon,
-            Message::ExportTargetAdd,
+            Some(Message::ExportTargetAdd),
             lang.t(add_tooltip),
             ICON_SIZE,
+            true,
+            keyboard_focus_visible && focus == ExportModalFocus::TargetAdd,
         ),
-        modal_icon_button(
+        modal_icon_button_focused(
             local_icons::trash(),
-            Message::ExportTargetDelete,
+            Some(Message::ExportTargetDelete),
             lang.t(delete_tooltip),
             ICON_SIZE,
+            true,
+            keyboard_focus_visible && focus == ExportModalFocus::TargetDelete,
         ),
     ]
     .spacing(6)
@@ -106,7 +118,7 @@ fn target_label_width(tab: ExportTab) -> f32 {
     }
 }
 
-fn combo_box<'a>(value: &'a str, open: bool) -> Element<'a, Message> {
+fn combo_box<'a>(value: &'a str, open: bool, focused: bool) -> Element<'a, Message> {
     let input = text_input("", value)
         .on_input(Message::ExportTargetChanged)
         .padding(Padding {
@@ -144,7 +156,7 @@ fn combo_box<'a>(value: &'a str, open: bool) -> Element<'a, Message> {
     )
     .width(Length::Fixed(FIELD_WIDTH))
     .height(Length::Fixed(TARGET_HEIGHT))
-    .style(|theme| input_shell_style(theme, false))
+    .style(move |theme| keyboard_input_shell_style(theme, focused))
     .into()
 }
 

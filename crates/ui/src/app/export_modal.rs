@@ -12,6 +12,7 @@ impl DesktopApp {
         self.export_modal_open = true;
         self.export_tab = ExportTab::Xlsx;
         self.export_modal_focus = ExportModalFocus::TabXlsx;
+        self.export_modal_keyboard_focus_visible = false;
         self.ensure_export_targets();
         self.export_target_dropdown_open = false;
         self.export_target_highlight = None;
@@ -27,6 +28,7 @@ impl DesktopApp {
     pub(crate) fn close_export_modal(&mut self) {
         self.export_modal_open = false;
         self.export_modal_focus = ExportModalFocus::TabXlsx;
+        self.export_modal_keyboard_focus_visible = false;
         self.export_target_dropdown_open = false;
         self.export_target_highlight = None;
     }
@@ -37,6 +39,19 @@ impl DesktopApp {
     ) -> Option<Task<Message>> {
         if !self.export_modal_open {
             return None;
+        }
+
+        if !matches!(
+            message,
+            Message::Tick
+                | Message::CursorMoved(_)
+                | Message::ModifiersChanged(_)
+                | Message::ExportTargetChanged(_)
+                | Message::ExportMemoryStartChanged(_)
+                | Message::ExportMemoryEndChanged(_)
+                | Message::FocusCycle { .. }
+        ) {
+            self.export_modal_keyboard_focus_visible = false;
         }
 
         match message {
@@ -114,6 +129,7 @@ impl DesktopApp {
             Message::MousePressedIgnored => Some(self.clear_export_value_focus_task()),
             Message::FocusCycle { backward } => {
                 self.cycle_export_modal_focus(*backward);
+                self.export_modal_keyboard_focus_visible = true;
                 Some(Task::none())
             }
             Message::ArrowKey(direction) if self.export_target_dropdown_open => {

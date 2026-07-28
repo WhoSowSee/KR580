@@ -1,7 +1,4 @@
-use super::{
-    DesktopApp, ImportFileFormat, ImportModalFocus, MEMORY_SCROLL_VISIBLE_TICKS, Message,
-    StatusKind,
-};
+use super::{DesktopApp, ImportFileFormat, ImportModalFocus, Message, StatusKind};
 use crate::backend::AppCommand;
 use crate::i18n::Key;
 use crate::persistence::Importers;
@@ -12,6 +9,7 @@ impl DesktopApp {
     pub(crate) fn open_import_modal(&mut self) {
         self.import_modal_open = true;
         self.import_modal_focus = ImportModalFocus::Browse;
+        self.import_modal_keyboard_focus_visible = false;
         self.import_file_path = None;
         self.import_file_display.clear();
         self.import_file_format = None;
@@ -19,7 +17,6 @@ impl DesktopApp {
         self.import_target_input.clear();
         self.import_target_dropdown_open = false;
         self.import_target_highlight = None;
-        self.import_target_scroll_visible_ticks = 0;
         self.import_error = None;
         self.close_top_menu();
         self.hide_opcode_dropdown();
@@ -28,9 +25,9 @@ impl DesktopApp {
     pub(crate) fn close_import_modal(&mut self) {
         self.import_modal_open = false;
         self.import_modal_focus = ImportModalFocus::Browse;
+        self.import_modal_keyboard_focus_visible = false;
         self.import_target_dropdown_open = false;
         self.import_target_highlight = None;
-        self.import_target_scroll_visible_ticks = 0;
     }
 
     pub(crate) fn route_import_modal_message(
@@ -39,6 +36,16 @@ impl DesktopApp {
     ) -> Option<Task<Message>> {
         if !self.import_modal_open {
             return None;
+        }
+
+        if !matches!(
+            message,
+            Message::Tick
+                | Message::CursorMoved(_)
+                | Message::ModifiersChanged(_)
+                | Message::FocusCycle { .. }
+        ) {
+            self.import_modal_keyboard_focus_visible = false;
         }
 
         match message {
@@ -55,10 +62,6 @@ impl DesktopApp {
                 self.select_import_target(value.clone());
                 Some(Task::none())
             }
-            Message::ImportTargetScrolled => {
-                self.import_target_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
-                Some(Task::none())
-            }
             Message::ConfirmImport => Some(self.confirm_import()),
             Message::CancelImport => {
                 self.close_import_modal();
@@ -71,12 +74,12 @@ impl DesktopApp {
             Message::MousePressedIgnored => {
                 self.import_target_dropdown_open = false;
                 self.import_target_highlight = None;
-                self.import_target_scroll_visible_ticks = 0;
                 self.import_modal_focus = ImportModalFocus::None;
                 Some(Task::none())
             }
             Message::FocusCycle { backward } => {
                 self.cycle_import_modal_focus(*backward);
+                self.import_modal_keyboard_focus_visible = true;
                 Some(Task::none())
             }
             Message::ArrowKey(direction) if self.import_target_dropdown_open => {
@@ -99,7 +102,6 @@ impl DesktopApp {
         self.import_error = None;
         self.import_target_dropdown_open = false;
         self.import_target_highlight = None;
-        self.import_target_scroll_visible_ticks = 0;
 
         let targets = match self.import_file_format {
             Some(ImportFileFormat::Xlsx) => Importers::xlsx_sheet_names(&path),
@@ -185,13 +187,11 @@ impl DesktopApp {
         }
         self.import_target_dropdown_open = !self.import_target_dropdown_open;
         self.import_target_highlight = if self.import_target_dropdown_open {
-            self.import_target_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             self.import_target_options
                 .iter()
                 .position(|option| option == &self.import_target_input)
                 .or(Some(0))
         } else {
-            self.import_target_scroll_visible_ticks = 0;
             None
         };
         self.import_modal_focus = ImportModalFocus::Target;
@@ -201,7 +201,6 @@ impl DesktopApp {
         self.import_target_input = value;
         self.import_target_dropdown_open = false;
         self.import_target_highlight = None;
-        self.import_target_scroll_visible_ticks = 0;
         self.import_modal_focus = ImportModalFocus::Target;
     }
 

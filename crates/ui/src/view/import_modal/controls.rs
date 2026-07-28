@@ -1,14 +1,15 @@
 use super::super::icons;
-use super::super::styles::scrollable_style;
 use super::super::theme::{tokyo_muted, tokyo_red, tokyo_text, ui_text};
-use super::super::widgets::{modal_footer_button, modal_icon_button, shorten_middle};
+use super::super::widgets::{
+    modal_footer_button_focused, modal_icon_button_focused_with_color, shorten_middle,
+};
 use super::styles::{
-    badge_style, dropdown_option_style, dropdown_panel_style, field_button_style,
+    badge_style, dropdown_option_style, dropdown_panel_style, field_button_style_focused,
     footer_button_style, group_label_style, group_panel_style,
 };
-use crate::app::{ImportFileFormat, Message};
+use crate::app::{ImportFileFormat, ImportModalFocus, Message};
 use crate::i18n::{Key, Lang};
-use iced::widget::{Space, button, column, container, opaque, row, scrollable, stack, svg};
+use iced::widget::{Space, button, column, container, opaque, row, scrollable, stack, svg, text};
 use iced::{Element, Length, Padding, alignment};
 const FIELD_WIDTH: f32 = 352.0;
 const XLSX_BADGE_WIDTH: f32 = 58.0;
@@ -20,7 +21,10 @@ const DROPDOWN_TOP: f32 = 108.0;
 const DROPDOWN_LEFT: f32 = 94.0;
 const DROPDOWN_OPTION_HEIGHT: f32 = 24.0;
 const DROPDOWN_MAX_LIST_HEIGHT: f32 = 48.0;
+const DROPDOWN_OPTION_CHARS: usize = 35;
 pub(super) struct SourceGroupState<'a> {
+    pub(super) focus: ImportModalFocus,
+    pub(super) keyboard_focus_visible: bool,
     pub(super) file_display: &'a str,
     pub(super) format: Option<ImportFileFormat>,
     pub(super) target_input: &'a str,
@@ -30,6 +34,8 @@ pub(super) struct SourceGroupState<'a> {
 }
 pub(super) fn source_group<'a>(state: SourceGroupState<'a>) -> Element<'a, Message> {
     let SourceGroupState {
+        focus,
+        keyboard_focus_visible,
         file_display,
         format,
         target_input,
@@ -38,12 +44,23 @@ pub(super) fn source_group<'a>(state: SourceGroupState<'a>) -> Element<'a, Messa
         lang,
     } = state;
     let compact = format.is_none() && error.is_none();
-    let mut content = column![file_row(file_display, format, lang)].spacing(10);
+    let mut content = column![file_row(
+        file_display,
+        format,
+        focus == ImportModalFocus::Browse && keyboard_focus_visible,
+        lang,
+    )]
+    .spacing(10);
     if let Some(format) = format {
         if target_options.is_empty() {
             content = content.push(no_targets_row(lang));
         } else {
-            content = content.push(target_row(format, target_input, lang));
+            content = content.push(target_row(
+                format,
+                target_input,
+                focus == ImportModalFocus::Target && keyboard_focus_visible,
+                lang,
+            ));
         }
     }
     if let Some(error) = error {
@@ -55,18 +72,24 @@ pub(super) fn source_group<'a>(state: SourceGroupState<'a>) -> Element<'a, Messa
         Length::Fixed(if compact { 78.0 } else { 116.0 }),
     )
 }
-pub(super) fn footer(lang: Lang) -> Element<'static, Message> {
+pub(super) fn footer(
+    focus: ImportModalFocus,
+    keyboard_focus_visible: bool,
+    lang: Lang,
+) -> Element<'static, Message> {
     row![
         Space::new().width(Length::Fill),
-        modal_footer_button(
+        modal_footer_button_focused(
             lang.t(Key::DiscardCancel),
             Message::CancelImport,
             footer_button_style,
+            keyboard_focus_visible && focus == ImportModalFocus::Cancel,
         ),
-        modal_footer_button(
+        modal_footer_button_focused(
             lang.t(Key::FileImport),
             Message::ConfirmImport,
             footer_button_style,
+            keyboard_focus_visible && focus == ImportModalFocus::Confirm,
         ),
     ]
     .spacing(12)
@@ -77,16 +100,20 @@ pub(super) fn footer(lang: Lang) -> Element<'static, Message> {
 fn file_row<'a>(
     file_display: &'a str,
     format: Option<ImportFileFormat>,
+    focused: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     row![
         row_label(lang.t(Key::ImportFileLabel)),
-        file_anchor(file_display, format, lang),
-        modal_icon_button(
+        file_anchor(file_display, format, focused, lang),
+        modal_icon_button_focused_with_color(
             icons::file_down(),
-            Message::ImportFileBrowse,
+            Some(Message::ImportFileBrowse),
             lang.t(Key::ImportBrowseTooltip),
             ICON_SIZE,
+            true,
+            focused,
+            tokyo_text(),
         ),
     ]
     .spacing(8)
@@ -98,11 +125,12 @@ fn file_row<'a>(
 fn target_row<'a>(
     format: ImportFileFormat,
     target_input: &'a str,
+    focused: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     row![
         row_label(lang.t(format.target_label_key())),
-        target_anchor(target_input),
+        target_anchor(target_input, focused),
     ]
     .spacing(8)
     .align_y(alignment::Vertical::Center)
@@ -134,6 +162,7 @@ fn error_row(error: &str) -> Element<'_, Message> {
 fn file_anchor<'a>(
     file_display: &'a str,
     format: Option<ImportFileFormat>,
+    focused: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
     let label = if file_display.is_empty() {
@@ -172,11 +201,11 @@ fn file_anchor<'a>(
     )
     .on_press(Message::ImportFileBrowse)
     .padding(0)
-    .style(move |_theme, status| field_button_style(status))
+    .style(move |_theme, status| field_button_style_focused(status, focused))
     .into()
 }
 
-fn target_anchor<'a>(value: &'a str) -> Element<'a, Message> {
+fn target_anchor<'a>(value: &'a str, focused: bool) -> Element<'a, Message> {
     let chevron = svg(icons::chevron_down())
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
@@ -185,7 +214,12 @@ fn target_anchor<'a>(value: &'a str) -> Element<'a, Message> {
         });
 
     let row = row![
-        ui_text(value.to_owned(), 13, tokyo_text()),
+        ui_text(
+            shorten_middle(value, DROPDOWN_OPTION_CHARS),
+            13,
+            tokyo_text(),
+        )
+        .wrapping(text::Wrapping::None),
         Space::new().width(Length::Fill),
         chevron,
     ]
@@ -197,24 +231,24 @@ fn target_anchor<'a>(value: &'a str) -> Element<'a, Message> {
             .padding([6, 10])
             .width(Length::Fixed(FIELD_WIDTH))
             .height(Length::Fixed(ROW_HEIGHT))
-            .align_y(alignment::Vertical::Center),
+            .align_y(alignment::Vertical::Center)
+            .clip(true),
     )
     .on_press(Message::ImportTargetDropdownToggled)
     .padding(0)
-    .style(move |_theme, status| field_button_style(status))
+    .style(move |_theme, status| field_button_style_focused(status, focused))
     .into()
 }
 
 pub(super) fn target_dropdown_overlay(
     options: &[String],
     highlighted: Option<usize>,
-    scroll_reveal: bool,
 ) -> Element<'static, Message> {
     column![
         Space::new().height(Length::Fixed(DROPDOWN_TOP)),
         row![
             Space::new().width(Length::Fixed(DROPDOWN_LEFT)),
-            opaque(dropdown(options, highlighted, scroll_reveal)),
+            opaque(dropdown(options, highlighted)),
         ]
         .width(Length::Fill),
         Space::new().height(Length::Fill),
@@ -224,22 +258,18 @@ pub(super) fn target_dropdown_overlay(
     .into()
 }
 
-fn dropdown(
-    options: &[String],
-    highlighted: Option<usize>,
-    scroll_reveal: bool,
-) -> Element<'static, Message> {
+fn dropdown(options: &[String], highlighted: Option<usize>) -> Element<'static, Message> {
     let mut list = column![].spacing(0);
     for (index, option) in options.iter().enumerate() {
         list = list.push(dropdown_option(option.clone(), highlighted == Some(index)));
     }
     let list_height = (options.len() as f32 * DROPDOWN_OPTION_HEIGHT).min(DROPDOWN_MAX_LIST_HEIGHT);
 
-    let overflow = options.len() as f32 * DROPDOWN_OPTION_HEIGHT > DROPDOWN_MAX_LIST_HEIGHT;
     let list = scrollable(list)
-        .height(Length::Fixed(list_height))
-        .on_scroll(|_| Message::ImportTargetScrolled)
-        .style(move |theme, status| scrollable_style(scroll_reveal && overflow, theme, status));
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::hidden(),
+        ))
+        .height(Length::Fixed(list_height));
 
     container(list)
         .padding(4)
@@ -248,16 +278,22 @@ fn dropdown(
         .into()
 }
 
-fn dropdown_option(label: String, highlighted: bool) -> Element<'static, Message> {
-    let message_value = label.clone();
+fn dropdown_option(label_text: String, highlighted: bool) -> Element<'static, Message> {
+    let label = ui_text(
+        shorten_middle(&label_text, DROPDOWN_OPTION_CHARS),
+        13,
+        tokyo_text(),
+    )
+    .wrapping(text::Wrapping::None);
     button(
-        container(ui_text(label, 13, tokyo_text()))
+        container(label)
             .padding([0, 10])
             .width(Length::Fill)
             .height(Length::Fixed(DROPDOWN_OPTION_HEIGHT))
-            .align_y(alignment::Vertical::Center),
+            .align_y(alignment::Vertical::Center)
+            .clip(true),
     )
-    .on_press(Message::ImportTargetSelected(message_value))
+    .on_press(Message::ImportTargetSelected(label_text))
     .padding(0)
     .width(Length::Fill)
     .style(move |_theme, status| dropdown_option_style(status, highlighted))

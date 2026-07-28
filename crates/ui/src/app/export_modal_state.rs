@@ -254,7 +254,7 @@ impl ExportModalFocus {
     pub(crate) fn is_visible_for_tab(self, tab: ExportTab) -> bool {
         !matches!(
             (tab, self),
-            (_, Self::None) | (ExportTab::Text, Self::ColumnComment)
+            (_, Self::None | Self::Page) | (ExportTab::Text, Self::ColumnComment)
         )
     }
 
