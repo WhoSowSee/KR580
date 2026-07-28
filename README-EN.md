@@ -26,33 +26,34 @@ KR580 is a modern desktop emulator for a KR580 / Intel 8080-style microprocessor
 
 The project focuses on inspectable execution: edit RAM and registers, step by instruction or by tact, watch the control panels update live, open device windows, save snapshots, and export state without scraping UI widgets.
 
-## Features
-
-- Deterministic KR580 / Intel 8080 CPU state: registers, flags, `PC`, `SP`, 64 KiB RAM, interrupts, halt state, cycles, and tact phase.
-- Documented 8080 opcode execution with tests for opcode families, flags, conditionals, stack operations, interrupts, and I/O routing.
-- Instruction stepping, tact-level stepping, paced run, and burst run modes.
-- Native iced desktop UI with RAM list, register editor, status register, machine-cycle view, control schematic, and localized Russian/English installer text.
-- External device windows for monitor, floppy, HDD, network adapter, and printer.
-- Versioned `.580` snapshots, raw `.krs` subprogram loading, direct `.txt` / `.xlsx` import and export, and native printing with driver settings.
-- Graphical installer, uninstaller, terminal launcher, optional `.580` file association, and portable or system install layouts.
+> [!NOTE]
+> KR580 features:
+>
+> - Deterministic KR580 / Intel 8080 CPU state: registers, flags, `PC`, `SP`, 64 KiB RAM, interrupts, halt state, cycles, and tact phase.
+> - Documented 8080 opcode execution with tests for opcode families, flags, conditionals, stack operations, interrupts, and I/O routing.
+> - Instruction stepping, tact-level stepping, paced run, and burst run modes.
+> - Native iced desktop UI with RAM list, register editor, status register, machine-cycle view, control schematic, and localized Russian/English installer text.
+> - External device windows for monitor, floppy, HDD, network adapter, and printer.
+> - Versioned `.580` snapshots, raw `.krs` subprogram loading, direct `.txt` / `.xlsx` import and export, and native printing with driver settings.
+> - Graphical installer, uninstaller, terminal launcher, optional `.580` file association, and portable or system install layouts.
 
 ## Screenshots
 
-<p align="center"><strong>Monitor</strong> · <strong>Floppy</strong></p>
+<p align="center"><strong>Monitor</strong></p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/monitor.png" width="400" alt="Monitor window screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/monitor.png" width="550" alt="Monitor window screenshot" />
+</p>
+
+<p align="center"><strong>Floppy</strong> · <strong>HDD</strong></p>
+<p align="center">
   <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/floppy.png" width="400" alt="Floppy window screenshot" />
-</p>
-
-<p align="center"><strong>HDD</strong> · <strong>Network adapter</strong></p>
-<p align="center">
   <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/hdd.png" width="400" alt="HDD window screenshot" />
-  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/network.png" width="400" alt="Network adapter window screenshot" />
 </p>
 
-<p align="center"><strong>Printer</strong></p>
+<p align="center"><strong>Network adapter</strong> · <strong>Printer</strong></p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/printer.png" width="520" alt="Printer window screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/network.png" width="400" alt="Network adapter window screenshot" />
+  <img src="https://raw.githubusercontent.com/WhoSowSee/KR580/HEAD/assets/screenshots/en/printer.png" width="400" alt="Printer window screenshot" />
 </p>
 
 ## External devices
