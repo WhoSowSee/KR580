@@ -19,6 +19,11 @@ indexes aligned, and verify the publishable workspace archive:
 cargo package --workspace --locked
 ```
 
+For a release, every non-release commit since the previous tag must be
+represented by a bullet; a mixed commit may use separate bullets for an
+independent breaking change and user-facing feature. The `chore(release)`
+version-bump commit is excluded.
+
 Dependency audits use `cargo machete --with-metadata --skip-target-dir .`.
 The Windows-only `winresource` build dependency is explicitly ignored by that
 scanner because `crates/ui/build.rs` consumes it behind a target `cfg`.

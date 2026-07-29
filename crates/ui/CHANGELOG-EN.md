@@ -1,10 +1,37 @@
 # Changelog
 
-## [Unreleased]
+## [2.0.0] - 2026-07-29
+
+### Breaking Changes
+
+- Removed the unused public `CoreCommand` and `CoreEvent` types, `Memory64K::write_word`, and the `ValidationError::InvalidRegister` and `CoreError::Validation` variants
+
+### Features
+
+- Added: localized in-app changelog reader
+- Added: raw `.krs` subprogram loading and saving with a selectable RAM range, plus system `.krs` file associations
+- Added: pointer-hover switching between open top-level menus
+- Added: drag-and-drop opening for `.580` and `.krs` files with a highlighted drop surface, a cursor-following hint, and confirmation before discarding unsaved changes
+- Updated: import dialog with integrated file selection and drag-and-drop support
 
 ### Bug Fixes
 
+- Fixed: active emulation speed being lost after closing settings without saving
+- Fixed: settings search filtering categories but not individual options
+- Fixed: cancelled file dialogs clearing the unsaved-changes state
+- Fixed: an unnecessary border around the selected theme
+- Fixed: duplicated translation tables and remaining unlocalized interface text
+- Fixed: export target scrolling and overflow of long target names
+- Fixed: checkbox styling in the export dialog
+- Fixed: modal focus indicators and export/import target dropdown behavior
+- Fixed: floppy image example encoding and formatting
+- Fixed: floppy and HDD contents not refreshing after external file changes
+- Fixed: export target add and delete actions using a blue keyboard-focus border instead of a white one
 - Fixed: the `kr580` crates.io package failing verification because the embedded changelog files were outside the package
+
+### Documentation
+
+- Updated: README feature callouts and screenshot gallery organization
 
 ## [1.1.0] - 2026-07-21
 

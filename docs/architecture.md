@@ -4,7 +4,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 
 ## Crates
 
-- `k580-core`: public deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, typed command/event contracts, and the `PortBus` trait. Opcode execution is split by instruction family under `ops/`.
+- `k580-core`: public deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, and the `PortBus` trait. Applications own their command/event contracts and compose them from these processor primitives. Opcode execution is split by instruction family under `ops/`.
 - `kr580`: public installable desktop package. It contains the iced multi-window daemon, launcher, installer, uninstaller, platform shims, and internal `backend`, `devices`, and `persistence` modules. The internal modules own the emulator actor, `IoBus`, monitor, floppy, HDD, network, printer, snapshots, settings, and direct `.txt`/`.xlsx` import/export paths.
 
 ## Repository layout
