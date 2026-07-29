@@ -192,6 +192,7 @@ mod tests {
     use super::GROUP_HEIGHT;
     use super::styles::{
         checkbox_style, checklist_button_style, flag_checkbox_style, tab_button_style,
+        target_icon_focus_color,
     };
     use super::target::dropdown_list_height;
     use iced::Background;
@@ -242,6 +243,11 @@ mod tests {
 
         assert_eq!(style.border.color, tokyo_text());
         assert_eq!(style.border.width, 1.0);
+    }
+
+    #[test]
+    fn keyboard_focused_target_icon_uses_text_border() {
+        assert_eq!(target_icon_focus_color(), tokyo_text());
     }
 
     #[test]

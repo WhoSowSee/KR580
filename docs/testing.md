@@ -205,7 +205,8 @@ worth eyeballing after touching `crates/ui`:
 - open Export and Import and use Tab/Shift+Tab from their native text inputs and
   buttons; confirm captured keyboard events still traverse each custom wrapping
   focus ring in both directions, draw a white outline on the active tab,
-  field, checkbox, or footer control without replacing its selected fill/check,
+  target add/delete button, field, checkbox, or footer control without replacing
+  its selected fill/check,
   skip the unavailable Import target selector and disabled Import action, move
   directly from Export's Text file tab to its target selector without an
   invisible intermediate stop, and let Enter or pointer input clear the

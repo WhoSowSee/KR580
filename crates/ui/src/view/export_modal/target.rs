@@ -6,11 +6,12 @@ use iced::{Element, Length, Padding, alignment};
 use super::super::icons;
 use super::super::styles::input_borderless_style;
 use super::super::theme::{tokyo_muted, tokyo_text, ui_text};
-use super::super::widgets::{modal_icon_button_focused, shorten_middle};
+use super::super::widgets::{modal_icon_button_focused_with_color, shorten_middle};
 use super::controls::label;
 use super::local_icons;
 use super::styles::{
     combo_arrow_style, dropdown_option_style, dropdown_panel_style, keyboard_input_shell_style,
+    target_icon_focus_color,
 };
 use crate::app::{ExportModalFocus, ExportTab, Message};
 use crate::i18n::{Key, Lang};
@@ -62,21 +63,23 @@ pub(super) fn target_selector<'a>(
             dropdown_open,
             keyboard_focus_visible && focus == ExportModalFocus::TargetDropdown,
         ),
-        modal_icon_button_focused(
+        modal_icon_button_focused_with_color(
             add_icon,
             Some(Message::ExportTargetAdd),
             lang.t(add_tooltip),
             ICON_SIZE,
             true,
             keyboard_focus_visible && focus == ExportModalFocus::TargetAdd,
+            target_icon_focus_color(),
         ),
-        modal_icon_button_focused(
+        modal_icon_button_focused_with_color(
             local_icons::trash(),
             Some(Message::ExportTargetDelete),
             lang.t(delete_tooltip),
             ICON_SIZE,
             true,
             keyboard_focus_visible && focus == ExportModalFocus::TargetDelete,
+            target_icon_focus_color(),
         ),
     ]
     .spacing(6)

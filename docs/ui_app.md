@@ -1814,9 +1814,9 @@ moves directly to the target selector instead of visiting the invisible
 `ExportModalFocus::Page` editing state. The modal owns those keys even
 when an iced widget reports the keyboard event as captured,
 matching Settings and printer-dialog routing. Once keyboard traversal starts,
-the focused control gets a white outline; active tab and checked controls keep
-their normal fill/check state underneath it. Enter or pointer input clears the
-keyboard-only outline.
+the focused control gets a white outline, including the add/delete target icons;
+active tab and checked controls keep their normal fill/check state underneath it.
+Enter or pointer input clears the keyboard-only outline.
 
 Clicking a tab or pressing Enter while a tab is focused selects it
 without closing the modal. Enter on a checkbox toggles it. Esc clears

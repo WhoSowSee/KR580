@@ -9,6 +9,10 @@ pub(super) use super::super::styles::{
 };
 use super::super::theme::{tokyo_border, tokyo_green, tokyo_surface, tokyo_surface_2, tokyo_text};
 
+pub(super) fn target_icon_focus_color() -> Color {
+    tokyo_text()
+}
+
 pub(super) fn combo_arrow_style(_status: button::Status, _open: bool) -> button::Style {
     button::Style {
         background: Some(Background::Color(Color::TRANSPARENT)),
