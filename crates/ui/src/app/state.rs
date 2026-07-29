@@ -10,7 +10,7 @@ use super::hex_stream_filter::HexStreamFilter;
 use super::messages::{
     ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier, TopMenuFocus, TopMenuIndicator,
 };
-use super::modal::DiscardModalButton;
+use super::modal::{DiscardModalButton, PendingAction};
 use super::printer::PrinterSetupDialog;
 use super::settings_modal::SettingsDialog;
 use super::settings_saved_notice::SettingsSavedNotice;
@@ -26,15 +26,6 @@ use crate::i18n::{Key, Lang};
 use crate::persistence::{ColorScheme, PrinterDialogMode, ShortcutSettings};
 use crate::runtime::storage_files::FileStamp;
 use crate::settings_storage::{lang_from_language, load_settings, speed_tier_from_preset};
-
-#[derive(Clone, Debug)]
-pub(crate) enum PendingAction {
-    OpenSnapshot,
-    NewFile,
-    Import,
-    CloseWindow,
-    DeleteHdd,
-}
 
 pub(crate) struct DesktopApp {
     pub(crate) handle: EmulatorHandle,
@@ -104,6 +95,8 @@ pub(crate) struct DesktopApp {
     pub(crate) error_notice: Option<String>,
     pub(crate) error_notice_dismiss_at: Option<Instant>,
     pub(crate) main_window_id: Option<iced::window::Id>,
+    pub(crate) file_drag_hovered: bool,
+    pub(crate) file_drag_cursor_position: Option<Point>,
     pub(crate) monitor_window: ToolWindowState,
     pub(crate) floppy_window: ToolWindowState,
     pub(crate) hdd_window: ToolWindowState,
@@ -287,6 +280,8 @@ impl DesktopApp {
             error_notice: None,
             error_notice_dismiss_at: None,
             main_window_id: None,
+            file_drag_hovered: false,
+            file_drag_cursor_position: None,
             monitor_window: ToolWindowState::default(),
             floppy_window: ToolWindowState::default(),
             hdd_window: ToolWindowState::default(),

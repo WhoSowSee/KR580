@@ -13,6 +13,10 @@ Unknown low-bit tags fail with `SnapshotError::UnsupportedTag`; high-bit extensi
 
 Snapshot tests verify roundtrip fidelity, deterministic byte output, unsupported-version rejection, payload-length validation, and high-bit extension tag skipping.
 
+`ProgramSerializer::supports_path` and `SubprogramSerializer::supports_path`
+provide the case-insensitive extension checks used by persistence and desktop
+file routing.
+
 ## `.krs`
 
 Subprograms are raw byte slices. The base address is supplied by the caller and is not hidden in the file.

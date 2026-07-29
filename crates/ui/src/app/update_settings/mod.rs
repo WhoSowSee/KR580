@@ -336,9 +336,7 @@ impl DesktopApp {
 
     fn update_file_association(&mut self, operation: fn() -> Result<(), String>) -> Task<Message> {
         if let Err(error) = operation() {
-            self.error_notice = Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
-            self.error_notice_dismiss_at =
-                Some(std::time::Instant::now() + std::time::Duration::from_secs(8));
+            self.show_error_notice(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
         }
         self.file_association_toggle_revision =
             self.file_association_toggle_revision.wrapping_add(1);

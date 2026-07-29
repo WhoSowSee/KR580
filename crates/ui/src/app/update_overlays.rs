@@ -4,7 +4,7 @@ use super::changelog::ChangelogDialog;
 use super::constants::MEMORY_SCROLL_VISIBLE_TICKS;
 use super::help::HelpDialog;
 use super::messages::Message;
-use super::state::{DesktopApp, PendingAction};
+use super::{DesktopApp, PendingAction};
 
 impl DesktopApp {
     pub(crate) fn dispatch_overlay_message(&mut self, message: &Message) -> Option<Task<Message>> {

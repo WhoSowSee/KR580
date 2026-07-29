@@ -6,6 +6,7 @@ mod export_modal_state;
 mod export_modal_targets;
 #[cfg(test)]
 mod export_modal_tests;
+mod file_drop;
 mod handlers;
 #[cfg(test)]
 mod handlers_tests;
@@ -67,7 +68,7 @@ pub(crate) use messages::{
     RegisterInlineTarget, SettingsCategory, SpeedTier, ToolWindowKind, TopMenuFocus,
     TopMenuIndicator,
 };
-pub(crate) use modal::DiscardModalButton;
+pub(crate) use modal::{DiscardModalButton, PendingAction};
 pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};
 pub(crate) use printer::{
     PRINTER_PROPERTIES_PRESET_INPUT_ID, PrinterPropertiesDialog, PrinterPropertiesFocus,
@@ -80,7 +81,7 @@ pub(crate) use settings_modal::{
 };
 pub(crate) use settings_saved_notice::{SettingsSavedNotice, SettingsSavedNoticePresentation};
 pub(crate) use speed::tier_hz;
-pub(crate) use state::{DesktopApp, PendingAction};
+pub(crate) use state::DesktopApp;
 pub(crate) use status::{StatusKind, shorten_status_for_width};
 pub(crate) use subprogram_modal::{SubprogramDialogFocus, SubprogramDialogMode};
 pub(crate) use undo::UndoEntry;

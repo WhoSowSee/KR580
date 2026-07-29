@@ -45,6 +45,13 @@ impl From<std::io::Error> for ProgramError {
 pub struct ProgramSerializer;
 
 impl ProgramSerializer {
+    pub fn supports_path(path: impl AsRef<std::path::Path>) -> bool {
+        path.as_ref()
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("580"))
+    }
+
     pub fn save_file(
         path: impl AsRef<std::path::Path>,
         state: &Cpu8080State,
@@ -88,8 +95,9 @@ impl ProgramSerializer {
 }
 
 fn validate_path(path: &std::path::Path) -> Result<(), ProgramError> {
-    match path.extension().and_then(|e| e.to_str()) {
-        Some(ext) if ext.eq_ignore_ascii_case("580") => Ok(()),
-        _ => Err(ProgramError::NotA580File),
+    if ProgramSerializer::supports_path(path) {
+        Ok(())
+    } else {
+        Err(ProgramError::NotA580File)
     }
 }

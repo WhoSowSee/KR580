@@ -6,6 +6,14 @@ use k580_ui::persistence::{
 };
 
 #[test]
+fn program_path_support_accepts_only_580_extension() {
+    assert!(ProgramSerializer::supports_path("program.580"));
+    assert!(!ProgramSerializer::supports_path("program.krs"));
+    assert!(!ProgramSerializer::supports_path("program.580.backup"));
+    assert!(!ProgramSerializer::supports_path("program"));
+}
+
+#[test]
 fn program_saves_and_loads_in_legacy_format() {
     let mut cpu = Cpu8080State::default();
     cpu.memory.write(0x0000, 0x3E);

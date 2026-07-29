@@ -340,8 +340,7 @@ impl DesktopApp {
     }
 
     fn show_printer_error(&mut self, error: String) {
-        self.error_notice = Some(format!("{}: {error}", self.lang.t(Key::ErrorPrefix)));
-        self.error_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
+        self.show_error_notice(format!("{}: {error}", self.lang.t(Key::ErrorPrefix)));
     }
 
     fn configure_printer_session_system(&mut self) -> Task<crate::app::Message> {

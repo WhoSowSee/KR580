@@ -23,6 +23,22 @@ Export first opens an in-app format modal, then uses `rfd` for the save
 path. It does not serialize files, run CPU instructions directly, or
 store emulator state in widgets.
 
+The main emulator window also accepts files from the OS drag-and-drop
+surface. `DesktopApp::file_drag_hovered` controls a passive 18%-alpha black
+scrim while `file_drag_cursor_position` keeps the localized
+`Open in emulator` hint beside the cursor. The hint is withheld until a valid
+native position arrives, so it cannot flash in a window corner. It flips left or
+above the pointer near a window edge so its compact `140×24` surface never
+clips. On Windows the hover loop polls the native cursor position against the
+main emulator HWND and converts physical pixels through that window's DPI,
+because the OS drag loop
+temporarily suppresses iced cursor-motion events. Leaving the window or dropping
+a file clears both layers. Drops accept `.580` and `.krs` case-insensitively.
+An unsupported extension leaves the current state untouched and raises the
+same pink-border, eight-second error notice used for runtime file errors.
+`.580` loads through the normal snapshot path, while `.krs` opens the existing
+RAM-range dialog. Detached device windows do not accept program drops.
+
 ## UI module split
 
 - `main.rs` initializes tracing, starts the iced daemon, and sets the
@@ -98,6 +114,8 @@ store emulator state in widgets.
     export-modal value types (`ExportTab`, `ExportMemoryColumn`,
     `ExportRegister`, `ExportFlag`), split out to keep the module root
     inside the 400-line budget.
+  - `app/file_drop.rs` – main-window file hover/drop routing, extension
+    validation, dirty-gate entry, and drop regression tests.
   - `app/menu_keyboard.rs` – keyboard ownership, focus ring, category
     transitions, and action dispatch for an open top-menu dropdown.
   - `app/constants.rs` – widget identifiers, register order, and name
@@ -845,6 +863,7 @@ with a wide remaining row.
   скорости, segment gauge и тесты его геометрии/цветов.
 - `view/notices.rs` (~90 строк) – пассивные floating notice overlays
   для HLT, file error и legacy-format heads-up.
+- `view/file_drop.rs` – пассивный 18%-alpha hover scrim для OS file drop.
 - `view/menu.rs` (~320 строк) – top title/menu bar, menu visibility
   toggle, divider gap, dropdown routing and caption buttons.
 - `view/menu_dropdowns.rs` (~270 строк) – dropdown rows for `Файл`,
@@ -1512,7 +1531,8 @@ snap the caret to the end of the field.
 
 ### Unsaved-changes modal
 
-Discard paths (`Open`, legacy open, `New`, `Import`, and window close)
+Discard paths (`Open`, drag-and-drop open, legacy open, `New`, `Import`,
+and window close)
 route through `DesktopApp::pending_action` when `dirty` is set. While
 that field is `Some`, the modal layer captures user interaction before
 the main update router sees it: emulator shortcuts, arrow keys, opcode
@@ -1536,6 +1556,12 @@ successfully opened or imported, so cancelling either the native picker
 or the import modal keeps the discard gate active for the next attempt.
 `New` marks the reset state clean immediately; confirmed window close is
 routed directly to the window subsystem.
+
+A supported dropped path is stored in `PendingAction::OpenDroppedFile` while
+the dirty modal is visible. Its title and body explicitly say that the
+dropped file will replace unsaved changes; confirming replays that exact path
+without opening a second native picker. Unsupported extensions are rejected
+before the dirty gate, so they never ask the user to discard valid work.
 
 The opcode/mnemonic picker uses `opcode_dropdown_style` with a 7 px
 radius on all four corners. The popup floats over the memory rows, so

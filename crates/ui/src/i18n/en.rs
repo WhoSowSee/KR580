@@ -157,10 +157,15 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MpResetRam => "Clear RAM",
         Key::MpResetCpu => "Clear registers",
         Key::MpClearHalt => "Clear HLT flag",
+        Key::FileDropOpenHint => "Open in emulator",
         Key::DiscardCancel => "Cancel",
         Key::DiscardBody => "Unsaved changes will be lost.",
+        Key::DiscardBodyDrop => {
+            "Current changes are not saved. Open the dropped file without saving?"
+        }
         Key::DiscardBodyDeleteHdd => "All data will be lost.",
         Key::DiscardTitleOpen => "Open file",
+        Key::DiscardTitleDrop => "Open dropped file?",
         Key::DiscardTitleNew => "New file",
         Key::DiscardTitleImport => "Import",
         Key::DiscardTitleClose => "Close application",
@@ -338,6 +343,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusNoMatchesFor => "No addresses match",
         Key::ErrNotA580File => "Not a .580 file – only .580 extension is supported",
         Key::ErrNotAKrsFile => "Not a .krs file – only .krs extension is supported",
+        Key::ErrUnsupportedDroppedFile => "File format is not supported – use a .580 or .krs file",
         Key::ErrFileEmpty => "File is empty",
         Key::ErrWrong580Size => "Not a valid .580 file (must be exactly 65549 bytes)",
         Key::ErrLegacyTrailerCorrupt => "File trailer is corrupted – this is not a valid .580 file",

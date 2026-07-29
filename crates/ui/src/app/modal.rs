@@ -1,5 +1,17 @@
-use super::{DesktopApp, Message, PendingAction};
 use iced::Task;
+use std::path::PathBuf;
+
+use super::{DesktopApp, Message};
+
+#[derive(Clone, Debug)]
+pub(crate) enum PendingAction {
+    OpenSnapshot,
+    OpenDroppedFile(PathBuf),
+    NewFile,
+    Import,
+    CloseWindow,
+    DeleteHdd,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum DiscardModalButton {
@@ -90,6 +102,10 @@ impl DesktopApp {
         match action {
             PendingAction::OpenSnapshot => {
                 self.open_program();
+                Task::none()
+            }
+            PendingAction::OpenDroppedFile(path) => {
+                self.load_program_from_path(path);
                 Task::none()
             }
             PendingAction::NewFile => {

@@ -191,6 +191,7 @@ pub(crate) enum Message {
         size: iced::Size,
     },
     FrameRendered,
+    FileDragCursorPosition(Option<Point>),
     MenuCategoriesToggled,
     MenuToggled(MenuId),
     MenuHovered(MenuId),

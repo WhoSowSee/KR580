@@ -52,7 +52,8 @@ current selected option without submitting a physical print job.
   the documented 3-byte graphics command (`prompt/03_peripherals.md`).
 - `kr580` UI and installer: pure view helpers, printer HEX and CP866 text formatting,
   printer view-mode toggling, printer target/settings updates, memory-cell action and return shortcut
-  rebinding, detachable tool-window lifecycle,
+  rebinding, main-window file drag/drop hover routing, supported-extension
+  validation, dropped-path dirty confirmation, detachable tool-window lifecycle,
   installer layout helpers, install-mode detection, embedded/fallback
   installer payload selection, and launcher-to-app path resolution.
 
@@ -104,6 +105,15 @@ worth eyeballing after touching `crates/ui`:
   `target/release/k580.exe`: no console window should pop up;
 - run `cargo run -p kr580 --bin kr -- <path/to/file.580>` and confirm
   the GUI loads the snapshot and the terminal prompt returns immediately;
+- drag a `.580` file over the main emulator and confirm the surface darkens
+  slightly, the localized `Open in emulator` label follows the cursor without
+  clipping at any window edge, the surface returns to normal when the drag
+  leaves, and the file opens on drop; repeat with `.krs` and confirm the
+  RAM-range dialog appears;
+- drag an unsupported file and confirm the emulator state remains unchanged
+  while a localized pink-border format error appears; with unsaved changes,
+  drop a supported file and confirm the modal names the dropped-file action,
+  Cancel preserves the current state, and Open uses the same dropped path;
 - open a `.krs` file from File → Open, enter a start address, and confirm its
   bytes appear at that RAM address; use Save as with `.krs` to verify the
   selected inclusive RAM range is written without a header;

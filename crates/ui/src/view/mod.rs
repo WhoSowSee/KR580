@@ -7,6 +7,7 @@ mod current_command;
 mod cycles;
 mod editors;
 mod export_modal;
+mod file_drop;
 mod font_warmup;
 mod help;
 mod icons;
@@ -57,11 +58,13 @@ use styles::app_style;
 use about::about_modal_overlay;
 use changelog::changelog_modal_overlay;
 use export_modal::{ExportModalViewState, export_modal_overlay};
+use file_drop::with_file_drop_hover;
 use help::help_modal_overlay;
 use import_modal::{ImportModalViewState, import_modal_overlay};
 use subprogram_modal::{SubprogramModalViewState, subprogram_modal_overlay};
 
 use crate::app::{DesktopApp, MenuId, Message, PendingAction};
+use crate::i18n::Key;
 
 /// Vertical offset of the dropdown so its top border sits on the
 /// menu bar's bottom hairline.
@@ -119,6 +122,13 @@ impl DesktopApp {
         } else {
             app_root
         };
+        let app_with_menu = with_file_drop_hover(
+            app_with_menu,
+            self.file_drag_hovered,
+            self.file_drag_cursor_position,
+            self.main_window_size,
+            self.lang.t(Key::FileDropOpenHint),
+        );
 
         // Notice stacking order, bottom to top: halt → error.
         let app_with_overlays: Element<'_, Message> =

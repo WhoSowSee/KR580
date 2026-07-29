@@ -124,6 +124,7 @@ pub(super) fn discard_modal_overlay(
 fn discard_modal_keys(action: &PendingAction) -> (Key, Option<Key>, Key) {
     match action {
         PendingAction::OpenSnapshot => (Key::DiscardTitleOpen, None, Key::DiscardBody),
+        PendingAction::OpenDroppedFile(_) => (Key::DiscardTitleDrop, None, Key::DiscardBodyDrop),
         PendingAction::NewFile => (Key::DiscardTitleNew, None, Key::DiscardBody),
         PendingAction::Import => (Key::DiscardTitleImport, None, Key::DiscardBody),
         PendingAction::CloseWindow => (Key::DiscardTitleClose, None, Key::DiscardBody),
@@ -133,7 +134,7 @@ fn discard_modal_keys(action: &PendingAction) -> (Key, Option<Key>, Key) {
 
 fn discard_confirm_label_key(action: &PendingAction) -> Key {
     match action {
-        PendingAction::OpenSnapshot => Key::DiscardConfirmOpen,
+        PendingAction::OpenSnapshot | PendingAction::OpenDroppedFile(_) => Key::DiscardConfirmOpen,
         PendingAction::NewFile => Key::DiscardConfirmNew,
         PendingAction::Import => Key::DiscardConfirmImport,
         PendingAction::CloseWindow => Key::DiscardConfirmClose,
@@ -172,7 +173,7 @@ fn modal_button_style(
 
 #[cfg(test)]
 mod tests {
-    use super::{discard_confirm_label_key, modal_button_style};
+    use super::{discard_confirm_label_key, discard_modal_keys, modal_button_style};
     use crate::app::PendingAction;
     use crate::i18n::Key;
     use crate::view::theme::{tokyo_board, tokyo_border, tokyo_surface, tokyo_text};
@@ -208,6 +209,12 @@ mod tests {
         assert_eq!(
             discard_confirm_label_key(&PendingAction::CloseWindow),
             Key::DiscardConfirmClose
+        );
+        let dropped = PendingAction::OpenDroppedFile("program.580".into());
+        assert_eq!(discard_confirm_label_key(&dropped), Key::DiscardConfirmOpen);
+        assert_eq!(
+            discard_modal_keys(&dropped),
+            (Key::DiscardTitleDrop, None, Key::DiscardBodyDrop)
         );
     }
 }

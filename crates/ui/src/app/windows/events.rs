@@ -89,14 +89,23 @@ impl DesktopApp {
     }
 
     pub(super) fn frame_rendered(&mut self) -> Task<Message> {
+        let sync_drag_cursor = if self.file_drag_hovered {
+            self.main_window_id.map_or_else(Task::none, |id| {
+                window::run(id, platform::cursor_position_in_window)
+                    .map(Message::FileDragCursorPosition)
+            })
+        } else {
+            Task::none()
+        };
         if self.startup_frames_seen < u8::MAX {
             self.startup_frames_seen = self.startup_frames_seen.saturating_add(1);
         }
         if self.startup_frames_seen != 2 {
-            return Task::none();
+            return sync_drag_cursor;
         }
-        self.main_window_id.map_or_else(Task::none, |id| {
+        let reveal = self.main_window_id.map_or_else(Task::none, |id| {
             window::run(id, |window| platform::cloak_window(window, false)).discard()
-        })
+        });
+        Task::batch([sync_drag_cursor, reveal])
     }
 }

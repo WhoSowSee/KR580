@@ -20,7 +20,8 @@ impl DesktopApp {
             }),
         ];
 
-        if self.startup_frames_seen < 2 || self.settings_dialog.is_some() {
+        if self.startup_frames_seen < 2 || self.settings_dialog.is_some() || self.file_drag_hovered
+        {
             subscriptions.push(iced::window::frames().map(|_| Message::FrameRendered));
         }
 
@@ -28,11 +29,14 @@ impl DesktopApp {
     }
 
     pub(crate) fn handle_runtime_event(
-        &self,
+        &mut self,
         event: iced::Event,
         status: event::Status,
         window: iced::window::Id,
     ) -> Task<Message> {
+        if let Some(task) = self.handle_file_drag_event(&event, window) {
+            return task;
+        }
         runtime_event_message(self, event, status, window)
             .map(Task::done)
             .unwrap_or_else(Task::none)

@@ -34,6 +34,11 @@ impl DesktopApp {
         self.error_notice_dismiss_at = None;
     }
 
+    pub(crate) fn show_error_notice(&mut self, message: impl Into<String>) {
+        self.error_notice = Some(message.into());
+        self.error_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
+    }
+
     pub(crate) fn clear_halt_notice(&mut self) {
         self.halt_notice = None;
         self.halt_notice_dismiss_at = None;

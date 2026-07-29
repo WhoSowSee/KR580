@@ -158,10 +158,15 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::MpResetRam => "Очистить ОЗУ",
         Key::MpResetCpu => "Очистить регистры",
         Key::MpClearHalt => "Сбросить флаг HLT",
+        Key::FileDropOpenHint => "Открыть в эмуляторе",
         Key::DiscardCancel => "Отменить",
         Key::DiscardBody => "Несохранённые изменения будут потеряны.",
+        Key::DiscardBodyDrop => {
+            "Текущие изменения не сохранены. Открыть перетащенный файл без сохранения?"
+        }
         Key::DiscardBodyDeleteHdd => "Все данные будут потеряны.",
         Key::DiscardTitleOpen => "Открыть файл",
+        Key::DiscardTitleDrop => "Открыть перетащенный файл?",
         Key::DiscardTitleNew => "Новый файл",
         Key::DiscardTitleImport => "Импорт",
         Key::DiscardTitleClose => "Закрыть приложение",
@@ -338,6 +343,9 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::StatusNoMatchesFor => "Нет адресов, соответствующих",
         Key::ErrNotA580File => "Не .580 файл – поддерживается только расширение .580",
         Key::ErrNotAKrsFile => "Не .krs файл – поддерживается только расширение .krs",
+        Key::ErrUnsupportedDroppedFile => {
+            "Формат файла не поддерживается – используйте файл .580 или .krs"
+        }
         Key::ErrFileEmpty => "Файл пуст",
         Key::ErrWrong580Size => "Не похоже на .580 файл (должно быть ровно 65549 байт)",
         Key::ErrLegacyTrailerCorrupt => "Конец файла повреждён – это не .580 файл",

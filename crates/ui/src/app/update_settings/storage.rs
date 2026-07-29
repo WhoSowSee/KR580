@@ -4,7 +4,6 @@ use super::network::is_directory_writable;
 use crate::i18n::Key;
 use iced::Task;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 impl DesktopApp {
     pub(super) fn browse_settings_floppy_image(&mut self) -> Task<Message> {
@@ -56,8 +55,7 @@ impl DesktopApp {
             return Task::none();
         };
         if !is_directory_writable(&folder) {
-            self.error_notice = Some(self.lang.t(Key::ErrHddDirectoryNotWritable).to_owned());
-            self.error_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
+            self.show_error_notice(self.lang.t(Key::ErrHddDirectoryNotWritable));
             return Task::none();
         }
         Task::done(Message::SettingsDraftHddDirectorySet(folder))

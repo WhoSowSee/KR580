@@ -6,8 +6,8 @@ use super::constants::{
     REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID, STACK_VIEW_START,
 };
 use super::messages::{Message, RegisterInlineTarget};
-use super::state::{DesktopApp, PendingAction};
 use super::update_routes::open_device_message;
+use super::{DesktopApp, PendingAction};
 use crate::runtime::parse::scroll_memory_to;
 
 impl DesktopApp {
@@ -32,9 +32,8 @@ impl DesktopApp {
 
         match message {
             Message::Tick => return self.handle_tick(),
-            Message::CursorMoved(point) => {
-                self.latest_cursor_position = point;
-            }
+            Message::CursorMoved(point) => self.latest_cursor_position = point,
+            Message::FileDragCursorPosition(position) => self.update_file_drag_cursor(position),
             Message::MousePressed | Message::MousePressedIgnored => {
                 self.mouse_press_generation = self.mouse_press_generation.wrapping_add(1);
                 let generation = self.mouse_press_generation;
