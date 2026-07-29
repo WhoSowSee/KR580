@@ -8,22 +8,14 @@ pub(crate) enum ImportFileFormat {
 }
 
 impl ImportFileFormat {
-    pub(crate) fn from_path(path: &Path) -> Self {
-        match path
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .map(|ext| ext.to_ascii_lowercase())
-            .as_deref()
-        {
-            Some("xlsx") => Self::Xlsx,
-            _ => Self::Text,
-        }
-    }
-
-    pub(crate) fn label_key(self) -> Key {
-        match self {
-            Self::Xlsx => Key::ExportFormatXlsx,
-            Self::Text => Key::ExportFormatText,
+    pub(crate) fn from_path(path: &Path) -> Option<Self> {
+        let extension = path.extension()?.to_str()?;
+        if extension.eq_ignore_ascii_case("xlsx") {
+            Some(Self::Xlsx)
+        } else if extension.eq_ignore_ascii_case("txt") {
+            Some(Self::Text)
+        } else {
+            None
         }
     }
 

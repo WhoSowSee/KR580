@@ -2,21 +2,23 @@ mod controls;
 mod styles;
 
 use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
-use iced::{Element, Length};
+use iced::{Element, Length, Padding};
 
-use controls::{SourceGroupState, footer, source_group, target_dropdown_overlay};
+use controls::{
+    SourceGroupState, TARGET_DROPDOWN_OVERLAY_HEIGHT, footer, source_group, target_dropdown_overlay,
+};
 use styles::{modal_backdrop_style, modal_dialog_style};
 
 use crate::app::{ImportFileFormat, ImportModalFocus, Message};
 use crate::i18n::Lang;
 
 const DIALOG_WIDTH: f32 = 500.0;
-const COMPACT_CONTENT_HEIGHT: f32 = 126.0;
-const TARGET_CONTENT_HEIGHT: f32 = 164.0;
+const BODY_HEIGHT: f32 = 244.0;
 
 pub(super) struct ImportModalViewState<'a> {
     pub(super) focus: ImportModalFocus,
     pub(super) keyboard_focus_visible: bool,
+    pub(super) file_drag_hovered: bool,
     pub(super) file_display: &'a str,
     pub(super) format: Option<ImportFileFormat>,
     pub(super) target_input: &'a str,
@@ -31,6 +33,7 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
     let ImportModalViewState {
         focus,
         keyboard_focus_visible,
+        file_drag_hovered,
         file_display,
         format,
         target_input,
@@ -53,6 +56,7 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
         source_group(SourceGroupState {
             focus,
             keyboard_focus_visible,
+            file_drag_hovered,
             file_display,
             format,
             target_input,
@@ -60,23 +64,24 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
             error,
             lang,
         }),
-        footer(focus, keyboard_focus_visible, lang),
+        Space::new().height(Length::Fill),
+        footer(
+            focus,
+            keyboard_focus_visible,
+            format.is_some() && error.is_none(),
+            lang,
+        ),
     ]
-    .spacing(14)
-    .width(Length::Fixed(DIALOG_WIDTH));
-
-    let content_height = if format.is_some() || error.is_some() {
-        TARGET_CONTENT_HEIGHT
-    } else {
-        COMPACT_CONTENT_HEIGHT
-    };
+    .spacing(8)
+    .width(Length::Fixed(DIALOG_WIDTH))
+    .height(Length::Fixed(BODY_HEIGHT));
 
     let body_content: Element<'_, Message> =
         if target_dropdown_open && format.is_some() && !target_options.is_empty() {
             let close_layer = mouse_area(
                 container(Space::new())
                     .width(Length::Fill)
-                    .height(Length::Fixed(content_height)),
+                    .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT)),
             )
             .on_press(Message::ImportTargetDropdownToggled);
             stack![
@@ -85,16 +90,21 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
                 target_dropdown_overlay(target_options, target_highlight),
             ]
             .width(Length::Fixed(DIALOG_WIDTH))
-            .height(Length::Fixed(content_height))
+            .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT))
             .into()
         } else {
             container(body_content)
-                .height(Length::Fixed(content_height))
+                .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT))
                 .into()
         };
 
     let body = container(body_content)
-        .padding([18, 20])
+        .padding(Padding {
+            top: 18.0,
+            right: 20.0,
+            bottom: 18.0 - (TARGET_DROPDOWN_OVERLAY_HEIGHT - BODY_HEIGHT),
+            left: 20.0,
+        })
         .style(modal_dialog_style);
 
     let centred = column![

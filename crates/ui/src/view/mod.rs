@@ -226,6 +226,7 @@ impl DesktopApp {
                 import_modal_overlay(ImportModalViewState {
                     focus: self.import_modal_focus,
                     keyboard_focus_visible: self.import_modal_keyboard_focus_visible,
+                    file_drag_hovered: self.import_file_drag_hovered,
                     file_display: &self.import_file_display,
                     format: self.import_file_format,
                     target_input: &self.import_target_input,

@@ -206,13 +206,31 @@ worth eyeballing after touching `crates/ui`:
   buttons; confirm captured keyboard events still traverse each custom wrapping
   focus ring in both directions, draw a white outline on the active tab,
   field, checkbox, or footer control without replacing its selected fill/check,
-  skip the unavailable Import target selector, move directly from Export's Text
-  file tab to its target selector without an invisible intermediate stop, and
-  let Enter or pointer input clear the keyboard-only outline before activating
-  the current control; load an import file with enough long target names to
-  overflow the two-row dropdown, confirm the wheel/touchpad still scrolls it
-  without painting a scrollbar, and confirm every target stays on one clipped,
-  middle-shortened row;
+  skip the unavailable Import target selector and disabled Import action, move
+  directly from Export's Text file tab to its target selector without an
+  invisible intermediate stop, and let Enter or pointer input clear the
+  keyboard-only outline before activating the current control; confirm Import
+  opens at a fixed size without a title bar or close action, with a large source
+  drop zone, `.txt`/`.xlsx` format hint inside the zone below Choose file, and
+  adjacent neutral Cancel/Import actions on the right; verify the empty drop zone
+  is taller, selecting a file contracts it without changing the dialog height,
+  removes the format badge and repeated drop instruction, and leaves the icon,
+  shortened path, Choose file action, and format hint with a slightly larger gap
+  between the path and action; verify the target label sits close to its field
+  while the source-to-target gap is visibly larger, the taller empty source zone
+  leaves less space above the footer, and neither state has an oversized footer
+  spacer; confirm the gap between Choose file and the format hint is identical
+  before and after selecting a file; drag a file over the modal
+  and verify only the source zone gains the accent border, then verify leaving
+  clears it and dropping a supported `.txt` or `.xlsx` file selects it and
+  enables Import without changing its neutral color; drop an unsupported
+  extension and confirm the modal remains open with a localized inline error;
+  load an import file with enough long target names to overflow the two-row
+  dropdown, confirm the dialog height stays fixed, the wheel/touchpad still
+  scrolls the list without painting a scrollbar, the options keep the same
+  four-pixel inner panel spacing as the language dropdown, the popup keeps a
+  separate eight-pixel gap below its closed selector, both visible options are
+  fully rendered, and every target stays on one clipped, middle-shortened row;
 - in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
   and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`;
 - paste `3E 41 D3 03 76` into a memory value field and confirm the five

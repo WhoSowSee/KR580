@@ -18,6 +18,9 @@ impl DesktopApp {
         if self.main_window_id != Some(window) {
             return None;
         }
+        if self.handle_import_file_drag_event(event) {
+            return Some(Task::none());
+        }
         match event {
             Event::Window(window::Event::FileHovered(_)) => {
                 self.file_drag_hovered = true;

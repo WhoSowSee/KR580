@@ -144,13 +144,14 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ExportRegisterStackPointer => "Указатель стека",
         Key::ExportRegisterProgramCounter => "Счётчик команд",
         Key::ExportRegisterCycles => "Счётчик тактов",
-        Key::ImportSourceGroup => "Источник импорта",
         Key::ImportFileLabel => "Файл",
-        Key::ImportNoFile => "Файл не выбран",
         Key::ImportNoTargets => "В файле нет отдельных листов или разделов",
         Key::ImportSheetLabel => "На листе",
         Key::ImportSectionLabel => "В разделе",
         Key::ImportBrowseTooltip => "Выбрать файл",
+        Key::ImportDropPrompt => "Перетащите файл сюда",
+        Key::ImportDropOr => "или",
+        Key::ImportSupportedFormats => "Поддерживаемые форматы: .txt, .xlsx",
         Key::ImportChooseFileRequired => "Выберите файл для импорта",
         Key::MpRunProgram => "Выполнить программу",
         Key::MpRunInstruction => "Выполнить команду",
@@ -345,6 +346,9 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ErrNotAKrsFile => "Не .krs файл – поддерживается только расширение .krs",
         Key::ErrUnsupportedDroppedFile => {
             "Формат файла не поддерживается – используйте файл .580 или .krs"
+        }
+        Key::ErrUnsupportedImportFile => {
+            "Формат файла не поддерживается – используйте файл .txt или .xlsx"
         }
         Key::ErrFileEmpty => "Файл пуст",
         Key::ErrWrong580Size => "Не похоже на .580 файл (должно быть ровно 65549 байт)",

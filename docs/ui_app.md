@@ -1848,43 +1848,69 @@ selections.
 ### Import modal
 
 Opened via `Ctrl+I` or File -> Import after the dirty-state discard
-gate. The modal is intentionally smaller than export: it has a source
-group with a file picker row and, after a file is selected, either a
-sheet selector for XLSX workbooks or a section selector for TXT files
-with named blocks. TXT files without named sections keep the legacy
-single-model path and import the whole file.
+gate. The fixed-size dialog starts directly with a large file drop zone;
+it has no separate title bar or close button. The zone ends with the
+supported-format hint (`.txt`, `.xlsx`) below the Choose file action.
+Below it are an optional target selector and adjacent Cancel/Import
+actions aligned to the right. Both footer actions use the same neutral
+button treatment;
+the disabled Import state is communicated by muted text and the absence
+of an action. The same source zone owns both native file drops
+and the Choose file action. Native drag hover highlights only the zone;
+leaving or dropping clears that state. Unsupported extensions stay in
+the modal and show a localized inline error without invoking an
+importer. Import remains disabled until a supported file has been
+loaded successfully.
+
+After a file is selected, the dialog shows either a sheet selector for
+XLSX workbooks or a section selector for TXT files with named blocks.
+TXT files without named sections keep the legacy single-model path and
+import the whole file. The fixed dialog height does not change between
+empty, selected, and validation-error states. The empty state expands
+the drop zone vertically and uses the space that previously separated it
+from the footer. After selection the zone contracts while the target row
+sits 16 logical pixels below it and closer to the footer; it keeps the file
+icon, shortened path, Choose file action, and supported-format hint. The
+file name has a slightly larger gap before the action. Empty and selected
+states both keep eight logical pixels between Choose file and the format
+hint. The zone does not repeat the drop instruction or show a format badge.
 
 The target selector is a fixed stacked dialog overlay anchored to the
 source group, so opening it does not reflow the source rows or footer.
 Long target lists scroll with the wheel or touchpad through
 `Vertical(Scrollbar::hidden())`; neither a rail nor a scroller is painted.
-Selected and listed target names are shortened from the middle to 35
+Selected and listed target names are shortened from the middle to 39
 characters, rendered with `text::Wrapping::None`, and clipped inside their
-fixed-height rows. Selection messages retain the full target name. Confirm dispatches the
+fixed-height rows. The two-row popup reserves enough vertical space for
+both option labels, uses the same four-logical-pixel inner panel spacing
+as the language selector, keeps a separate eight-logical-pixel gap below
+its closed selector, and remains inside the modal overlay. Selection messages
+retain the full target name. Confirm dispatches the
 specific worker command for the selected target: `ImportXlsxSheet`,
 `ImportTxtSection`, `ImportXlsx`, or `ImportTxt`. Successful import
 clears the undo stack and marks the session clean, matching the previous
 file-import behavior. Esc closes the import modal directly, including
 when the file picker, target selector, or footer button has focus.
 Tab and Shift+Tab wrap through the file picker, available target
-selector, Cancel, and Import; the modal intercepts both keys before
+selector, Cancel, and the enabled Import action; unavailable controls
+are skipped. The modal intercepts both keys before
 iced's captured-widget path so native widget focus cannot swallow the
 custom ring. The focused row receives the same white keyboard outline as
-the export modal, including the file-picker icon button; opened target
+the export modal, including the Choose file button; opened target
 selectors keep their active surface fill.
-Import validation errors render as a plain red text row inside the
-source group, without the field shell border used by editable inputs.
+Import validation errors render as plain centred red text below the
+source zone, without the field shell border used by editable inputs.
 
 **State:** `import_modal_open: bool`,
 `import_modal_focus: ImportModalFocus`,
-`import_modal_keyboard_focus_visible`, `import_file_path`,
+`import_modal_keyboard_focus_visible`, `import_file_drag_hovered`,
+`import_file_path`,
 `import_file_display`, `import_file_format`, `import_target_options`,
 `import_target_input`, `import_target_dropdown_open`,
 `import_target_highlight`, and `import_error`.
 
 **Routing:** `app/import_modal.rs` – `route_import_modal_message()`.
-`app/import_modal_state.rs` owns format detection and the compact focus
-ring.
+`app/import_modal_state.rs` owns format detection and the focus ring.
 
 **View:** `view/import_modal/{mod,controls,styles}.rs` –
 `import_modal_overlay()`.

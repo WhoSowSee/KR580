@@ -1,6 +1,7 @@
 use super::{DesktopApp, ImportFileFormat, ImportModalFocus};
 use crate::app::Message;
 use crate::persistence::{ExportModel, ExportOptions, Exporters};
+use iced::{Event, window};
 use std::path::PathBuf;
 
 #[test]
@@ -25,10 +26,28 @@ fn tab_cycles_import_modal_focus_in_both_directions() {
     assert!(app.import_modal_keyboard_focus_visible);
 
     let _task = app.update(Message::FocusCycle { backward: false });
-    assert_eq!(app.import_modal_focus, ImportModalFocus::Confirm);
+    assert_eq!(app.import_modal_focus, ImportModalFocus::Browse);
 
     let _task = app.update(Message::FocusCycle { backward: true });
     assert_eq!(app.import_modal_focus, ImportModalFocus::Cancel);
+}
+
+#[test]
+fn confirm_focus_is_available_after_a_valid_file_is_loaded() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let path = unique_temp_file("focus-import.txt");
+    std::fs::write(&path, Exporters::to_text(&model_at(0x0100))).unwrap();
+
+    app.open_import_modal();
+    app.load_import_file(path.clone());
+    assert_eq!(app.import_modal_focus, ImportModalFocus::Confirm);
+
+    let _task = app.update(Message::FocusCycle { backward: false });
+    assert_eq!(app.import_modal_focus, ImportModalFocus::Browse);
+    let _task = app.update(Message::FocusCycle { backward: true });
+    assert_eq!(app.import_modal_focus, ImportModalFocus::Confirm);
+
+    std::fs::remove_file(path).ok();
 }
 
 #[test]
@@ -102,6 +121,58 @@ fn loading_txt_import_file_populates_section_targets_when_present() {
         vec!["Раздел 1".to_owned(), "Раздел 2".to_owned()]
     );
     assert_eq!(app.import_target_input, "Раздел 1");
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn unsupported_import_file_keeps_the_modal_open_with_local_error() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let path = unique_temp_file("replace-import.txt");
+    std::fs::write(&path, Exporters::to_text(&model_at(0x0100))).unwrap();
+
+    app.open_import_modal();
+    app.load_import_file(path.clone());
+    app.load_import_file(PathBuf::from("program.bin"));
+
+    assert!(app.import_modal_open);
+    assert!(app.import_file_path.is_none());
+    assert!(app.import_file_display.is_empty());
+    assert!(app.import_file_format.is_none());
+    assert!(app.import_target_options.is_empty());
+    assert!(app.import_target_input.is_empty());
+    assert_eq!(app.import_modal_focus, ImportModalFocus::Browse);
+    assert_eq!(
+        app.import_error.as_deref(),
+        Some("Формат файла не поддерживается – используйте файл .txt или .xlsx")
+    );
+    std::fs::remove_file(path).ok();
+}
+
+#[test]
+fn import_modal_owns_file_drag_hover_and_drop_events() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let main = window::Id::unique();
+    let path = unique_temp_file("dropped-import.txt");
+    std::fs::write(&path, Exporters::to_text(&model_at(0x0200))).unwrap();
+    app.main_window_id = Some(main);
+    app.open_import_modal();
+
+    let hovered = Event::Window(window::Event::FileHovered(path.clone()));
+    let _task = app.handle_file_drag_event(&hovered, main);
+    assert!(app.import_file_drag_hovered);
+    assert!(!app.file_drag_hovered);
+
+    let left = Event::Window(window::Event::FilesHoveredLeft);
+    let _task = app.handle_file_drag_event(&left, main);
+    assert!(!app.import_file_drag_hovered);
+
+    let dropped = Event::Window(window::Event::FileDropped(path.clone()));
+    let _task = app.handle_file_drag_event(&dropped, main);
+    assert!(!app.import_file_drag_hovered);
+    assert_eq!(app.import_file_path, Some(path.clone()));
+    assert_eq!(app.import_file_format, Some(ImportFileFormat::Text));
+    assert!(app.error_notice.is_none());
+
     std::fs::remove_file(path).ok();
 }
 
