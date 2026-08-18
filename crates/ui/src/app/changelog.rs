@@ -4,8 +4,8 @@ use crate::i18n::Lang;
 
 use super::help::markdown::{HelpMarkdownDocument, HelpMarkdownHighlights, parse_help_markdown};
 
-const CHANGELOG_SOURCE_RU: &str = include_str!("../../../../CHANGELOG.md");
-const CHANGELOG_SOURCE_EN: &str = include_str!("../../../../CHANGELOG-EN.md");
+const CHANGELOG_SOURCE_RU: &str = include_str!("../../CHANGELOG.md");
+const CHANGELOG_SOURCE_EN: &str = include_str!("../../CHANGELOG-EN.md");
 
 pub(crate) struct ChangelogRelease {
     pub(crate) version: String,

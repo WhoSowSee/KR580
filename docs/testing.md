@@ -8,6 +8,17 @@ cargo clippy --workspace --all-targets --manifest-path /d/kr-580/Cargo.toml -- -
 cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
 ```
 
+The root `CHANGELOG.md` and `CHANGELOG-EN.md` files feed release automation.
+Their package-local `crates/ui/CHANGELOG.md` and
+`crates/ui/CHANGELOG-EN.md` copies are embedded by the application. The
+Russian pair and English pair must remain byte-for-byte identical. Whenever
+one changelog changes, update all four, keep their release version/date
+indexes aligned, and verify the publishable workspace archive:
+
+```sh
+cargo package --workspace --locked
+```
+
 Dependency audits use `cargo machete --with-metadata --skip-target-dir .`.
 The Windows-only `winresource` build dependency is explicitly ignored by that
 scanner because `crates/ui/build.rs` consumes it behind a target `cfg`.

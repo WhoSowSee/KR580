@@ -99,8 +99,8 @@ RAM-range dialog. Detached device windows do not accept program drops.
     (`DesktopApp`, `Message`, `MenuId`, `TopMenuFocus`, `TopMenuIndicator`,
     `SpeedTier`, widget identifiers).
   - `app/changelog.rs` and `app/changelog_routing.rs` – compile-time
-    localized `CHANGELOG.md` / `CHANGELOG-EN.md` parsing, release
-    selection, read-only article state, and modal message ownership.
+    localized package changelog parsing, release selection, read-only article
+    state, and modal message ownership.
   - `app/read_only_text.rs` – shared selectable-but-non-editable
     `text_editor` action handling used by Help and Changelog readers.
   - `app/state.rs` – the `DesktopApp` struct, `PendingAction`,
@@ -1962,12 +1962,13 @@ About card. No keyboard navigation beyond Esc to close.
 
 ### Changelog dialog
 
-The reader embeds the workspace `CHANGELOG.md` for Russian and
-`CHANGELOG-EN.md` for English at compile time. It selects the source from
-the active application language, discovers every `## [version] - date`
-section automatically, and presents the localized `All releases` label
-plus each release in a left sidebar. The right pane uses the same
-selectable, read-only iced `text_editor` and outer pixel-scrolling
+The reader embeds `crates/ui/CHANGELOG.md` for Russian and
+`crates/ui/CHANGELOG-EN.md` for English at compile time. These package-local
+files mirror the workspace-root changelogs used by release automation. The
+reader selects the source from the active application language, discovers
+every `## [version] - date` section automatically, and presents the localized
+`All releases` label plus each release in a left sidebar. The right pane uses
+the same selectable, read-only iced `text_editor` and outer pixel-scrolling
 container as Help, so wheel scrolling, text selection, and copying behave
 consistently. Closing the reader returns to the still-open About card.
 
