@@ -1747,9 +1747,9 @@ Option<PendingAction>`.
 ### Export modal
 
 Opened via `Ctrl+E` or File → Export. The modal offers two tabs:
-MS Excel (`.xlsx`) and text file (`.txt`). MS Word is intentionally not
+Microsoft Excel (`.xlsx`) and text file (`.txt`). MS Word is intentionally not
 present because there is no exporter for it. The default tab and focus
-are MS Excel.
+are Microsoft Excel.
 
 The body mirrors the KR-580 export dialog shape while keeping the app's
 active color-scheme surface: a RAM contents group on the left, a

@@ -119,7 +119,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SubprogramAddressHint => {
             "Файл .krs содержит сырые байты. Укажите диапазон адресов ОЗУ."
         }
-        Key::ExportFormatXlsx => "MS Excel",
+        Key::ExportFormatXlsx => "Microsoft Excel",
         Key::ExportFormatText => "Текстовый файл",
         Key::ExportPageLabel => "На странице",
         Key::ExportPageDefault => "Подпрограмма 1",
