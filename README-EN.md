@@ -74,7 +74,7 @@ Device operations return typed statuses and errors. The CPU core talks to them o
 
 ### Requirements
 
-- Rust `1.95.0` or newer.
+- Rust `1.88.0` or newer.
 - A desktop environment capable of running native iced windows.
 
 ### Install from crates.io

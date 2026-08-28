@@ -8,6 +8,12 @@ cargo clippy --workspace --all-targets --manifest-path /d/kr-580/Cargo.toml -- -
 cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
 ```
 
+The workspace MSRV is Rust 1.88.0. Verify it against the locked dependency set:
+
+```sh
+cargo +1.88.0 check --workspace --all-targets --locked
+```
+
 The root `CHANGELOG.md` and `CHANGELOG-EN.md` files feed release automation.
 Their package-local `crates/ui/CHANGELOG.md` and
 `crates/ui/CHANGELOG-EN.md` copies are embedded by the application. The
