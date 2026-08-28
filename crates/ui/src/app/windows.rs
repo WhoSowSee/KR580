@@ -270,7 +270,7 @@ fn main_window_settings() -> window::Settings {
         size: Size::new(1180.0, 720.0),
         position: window::Position::Centered,
         min_size: Some(Size::new(1180.0, 720.0)),
-        icon: window::icon::from_file_data(ICON_PNG, None).ok(),
+        icon: window_icon(),
         decorations: false,
         visible: false,
         exit_on_close_request: false,
@@ -284,12 +284,20 @@ fn tool_window_settings(kind: ToolWindowKind, main_window_size: Size) -> window:
         size,
         position: window::Position::Centered,
         min_size: Some(tool_window_min_size(kind)),
-        icon: window::icon::from_file_data(ICON_PNG, None).ok(),
+        icon: window_icon(),
         decorations: false,
         visible: false,
         exit_on_close_request: false,
         ..window::Settings::default()
     }
+}
+
+fn window_icon() -> Option<window::Icon> {
+    let icon = image::load_from_memory_with_format(ICON_PNG, image::ImageFormat::Png)
+        .ok()?
+        .into_rgba8();
+    let (width, height) = icon.dimensions();
+    window::icon::from_rgba(icon.into_raw(), width, height).ok()
 }
 
 fn tool_window_size(kind: ToolWindowKind, main_window_size: Size) -> Size {

@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use image::ImageEncoder;
 
 use crate::backend::{GRAPHICS_HEIGHT, GRAPHICS_WIDTH, MonitorState, TEXT_COLS, TEXT_ROWS};
 
@@ -114,19 +114,15 @@ pub(crate) fn render_monitor_image(
 }
 
 fn encode_png(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String> {
-    let mut out = Vec::with_capacity(buf.len() / 4);
-    {
-        let cursor = Cursor::new(&mut out);
-        let mut encoder = png::Encoder::new(cursor, width as u32, height as u32);
-        encoder.set_color(png::ColorType::Rgb);
-        encoder.set_depth(png::BitDepth::Eight);
-        let mut writer = encoder
-            .write_header()
-            .map_err(|e| format!("png header: {e}"))?;
-        writer
-            .write_image_data(buf)
-            .map_err(|e| format!("png data: {e}"))?;
-    }
+    let mut out = Vec::new();
+    image::codecs::png::PngEncoder::new(&mut out)
+        .write_image(
+            buf,
+            width as u32,
+            height as u32,
+            image::ExtendedColorType::Rgb8,
+        )
+        .map_err(|e| format!("png: {e}"))?;
     Ok(out)
 }
 

@@ -87,8 +87,8 @@ to keep the PNG/ICO files small.
 ## Where the assets are consumed
 
 - `crates/ui/src/app/windows.rs` embeds `crates/ui/assets/icons/icon-64.png` via
-  `include_bytes!` and hands the bytes to
-  `iced::window::icon::from_file_data`. This drives the title-bar /
+  `include_bytes!`, decodes that PNG through the restricted `image` codec set,
+  and hands its RGBA buffer to `iced::window::icon::from_rgba`. This drives the title-bar /
   Alt-Tab / taskbar icon for the running application.
 - `crates/ui/build.rs` (Windows only) embeds `crates/ui/assets/icons/icon.ico`
   into the PE resource section through the `winresource` crate. This

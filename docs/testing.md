@@ -33,6 +33,19 @@ version-bump commit is excluded.
 Dependency audits use `cargo machete --with-metadata --skip-target-dir .`.
 The Windows-only `winresource` build dependency is explicitly ignored by that
 scanner because `crates/ui/build.rs` consumes it behind a target `cfg`.
+Feature audits inspect the effective all-target graph and invert any dependency
+whose defaults are expected to stay off:
+
+```sh
+cargo tree -p kr580 --target all -f "{p} features=[{f}]"
+cargo tree -p kr580 --target all -e features -i roxmltree@0.20.0
+cargo tree -p kr580 --target all -e features -i windows@0.58.0
+```
+
+The direct dependency declarations disable broad defaults where the app uses a
+narrower codec, executor, or build-time feature set. Cargo feature
+unification may still re-enable a feature when another dependency requests it;
+the resolved tree, not the direct declaration alone, is the verification source.
 
 On Windows, the installed-driver PrintTicket roundtrip has an explicit ignored
 smoke test:
