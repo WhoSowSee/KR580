@@ -8,12 +8,13 @@ use super::super::{
 };
 use super::{last_os_error, wide_null};
 use std::ptr::{null, null_mut};
-use windows_sys::Win32::Foundation::HANDLE;
 use windows_sys::Win32::Graphics::Gdi::{
     DEVMODEW, DM_DEFAULTSOURCE, DM_IN_BUFFER, DM_ORIENTATION, DM_OUT_BUFFER, DM_PAPERLENGTH,
     DM_PAPERSIZE, DM_PAPERWIDTH, DMORIENT_LANDSCAPE, DMORIENT_PORTRAIT,
 };
-use windows_sys::Win32::Graphics::Printing::{ClosePrinter, DocumentPropertiesW, OpenPrinterW};
+use windows_sys::Win32::Graphics::Printing::{
+    ClosePrinter, DocumentPropertiesW, OpenPrinterW, PRINTER_HANDLE,
+};
 use windows_sys::Win32::UI::WindowsAndMessaging::IDOK;
 
 pub(super) fn configure() -> Result<Option<PrinterSettings>, String> {
@@ -150,7 +151,7 @@ fn default_devmode(printer_name: &str) -> Result<Vec<u8>, String> {
 
 fn default_devmode_with_handle(
     printer_name: &str,
-    handle: HANDLE,
+    handle: PRINTER_HANDLE,
 ) -> Result<AlignedDevMode, String> {
     let name = wide_null(printer_name);
     let size =
@@ -177,7 +178,7 @@ fn default_devmode_with_handle(
 
 fn normalize_devmode(
     printer_name: &str,
-    handle: HANDLE,
+    handle: PRINTER_HANDLE,
     input: &[u8],
 ) -> Result<AlignedDevMode, String> {
     if read_devmode(input).is_none() {
@@ -212,12 +213,12 @@ fn read_devmode(bytes: &[u8]) -> Option<DEVMODEW> {
         .then_some(mode)
 }
 
-struct PrinterHandle(HANDLE);
+struct PrinterHandle(PRINTER_HANDLE);
 
 impl PrinterHandle {
     fn open(name: &str) -> Result<Self, String> {
         let name = wide_null(name);
-        let mut handle = null_mut();
+        let mut handle = PRINTER_HANDLE::default();
         if unsafe { OpenPrinterW(name.as_ptr(), &mut handle, null()) } == 0 {
             return Err(last_os_error("OpenPrinterW"));
         }

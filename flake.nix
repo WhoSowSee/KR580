@@ -20,6 +20,7 @@
           pkgs = import nixpkgs { inherit system; };
           lib = pkgs.lib;
           runtimeLibs = [
+            pkgs.dbus
             pkgs.fontconfig
             pkgs.freetype
             pkgs.libGL
@@ -98,7 +99,9 @@
               runHook postInstall
             '';
             postFixup = ''
-              wrapProgram "$out/bin/k580" --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
+              wrapProgram "$out/bin/k580" \
+                --prefix PATH : ${lib.makeBinPath [ pkgs.zenity ]} \
+                --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
               wrapProgram "$out/bin/kr" --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
             '';
             meta = {

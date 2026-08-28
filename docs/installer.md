@@ -113,6 +113,9 @@ package used by CI on native `ubuntu-24.04` and `ubuntu-24.04-arm` runners;
 the workflow filters the core22 `architectures` build plan with `--build-for`
 and builds through LXD instead of destructive mode.
 The `kr580-setup` snap part uses `plugin: nil` and installs the stable Rust toolchain itself via rustup inside its `override-build`, which assembles the multi-binary installer. The snapcraft rust plugin provisions its toolchain in the pull phase, which runs before any part's build and cannot cooperate with a custom `override-build`, so the part manages the toolchain directly.
+On Linux, rfd 0.17 loads `libdbus` for XDG dialogs and falls back to `zenity`.
+The Debian, Snap, and Nix packages provide both; the desktop supplies its portal
+backend.
 If the Windows target artifact is locked by a running installer, the PowerShell
 script writes the same setup under a numbered suffix such as
 `KR580-Setup-<version>-windows-<arch>-1.exe` instead of failing after the

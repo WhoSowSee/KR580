@@ -215,8 +215,7 @@ impl DesktopApp {
         let tab = self.export_tab;
         let options = self.export_options();
         self.close_export_modal();
-        self.export_selected_file(tab, options);
-        Task::none()
+        self.export_selected_file(tab, options)
     }
 
     pub(crate) fn export_options(&self) -> ExportOptions {

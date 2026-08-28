@@ -29,6 +29,9 @@ impl DesktopApp {
         if let Some(task) = self.dispatch_overlay_message(&message) {
             return task;
         }
+        if let Some(task) = self.route_file_dialog_message(&message) {
+            return task;
+        }
 
         match message {
             Message::Tick => return self.handle_tick(),
@@ -84,12 +87,9 @@ impl DesktopApp {
                 if self.dirty {
                     self.open_discard_modal(PendingAction::OpenSnapshot);
                 } else {
-                    self.open_program();
+                    return self.open_program();
                 }
             }
-            Message::LoadSnapshotFromPath(path) => self.load_program_from_path(path),
-            Message::SaveSnapshot => self.save_program(),
-            Message::SaveSnapshotAs => self.save_program_as(),
             Message::NewFile => {
                 if self.dirty {
                     self.open_discard_modal(PendingAction::NewFile);

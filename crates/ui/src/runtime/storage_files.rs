@@ -1,9 +1,12 @@
-use crate::app::{DesktopApp, StatusKind};
+use crate::app::{DesktopApp, Message, StatusKind, ToolWindowKind};
 use crate::backend::AppCommand;
 use crate::i18n::Key;
 use crate::settings_storage::{load_settings, save_settings};
+use iced::Task;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+
+use super::file_dialog;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct FileStamp {
@@ -22,7 +25,7 @@ impl DesktopApp {
         }
     }
 
-    pub(crate) fn open_floppy_image(&mut self) {
+    pub(crate) fn open_floppy_image(&self) -> Task<Message> {
         let settings = load_settings();
         let mut dialog =
             rfd::FileDialog::new().add_filter("KR580 floppy image", &["kpd", "img", "bin"]);
@@ -45,17 +48,22 @@ impl DesktopApp {
             dialog = dialog.set_file_name(name.to_string_lossy().as_ref());
         }
 
-        let Some(path) = dialog.pick_file() else {
-            return;
-        };
+        file_dialog::run(
+            self.dialog_parent(Some(ToolWindowKind::Floppy)),
+            dialog,
+            rfd::FileDialog::pick_file,
+            Message::FloppyImagePathSelected,
+        )
+    }
 
+    pub(crate) fn attach_floppy_image(&mut self, path: PathBuf) {
         self.clear_error_notice();
         self.dispatch_sync(AppCommand::AttachFloppyImage(path.clone()));
         if self.error_notice.is_some() {
             return;
         }
 
-        let mut settings = settings;
+        let mut settings = load_settings();
         settings.storage.floppy_path = path.clone();
         save_settings(&settings);
         self.refresh_hdd_file_exists();
@@ -67,7 +75,7 @@ impl DesktopApp {
         }
     }
 
-    pub(crate) fn save_floppy_buffer(&mut self) {
+    pub(crate) fn save_floppy_buffer(&self) -> Task<Message> {
         let settings = load_settings();
         let mut dialog = rfd::FileDialog::new().set_file_name("floppy_buffer.kpd");
         for (name, extensions) in floppy_buffer_save_filters() {
@@ -88,10 +96,15 @@ impl DesktopApp {
             dialog = dialog.set_directory(parent);
         }
 
-        let Some(path) = dialog.save_file() else {
-            return;
-        };
+        file_dialog::run(
+            self.dialog_parent(Some(ToolWindowKind::Floppy)),
+            dialog,
+            rfd::FileDialog::save_file,
+            Message::FloppyBufferPathSelected,
+        )
+    }
 
+    pub(crate) fn save_floppy_buffer_to_path(&mut self, path: PathBuf) {
         match save_floppy_buffer_file(&path, &self.snapshot.devices.floppy.visible_buffer) {
             Ok(path) => self.set_status_custom(format!(
                 "{}: {}",
@@ -189,7 +202,7 @@ fn floppy_buffer_save_path(path: &Path) -> PathBuf {
     }
 }
 impl DesktopApp {
-    pub(crate) fn choose_hdd_directory(&mut self) {
+    pub(crate) fn choose_hdd_directory(&self) -> Task<Message> {
         let mut dialog = rfd::FileDialog::new();
 
         let preferred = self
@@ -207,10 +220,15 @@ impl DesktopApp {
             dialog = dialog.set_directory(parent);
         }
 
-        let Some(folder) = dialog.pick_folder() else {
-            return;
-        };
+        file_dialog::run(
+            self.dialog_parent(Some(ToolWindowKind::Hdd)),
+            dialog,
+            rfd::FileDialog::pick_folder,
+            Message::HddDirectorySelected,
+        )
+    }
 
+    pub(crate) fn attach_hdd_directory(&mut self, folder: PathBuf) {
         self.clear_error_notice();
         let hdd_path = folder.join("hdd.kpd");
         self.hdd_file_exists = true;

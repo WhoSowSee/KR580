@@ -2,6 +2,7 @@ use super::{DesktopApp, ImportFileFormat, ImportModalFocus, Message, StatusKind}
 use crate::backend::AppCommand;
 use crate::i18n::Key;
 use crate::persistence::Importers;
+use crate::runtime::file_dialog;
 use iced::{Event, Task, window};
 use std::path::PathBuf;
 
@@ -68,8 +69,9 @@ impl DesktopApp {
 
         match message {
             Message::Tick | Message::CursorMoved(_) | Message::ModifiersChanged(_) => None,
-            Message::ImportFileBrowse => {
-                self.choose_import_file();
+            Message::ImportFileBrowse => Some(self.choose_import_file()),
+            Message::ImportFileSelected(path) => {
+                self.load_import_file(path.clone());
                 Some(Task::none())
             }
             Message::ImportTargetDropdownToggled => {
@@ -200,15 +202,17 @@ impl DesktopApp {
         self.import_target_highlight = None;
     }
 
-    fn choose_import_file(&mut self) {
-        if let Some(path) = rfd::FileDialog::new()
+    fn choose_import_file(&self) -> Task<Message> {
+        let dialog = rfd::FileDialog::new()
             .add_filter("KR580 file", &["txt", "xlsx"])
             .add_filter("KR580 txt file", &["txt"])
-            .add_filter("KR580 spreadsheet file", &["xlsx"])
-            .pick_file()
-        {
-            self.load_import_file(path);
-        }
+            .add_filter("KR580 spreadsheet file", &["xlsx"]);
+        file_dialog::run(
+            self.dialog_parent(None),
+            dialog,
+            rfd::FileDialog::pick_file,
+            Message::ImportFileSelected,
+        )
     }
 
     fn toggle_import_target_dropdown(&mut self) {
@@ -255,10 +259,7 @@ impl DesktopApp {
 
     fn submit_import_modal_focus(&mut self) -> Task<Message> {
         match self.import_modal_focus {
-            ImportModalFocus::Browse => {
-                self.choose_import_file();
-                Task::none()
-            }
+            ImportModalFocus::Browse => self.choose_import_file(),
             ImportModalFocus::Target => {
                 self.toggle_import_target_dropdown();
                 Task::none()

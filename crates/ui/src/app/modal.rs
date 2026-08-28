@@ -100,10 +100,7 @@ impl DesktopApp {
         self.discard_modal_focus = DiscardModalButton::Cancel;
         self.discard_modal_keyboard_focus_visible = false;
         match action {
-            PendingAction::OpenSnapshot => {
-                self.open_program();
-                Task::none()
-            }
+            PendingAction::OpenSnapshot => self.open_program(),
             PendingAction::OpenDroppedFile(path) => {
                 self.load_program_from_path(path);
                 Task::none()

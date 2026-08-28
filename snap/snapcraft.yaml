@@ -44,6 +44,7 @@ parts:
       - libfontconfig1-dev
       - libfreetype6-dev
     stage-packages:
+      - libdbus-1-3
       - libxkbcommon0
       - libwayland-client0
       - libwayland-cursor0
@@ -52,6 +53,7 @@ parts:
       - libfreetype6
       - libgl1
       - libegl1
+      - zenity
     override-build: |
       set -eu
       cd "$CRAFT_PART_SRC"

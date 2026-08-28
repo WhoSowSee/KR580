@@ -1,12 +1,11 @@
 use super::super::messages::Message;
 use super::super::state::DesktopApp;
-use super::network::is_directory_writable;
-use crate::i18n::Key;
+use crate::runtime::file_dialog;
 use iced::Task;
 use std::path::PathBuf;
 
 impl DesktopApp {
-    pub(super) fn browse_settings_floppy_image(&mut self) -> Task<Message> {
+    pub(super) fn browse_settings_floppy_image(&self) -> Task<Message> {
         if self.settings_dialog.is_none() {
             return Task::none();
         }
@@ -29,14 +28,15 @@ impl DesktopApp {
         } else if let Some(parent) = preferred.parent() {
             dialog = dialog.set_directory(parent);
         }
-        dialog
-            .pick_file()
-            .map(Message::SettingsDraftFloppyImageSet)
-            .map(Task::done)
-            .unwrap_or_else(Task::none)
+        file_dialog::run(
+            self.dialog_parent(None),
+            dialog,
+            rfd::FileDialog::pick_file,
+            Message::SettingsDraftFloppyImageSet,
+        )
     }
 
-    pub(super) fn browse_settings_hdd_directory(&mut self) -> Task<Message> {
+    pub(super) fn browse_settings_hdd_directory(&self) -> Task<Message> {
         if self.settings_dialog.is_none() {
             return Task::none();
         }
@@ -51,14 +51,12 @@ impl DesktopApp {
         } else if let Some(parent) = preferred.parent() {
             dialog = dialog.set_directory(parent);
         }
-        let Some(folder) = dialog.pick_folder() else {
-            return Task::none();
-        };
-        if !is_directory_writable(&folder) {
-            self.show_error_notice(self.lang.t(Key::ErrHddDirectoryNotWritable));
-            return Task::none();
-        }
-        Task::done(Message::SettingsDraftHddDirectorySet(folder))
+        file_dialog::run(
+            self.dialog_parent(None),
+            dialog,
+            rfd::FileDialog::pick_folder,
+            Message::SettingsDraftHddDirectorySet,
+        )
     }
 }
 

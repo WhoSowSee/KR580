@@ -38,8 +38,8 @@ whose defaults are expected to stay off:
 
 ```sh
 cargo tree -p kr580 --target all -f "{p} features=[{f}]"
-cargo tree -p kr580 --target all -e features -i roxmltree@0.20.0
-cargo tree -p kr580 --target all -e features -i windows@0.58.0
+cargo tree -p kr580 --target all -e features -i roxmltree@0.21.1
+cargo tree -p kr580 --target all -e features -i windows@0.62.2
 ```
 
 The direct dependency declarations disable broad defaults where the app uses a
@@ -89,8 +89,9 @@ current selected option without submitting a physical print job.
   printer view-mode toggling, printer target/settings updates, memory-cell action and return shortcut
   rebinding, main-window file drag/drop hover routing, supported-extension
   validation, dropped-path dirty confirmation, detachable tool-window lifecycle,
-  installer layout helpers, install-mode detection, embedded/fallback
-  installer payload selection, and launcher-to-app path resolution.
+  native-dialog parent selection, installer layout helpers, install-mode
+  detection, embedded/fallback installer payload selection, and launcher-to-app
+  path resolution.
 
 External Intel 8080 binary suites are not included in this workspace.
 When available, add them as an additional compatibility gate instead of
@@ -152,6 +153,11 @@ worth eyeballing after touching `crates/ui`:
 - open a `.krs` file from File → Open, enter a start address, and confirm its
   bytes appear at that RAM address; use Save as with `.krs` to verify the
   selected inclusive RAM range is written without a header;
+- open native dialogs from the main window, detached Monitor/Floppy/HDD,
+  Settings, Import/Export, and the installer; confirm each dialog belongs to its
+  owning window and cancellation leaves state unchanged;
+- export the full memory range to XLSX and confirm Field/Value/Address/Command
+  columns open at readable widths and long values do not stretch the worksheet;
 - run `cargo run -p kr580 --bin kr -- --help` and confirm usage prints
   to stdout;
 - run `cargo run -p kr580 --bin kr -- --install` and confirm the
@@ -195,7 +201,9 @@ worth eyeballing after touching `crates/ui`:
 - run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1`
   on Windows or `bash scripts/build_installer.sh` on Unix/macOS and confirm
   a standalone `KR580-Setup-*` artifact appears under `dist/`; for release
-  packaging, also smoke-check `--target` builds and `scripts/package_installer_deb.sh` for one Linux target;
+  packaging, also smoke-check `--target` builds and `scripts/package_installer_deb.sh` for one Linux target, confirm the
+  Debian control metadata contains `libdbus-1-3` and `zenity`, and open a file
+  dialog in the Debian, Snap, and Nix artifacts;
 - run `cargo run -p kr580 --bin kr -- nonexistent.580` and confirm
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm

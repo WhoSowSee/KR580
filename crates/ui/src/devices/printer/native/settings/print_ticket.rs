@@ -6,6 +6,7 @@ use super::{configuration_from_devmode, print_devmode};
 use crate::devices::printer::{
     PrinterInfo, PrinterPropertyChange, PrinterPropertySheet, PrinterSettings,
 };
+use windows::Win32::Foundation::HGLOBAL;
 use windows::Win32::Graphics::Gdi::DEVMODEA;
 use windows::Win32::Graphics::Printing::PrintTicket::{
     HPTPROVIDER, PTCloseProvider, PTConvertDevModeToPrintTicket, PTConvertPrintTicketToDevMode,
@@ -159,7 +160,7 @@ fn devmode_from_ticket(provider: &Provider, ticket: &IStream) -> Result<Vec<u8>,
 }
 
 fn empty_stream() -> Result<IStream, String> {
-    unsafe { CreateStreamOnHGlobal(None, true) }
+    unsafe { CreateStreamOnHGlobal(HGLOBAL(std::ptr::null_mut()), true) }
         .map_err(|error| format!("CreateStreamOnHGlobal failed: {error}"))
 }
 

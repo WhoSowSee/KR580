@@ -111,6 +111,7 @@ Priority: optional
 Architecture: $deb_arch
 Installed-Size: $installed_size
 Maintainer: WhoSowSee
+Depends: libdbus-1-3, zenity
 Description: KR580 graphical installer
  Standalone installer for the KR580 desktop emulator.
 CONTROL

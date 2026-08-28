@@ -176,6 +176,10 @@ impl DesktopApp {
             }
             Message::SettingsHddDirectoryBrowse => Some(self.browse_settings_hdd_directory()),
             Message::SettingsDraftHddDirectorySet(path) => {
+                if !network::is_directory_writable(&path) {
+                    self.show_error_notice(self.lang.t(Key::ErrHddDirectoryNotWritable));
+                    return Some(Task::none());
+                }
                 if let Some(dialog) = self.settings_dialog.as_mut() {
                     dialog.draft_hdd_directory = Some(path);
                 }

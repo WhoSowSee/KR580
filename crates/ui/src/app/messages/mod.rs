@@ -2,7 +2,9 @@ mod export;
 
 use super::register_inline::RegisterMove;
 use crate::i18n::Lang;
-use crate::persistence::{ColorScheme, PrinterDialogMode, ShortcutAction, ShortcutBinding};
+use crate::persistence::{
+    ColorScheme, ExportOptions, PrinterDialogMode, ShortcutAction, ShortcutBinding,
+};
 use iced::{Point, keyboard, widget::text_editor};
 use k580_core::RegisterName;
 use k580_ui::devices::printer::{
@@ -88,6 +90,7 @@ pub(crate) enum Message {
     LoadSnapshotFromPath(PathBuf),
     SaveSnapshot,
     SaveSnapshotAs,
+    SaveSnapshotToPath(PathBuf),
     SubprogramStartChanged(String),
     SubprogramEndChanged(String),
     ConfirmSubprogram,
@@ -106,9 +109,11 @@ pub(crate) enum Message {
     ExportTargetAdd,
     ExportTargetDelete,
     ConfirmExport,
+    ExportFileSelected(PathBuf, ExportTab, ExportOptions),
     CancelExport,
     Import,
     ImportFileBrowse,
+    ImportFileSelected(PathBuf),
     ImportTargetDropdownToggled,
     ImportTargetSelected(String),
     ConfirmImport,
@@ -241,18 +246,22 @@ pub(crate) enum Message {
     MonitorHexScrolled,
     ClearMonitorBuffer,
     SaveMonitorImage,
+    MonitorImagePathSelected(PathBuf),
     OpenFloppy,
     CloseFloppy,
     ToggleFloppyImageContents,
     OpenFloppyImage,
+    FloppyImagePathSelected(PathBuf),
     DetachFloppyImage,
     SaveFloppyBuffer,
+    FloppyBufferPathSelected(PathBuf),
     ToggleFloppyDebugBuffer,
     ClearFloppyBuffer,
     OpenHdd,
     CloseHdd,
     ClearHddBuffer,
     ChooseHddDirectory,
+    HddDirectorySelected(PathBuf),
     ToggleHddDebugBuffer,
     DeleteHddFile,
     CreateHddFile,

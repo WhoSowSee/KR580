@@ -3,8 +3,9 @@
 #[cfg(windows)]
 pub(crate) fn cloak_window(window: &dyn iced::window::Window, cloaked: bool) {
     use iced::window::raw_window_handle::RawWindowHandle;
-    use windows_sys::Win32::Foundation::{BOOL, FALSE, HWND, TRUE};
+    use windows_sys::Win32::Foundation::{FALSE, HWND, TRUE};
     use windows_sys::Win32::Graphics::Dwm::{DWMWA_CLOAK, DwmSetWindowAttribute};
+    use windows_sys::core::BOOL;
 
     let Ok(handle) = window.window_handle() else {
         return;

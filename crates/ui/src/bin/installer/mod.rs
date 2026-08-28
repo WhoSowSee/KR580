@@ -156,10 +156,17 @@ impl Installer {
             }
             Message::BrowseInstallDir => {
                 let current = PathBuf::from(self.install_dir.clone());
-                return Task::perform(
-                    async move { pick_folder(current) },
-                    Message::InstallDirPicked,
-                );
+                let Some(parent) = self.window_id else {
+                    return Task::none();
+                };
+                let mut dialog = rfd::FileDialog::new();
+                if current.is_dir() {
+                    dialog = dialog.set_directory(current);
+                }
+                return window::run(parent, move |window| {
+                    dialog.set_parent(window).pick_folder()
+                })
+                .map(Message::InstallDirPicked);
             }
             Message::InstallDirPicked(Some(path)) => {
                 self.install_dir = path.display().to_string();
@@ -324,14 +331,6 @@ impl Installer {
     fn close_window(&self) -> Task<Message> {
         self.window_id.map_or_else(iced::exit, window::close)
     }
-}
-
-fn pick_folder(current: PathBuf) -> Option<PathBuf> {
-    let mut dialog = rfd::FileDialog::new();
-    if current.is_dir() {
-        dialog = dialog.set_directory(current);
-    }
-    dialog.pick_folder()
 }
 
 impl Installer {

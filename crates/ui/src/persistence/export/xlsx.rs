@@ -3,6 +3,9 @@ use crate::persistence::ExportError;
 use rust_xlsxwriter::{Workbook, Worksheet};
 use std::path::Path;
 
+const AUTOFIT_ROW_COUNT: u32 = 512;
+const AUTOFIT_MAX_WIDTH: u32 = 300;
+
 impl Exporters {
     pub fn write_xlsx(path: impl AsRef<Path>, model: &ExportModel) -> Result<(), ExportError> {
         Self::write_xlsx_with_options(path, model, &ExportOptions::default())
@@ -91,6 +94,10 @@ fn write_sheet(
         write_memory_row(sheet, row, *address, *value, options)?;
         row += 1;
     }
+    sheet
+        .set_autofit_max_row(row.saturating_sub(1).min(AUTOFIT_ROW_COUNT - 1))
+        .set_autofit_max_width(AUTOFIT_MAX_WIDTH)
+        .autofit();
     Ok(())
 }
 

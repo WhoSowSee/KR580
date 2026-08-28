@@ -22,6 +22,10 @@ opens an in-app source modal, then uses `rfd` for choosing the file.
 Export first opens an in-app format modal, then uses `rfd` for the save
 path. It does not serialize files, run CPU instructions directly, or
 store emulator state in widgets.
+Dialogs use `iced::window::run` and `FileDialog::set_parent`: detached monitor,
+floppy, and HDD workflows use their own window, while other app workflows and
+the installer use their main window. Paths return through typed messages;
+cancellation leaves state unchanged.
 
 The main emulator window also accepts files from the OS drag-and-drop
 surface. `DesktopApp::file_drag_hovered` controls a passive 18%-alpha black
@@ -552,14 +556,14 @@ This is implemented in `DesktopApp::handle_esc` ahead of the menu /
 notice fallbacks.
 
 `Message::SaveMonitorImage` is handled by `DesktopApp::save_monitor_image`
-in `runtime/files.rs`. It calls `view::monitor_image::render_monitor_image`
-to produce PNG/JPEG/WebP/BMP output at the monitor's native logical
-resolution (no upscaling, no antialiasing), then opens an `rfd::FileDialog`
-filtered to image formats with a default file name of `monitor.png`. The
-dialog defaults to the directory of the currently loaded `.580` snapshot
-when one is available. On success the absolute path is surfaced via
-`set_status_custom`; on render or write failure the status falls back to
-`Key::MonitorImageSaveFailed` and the error is logged through
+in `runtime/files.rs`. It opens a parented `rfd::FileDialog` filtered to image
+formats with a default file name of `monitor.png`; the result returns as
+`Message::MonitorImagePathSelected`. The dialog defaults to the directory of
+the currently loaded `.580` snapshot when one is available. The selected
+format is rendered at the monitor's native logical resolution (no upscaling,
+no antialiasing). On success the absolute path is surfaced through
+`StatusKind::MonitorImageSaved`; on render or write failure the status falls
+back to `Key::MonitorImageSaveFailed` and the error is logged through
 `tracing::error`.
 
 Closing the monitor: `Message::CloseMonitor` (close button, attached
@@ -2672,8 +2676,9 @@ the asset pipeline.
 - `image` with only PNG, JPEG, WebP, and BMP support. These are the formats used
   by embedded icons and monitor export; the broad default codec bundle and
   Rayon are disabled.
-- `rfd` with the XDG portal and Tokio backend for native file dialogs; its
-  separate async-std runtime is disabled.
+- `rfd` with the XDG portal and Wayland parent-handle support for native file
+  dialogs. The synchronous `FileDialog` API uses rfd's internal portal bridge;
+  the GTK backend stays disabled.
 - `tracing` and `tracing-subscriber` for diagnostic logging.
 - `roxmltree` for PrintTicket parsing. Its default `std` and source-position
   features are also enabled transitively by Iced's font/SVG stack.

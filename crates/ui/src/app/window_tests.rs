@@ -16,6 +16,34 @@ fn detached_storage_matches_attached_dialog_size() {
     assert_eq!(detached_storage_size(), Size::new(760.0, 340.0));
 }
 
+#[test]
+fn detached_tool_dialog_uses_tool_window_as_parent() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let main = window::Id::unique();
+    let floppy = window::Id::unique();
+    app.main_window_id = Some(main);
+    app.floppy_window.id = Some(floppy);
+    app.floppy_window.ready = true;
+    app.floppy_window.detached = true;
+
+    assert_eq!(
+        app.dialog_parent(Some(ToolWindowKind::Floppy)),
+        Some(floppy)
+    );
+}
+
+#[test]
+fn main_and_attached_tool_dialogs_use_main_window() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let main = window::Id::unique();
+    app.main_window_id = Some(main);
+    app.hdd_window.id = Some(window::Id::unique());
+    app.hdd_window.ready = true;
+
+    assert_eq!(app.dialog_parent(None), Some(main));
+    assert_eq!(app.dialog_parent(Some(ToolWindowKind::Hdd)), Some(main));
+}
+
 #[cfg(windows)]
 #[test]
 fn second_startup_frame_does_not_prepare_hidden_tool_windows() {

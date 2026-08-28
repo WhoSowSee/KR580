@@ -39,7 +39,10 @@ Exporters use direct generators and never scrape UI widgets:
   `[Registers]`, `[Flags]`, and `[Memory]` sections, while text exports
   with several UI sections write one named block per section;
 - `.xlsx`: a `rust_xlsxwriter` workbook whose worksheets contain the
-  register table, flag table, and memory table for each selected page.
+  register table, flag table, and memory table for each selected page. Columns
+  are autofitted from at most the first 512 worksheet rows and capped at 300
+  pixels, so full-memory exports remain fast and long command/comment
+  values cannot make a sheet impractically wide.
 
 `ExportOptions` lets the UI pass a worksheet name, memory address range,
 memory-table column toggles, register selection, flag selection, and

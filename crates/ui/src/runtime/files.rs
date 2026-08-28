@@ -1,18 +1,39 @@
 use std::path::PathBuf;
 
-use crate::app::{DesktopApp, ExportTab, StatusKind, SubprogramDialogMode};
+use crate::app::{
+    DesktopApp, ExportTab, Message, StatusKind, SubprogramDialogMode, ToolWindowKind,
+};
 use crate::backend::AppCommand;
 use crate::i18n::Key;
-use crate::persistence::SubprogramSerializer;
+use crate::persistence::{ExportOptions, SubprogramSerializer};
 use crate::view::monitor_image::MonitorImageFormat;
+use iced::Task;
 
+use super::file_dialog;
 use super::parse::parse_hex_u16;
 
 impl DesktopApp {
-    pub(crate) fn open_program(&mut self) {
-        if let Some(path) = program_file_dialog().pick_file() {
-            self.load_program_from_path(path);
+    pub(crate) fn route_file_dialog_message(&mut self, message: &Message) -> Option<Task<Message>> {
+        match message {
+            Message::LoadSnapshotFromPath(path) => self.load_program_from_path(path.clone()),
+            Message::SaveSnapshot => return Some(self.save_program()),
+            Message::SaveSnapshotAs => return Some(self.save_program_as()),
+            Message::SaveSnapshotToPath(path) => self.save_program_to_path(path.clone(), None),
+            Message::ExportFileSelected(path, format, options) => {
+                self.export_selected_file_to_path(path.clone(), *format, options.clone());
+            }
+            _ => return None,
         }
+        Some(Task::none())
+    }
+
+    pub(crate) fn open_program(&self) -> Task<Message> {
+        file_dialog::run(
+            self.dialog_parent(None),
+            program_file_dialog(),
+            rfd::FileDialog::pick_file,
+            Message::LoadSnapshotFromPath,
+        )
     }
 
     pub(crate) fn load_program_from_path(&mut self, path: PathBuf) {
@@ -37,52 +58,16 @@ impl DesktopApp {
         self.set_status(StatusKind::Opened { display });
     }
 
-    pub(crate) fn save_program(&mut self) {
+    pub(crate) fn save_program(&mut self) -> Task<Message> {
         self.commit_pending_inline_edit();
-        self.clear_error_notice();
-        let path = match &self.current_snapshot_path {
-            Some(path) => path.clone(),
-            None => {
-                let Some(path) = program_file_dialog().save_file() else {
-                    return;
-                };
-                if SubprogramSerializer::supports_path(&path) {
-                    self.open_subprogram_dialog(path, SubprogramDialogMode::Save);
-                    return;
-                }
-                self.current_snapshot_path = Some(path.clone());
-                path
-            }
+        let Some(path) = self.current_snapshot_path.clone() else {
+            return self.save_program_dialog(program_file_dialog());
         };
-        if SubprogramSerializer::supports_path(&path) {
-            let Some((start, end)) = self.current_subprogram_range else {
-                self.open_subprogram_dialog(path, SubprogramDialogMode::Save);
-                return;
-            };
-            self.dispatch_sync(crate::backend::AppCommand::SaveSubprogram {
-                path: path.clone(),
-                start,
-                end,
-            });
-            if self.error_notice.is_some() {
-                return;
-            }
-            self.mark_saved();
-            self.set_status(StatusKind::SavedTo {
-                display: path.display().to_string(),
-            });
-            return;
-        }
-        let display = path.display().to_string();
-        self.dispatch_sync(AppCommand::SaveProgram(path));
-        if self.error_notice.is_some() {
-            return;
-        }
-        self.mark_saved();
-        self.set_status(StatusKind::SavedTo { display });
+        self.save_program_to_path(path, self.current_subprogram_range);
+        Task::none()
     }
 
-    pub(crate) fn save_program_as(&mut self) {
+    pub(crate) fn save_program_as(&mut self) -> Task<Message> {
         self.commit_pending_inline_edit();
         let mut dialog = program_file_dialog();
         if let Some(current) = &self.current_snapshot_path {
@@ -93,10 +78,35 @@ impl DesktopApp {
                 dialog = dialog.set_file_name(name.to_string_lossy().as_ref());
             }
         }
-        let Some(path) = dialog.save_file() else {
-            return;
-        };
+        self.save_program_dialog(dialog)
+    }
+
+    fn save_program_dialog(&self, dialog: rfd::FileDialog) -> Task<Message> {
+        file_dialog::run(
+            self.dialog_parent(None),
+            dialog,
+            rfd::FileDialog::save_file,
+            Message::SaveSnapshotToPath,
+        )
+    }
+
+    fn save_program_to_path(&mut self, path: PathBuf, subprogram_range: Option<(u16, u16)>) {
         if SubprogramSerializer::supports_path(&path) {
+            if let Some((start, end)) = subprogram_range {
+                self.clear_error_notice();
+                self.dispatch_sync(AppCommand::SaveSubprogram {
+                    path: path.clone(),
+                    start,
+                    end,
+                });
+                if self.error_notice.is_none() {
+                    self.mark_saved();
+                    self.set_status(StatusKind::SavedTo {
+                        display: path.display().to_string(),
+                    });
+                }
+                return;
+            }
             self.open_subprogram_dialog(path, SubprogramDialogMode::Save);
             return;
         }
@@ -129,20 +139,30 @@ impl DesktopApp {
     pub(crate) fn export_selected_file(
         &mut self,
         format: ExportTab,
-        options: crate::persistence::ExportOptions,
-    ) {
+        options: ExportOptions,
+    ) -> Task<Message> {
         self.commit_pending_inline_edit();
         let filter = match format {
             ExportTab::Xlsx => "KR580 spreadsheet export",
             ExportTab::Text => "KR580 text export",
         };
-        let Some(path) = rfd::FileDialog::new()
+        let dialog = rfd::FileDialog::new()
             .add_filter(filter, &[format.extension()])
-            .set_file_name(format.default_file_name())
-            .save_file()
-        else {
-            return;
-        };
+            .set_file_name(format.default_file_name());
+        file_dialog::run(
+            self.dialog_parent(None),
+            dialog,
+            rfd::FileDialog::save_file,
+            move |path| Message::ExportFileSelected(path, format, options.clone()),
+        )
+    }
+
+    pub(crate) fn export_selected_file_to_path(
+        &mut self,
+        path: PathBuf,
+        format: ExportTab,
+        options: ExportOptions,
+    ) {
         let path = normalise_export_path_for_format(path, format);
         self.clear_error_notice();
         let display = path.display().to_string();
@@ -180,7 +200,7 @@ pub(super) fn normalise_export_path_for_format(path: PathBuf, format: ExportTab)
 }
 
 impl DesktopApp {
-    pub(crate) fn save_monitor_image(&mut self) {
+    pub(crate) fn save_monitor_image(&self) -> Task<Message> {
         let mut dialog = rfd::FileDialog::new()
             .add_filter("PNG image", &["png"])
             .add_filter("JPEG image", &["jpg", "jpeg"])
@@ -192,11 +212,15 @@ impl DesktopApp {
         {
             dialog = dialog.set_directory(parent);
         }
+        file_dialog::run(
+            self.dialog_parent(Some(ToolWindowKind::Monitor)),
+            dialog,
+            rfd::FileDialog::save_file,
+            Message::MonitorImagePathSelected,
+        )
+    }
 
-        let Some(path) = dialog.save_file() else {
-            return;
-        };
-
+    pub(crate) fn save_monitor_image_to_path(&mut self, path: PathBuf) {
         let format = match path
             .extension()
             .and_then(|s| s.to_str())

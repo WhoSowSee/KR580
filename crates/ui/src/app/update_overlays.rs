@@ -121,7 +121,10 @@ impl DesktopApp {
                 self.dispatch(crate::backend::AppCommand::ClearMonitorBuffer);
             }
             Message::SaveMonitorImage => {
-                self.save_monitor_image();
+                return Some(self.save_monitor_image());
+            }
+            Message::MonitorImagePathSelected(path) => {
+                self.save_monitor_image_to_path(path.clone());
             }
             Message::OpenFloppy => {
                 self.close_top_menu();
@@ -153,7 +156,10 @@ impl DesktopApp {
                 }
             }
             Message::OpenFloppyImage => {
-                self.open_floppy_image();
+                return Some(self.open_floppy_image());
+            }
+            Message::FloppyImagePathSelected(path) => {
+                self.attach_floppy_image(path.clone());
             }
             Message::DetachFloppyImage => {
                 self.dispatch_sync(crate::backend::AppCommand::DetachFloppyImage);
@@ -167,7 +173,10 @@ impl DesktopApp {
                 }
             }
             Message::SaveFloppyBuffer => {
-                self.save_floppy_buffer();
+                return Some(self.save_floppy_buffer());
+            }
+            Message::FloppyBufferPathSelected(path) => {
+                self.save_floppy_buffer_to_path(path.clone());
             }
             Message::ToggleFloppyDebugBuffer => {
                 let enabled = !self.snapshot.devices.floppy.debug_buffer;
@@ -198,7 +207,10 @@ impl DesktopApp {
                 return Some(self.close_hdd());
             }
             Message::ChooseHddDirectory => {
-                self.choose_hdd_directory();
+                return Some(self.choose_hdd_directory());
+            }
+            Message::HddDirectorySelected(path) => {
+                self.attach_hdd_directory(path.clone());
             }
             Message::ToggleHddDebugBuffer => {
                 let enabled = !self.snapshot.devices.hdd.debug_buffer;

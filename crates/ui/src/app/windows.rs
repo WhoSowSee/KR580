@@ -46,6 +46,14 @@ impl DesktopApp {
         }
     }
 
+    pub(crate) fn dialog_parent(&self, kind: Option<ToolWindowKind>) -> Option<window::Id> {
+        kind.and_then(|kind| {
+            let window = self.tool_window(kind);
+            window.id.filter(|_| window.detached && window.ready)
+        })
+        .or(self.main_window_id)
+    }
+
     pub(crate) fn boot(initial: Option<PathBuf>) -> (Self, Task<Message>) {
         let (mut app, startup) = Self::with_initial_path(initial);
         let (id, open) = window::open(main_window_settings());
