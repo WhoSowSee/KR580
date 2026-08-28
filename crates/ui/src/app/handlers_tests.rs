@@ -1,5 +1,5 @@
 use super::handlers::{alt_shortcut, ctrl_shortcut, plain_shortcut};
-use crate::app::{DesktopApp, Message};
+use crate::app::{DesktopApp, Message, OPCODE_SEARCH_INPUT_ID};
 use iced::keyboard;
 use iced::keyboard::key::{Code, Physical};
 use std::fs;
@@ -44,6 +44,22 @@ fn plain_shortcuts_use_physical_key_for_russian_layout() {
         ),
         Message::OpenOpcodePicker,
     );
+}
+
+#[test]
+fn escape_closes_opcode_picker_without_clearing_memory_selection() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.select_memory(0x1234);
+
+    let _task = app.update(Message::OpenOpcodePicker);
+    assert_eq!(app.opcode_dropdown_address, Some(0x1234));
+    assert_eq!(app.focused_input, Some(OPCODE_SEARCH_INPUT_ID));
+
+    let _task = app.update(Message::EscPressed);
+
+    assert_eq!(app.opcode_dropdown_address, None);
+    assert_eq!(app.selected_memory_address(), Some(0x1234));
+    assert_eq!(app.focused_input, None);
 }
 
 #[test]

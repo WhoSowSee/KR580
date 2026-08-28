@@ -228,6 +228,11 @@ impl DesktopApp {
             self.register_value_input.clear();
             return resolve;
         }
+        if self.opcode_dropdown_address.is_some() {
+            self.hide_opcode_dropdown();
+            self.focused_input = None;
+            return Task::none();
+        }
         if self.selected_memory_address().is_some() {
             self.memory_address_input.clear();
             self.memory_value_input.clear();

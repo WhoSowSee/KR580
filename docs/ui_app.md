@@ -2277,13 +2277,13 @@ the accumulator. Invalid value input leaves the register field empty.
 | ArrowDown / Tab | Move the highlighted opcode to the next filtered command, wrapping at the end. |
 | ArrowUp / Shift+Tab | Move the highlighted opcode to the previous filtered command, wrapping at the start. |
 | Enter | Write the highlighted opcode byte to the selected memory cell and close the picker. |
-| Esc | Close the picker without changing memory. |
+| Esc | Close the picker, release its search-field focus, and keep the selected RAM cell highlighted without changing memory. |
 
 ### Global
 
 | Shortcut | Effect |
 |---|---|
-| Esc | Routed by `Message::EscPressed`: cancels the unsaved-changes modal first, closes the import modal directly, then clears value focus inside the export modal or closes it when no value is focused, then closes passive notices / open top menus, reverts an unsaved inline-edit byte when the inline editor owns focus, otherwise hides the opcode dropdown if it is open. |
+| Esc | Routed by `Message::EscPressed`: cancels the unsaved-changes modal first, closes the import modal directly, then clears value focus inside the export modal or closes it when no value is focused, then closes passive notices / open top menus, reverts an unsaved inline-edit byte when the inline editor owns focus, otherwise hides the opcode dropdown if it is open while preserving the selected RAM cell. |
 | Tab / Shift+Tab | Normal focus-cycle inside editor groups; while a top dropdown is open, cycles its category and enabled rows, then opens the next/previous menu on its outlined category. While the unsaved-changes modal is open, cycles cancel / confirm in a closed ring. While the export modal is open, cycles through tabs, the page/section editable dropdown, add/delete target buttons, range fields, visible column checkboxes, register checkboxes, flag checkboxes, Cancel, and Export. |
 | Enter | Normal submit / inline-edit recovery; while a top dropdown row has keyboard focus, closes the dropdown and dispatches that row's existing action. While the unsaved-changes modal is open, activates the focused modal button. While the export modal is open, selects the focused tab, opens/selects the target dropdown, activates add/delete target buttons, toggles the focused checkbox, or activates Cancel / Export. |
 | ArrowUp / ArrowDown | While a top dropdown is open, wrap through its enabled rows without reaching RAM. Otherwise routed by `DesktopApp::handle_arrow_key` to the editor that currently owns focus (see the panel-specific tables above); with nothing tracked focused they fall back to memory list navigation. |
