@@ -1,5 +1,5 @@
 name: kr580
-base: core22
+base: core24
 version: git
 summary: KR580 desktop emulator installer
 description: |
@@ -8,10 +8,12 @@ description: |
 grade: stable
 confinement: strict
 
-architectures:
-  - build-on: [amd64]
+platforms:
+  amd64:
+    build-on: [amd64]
     build-for: [amd64]
-  - build-on: [arm64]
+  arm64:
+    build-on: [arm64]
     build-for: [arm64]
 
 apps:
@@ -42,7 +44,7 @@ parts:
       - libgl1-mesa-dev
       - libegl1-mesa-dev
       - libfontconfig1-dev
-      - libfreetype6-dev
+      - libfreetype-dev
     stage-packages:
       - libdbus-1-3
       - libxkbcommon0

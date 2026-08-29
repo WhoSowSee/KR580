@@ -110,9 +110,16 @@ The scripts produce standalone setup executables:
 matrices. `scripts/package_installer_deb.sh` wraps a built Linux setup
 executable in a Debian package. `snap/snapcraft.yaml` builds the Snap setup
 package used by CI on native `ubuntu-24.04` and `ubuntu-24.04-arm` runners;
-the workflow filters the core22 `architectures` build plan with `--build-for`
-and builds through LXD instead of destructive mode.
-The `kr580-setup` snap part uses `plugin: nil` and installs the stable Rust toolchain itself via rustup inside its `override-build`, which assembles the multi-binary installer. The snapcraft rust plugin provisions its toolchain in the pull phase, which runs before any part's build and cannot cooperate with a custom `override-build`, so the part manages the toolchain directly.
+the workflow installs Snapcraft from `9.x/stable`, filters the core24
+`platforms` build plan with `snapcraft pack --build-for`, and builds through
+LXD instead of destructive mode. The core24 build uses Ubuntu Noble package
+names, including `libfreetype-dev`; the snap still stages the runtime
+`libfreetype6` package.
+The `kr580-setup` snap part uses `plugin: nil` and installs the stable Rust
+toolchain itself via rustup inside its `override-build`, which assembles the
+multi-binary installer. The Snapcraft Rust plugin provisions its toolchain in
+the pull phase, which runs before any part's build and cannot cooperate with a
+custom `override-build`, so the part manages the toolchain directly.
 On Linux, rfd 0.17 loads `libdbus` for XDG dialogs and falls back to `zenity`.
 The Debian, Snap, and Nix packages provide both; the desktop supplies its portal
 backend.

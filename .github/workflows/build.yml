@@ -180,10 +180,10 @@ jobs:
           sudo snap install lxd
           sudo lxd init --auto
           sudo iptables -P FORWARD ACCEPT
-          sudo snap install --channel 8.x/stable --classic snapcraft
+          sudo snap install --channel 9.x/stable --classic snapcraft
 
       - name: Build snap
-        run: sudo -u runner -E snapcraft --use-lxd --build-for=${{ matrix.arch }}
+        run: sudo -u runner -E snapcraft pack --use-lxd --build-for=${{ matrix.arch }}
 
       - name: Collect snaps
         run: |
