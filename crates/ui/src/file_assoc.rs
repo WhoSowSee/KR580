@@ -57,8 +57,8 @@ pub(crate) fn find_icon() -> Option<std::path::PathBuf> {
     let candidates = [
         dir.join("assets/icons/icon-64.png"),
         dir.join("../assets/icons/icon-64.png"),
-        dir.join("../../assets/icons/icon-64.png"),
-        dir.join("../../../assets/icons/icon-64.png"),
+        dir.join("../../crates/ui/assets/icons/icon-64.png"),
+        dir.join("../../../crates/ui/assets/icons/icon-64.png"),
     ];
     for path in candidates {
         if path.is_file() {

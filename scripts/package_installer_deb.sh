@@ -90,7 +90,7 @@ mkdir -p "$install_root" "$bin_root" "$app_root" "$icon_root" "$control_root" "$
 cp "$installer" "$install_root/KR580-Setup"
 chmod 755 "$install_root/KR580-Setup"
 ln -s ../lib/kr580/KR580-Setup "$bin_root/kr580-setup"
-cp "$repo_root/assets/icons/icon-256.png" "$icon_root/kr580.png"
+cp "$repo_root/crates/ui/assets/icons/icon-256.png" "$icon_root/kr580.png"
 cat > "$app_root/kr580-setup.desktop" <<'DESKTOP'
 [Desktop Entry]
 Type=Application

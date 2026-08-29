@@ -4,15 +4,14 @@
 #
 #   ./scripts/generate_icons.sh
 #
-# Sources (in `assets/icons/`):
+# Sources (in `crates/ui/assets/icons/`):
 #   - `icon.png`     — application icon master.
 #   - `file-580.png` — `.580` file-type icon master.
 #   - `installer-setup.png` — standalone setup icon master.
 #   - `installer-uninstall.png` — installed uninstaller icon master.
 #
-# Outputs in `assets/icons/`, then mirrors the complete icon tree into
-# `crates/ui/assets/icons/` so the published crates.io package is
-# self-contained:
+# Outputs in `crates/ui/assets/icons/`, keeping the published crates.io
+# package self-contained:
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
@@ -24,8 +23,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-out_dir="$repo_root/assets/icons"
-crate_out_dir="$repo_root/crates/ui/assets/icons"
+out_dir="$repo_root/crates/ui/assets/icons"
 
 if command -v magick >/dev/null 2>&1; then
     convert_cmd=(magick)
@@ -133,8 +131,3 @@ if [ ! -f "$uninstall_source" ]; then
     exit 1
 fi
 build_ico "$uninstall_source" "$uninstall_ico" "${installer_ico_sizes[@]}"
-
-rm -rf "$crate_out_dir"
-mkdir -p "$(dirname "$crate_out_dir")"
-cp -R "$out_dir" "$crate_out_dir"
-echo "Synced $crate_out_dir"

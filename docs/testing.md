@@ -112,9 +112,10 @@ replacing the local semantic tests.
 
 ## Asset prerequisites
 
-The build pipeline embeds `assets/icons/icon-64.png` (runtime window icon) and,
-on Windows, one of the checked-in PE resources under `assets/icons/*.ico`.
-If you replace `assets/icons/icon.png`, `file-580.png`,
+The build pipeline embeds `crates/ui/assets/icons/icon-64.png` (runtime window
+icon) and, on Windows, one of the checked-in PE resources under
+`crates/ui/assets/icons/*.ico`. If you replace
+`crates/ui/assets/icons/icon.png`, `file-580.png`,
 `installer-setup.png`, or `installer-uninstall.png`, run the matching script
 before rebuilding so the embedded artefacts stay in sync with the source
 artwork:

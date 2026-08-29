@@ -1,6 +1,7 @@
 # Assets
 
-Static assets shipped with the workspace live under `assets/`.
+Documentation assets live under `assets/`. Application icons live inside the
+UI crate under `crates/ui/assets/icons/`.
 
 ## `assets/brand/`
 
@@ -27,7 +28,7 @@ visible run.
 
 These files are documentation screenshots. They are not embedded into the application binary.
 
-## `assets/icons/`
+## `crates/ui/assets/icons/`
 
 | File | Purpose |
 |---|---|
@@ -44,20 +45,20 @@ These files are documentation screenshots. They are not embedded into the applic
 The pre-rendered files are checked into the repository so the binary
 does not have to decode or resize the master image at build or run time.
 
-The same icon tree is mirrored under `crates/ui/assets/icons/`. The derived
-PNG/ICO/SVG files are consumed by compile-time `include_bytes!` calls and by
-the Windows resource build script, because a crates.io package cannot rely on
-files outside the `kr580` crate root. The four large master PNGs are kept in
-the repository mirror for regeneration but excluded from the published crate.
-Regenerate icons through the scripts below instead of editing the mirror by
-hand.
+The icon tree lives inside the `kr580` crate because compile-time
+`include_bytes!` calls, the Windows resource build script, and the published
+crates.io package must all resolve the same crate-local files. The four large
+master PNGs stay in this tree for regeneration but are excluded from the
+published crate. Workspace-level Debian, Snap, and Nix packaging reads the same
+files directly, so no synchronized repository mirror is required.
 
 ## Regenerating the icon set
 
-The scripts read `assets/icons/icon.png`, `assets/icons/file-580.png`,
-`assets/icons/installer-setup.png`, and
-`assets/icons/installer-uninstall.png`, then rewrite every derived PNG/ICO in
-one go.
+The scripts read `crates/ui/assets/icons/icon.png`,
+`crates/ui/assets/icons/file-580.png`,
+`crates/ui/assets/icons/installer-setup.png`, and
+`crates/ui/assets/icons/installer-uninstall.png`, then rewrite every derived
+PNG/ICO in one go.
 
 ### PowerShell (Windows)
 
@@ -114,8 +115,8 @@ Two SVG icon families live alongside the PNG set:
 
 | Directory | Purpose |
 |---|---|
-| `assets/icons/actions/` | Toolbar / menu / titlebar glyphs (`play`, `pause`, `step-forward`, `redo-dot`, `refresh-ccw`, `reset-ram`, `reset-registers`, `chevrons-right`, `cpu`, `clear-halt`, `binary`, `hard-drive-download`, `hard-drive-x`, `hard-drive-upload`, `bug`, `bug-off`, file/window/save/save-as/file-up/file-down, window caption buttons). Consumed by `crates/ui/src/view/icons.rs` through the `action_icon_bytes!` macro. |
-| `assets/icons/devices/` | Peripheral chips on the bottom row of the schematic plate: `monitor.svg`, `floppy.svg`, `hdd.svg`, `network.svg`, `printer.svg`. Consumed through the `device_icon_bytes!` macro and exposed as `icons::device_monitor()` / `device_floppy()` / `device_hdd()` / `device_network()` / `device_printer()` getters. The chips are rendered by `view::schematic::device_chip` inside the `schematic_block_style` chassis with a hover tooltip wired the same way the action-panel buttons wire theirs. |
+| `crates/ui/assets/icons/actions/` | Toolbar / menu / titlebar glyphs (`play`, `pause`, `step-forward`, `redo-dot`, `refresh-ccw`, `reset-ram`, `reset-registers`, `chevrons-right`, `cpu`, `clear-halt`, `binary`, `hard-drive-download`, `hard-drive-x`, `hard-drive-upload`, `bug`, `bug-off`, file/window/save/save-as/file-up/file-down, window caption buttons). Consumed by `crates/ui/src/view/icons.rs` through the `action_icon_bytes!` macro. |
+| `crates/ui/assets/icons/devices/` | Peripheral chips on the bottom row of the schematic plate: `monitor.svg`, `floppy.svg`, `hdd.svg`, `network.svg`, `printer.svg`. Consumed through the `device_icon_bytes!` macro and exposed as `icons::device_monitor()` / `device_floppy()` / `device_hdd()` / `device_network()` / `device_printer()` getters. The chips are rendered by `view::schematic::device_chip` inside the `schematic_block_style` chassis with a hover tooltip wired the same way the action-panel buttons wire theirs. |
 
 All SVGs are authored with `stroke="currentColor"` (or `fill="currentColor"`
 for the solid HDD glyph) so iced's `svg::Style { color: Some(...) }`

@@ -13,8 +13,8 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `crates/ui/`: public `kr580` package with private app, device, persistence, UI, launcher, and installer modules.
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
-- `assets/icons/`: pre-rendered icon set consumed at build and run time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
-- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts under `dist/`.
+- `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
+- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts under `dist/`.
 - `target/`: cargo build artefacts (gitignored).
 
 ## Installation Layout

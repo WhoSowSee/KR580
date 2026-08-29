@@ -193,9 +193,9 @@ Windows shortcut creation uses a hidden PowerShell child process with
 Start Menu or desktop shortcuts.
 
 On Windows, the standalone setup artifact uses
-`assets/icons/installer-setup.ico` as its main PE icon. The installed
+`crates/ui/assets/icons/installer-setup.ico` as its main PE icon. The installed
 `app/uninstaller.exe` is a separate payload binary built from the same entry
-logic with `assets/icons/installer-uninstall.ico`, so Explorer and Apps &
+logic with `crates/ui/assets/icons/installer-uninstall.ico`, so Explorer and Apps &
 Features show the uninstall badge instead of the setup badge.
 
 System mode stores application settings in the platform config directory:

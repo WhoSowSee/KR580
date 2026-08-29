@@ -70,8 +70,8 @@
 
               install -Dm755 "$install_target_dir/k580" "$out/bin/k580"
               install -Dm755 "$install_target_dir/kr" "$out/bin/kr"
-              install -Dm644 assets/icons/icon-256.png "$out/share/icons/hicolor/256x256/apps/kr580.png"
-              install -Dm644 assets/icons/file-580.png "$out/share/icons/hicolor/256x256/mimetypes/application-x-kr580.png"
+              install -Dm644 crates/ui/assets/icons/icon-256.png "$out/share/icons/hicolor/256x256/apps/kr580.png"
+              install -Dm644 crates/ui/assets/icons/file-580.png "$out/share/icons/hicolor/256x256/mimetypes/application-x-kr580.png"
 
               install -Dm644 /dev/stdin "$out/share/applications/kr580.desktop" <<'DESKTOP'
               [Desktop Entry]

@@ -3,15 +3,14 @@
 #
 #   powershell -File scripts/generate_icons.ps1
 #
-# Sources (in `assets/icons/`):
+# Sources (in `crates/ui/assets/icons/`):
 #   - `icon.png`     — application icon master.
 #   - `file-580.png` — `.580` file-type icon master.
 #   - `installer-setup.png` — standalone setup icon master.
 #   - `installer-uninstall.png` — installed uninstaller icon master.
 #
-# Outputs in `assets/icons/`, then mirrors the complete icon tree into
-# `crates/ui/assets/icons/` so the published crates.io package is
-# self-contained:
+# Outputs in `crates/ui/assets/icons/`, keeping the published crates.io
+# package self-contained:
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
@@ -21,8 +20,7 @@
 Add-Type -AssemblyName System.Drawing
 
 $root = Resolve-Path "$PSScriptRoot\.."
-$outDir = Join-Path $root 'assets\icons'
-$crateOutDir = Join-Path $root 'crates\ui\assets\icons'
+$outDir = Join-Path $root 'crates\ui\assets\icons'
 
 if (-not (Test-Path $outDir)) {
     New-Item -ItemType Directory -Path $outDir | Out-Null
@@ -188,10 +186,3 @@ Build-IconSet `
     -SourcePng (Join-Path $outDir 'installer-uninstall.png') `
     -IcoPath   (Join-Path $outDir 'installer-uninstall.ico') `
     -IcoSizes  $installerIcoSizes
-
-if (Test-Path $crateOutDir) {
-    Remove-Item -Recurse -Force $crateOutDir
-}
-New-Item -ItemType Directory -Force -Path $crateOutDir | Out-Null
-Copy-Item -Recurse -Force -Path (Join-Path $outDir '*') -Destination $crateOutDir
-Write-Host "Synced $crateOutDir"
