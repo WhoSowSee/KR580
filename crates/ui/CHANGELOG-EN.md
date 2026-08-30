@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.1.0] - 2026-08-30
+
+### Features
+
+- Added: native file dialogs parented to their owning windows, bounded XLSX column autofit, and XDG dialog dependencies in Linux packages
+- Updated: installer and uninstaller with shared Tokyo Night chrome, real removal stages, safe post-exit cleanup, and smooth progress reporting
+
+### Bug Fixes
+
+- Fixed: closing the opcode picker now preserves the selected RAM cell
+- Fixed: the export dialog now spells out Microsoft Excel
+- Fixed: minimum supported Rust version set to 1.88
+
+### Build and Packaging
+
+- Updated: reduced dependency feature graph
+- Updated: Snap package to Snapcraft 9 and the core24 base
+- Updated: consolidated icon assets inside the UI crate and removed the duplicate repository-root tree
+
 ## [2.0.0] - 2026-07-29
 
 ### Breaking Changes
