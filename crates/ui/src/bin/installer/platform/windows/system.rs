@@ -52,14 +52,18 @@ pub fn remove(_install_dir: &Path, scope: InstallScope) -> Result<(), String> {
 }
 
 pub fn schedule_remove_install_dir(install_dir: &Path) -> Result<(), String> {
-    let script = format!(
-        "Start-Sleep -Milliseconds 900; Remove-Item -LiteralPath {} -Recurse -Force -ErrorAction SilentlyContinue",
-        ps_single_quote(&install_dir.display().to_string())
-    );
+    let script = removal_script(install_dir, std::process::id());
     powershell_command(&script)
         .spawn()
         .map(|_| ())
         .map_err(|e| format!("schedule install directory removal: {e}"))
+}
+
+fn removal_script(install_dir: &Path, process_id: u32) -> String {
+    format!(
+        "Wait-Process -Id {process_id} -ErrorAction SilentlyContinue; Remove-Item -LiteralPath {} -Recurse -Force -ErrorAction SilentlyContinue",
+        ps_single_quote(&install_dir.display().to_string())
+    )
 }
 
 fn create_shortcut(path: &Path, target: &Path, description: &str) -> Result<(), String> {
@@ -340,5 +344,12 @@ mod tests {
     #[test]
     fn powershell_quote_doubles_single_quotes() {
         assert_eq!(ps_single_quote(r"C:\Jack's\KR580"), r"'C:\Jack''s\KR580'");
+    }
+
+    #[test]
+    fn removal_script_waits_for_the_uninstaller_process() {
+        let script = removal_script(Path::new(r"C:\KR580"), 42);
+        assert!(script.contains("Wait-Process -Id 42"));
+        assert!(script.contains(r"Remove-Item -LiteralPath 'C:\KR580'"));
     }
 }

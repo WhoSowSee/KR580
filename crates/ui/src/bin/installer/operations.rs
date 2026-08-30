@@ -6,28 +6,33 @@ mod payload {
     include!(concat!(env!("OUT_DIR"), "/installer_payload.rs"));
 }
 
-#[derive(Clone, Debug)]
-pub struct InstallRequest {
-    pub mode: InstallMode,
-    pub scope: InstallScope,
-    pub install_dir: PathBuf,
-    pub add_to_path: bool,
-    pub create_desktop_shortcut: bool,
-    pub associate_program_files: bool,
+pub(super) struct InstallRequest {
+    pub(super) mode: InstallMode,
+    pub(super) scope: InstallScope,
+    pub(super) install_dir: PathBuf,
+    pub(super) add_to_path: bool,
+    pub(super) create_desktop_shortcut: bool,
+    pub(super) associate_program_files: bool,
 }
 
 #[derive(Clone, Debug)]
-pub struct InstallReport {
-    pub mode: InstallMode,
-    pub install_dir: PathBuf,
-    pub k580_path: PathBuf,
-    pub path_changed: bool,
-    pub system_integrated: bool,
-    pub desktop_shortcut_created: bool,
-    pub file_association_created: bool,
+pub(super) struct InstallReport {
+    pub(super) mode: InstallMode,
+    pub(super) install_dir: PathBuf,
+    pub(super) k580_path: PathBuf,
+    pub(super) path_changed: bool,
+    pub(super) system_integrated: bool,
+    pub(super) desktop_shortcut_created: bool,
+    pub(super) file_association_created: bool,
 }
 
-pub fn install(request: InstallRequest) -> Result<InstallReport, String> {
+#[derive(Clone, Debug)]
+pub(super) struct UninstallPlan {
+    install_dir: PathBuf,
+    manifest: InstallManifest,
+}
+
+pub(super) fn install(request: InstallRequest) -> Result<InstallReport, String> {
     let source = SourceBundle::discover()?;
     let app_dir = request.install_dir.join("app");
     let bin_dir = request.install_dir.join("bin");
@@ -89,33 +94,27 @@ pub fn install(request: InstallRequest) -> Result<InstallReport, String> {
     })
 }
 
-pub fn open_install_folder(path: PathBuf) -> Result<(), String> {
-    platform::open_folder(&path)
-}
-
-pub fn launch_installed_app(path: PathBuf) -> Result<(), String> {
-    platform::launch_app(&path)
-}
-
-pub fn prepare_uninstall(install_dir: &Path) -> Result<(), String> {
-    let manifest = read_manifest(install_dir)?;
-    let bin_dir = install_dir.join("bin");
-    if manifest.file_association {
-        let k580_path = install_dir.join("app").join(binary_name("k580"));
-        k580_ui::file_assoc::unregister_for_executable(&k580_path, manifest.scope)?;
-    }
-    let _ = platform::remove_from_path(&bin_dir, manifest.scope)?;
+pub(super) fn remove_system_entries(install_dir: PathBuf) -> Result<UninstallPlan, String> {
+    let manifest = read_manifest(&install_dir)?;
     if manifest.mode == InstallMode::System {
-        platform::remove_system_integration(install_dir, manifest.scope)?;
+        platform::remove_system_integration(&install_dir, manifest.scope)?;
     }
+    Ok(UninstallPlan {
+        install_dir,
+        manifest,
+    })
+}
+
+pub(super) fn remove_links(plan: UninstallPlan) -> Result<(), String> {
+    if plan.manifest.file_association {
+        let k580_path = plan.install_dir.join("app").join(binary_name("k580"));
+        k580_ui::file_assoc::unregister_for_executable(&k580_path, plan.manifest.scope)?;
+    }
+    let _ = platform::remove_from_path(&plan.install_dir.join("bin"), plan.manifest.scope)?;
     Ok(())
 }
 
-pub fn schedule_install_dir_removal(install_dir: &Path) -> Result<(), String> {
-    platform::schedule_remove_install_dir(install_dir)
-}
-
-pub fn default_install_dir(mode: InstallMode, scope: InstallScope) -> PathBuf {
+pub(super) fn default_install_dir(mode: InstallMode, scope: InstallScope) -> PathBuf {
     if mode == InstallMode::Portable {
         return default_portable_install_dir();
     }
@@ -133,14 +132,12 @@ fn default_portable_install_dir() -> PathBuf {
         .join("KR580")
 }
 
-#[derive(Clone, Debug)]
 struct SourceBundle {
     kr: SourceBinary,
     k580: SourceBinary,
     uninstaller: SourceBinary,
 }
 
-#[derive(Clone, Debug)]
 enum SourceBinary {
     Embedded(&'static [u8]),
     File(PathBuf),

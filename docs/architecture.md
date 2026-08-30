@@ -34,6 +34,16 @@ add OS integration: Start Menu/search launchers, optional desktop launchers,
 and uninstall cleanup where the platform supports them. See
 `docs/installer.md`.
 
+The graphical uninstaller drives cleanup as three explicit tasks instead of a
+timer-simulated monolith: system integration removal returns an uninstall plan,
+link cleanup consumes that plan, and the file stage automatically starts a
+platform helper that waits for the uninstaller PID to exit before deleting the
+install root. `uninstaller.rs` owns this state machine; `uninstaller_view.rs`
+renders it. Real task completion advances target milestones, while a separate
+presentation-only timer moves the displayed progress toward those targets. The
+final Close action does not initiate cleanup and becomes available only after
+the successful animation reaches 100%.
+
 ## Data flow
 
 UI messages become `AppCommand` values. The internal backend actor owns `Cpu8080State` and `IoBus`, applies commands, and publishes typed `AppEvent` values. The UI stores only display/input state and can always re-render from `AppSnapshot`.

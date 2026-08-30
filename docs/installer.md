@@ -22,7 +22,7 @@ uninstaller.
 
 ## Installer Window
 
-The graphical setup uses an undecorated iced window with its own monochrome
+The graphical setup uses an undecorated iced window with its own Tokyo Night
 title bar. The custom chrome owns drag, minimize, maximize/restore, and close
 actions instead of relying on the native OS title bar. The caption buttons use
 the same `window-minimize`, `window-maximize`, `window-restore`, and
@@ -35,53 +35,103 @@ as the emulator window when the window opens.
 
 Setup and uninstall choose their UI language from the operating system at
 startup: Russian system UI uses Russian strings, while English and every other
-system language use English strings.
+system language use English strings. The Russian mode choices are `Системный`
+and `Портативный`, matching the masculine `Режим` heading, and the installation
+location section is labeled `Путь` (`Path` in English).
 
-The installer surface is a single black panel with no left information rail and
-no secondary role label after `KR580 Setup` in the custom title bar. Option
-tiles, the folder field, Browse, and the primary install button use fixed
-heights so text cannot drift below the button body or overlap neighbouring
-controls.
-The Browse control is a compact `96x42` secondary button beside the `44px`
-folder field. The result area sizes to its current state: Ready and error
-messages stay compact, Installing adds a progress bar, and the installed report
-expands only when it has real content. After installation, equal vertical
-spacers center the post-install checkbox between the installed report and the
-Done action.
+The installer is a two-column instrument surface. A fixed `164px` rail carries
+a `116x94` KR580 DIP outline below a deliberate top spacer, the centered package
+version and title-cased platform/architecture metadata such as `Windows · x64`,
+and four compact signal-group rows.
+The title bar uses the separate square CPU glyph and the same canvas color as
+the setup body. The rail and form share that canvas, while a thin divider
+separates only their working areas. The rail uses a `32px` top spacer so the
+visible DIP-to-top and bus-table-to-bottom intervals are balanced without
+changing the window height. The
+form occupies the remaining width as a flat sequence of mode, scope, path,
+and integration sections; thin rules and spacing replace the previous nested
+panel and option card hierarchy.
+Mode and scope use joined `44px` segmented controls with one neutral outer frame
+and a square internal seam. Idle and selected segments inherit the canvas;
+selection uses only the blue left rail and radio dot. The rail replaces the
+underlying gray edge and follows its outer corner radius. Hover uses the darker
+panel token, pressing uses the stronger surface token, and neither state hides or
+doubles the outer frame.
+The fixed `12px` radio ring contains a `6px` selected dot, preserving an inset
+between dot and outline. The path and compact `96x44` Browse action form
+one framed control with a square seam and only external corner rounding. Its
+input surface is transparent, keeping the left and lower outer rules visually
+even. The path uses the emulator blue value color; Browse keeps its folder glyph.
+Every setup checkbox uses one shared `14px` control size, including Integration
+and the post-install Open-folder/Launch action. Integration retains its `12px`
+vertical rhythm. Unchecked boxes inherit the canvas and retain only their outline.
+The four signal rows form one transparent two-column table with a single rounded
+outer frame and horizontal row rules. The first fixed column holds only the
+number; the second holds a static green marker and the compact `ADDR`, `DATA`,
+`CTRL`, or `INT` label. These labels identify KR580 signal groups rather than
+reporting live installer telemetry. Individual rows have no fill or rounded
+corners.
+The bottom command bar spans the complete window width, so the rail/form divider
+ends above it. It contains only the compact Install/Done action aligned to the
+right; install state is communicated by the form, progress panel, result report,
+and action label instead of a redundant left badge. An Installing progress panel
+appears above the bar only while work is active and inherits the setup canvas,
+retaining only its frame. The unfilled progress track uses the same canvas; only
+its outline and blue completed range remain visible.
 While files are being copied, the result area switches to an Installing state
-with a monochrome progress bar that advances on an installer-only timer tick.
-After a successful install, portable installs offer a checked "Open installation
-folder" action, and system installs offer a checked "Launch KR580" action. The
-`Done` button stays pinned at the bottom, runs the selected finish action, and
-closes the installer; if that action fails, the installer stays open and shows
-the error below the checkbox.
-System mode also shows a checked "Create desktop shortcut" option. Both System
-and Portable mode show a checked "Associate .580 and .krs files with KR580" option.
+with a blue progress bar that advances on an installer-only timer tick.
+Success replaces the form with an installed report followed by a checked "Open
+installation folder" action for Portable mode or "Launch KR580" for System mode.
+Report lines omit terminal periods; completed operations use `TEXT`, while
+skipped or unchanged operations use `MUTED`. The pinned `Done` button runs the
+selected action and closes the installer; failures keep the window open and
+appear below the checkbox.
+Integration options are ordered as PATH, file associations, then the optional
+desktop shortcut. Both modes show the first two; System mode adds the desktop
+shortcut as the final option.
 Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
-Selected option tiles keep a dark fill with a white border instead of an
-inverted white slab, so the two-column form keeps even visual weight.
 Installed-state messages use user-facing wording and do not expose the internal
 `app/`, `bin/`, or portable data folders.
-The default window is `680x760` logical pixels with a `640x720` minimum so the
-primary Install action remains visible with 2x DPI scaling.
+The default window is `720x600` logical pixels with a `680x560` minimum. The
+fixed command bar uses the same canvas as the setup body and keeps the compact
+`176x40` primary action visible at the minimum size and at high DPI. Hover uses
+a slightly lighter blue from the same color family instead of switching to cyan.
 
 ## Uninstaller Window
 
 The installed `app/uninstaller` is also an iced GUI binary. Running it directly
 from an installed layout or through `uninstaller --uninstall <install root>`
-opens a compact undecorated black/white window with the same custom chrome,
-DWM rounded corners on Windows, and SVG caption buttons as the installer. The
-content is intentionally simpler than setup: install folder, status panel,
-monochrome progress bar, and the final localized Close/`Закрыть` button.
+opens a `760x500` undecorated Tokyo Night window (`700x460` minimum) with the
+same CPU title glyph, minimize/maximize/restore/close controls, and Windows DWM
+corner preference as setup. Its centered product header stacks the outlined DIP
+mark above `КР580` and version/platform metadata; the separate removal-copy block
+from the initial concept is intentionally absent. The read-only install path
+occupies one border-only field below the header.
 
-Uninstall cleanup starts after the window opens so the user sees immediate
-progress instead of a silent background operation. The first phase removes the
-managed PATH entry, Start Menu/search launcher, optional desktop shortcut,
-optional `.580` / `.krs` associations recorded in `install.json`, and uninstall
-registration. The install directory itself is scheduled for deletion only when
-the user presses the final Close/`Закрыть` button, letting the uninstaller
-process exit before Windows or Unix removes the folder that contains it.
+One joined border-only instrument block exposes three real cleanup stages:
+`01 СИСТЕМА` removes Start Menu/desktop shortcuts and the uninstall entry,
+`02 СВЯЗИ` removes the managed PATH entry and recorded `.580` / `.krs`
+associations, and `03 ФАЙЛЫ` schedules removal of the install directory. A green
+marker means complete, blue with a left rail means active, muted means pending,
+and red means the active stage failed. The status line and progress bar below
+the stage strip use the same outer frame and canvas.
+
+Cleanup starts only after the native window opens. All three stages run
+automatically while the bottom action is disabled and reads `Removing...` /
+`Удаление...`. Real stage changes confirm milestones at 12%, 40%, 68%, and 100%.
+A presentation timer catches up to each confirmed milestone by two percentage
+points every 30 milliseconds. While the current system operation is still
+running, it continues at 0.1 percentage point per tick but reserves the final
+point before the next milestone. The 40% Links milestone therefore keeps moving
+toward 67% while Windows broadcasts PATH and association changes, without
+claiming that the 68% Files milestone has completed. The file stage starts a
+platform helper that waits for the uninstaller process to exit before deleting
+its directory. If all operations finish before the animation, the Files stage
+remains active until the displayed progress reaches 100%. Only then does the
+localized Close/`Закрыть` action become available, and it merely exits the
+already-completed workflow. A failed stage stops the animation at its current
+value and stays visible in red with its error text.
 
 ## Build The Setup
 

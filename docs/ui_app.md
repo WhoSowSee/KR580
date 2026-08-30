@@ -72,30 +72,25 @@ RAM-range dialog. Detached device windows do not accept program drops.
   Portable mode writes no Start Menu, desktop, or uninstall entry. On Windows,
   the standalone setup binary uses the setup PE icon, while the installed
   `app/uninstaller.exe` is a separate payload binary with the uninstall PE
-  icon. The setup window is undecorated and renders its own black/white title
-  bar with only `KR580 Setup`, minimize, maximize/restore, close, and drag
-  handling, and on Windows it requests the same DWM rounded-corner preference as
-  the emulator window.
-  Its caption buttons reuse the emulator's window SVG assets and proportions,
-  while installer form controls use fixed heights for proportional rows. The
-  setup content is one black panel with no left information rail. The result
-  panel sizes to its current state, shows a timer-driven progress bar while
-  installation is running, and then centers the checked finish action between
-  the installed report and the pinned `Done` button.
-  Portable installs offer to open the install folder; system installs offer to
-  launch KR580. Portable mode hides the Windows scope selector and defaults to
-  `%USERPROFILE%\KR580`; System mode exposes the desktop-shortcut option, while
-  both modes expose the `.580` / `.krs` association option before installation. Windows
-  shortcut helpers run with `CREATE_NO_WINDOW`, so System installs do not flash
-  a terminal while creating Start Menu or desktop links. The setup view is
-  split into `bin/installer/view.rs` for composition plus
-  `bin/installer/view/chrome.rs`, `bin/installer/view/content.rs`, and
-  `bin/installer/view/finish.rs`. The uninstaller uses
-  `bin/installer/uninstaller.rs` for progress/close workflow and
-  `bin/installer/uninstaller_chrome.rs` for its smaller custom title bar; it
-  removes recorded `.580` / `.krs` associations and the exact launcher PATH entry for
-  both modes, removes system entries only for System installs, then schedules
-  install-folder deletion after the final localized Close/`Закрыть` action.
+  icon. The undecorated setup and uninstall windows share one Tokyo Night title
+  bar implementation with localized text, CPU glyph, drag handling, caption
+  actions, and the Windows DWM corner preference. The setup view combines a fixed
+  instrument rail, segmented form, progress/result state, and pinned command bar;
+  its detailed visual and behavioral contract lives in `docs/installer.md`.
+  Portable mode hides Windows scope and defaults to `%USERPROFILE%\KR580`;
+  System mode adds desktop/search/uninstall integration. Windows shortcut helpers
+  use `CREATE_NO_WINDOW`.
+
+  `bin/installer/view.rs` composes `view/content.rs`, `view/controls.rs`,
+  `view/finish.rs`, and `view/rail.rs`. `bin/installer/window_chrome.rs` owns the
+  shared title bar, while `bin/installer/widgets.rs` owns common action, checkbox,
+  and rule widgets. The uninstaller keeps its real three-stage state machine in
+  `uninstaller.rs` and its `760x500` composition in `uninstaller_view.rs`.
+  Cleanup removes system entries, then PATH/file associations, and finally starts
+  a helper that waits for the process to exit before deleting the install root.
+  A presentation-only timer smoothly advances the displayed percentage toward
+  each real stage target without slowing those operations. Close becomes
+  available only after the sequence succeeds and the display reaches 100%.
 - `app/` defines `DesktopApp`, message routing, theme, and the keyboard
   subscription. To stay under the 400-line per-file budget the shell is
   split into focused submodules:

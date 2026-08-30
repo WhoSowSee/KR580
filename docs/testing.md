@@ -163,26 +163,17 @@ worth eyeballing after touching `crates/ui`:
   to stdout;
 - run `cargo run -p kr580 --bin kr -- --install` and confirm the
   graphical installer opens for developer or already-installed layouts;
-- run `cargo run -p kr580 --bin k580-installer` and confirm the native OS
-  title bar is gone, the custom black/white title bar says only `KR580 Setup`,
-  drags the window, and exposes the same SVG minimize / maximize / close glyphs
-  as the emulator; confirm the setup content is one black panel with no left
-  information rail, and System / Portable mode selection, folder browsing,
-  Browse, Install, and the PATH checkbox render with proportional row heights
-  and without drifting or overlapping text; on Windows, confirm the setup window
-  has the same rounded native corners as the emulator; confirm Russian system UI
-  starts with Russian installer text and English/other system UI starts with
-  English installer text; confirm the Ready result card is compact instead of
-  reserving installed-state height; click Install once and confirm the result
-  panel immediately shows an Installing progress bar, then confirm the
-  installed status expands without pushing the bottom action out of its rail and
-  the finish screen centers a checked "Open installation folder" action for
-  portable installs or "Launch KR580" for system installs between the installed
-  status card and a pinned `Done` button; in System mode confirm the
-  "Create desktop shortcut" checkbox is
-  visible, and in Portable mode confirm it is hidden, the Windows scope selector
-  is hidden, and the default folder is `%USERPROFILE%\KR580`; in both modes
-  confirm the "Associate .580 and .krs files with KR580" checkbox is visible;
+- run `cargo run -p kr580 --bin k580-installer` and confirm the shared custom
+  title bar drags and exposes working caption actions; the rail keeps balanced
+  spacing, `Windows · x64` metadata, and a two-column `ADDR` / `DATA` / `CTRL` /
+  `INT` table; joined mode, scope, and path/Browse controls retain one outer frame,
+  square seams, rounded selected rails, blue path text, and non-cyan hover states;
+  all checkboxes use the same compact size and unchecked controls have no fill;
+  Russian copy reads `Системный`, `Портативный`, and `Путь`; System mode orders
+  PATH, file associations, then desktop shortcut, while Portable hides scope and
+  desktop shortcut and defaults to `%USERPROFILE%\KR580`; verify Installing,
+  success, and failure states without duplicate status blocks, and confirm the
+  finish action follows the report above the pinned `Done` button;
 - after a System-mode smoke install on Windows, confirm `KR580.lnk` exists in
   the selected Start Menu scope, the optional desktop shortcut follows the
   checkbox, no terminal window flashes while shortcuts are created, the `.580`
@@ -191,10 +182,15 @@ worth eyeballing after touching `crates/ui`:
   the setup file shows the setup icon, the installed `app/uninstaller.exe`
   shows the uninstall icon, and Apps & Features receives a `KR580` uninstall
   entry whose command points at `uninstaller.exe --uninstall <install root>`;
-  run that uninstall entry and confirm it opens the black/white uninstaller GUI,
-  immediately shows a progress bar while cleanup runs, switches to a completed
-  state with `Close` on English/other systems or `Закрыть` on Russian systems,
-  and removes the install folder only after that button is pressed; after a
+  run that uninstall entry and confirm the shared title bar, centered product
+  header, border-only path, and joined `СИСТЕМА → СВЯЗИ → ФАЙЛЫ` block render
+  correctly; verify real stage ordering, disabled action during cleanup, automatic
+  post-exit removal scheduling, and percentage/progress movement in small
+  monotonic steps rather than a direct 40% → 100% jump or a pause at 40% while
+  Windows broadcasts environment changes; confirm the displayed value remains
+  below the next unconfirmed milestone, the Files stage stays active, and Close
+  stays disabled until the animation reaches exactly 100%, while a failure stops
+  the animation and leaves the failed stage red; after a
   portable smoke install, confirm none of those OS entries are created and that
   `.580` and `.krs` are associated only when their checkbox was selected; run the portable
   `app/uninstaller` and confirm it removes the portable file associations and

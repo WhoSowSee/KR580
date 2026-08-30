@@ -1,25 +1,22 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Locale {
+#[derive(Clone, Copy)]
+pub(super) enum Locale {
     Ru,
     En,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum Text {
+#[derive(Clone, Copy)]
+pub(super) enum Text {
     WindowTitleInstaller,
     WindowTitleUninstaller,
-    InstallerTitle,
-    InstallerSubtitle,
     Mode,
     System,
-    SystemCaption,
     Portable,
-    PortableCaption,
+    #[cfg(windows)]
     WindowsScope,
+    #[cfg(windows)]
     CurrentUser,
-    NoElevation,
+    #[cfg(windows)]
     AllUsers,
-    MachinePath,
     #[cfg(not(windows))]
     Scope,
     #[cfg(not(windows))]
@@ -27,13 +24,11 @@ pub enum Text {
     Folder,
     InstallationFolder,
     Browse,
+    Integration,
     AddKrPath,
     DesktopShortcut,
     AssociateProgramFiles,
-    Ready,
-    ReadyBody,
     Installing,
-    InstallingBody,
     InstallFailed,
     Installed,
     Location,
@@ -49,27 +44,26 @@ pub enum Text {
     InstallKr580,
     InstallingEllipsis,
     Done,
-    UninstallerTitle,
-    UninstallerSubtitle,
-    InstallFolder,
-    Removed,
-    RemovedBody,
-    UninstallFailed,
-    Removing,
-    RemovingBody,
-    ClosingEllipsis,
+    UninstallStageSystem,
+    UninstallStageLinks,
+    UninstallStageFiles,
+    RemovingSystem,
+    RemovingLinks,
+    RemovingFiles,
+    RemovalComplete,
+    RemovingEllipsis,
     Close,
 }
 
 impl Locale {
-    pub fn system() -> Self {
+    pub(super) fn system() -> Self {
         match k580_ui::system_locale::default_language() {
             k580_ui::persistence::Language::Ru => Self::Ru,
             k580_ui::persistence::Language::En => Self::En,
         }
     }
 
-    pub fn t(self, text: Text) -> &'static str {
+    pub(super) fn t(self, text: Text) -> &'static str {
         match self {
             Self::Ru => ru(text),
             Self::En => en(text),
@@ -79,116 +73,104 @@ impl Locale {
 
 fn en(text: Text) -> &'static str {
     match text {
-        Text::WindowTitleInstaller => "KR580 Installer",
+        Text::WindowTitleInstaller => "KR580 Setup",
         Text::WindowTitleUninstaller => "KR580 Uninstaller",
-        Text::InstallerTitle => "Installer",
-        Text::InstallerSubtitle => "Choose storage mode and install target.",
         Text::Mode => "Mode",
         Text::System => "System",
-        Text::SystemCaption => "OS config directories",
         Text::Portable => "Portable",
-        Text::PortableCaption => "Data beside install root",
-        Text::WindowsScope => "Windows scope",
+        #[cfg(windows)]
+        Text::WindowsScope => "Install for",
+        #[cfg(windows)]
         Text::CurrentUser => "Current user",
-        Text::NoElevation => "No elevation",
+        #[cfg(windows)]
         Text::AllUsers => "All users",
-        Text::MachinePath => "Machine PATH",
         #[cfg(not(windows))]
         Text::Scope => "Scope",
         #[cfg(not(windows))]
         Text::UserInstall => "User install",
-        Text::Folder => "Folder",
+        Text::Folder => "Path",
         Text::InstallationFolder => "Installation folder",
         Text::Browse => "Browse",
+        Text::Integration => "Integration",
         Text::AddKrPath => "Add kr command to PATH",
         Text::DesktopShortcut => "Create desktop shortcut",
         Text::AssociateProgramFiles => "Associate .580 and .krs files with KR580",
-        Text::Ready => "Ready",
-        Text::ReadyBody => "Choose mode, folder, and install options.",
         Text::Installing => "Installing",
-        Text::InstallingBody => "Copying files and writing install metadata.",
         Text::InstallFailed => "Install failed",
         Text::Installed => "Installed",
         Text::Location => "Location",
-        Text::TerminalLaunchEnabled => "Terminal launch enabled.",
-        Text::TerminalLaunchUnchanged => "Terminal launch unchanged.",
-        Text::FileAssociationCreated => ".580 and .krs files open with KR580.",
-        Text::FileAssociationUnchanged => ".580 and .krs associations unchanged.",
-        Text::PortableReady => "Portable layout ready.",
-        Text::SearchDesktopUninstallReady => "Search, desktop shortcut, and uninstall entry ready.",
-        Text::SearchUninstallReady => "Search and uninstall entry ready.",
+        Text::TerminalLaunchEnabled => "Terminal launch enabled",
+        Text::TerminalLaunchUnchanged => "Terminal launch unchanged",
+        Text::FileAssociationCreated => ".580 and .krs files open with KR580",
+        Text::FileAssociationUnchanged => ".580 and .krs associations unchanged",
+        Text::PortableReady => "Portable layout ready",
+        Text::SearchDesktopUninstallReady => "Search, desktop shortcut, and uninstall entry ready",
+        Text::SearchUninstallReady => "Search and uninstall entry ready",
         Text::OpenInstallationFolder => "Open installation folder",
         Text::LaunchKr580 => "Launch KR580",
         Text::InstallKr580 => "Install KR580",
         Text::InstallingEllipsis => "Installing...",
         Text::Done => "Done",
-        Text::UninstallerTitle => "Uninstaller",
-        Text::UninstallerSubtitle => "Removing KR580 from this computer.",
-        Text::InstallFolder => "Install folder",
-        Text::Removed => "Removed",
-        Text::RemovedBody => "Press Close to finish and remove the installation folder.",
-        Text::UninstallFailed => "Uninstall failed",
-        Text::Removing => "Removing",
-        Text::RemovingBody => "Cleaning shortcuts, registry entries, PATH, and file associations.",
-        Text::ClosingEllipsis => "Closing...",
+        Text::UninstallStageSystem => "SYSTEM",
+        Text::UninstallStageLinks => "LINKS",
+        Text::UninstallStageFiles => "FILES",
+        Text::RemovingSystem => "Removing system entries",
+        Text::RemovingLinks => "Removing PATH and file associations",
+        Text::RemovingFiles => "Removing application files",
+        Text::RemovalComplete => "All removal steps complete",
+        Text::RemovingEllipsis => "Removing...",
         Text::Close => "Close",
     }
 }
 
 fn ru(text: Text) -> &'static str {
     match text {
-        Text::WindowTitleInstaller => "Установщик KR580",
+        Text::WindowTitleInstaller => "Установка KR580",
         Text::WindowTitleUninstaller => "Удаление KR580",
-        Text::InstallerTitle => "Установщик",
-        Text::InstallerSubtitle => "Выберите режим хранения и папку установки.",
         Text::Mode => "Режим",
-        Text::System => "Системная",
-        Text::SystemCaption => "Каталоги настроек ОС",
-        Text::Portable => "Портативная",
-        Text::PortableCaption => "Данные рядом с программой",
-        Text::WindowsScope => "Область Windows",
+        Text::System => "Системный",
+        Text::Portable => "Портативный",
+        #[cfg(windows)]
+        Text::WindowsScope => "Установить для",
+        #[cfg(windows)]
         Text::CurrentUser => "Текущий пользователь",
-        Text::NoElevation => "Без повышения прав",
+        #[cfg(windows)]
         Text::AllUsers => "Все пользователи",
-        Text::MachinePath => "Общий PATH",
         #[cfg(not(windows))]
         Text::Scope => "Область",
         #[cfg(not(windows))]
         Text::UserInstall => "Установка для пользователя",
-        Text::Folder => "Папка",
+        Text::Folder => "Путь",
         Text::InstallationFolder => "Папка установки",
         Text::Browse => "Обзор",
+        Text::Integration => "Интеграция",
         Text::AddKrPath => "Добавить команду kr в PATH",
         Text::DesktopShortcut => "Создать ярлык на рабочем столе",
         Text::AssociateProgramFiles => "Связать .580 и .krs с KR580",
-        Text::Ready => "Готово",
-        Text::ReadyBody => "Выберите режим, папку и параметры установки.",
         Text::Installing => "Установка",
-        Text::InstallingBody => "Копирование файлов и запись данных установки.",
         Text::InstallFailed => "Установка не выполнена",
         Text::Installed => "Установлено",
         Text::Location => "Папка",
-        Text::TerminalLaunchEnabled => "Запуск из терминала включён.",
-        Text::TerminalLaunchUnchanged => "Запуск из терминала не изменён.",
-        Text::FileAssociationCreated => "Файлы .580 и .krs открываются через KR580.",
-        Text::FileAssociationUnchanged => "Связи с .580 и .krs не изменены.",
-        Text::PortableReady => "Портативная установка готова.",
-        Text::SearchDesktopUninstallReady => "Поиск, ярлык и удаление готовы.",
-        Text::SearchUninstallReady => "Поиск и удаление готовы.",
+        Text::TerminalLaunchEnabled => "Запуск из терминала включён",
+        Text::TerminalLaunchUnchanged => "Запуск из терминала не изменён",
+        Text::FileAssociationCreated => "Файлы .580 и .krs открываются через KR580",
+        Text::FileAssociationUnchanged => "Связи с .580 и .krs не изменены",
+        Text::PortableReady => "Портативная установка готова",
+        Text::SearchDesktopUninstallReady => "Поиск, ярлык и удаление готовы",
+        Text::SearchUninstallReady => "Поиск и удаление готовы",
         Text::OpenInstallationFolder => "Открыть папку установки",
         Text::LaunchKr580 => "Запустить KR580",
         Text::InstallKr580 => "Установить KR580",
         Text::InstallingEllipsis => "Установка...",
         Text::Done => "Готово",
-        Text::UninstallerTitle => "Удаление",
-        Text::UninstallerSubtitle => "Удаление KR580 с этого компьютера.",
-        Text::InstallFolder => "Папка установки",
-        Text::Removed => "Удалено",
-        Text::RemovedBody => "Нажмите «Закрыть», чтобы завершить и удалить папку установки.",
-        Text::UninstallFailed => "Удаление не выполнено",
-        Text::Removing => "Удаление",
-        Text::RemovingBody => "Очистка ярлыков, реестра, PATH и связей файлов.",
-        Text::ClosingEllipsis => "Закрытие...",
+        Text::UninstallStageSystem => "СИСТЕМА",
+        Text::UninstallStageLinks => "СВЯЗИ",
+        Text::UninstallStageFiles => "ФАЙЛЫ",
+        Text::RemovingSystem => "Удаление системных записей",
+        Text::RemovingLinks => "Удаление PATH и связей файлов",
+        Text::RemovingFiles => "Удаление файлов приложения",
+        Text::RemovalComplete => "Все этапы удаления завершены",
+        Text::RemovingEllipsis => "Удаление...",
         Text::Close => "Закрыть",
     }
 }

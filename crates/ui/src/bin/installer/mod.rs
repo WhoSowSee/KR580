@@ -1,3 +1,14 @@
+macro_rules! action_icon_bytes {
+    ($name:literal) => {
+        include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/assets/icons/actions/",
+            $name,
+            ".svg"
+        ))
+    };
+}
+
 pub mod entry;
 
 mod locale;
@@ -6,20 +17,19 @@ mod platform;
 mod style;
 mod uninstaller;
 mod view;
+mod widgets;
+mod window_chrome;
 mod window_events;
 
-use iced::{Element, Settings, Size, Subscription, Task, Theme, time, window};
+use iced::{Settings, Size, Subscription, Task, time, window};
 use k580_ui::install_mode::{InstallMode, InstallScope};
 use locale::Locale;
-use operations::{
-    InstallReport, InstallRequest, default_install_dir, install, launch_installed_app,
-    open_install_folder,
-};
+use operations::{InstallReport, InstallRequest, default_install_dir, install};
 use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Debug, Clone)]
-pub enum Message {
+enum Message {
     ModeSelected(InstallMode),
     #[cfg(windows)]
     ScopeSelected(InstallScope),
@@ -43,7 +53,7 @@ pub enum Message {
     WindowMaximizedChanged(bool),
 }
 
-pub struct Installer {
+struct Installer {
     mode: InstallMode,
     locale: Locale,
     scope: InstallScope,
@@ -61,40 +71,30 @@ pub struct Installer {
     window_maximized: bool,
 }
 
-pub fn run() -> iced::Result {
-    iced::application(Installer::new, Installer::update, Installer::view)
-        .title(title)
-        .theme(theme)
+fn run() -> iced::Result {
+    iced::application(Installer::new, Installer::update, view::view)
+        .title(|state: &Installer| {
+            state
+                .locale
+                .t(locale::Text::WindowTitleInstaller)
+                .to_owned()
+        })
+        .theme(|_: &Installer| iced::Theme::TokyoNight)
         .subscription(Installer::subscription)
-        .style(style::app_style)
+        .style(|_, _| style::application())
         .settings(Settings {
             antialiasing: true,
             ..Settings::default()
         })
         .window(window::Settings {
-            size: Size::new(680.0, 760.0),
-            min_size: Some(Size::new(640.0, 720.0)),
+            size: Size::new(720.0, 600.0),
+            min_size: Some(Size::new(680.0, 560.0)),
             position: window::Position::Centered,
             decorations: false,
             exit_on_close_request: false,
             ..window::Settings::default()
         })
         .run()
-}
-
-pub fn run_uninstaller(install_dir: PathBuf) -> iced::Result {
-    uninstaller::run(install_dir)
-}
-
-fn title(state: &Installer) -> String {
-    state
-        .locale
-        .t(locale::Text::WindowTitleInstaller)
-        .to_owned()
-}
-
-fn theme(_state: &Installer) -> Theme {
-    Theme::Dark
 }
 
 impl Installer {
@@ -155,7 +155,7 @@ impl Installer {
                 self.post_install_error = None;
             }
             Message::BrowseInstallDir => {
-                let current = PathBuf::from(self.install_dir.clone());
+                let current = PathBuf::from(&self.install_dir);
                 let Some(parent) = self.window_id else {
                     return Task::none();
                 };
@@ -244,8 +244,8 @@ impl Installer {
                 return Task::perform(
                     async move {
                         match report.mode {
-                            InstallMode::Portable => open_install_folder(report.install_dir),
-                            InstallMode::System => launch_installed_app(report.k580_path),
+                            InstallMode::Portable => platform::open_folder(&report.install_dir),
+                            InstallMode::System => platform::launch_app(&report.k580_path),
                         }
                     },
                     Message::PostInstallActionFinished,
@@ -309,10 +309,6 @@ impl Installer {
         }
     }
 
-    fn view(&self) -> Element<'_, Message> {
-        view::view(self)
-    }
-
     fn request(&self) -> Result<InstallRequest, String> {
         let install_dir = self.install_dir.trim();
         if install_dir.is_empty() {
@@ -330,60 +326,5 @@ impl Installer {
 
     fn close_window(&self) -> Task<Message> {
         self.window_id.map_or_else(iced::exit, window::close)
-    }
-}
-
-impl Installer {
-    pub fn mode(&self) -> InstallMode {
-        self.mode
-    }
-
-    pub fn locale(&self) -> Locale {
-        self.locale
-    }
-
-    #[cfg(windows)]
-    pub fn scope(&self) -> InstallScope {
-        self.scope
-    }
-
-    pub fn install_dir(&self) -> &str {
-        &self.install_dir
-    }
-
-    pub fn add_to_path(&self) -> bool {
-        self.add_to_path
-    }
-
-    pub fn create_desktop_shortcut(&self) -> bool {
-        self.create_desktop_shortcut
-    }
-
-    pub fn associate_program_files(&self) -> bool {
-        self.associate_program_files
-    }
-
-    pub fn installing(&self) -> bool {
-        self.installing
-    }
-
-    pub fn install_progress(&self) -> f32 {
-        self.install_progress
-    }
-
-    pub fn post_install_action(&self) -> bool {
-        self.post_install_action
-    }
-
-    pub fn post_install_error(&self) -> Option<&str> {
-        self.post_install_error.as_deref()
-    }
-
-    pub fn result(&self) -> Option<&Result<InstallReport, String>> {
-        self.result.as_ref()
-    }
-
-    pub fn window_maximized(&self) -> bool {
-        self.window_maximized
     }
 }

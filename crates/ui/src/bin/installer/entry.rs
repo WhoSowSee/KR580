@@ -17,7 +17,7 @@ pub fn run() -> iced::Result {
                 eprintln!("error: too many arguments");
                 std::process::exit(1)
             }
-            super::run_uninstaller(std::path::PathBuf::from(root))
+            super::uninstaller::run(std::path::PathBuf::from(root))
         }
         Some(arg) => {
             eprintln!("error: unknown option: {arg}");
@@ -51,5 +51,5 @@ fn run_current_root_uninstaller() -> iced::Result {
             std::process::exit(1)
         }
     };
-    super::run_uninstaller(root)
+    super::uninstaller::run(root)
 }

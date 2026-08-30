@@ -141,7 +141,8 @@ pub fn remove_system_integration(_install_dir: &Path, _scope: InstallScope) -> R
 
 pub fn schedule_remove_install_dir(install_dir: &Path) -> Result<(), String> {
     let script = format!(
-        "sleep 1; rm -rf -- {}",
+        "while kill -0 {} 2>/dev/null; do sleep 0.1; done; rm -rf -- {}",
+        std::process::id(),
         shell_single_quote(&install_dir.display().to_string())
     );
     Command::new("sh")

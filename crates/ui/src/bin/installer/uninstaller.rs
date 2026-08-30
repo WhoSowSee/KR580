@@ -1,56 +1,94 @@
 use super::locale::{Locale, Text as T};
 use super::{operations, platform, style, window_events};
-use iced::widget::{Space, button, column, container, progress_bar, text};
-use iced::{Element, Length, Settings, Size, Subscription, Task, Theme, alignment, theme};
+use iced::{Settings, Size, Subscription, Task, time};
 use std::path::PathBuf;
 use std::time::Duration;
 
-#[path = "uninstaller_chrome.rs"]
-mod uninstaller_chrome;
+#[path = "uninstaller_view.rs"]
+mod uninstaller_view;
 
-const ACTION_HEIGHT: f32 = 44.0;
+const PROGRESS_FAST_STEP: f32 = 0.02;
+const PROGRESS_DRIFT_STEP: f32 = 0.001;
+const PROGRESS_STAGE_RESERVE: f32 = 0.01;
+const PROGRESS_TICK_INTERVAL: Duration = Duration::from_millis(30);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum UninstallStage {
+    System,
+    Links,
+    Files,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StageState {
+    Pending,
+    Active,
+    Complete,
+    Failed,
+}
+
+impl UninstallStage {
+    fn progress(self) -> f32 {
+        match self {
+            Self::System => 0.12,
+            Self::Links => 0.40,
+            Self::Files => 0.68,
+        }
+    }
+
+    fn animation_limit(self) -> f32 {
+        let next = match self {
+            Self::System => Self::Links.progress(),
+            Self::Links => Self::Files.progress(),
+            Self::Files => 1.0,
+        };
+        next - PROGRESS_STAGE_RESERVE
+    }
+}
 
 #[derive(Debug, Clone)]
 enum Message {
-    UninstallProgressTick,
-    UninstallFinished(Result<(), String>),
+    ProgressTick,
+    SystemRemoved(Result<operations::UninstallPlan, String>),
+    LinksRemoved(Result<(), String>),
+    FilesScheduled(Result<(), String>),
     ClosePressed,
-    RemovalScheduled(Result<(), String>),
     WindowOpened(iced::window::Id),
     WindowDragStart,
     WindowMinimize,
+    WindowToggleMaximize,
+    WindowMaximizedChanged(bool),
     WindowClose,
 }
 
 struct Uninstaller {
     install_dir: PathBuf,
-    uninstalling: bool,
-    closing: bool,
-    pending_uninstall: Option<PathBuf>,
-    progress: f32,
+    started: bool,
+    stage: UninstallStage,
+    display_progress: f32,
     result: Option<Result<(), String>>,
-    close_error: Option<String>,
     window_id: Option<iced::window::Id>,
+    window_maximized: bool,
     locale: Locale,
 }
 
-pub fn run(install_dir: PathBuf) -> iced::Result {
+pub(super) fn run(install_dir: PathBuf) -> iced::Result {
     iced::application(
         move || Uninstaller::new(install_dir.clone()),
         Uninstaller::update,
-        Uninstaller::view,
+        uninstaller_view::view,
     )
-    .title(title)
-    .theme(theme)
+    .title(|state: &Uninstaller| state.locale.t(T::WindowTitleUninstaller).to_owned())
+    .theme(|_: &Uninstaller| iced::Theme::TokyoNight)
     .subscription(Uninstaller::subscription)
-    .style(app_style)
+    .style(|_, _| style::application())
     .settings(Settings {
         antialiasing: true,
         ..Settings::default()
     })
     .window(iced::window::Settings {
-        size: Size::new(620.0, 420.0),
-        min_size: Some(Size::new(560.0, 360.0)),
+        size: Size::new(760.0, 500.0),
+        min_size: Some(Size::new(700.0, 460.0)),
         position: iced::window::Position::Centered,
         decorations: false,
         exit_on_close_request: false,
@@ -59,33 +97,17 @@ pub fn run(install_dir: PathBuf) -> iced::Result {
     .run()
 }
 
-fn theme(_state: &Uninstaller) -> Theme {
-    Theme::Dark
-}
-
-fn title(state: &Uninstaller) -> String {
-    state.locale.t(T::WindowTitleUninstaller).to_owned()
-}
-
-fn app_style(_state: &Uninstaller, _theme: &Theme) -> theme::Style {
-    theme::Style {
-        background_color: style::BLACK,
-        text_color: style::TEXT,
-    }
-}
-
 impl Uninstaller {
     fn new(install_dir: PathBuf) -> (Self, Task<Message>) {
         (
             Self {
-                install_dir: install_dir.clone(),
-                uninstalling: true,
-                closing: false,
-                pending_uninstall: Some(install_dir),
-                progress: 0.08,
+                install_dir,
+                started: false,
+                stage: UninstallStage::System,
+                display_progress: 0.0,
                 result: None,
-                close_error: None,
                 window_id: None,
+                window_maximized: false,
                 locale: Locale::system(),
             },
             Task::none(),
@@ -94,44 +116,63 @@ impl Uninstaller {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::UninstallProgressTick => {
-                if let Some(install_dir) = self.pending_uninstall.take() {
-                    self.progress = 0.18;
+            Message::ProgressTick => {
+                let confirmed = self.confirmed_progress();
+                let (target, step) = if self.display_progress < confirmed {
+                    (confirmed, PROGRESS_FAST_STEP)
+                } else {
+                    (self.target_progress(), PROGRESS_DRIFT_STEP)
+                };
+                self.display_progress = (self.display_progress + step).min(target);
+            }
+            Message::SystemRemoved(result) => match result {
+                Ok(plan) => {
+                    self.stage = UninstallStage::Links;
                     return Task::perform(
-                        async move { operations::prepare_uninstall(&install_dir) },
-                        Message::UninstallFinished,
+                        async move { operations::remove_links(plan) },
+                        Message::LinksRemoved,
                     );
                 }
-                if self.uninstalling {
-                    self.progress = if self.progress >= 0.92 {
-                        0.18
-                    } else {
-                        self.progress + 0.08
-                    };
+                Err(error) => {
+                    self.result = Some(Err(error));
                 }
-            }
-            Message::UninstallFinished(result) => {
-                self.uninstalling = false;
-                self.pending_uninstall = None;
-                self.progress = 1.0;
+            },
+            Message::LinksRemoved(result) => match result {
+                Ok(()) => {
+                    self.stage = UninstallStage::Files;
+                    let install_dir = self.install_dir.clone();
+                    return Task::perform(
+                        async move { platform::schedule_remove_install_dir(&install_dir) },
+                        Message::FilesScheduled,
+                    );
+                }
+                Err(error) => {
+                    self.result = Some(Err(error));
+                }
+            },
+            Message::FilesScheduled(result) => {
                 self.result = Some(result);
             }
             Message::ClosePressed | Message::WindowClose => {
-                return self.close_after_uninstall();
-            }
-            Message::RemovalScheduled(result) => {
-                self.closing = false;
-                match result {
-                    Ok(()) => return self.close_window(),
-                    Err(error) => {
-                        self.close_error = Some(error);
-                    }
+                if self.can_close() {
+                    return self.window_id.map_or_else(iced::exit, iced::window::close);
                 }
             }
             Message::WindowOpened(id) => {
                 self.window_id = Some(id);
-                return iced::window::run(id, |window| platform::set_rounded_corners(window))
-                    .discard();
+                let mut tasks = vec![
+                    iced::window::run(id, |window| platform::set_rounded_corners(window)).discard(),
+                    iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
+                ];
+                if !self.started {
+                    self.started = true;
+                    let install_dir = self.install_dir.clone();
+                    tasks.push(Task::perform(
+                        async move { operations::remove_system_entries(install_dir) },
+                        Message::SystemRemoved,
+                    ));
+                }
+                return Task::batch(tasks);
             }
             Message::WindowDragStart => {
                 return self.window_id.map_or_else(Task::none, iced::window::drag);
@@ -140,6 +181,19 @@ impl Uninstaller {
                 return self
                     .window_id
                     .map_or_else(Task::none, |id| iced::window::minimize(id, true));
+            }
+            Message::WindowToggleMaximize => {
+                let Some(id) = self.window_id else {
+                    return Task::none();
+                };
+                self.window_maximized = !self.window_maximized;
+                return Task::batch([
+                    iced::window::toggle_maximize(id),
+                    iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
+                ]);
+            }
+            Message::WindowMaximizedChanged(maximized) => {
+                self.window_maximized = maximized;
             }
         }
         Task::none()
@@ -152,166 +206,72 @@ impl Uninstaller {
                 window_events::close_request(event).then_some(Message::WindowClose)
             }),
         ]);
-        if self.uninstalling {
+        if self.progress_animating() {
             Subscription::batch([
                 window_events,
-                iced::time::every(Duration::from_millis(120))
-                    .map(|_| Message::UninstallProgressTick),
+                time::every(PROGRESS_TICK_INTERVAL).map(|_| Message::ProgressTick),
             ])
         } else {
             window_events
         }
     }
 
-    fn view(&self) -> Element<'_, Message> {
-        column![
-            uninstaller_chrome::title_bar(self.uninstalling, self.closing),
-            self.content()
-        ]
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
-    }
-
-    fn content(&self) -> Element<'_, Message> {
-        let mut content = column![
-            self.header(),
-            self.path_panel(),
-            self.status_panel(),
-            Space::new().height(Length::Fill),
-        ]
-        .spacing(14)
-        .padding(22);
-
-        if let Some(error) = &self.close_error {
-            content = content.push(
-                text(error)
-                    .font(style::FONT)
-                    .size(12)
-                    .color(style::WHITE)
-                    .width(Length::Fill),
-            );
+    fn stage_state(&self, stage: UninstallStage) -> StageState {
+        match stage.cmp(&self.stage) {
+            std::cmp::Ordering::Less => StageState::Complete,
+            std::cmp::Ordering::Greater => StageState::Pending,
+            std::cmp::Ordering::Equal if matches!(self.result, Some(Err(_))) => StageState::Failed,
+            std::cmp::Ordering::Equal
+                if matches!(self.result, Some(Ok(()))) && !self.progress_animating() =>
+            {
+                StageState::Complete
+            }
+            std::cmp::Ordering::Equal => StageState::Active,
         }
+    }
 
-        if !self.uninstalling {
-            content = content.push(self.close_button());
+    fn status(&self) -> (&str, iced::Color) {
+        if let Some(Err(error)) = self.result.as_ref() {
+            return (error, style::RED);
         }
-
-        container(content)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
-    }
-
-    fn header(&self) -> Element<'_, Message> {
-        column![
-            text(self.locale.t(T::UninstallerTitle))
-                .font(style::FONT_BOLD)
-                .size(30)
-                .color(style::TEXT),
-            text(self.locale.t(T::UninstallerSubtitle))
-                .font(style::FONT)
-                .size(15)
-                .color(style::MUTED),
-        ]
-        .spacing(4)
-        .into()
-    }
-
-    fn path_panel(&self) -> Element<'_, Message> {
-        container(
-            column![
-                text(self.locale.t(T::InstallFolder))
-                    .font(style::FONT_BOLD)
-                    .size(13)
-                    .color(style::WHITE),
-                text(self.install_dir.display().to_string())
-                    .font(style::FONT)
-                    .size(13)
-                    .color(style::MUTED)
-                    .width(Length::Fill),
-            ]
-            .spacing(6),
-        )
-        .padding(14)
-        .style(style::soft_panel)
-        .width(Length::Fill)
-        .into()
-    }
-
-    fn status_panel(&self) -> Element<'_, Message> {
-        let (title, body) = match self.result.as_ref() {
-            Some(Ok(())) => (self.locale.t(T::Removed), self.locale.t(T::RemovedBody)),
-            Some(Err(error)) => (self.locale.t(T::UninstallFailed), error.as_str()),
-            None => (self.locale.t(T::Removing), self.locale.t(T::RemovingBody)),
+        if matches!(self.result, Some(Ok(()))) && self.can_close() {
+            return (self.locale.t(T::RemovalComplete), style::TEXT);
+        }
+        let text = match self.stage {
+            UninstallStage::System => self.locale.t(T::RemovingSystem),
+            UninstallStage::Links => self.locale.t(T::RemovingLinks),
+            UninstallStage::Files => self.locale.t(T::RemovingFiles),
         };
-
-        container(
-            column![
-                text(title)
-                    .font(style::FONT_BOLD)
-                    .size(17)
-                    .color(style::WHITE),
-                text(body)
-                    .font(style::FONT)
-                    .size(13)
-                    .color(style::MUTED)
-                    .width(Length::Fill),
-                progress_bar(0.0..=1.0, self.progress)
-                    .girth(Length::Fixed(8.0))
-                    .style(style::progress),
-            ]
-            .spacing(10),
-        )
-        .padding(14)
-        .style(style::panel)
-        .width(Length::Fill)
-        .into()
+        (text, style::MUTED)
     }
 
-    fn close_button(&self) -> Element<'_, Message> {
-        let label = if self.closing {
-            self.locale.t(T::ClosingEllipsis)
+    fn target_progress(&self) -> f32 {
+        if self.started && self.result.is_none() {
+            self.stage.animation_limit()
         } else {
-            self.locale.t(T::Close)
-        };
-        button(
-            container(
-                text(label)
-                    .font(style::FONT_BOLD)
-                    .size(16)
-                    .align_x(alignment::Horizontal::Center),
-            )
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(alignment::Horizontal::Center)
-            .align_y(alignment::Vertical::Center),
-        )
-        .padding(0)
-        .width(Length::Fill)
-        .height(Length::Fixed(ACTION_HEIGHT))
-        .style(style::primary_button)
-        .on_press_maybe((!self.closing).then_some(Message::ClosePressed))
-        .into()
+            self.confirmed_progress()
+        }
     }
 
-    fn close_after_uninstall(&mut self) -> Task<Message> {
-        if self.uninstalling || self.closing {
-            return Task::none();
+    fn confirmed_progress(&self) -> f32 {
+        if !self.started && self.result.is_none() {
+            return 0.0;
         }
-        if matches!(self.result, Some(Ok(()))) {
-            self.closing = true;
-            self.close_error = None;
-            let install_dir = self.install_dir.clone();
-            return Task::perform(
-                async move { operations::schedule_install_dir_removal(&install_dir) },
-                Message::RemovalScheduled,
-            );
+        match self.result {
+            Some(Ok(())) => 1.0,
+            Some(Err(_)) => self.display_progress,
+            None => self.stage.progress(),
         }
-        self.close_window()
     }
 
-    fn close_window(&self) -> Task<Message> {
-        self.window_id.map_or_else(iced::exit, iced::window::close)
+    fn progress_animating(&self) -> bool {
+        self.display_progress < self.target_progress()
+    }
+
+    fn can_close(&self) -> bool {
+        self.result.is_some() && !self.progress_animating()
     }
 }
+
+#[cfg(test)]
+mod tests;
