@@ -12,6 +12,13 @@ use iced::widget::{column, container, radio, row, scrollable, text_input};
 use iced::{Alignment, Element, Length, Padding, alignment};
 use k580_ui::devices::printer::{PrinterFeature, PrinterFeatureGroup, PrinterOrientation};
 
+const STANDARD_CONTROL_GAP: f32 = 14.0;
+const INLINE_ACTION_GAP: f32 = 10.0;
+
+const fn parameter_row_gaps() -> (f32, f32) {
+    (STANDARD_CONTROL_GAP, INLINE_ACTION_GAP)
+}
+
 pub(super) fn content<'a>(
     properties: &'a PrinterPropertiesDialog,
     lang: Lang,
@@ -109,7 +116,7 @@ fn feature_row(
         .width(Length::Fixed(230.0)),
         dropdown::feature(feature, properties, lang),
     ]
-    .spacing(14)
+    .spacing(STANDARD_CONTROL_GAP)
     .align_y(Alignment::Start)
     .into()
 }
@@ -232,6 +239,24 @@ fn advanced_content<'a>(
                 .padding([8, 10])
                 .style(move |_theme, _status| input_style(input_focused))
                 .width(Length::Fill);
+            let (label_gap, action_gap) = parameter_row_gaps();
+            let control = row![
+                input,
+                footer_button(
+                    label(lang, PropertyLabel::Apply),
+                    !properties.applying,
+                    properties.focus_is_visible(PrinterPropertiesFocus::ParameterApply(
+                        parameter.name.clone(),
+                    )),
+                )
+                .width(Length::Fixed(96.0))
+                .on_press_maybe((!properties.applying).then_some(
+                    Message::PrinterPropertyParameterApply(parameter.name.clone()),
+                )),
+            ]
+            .spacing(action_gap)
+            .align_y(Alignment::Center)
+            .width(Length::Fill);
             items.push(
                 row![
                     crate::view::theme::ui_text(
@@ -240,20 +265,9 @@ fn advanced_content<'a>(
                         crate::view::theme::tokyo_text(),
                     )
                     .width(Length::Fixed(230.0)),
-                    input,
-                    footer_button(
-                        label(lang, PropertyLabel::Apply),
-                        !properties.applying,
-                        properties.focus_is_visible(PrinterPropertiesFocus::ParameterApply(
-                            parameter.name.clone(),
-                        )),
-                    )
-                    .width(Length::Fixed(96.0))
-                    .on_press_maybe((!properties.applying).then_some(
-                        Message::PrinterPropertyParameterApply(parameter.name.clone()),
-                    )),
+                    control,
                 ]
-                .spacing(10)
+                .spacing(label_gap)
                 .align_y(Alignment::Center)
                 .into(),
             );
@@ -278,7 +292,7 @@ fn standard_row<'a>(title: &'static str, control: Element<'a, Message>) -> Eleme
         .width(Length::Fixed(230.0)),
         control,
     ]
-    .spacing(14)
+    .spacing(STANDARD_CONTROL_GAP)
     .align_y(Alignment::Start)
     .into()
 }
@@ -318,4 +332,17 @@ fn is_favorite(name: &str) -> bool {
             | "DocumentNUp"
             | "JobDuplexAllDocumentsContiguously"
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{STANDARD_CONTROL_GAP, parameter_row_gaps};
+
+    #[test]
+    fn parameter_rows_keep_the_standard_control_edge() {
+        let (label_gap, action_gap) = parameter_row_gaps();
+
+        assert_eq!(label_gap, STANDARD_CONTROL_GAP);
+        assert!(action_gap < label_gap);
+    }
 }

@@ -397,7 +397,9 @@ worth eyeballing after touching `crates/ui`:
   and keyboard traversal then enables the control focus outline; confirm the property
   lists remain scrollable without a visible scrollbar, the compact paper preview
   fits without a side-panel scroll, and the top-level Paper and Orientation
-  groups have equal height; save and reload a named profile,
+  groups have equal height; on Advanced, confirm every parameter input starts on
+  the same left edge as the selectors while its Apply button only reduces the
+  input width; save and reload a named profile,
   restart the emulator, and confirm
   the printer footer uses that global target and configuration for every file;
   switch the Printer setup window row to System, reopen setup, confirm the OS
