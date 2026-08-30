@@ -43,8 +43,7 @@ impl DesktopApp {
             Message::CloseSettings => {
                 self.settings_saved_notice = None;
                 if let Some(dialog) = self.settings_dialog.take() {
-                    let lang_changed = self.lang != dialog.original_lang;
-                    self.lang = dialog.original_lang;
+                    self.apply_language(dialog.original_lang);
                     self.color_scheme = dialog.original_color_scheme;
                     let speed_changed = self.default_speed != dialog.original_speed
                         || self.speed_tier != dialog.original_active_speed;
@@ -55,9 +54,6 @@ impl DesktopApp {
                     self.shortcut_settings = dialog.original_shortcuts;
                     if speed_changed {
                         self.apply_speed_tier(dialog.original_active_speed);
-                    }
-                    if lang_changed {
-                        self.refresh_localized_status();
                     }
                 }
                 Some(Task::none())
@@ -121,8 +117,7 @@ impl DesktopApp {
                     dialog.language_dropdown_open = false;
                     dialog.dropdown_highlight = None;
                 }
-                self.lang = lang;
-                self.refresh_localized_status();
+                self.apply_language(lang);
                 Some(Task::none())
             }
             Message::SettingsDraftSpeedChanged(tier) => {
@@ -313,14 +308,10 @@ impl DesktopApp {
                 self.shortcut_settings = shortcuts;
                 self.printer_default_settings = None;
                 self.printer_dialog_mode = default_printer_dialog_mode;
-                let lang_changed = self.lang != default_lang;
-                self.lang = default_lang;
                 self.default_speed = default_speed;
                 self.color_scheme = default_color_scheme;
                 self.apply_speed_tier(default_speed);
-                if lang_changed {
-                    self.refresh_localized_status();
-                }
+                self.apply_language(default_lang);
                 if let Some(dialog) = self.settings_dialog.as_ref()
                     && let Ok(network) = parse_network_defaults(dialog)
                 {

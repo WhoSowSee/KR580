@@ -3,6 +3,7 @@ use super::{
     ExportRegister, ExportRegisterSelection, ExportTab,
 };
 use crate::app::Message;
+use crate::i18n::Lang;
 use crate::persistence::{ExportFlagKind, ExportRegisterKind};
 
 #[test]
@@ -22,6 +23,40 @@ fn export_opens_excel_tab_with_full_range_defaults() {
     assert!(!app.export_flags.sign);
     assert!(!app.export_flags.zero);
     assert!(!app.export_flags.carry);
+}
+
+#[test]
+fn language_change_relocalizes_generated_export_targets() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = Lang::Ru;
+    app.export_xlsx_pages = vec![
+        "Подпрограмма 1".to_owned(),
+        "Подпрограмма 2".to_owned(),
+        "Отчёт".to_owned(),
+    ];
+    app.export_xlsx_page_input = "Подпрограмма 2".to_owned();
+    app.export_text_sections = vec!["Раздел 1".to_owned(), "Данные".to_owned()];
+    app.export_text_section_input = "Данные".to_owned();
+
+    let _task = app.update(Message::SettingsDraftLanguageChanged(Lang::En));
+
+    assert_eq!(
+        app.export_xlsx_pages,
+        ["Subprogram 1", "Subprogram 2", "Отчёт"]
+    );
+    assert_eq!(app.export_xlsx_page_input, "Subprogram 2");
+    assert_eq!(app.export_text_sections, ["Section 1", "Данные"]);
+    assert_eq!(app.export_text_section_input, "Данные");
+
+    let _task = app.update(Message::SettingsDraftLanguageChanged(Lang::Ru));
+
+    assert_eq!(
+        app.export_xlsx_pages,
+        ["Подпрограмма 1", "Подпрограмма 2", "Отчёт"]
+    );
+    assert_eq!(app.export_xlsx_page_input, "Подпрограмма 2");
+    assert_eq!(app.export_text_sections, ["Раздел 1", "Данные"]);
+    assert_eq!(app.export_text_section_input, "Данные");
 }
 
 #[test]

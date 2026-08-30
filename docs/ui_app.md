@@ -1758,7 +1758,9 @@ below them. RAM settings include an editable target dropdown: XLSX labels it
 as an Excel page (`Подпрограмма 1` by default), and TXT labels it as a
 text section (`Раздел 1` by default). The user can add or delete target
 names while the current app instance is alive; these names are
-intentionally not persisted. XLSX pages and TXT sections are functional:
+intentionally not persisted. Names matching the generated page/section
+pattern follow live language changes, while other user-entered names remain
+unchanged. XLSX pages and TXT sections are functional:
 each target keeps its own RAM range, column toggles, register selection,
 and flag selection. Exporting XLSX writes all current pages as workbook
 worksheets; exporting TXT writes all current sections as named blocks in

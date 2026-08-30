@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use super::messages::SpeedTier;
 use super::state::DesktopApp;
 use super::status::StatusKind;
-use crate::i18n::Key;
+use crate::i18n::{Key, Lang};
 
 impl DesktopApp {
     pub(crate) fn theme(&self, _window: iced::window::Id) -> Option<Theme> {
@@ -21,6 +21,27 @@ impl DesktopApp {
     pub(crate) fn set_status_custom(&mut self, text: String) {
         self.status = text;
         self.status_kind = StatusKind::Custom;
+    }
+
+    pub(crate) fn apply_language(&mut self, lang: Lang) {
+        if self.lang == lang {
+            return;
+        }
+        let previous_lang = self.lang;
+        relocalize_target_names(
+            &mut self.export_xlsx_pages,
+            &mut self.export_xlsx_page_input,
+            previous_lang.t(Key::ExportPageNameBase),
+            lang.t(Key::ExportPageNameBase),
+        );
+        relocalize_target_names(
+            &mut self.export_text_sections,
+            &mut self.export_text_section_input,
+            previous_lang.t(Key::ExportSectionNameBase),
+            lang.t(Key::ExportSectionNameBase),
+        );
+        self.lang = lang;
+        self.refresh_localized_status();
     }
 
     pub(crate) fn refresh_localized_status(&mut self) {
@@ -85,4 +106,27 @@ impl DesktopApp {
         };
         self.dispatch(crate::backend::AppCommand::SetRunMode(mode));
     }
+}
+
+fn relocalize_target_names(
+    options: &mut [String],
+    input: &mut String,
+    previous_base: &str,
+    current_base: &str,
+) {
+    let selected = options.iter().position(|name| name == input);
+    for name in options.iter_mut() {
+        if let Some(index) = generated_target_index(name, previous_base) {
+            *name = format!("{current_base} {index}");
+        }
+    }
+    if let Some(index) = selected {
+        *input = options[index].clone();
+    }
+}
+
+fn generated_target_index(name: &str, base: &str) -> Option<usize> {
+    let suffix = name.strip_prefix(base)?.strip_prefix(' ')?;
+    let index: usize = suffix.parse().ok()?;
+    (index > 0 && suffix == index.to_string()).then_some(index)
 }
