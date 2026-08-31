@@ -369,6 +369,10 @@ worth eyeballing after touching `crates/ui`:
   the top-left border, no
   header/footer separators are drawn, and the paper preview rotates when
   landscape is selected; open Properties,
+  check that the Paper tab's Size, Source, and Orientation rows have no shared
+  frame, and their selectors and first radio align with the driver fields below;
+  check this for multiple printers and both app languages, including a driver
+  with no additional Paper features; keep the Profiles and Preview frames intact;
   visit Favorites, General, Paper, Graphics, and Advanced, and confirm feature,
   option, and parameter labels follow the selected app language without exposing
   raw QName prefixes or `PageDevmodeSnapshot`; with Windows and the printer

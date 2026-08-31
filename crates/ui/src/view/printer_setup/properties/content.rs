@@ -1,4 +1,4 @@
-use super::super::styles::{footer_button, group_style, radio_style};
+use super::super::styles::{footer_button, radio_style};
 use super::dropdown;
 use super::labels::{PropertyLabel, label};
 use super::localization::{feature_label, parameter_label, parameter_visible};
@@ -177,7 +177,7 @@ fn paper_content<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Ele
                 properties.focus_is_visible(PrinterPropertiesFocus::Landscape),
             )),
         ]
-        .spacing(16)
+        .spacing(STANDARD_CONTROL_GAP)
         .align_y(Alignment::Center),
     ]
     .spacing(12);
@@ -186,7 +186,7 @@ fn paper_content<'a>(properties: &'a PrinterPropertiesDialog, lang: Lang) -> Ele
         .iter()
         .filter(|feature| feature.group == PrinterFeatureGroup::Paper)
         .collect::<Vec<_>>();
-    let mut content = column![group(standard.into())].spacing(12);
+    let mut content = standard;
     if !driver_features.is_empty() {
         content = content.push(feature_list(driver_features, properties, lang));
     }
@@ -295,14 +295,6 @@ fn standard_row<'a>(title: &'static str, control: Element<'a, Message>) -> Eleme
     .spacing(STANDARD_CONTROL_GAP)
     .align_y(Alignment::Start)
     .into()
-}
-
-fn group(content: Element<'static, Message>) -> Element<'static, Message> {
-    container(content)
-        .padding(14)
-        .width(Length::Fill)
-        .style(group_style)
-        .into()
 }
 
 fn centred_label<'a>(text: &'a str) -> Element<'a, Message> {
