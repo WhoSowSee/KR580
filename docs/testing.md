@@ -93,6 +93,11 @@ current selected option without submitting a physical print job.
   detection, embedded/fallback installer payload selection, and launcher-to-app
   path resolution.
 
+`view/widgets/compact_scrollbar/tests.rs` covers geometry and mouse events with
+iced's headless `tiny-skia` renderer. Its `Stack`/button setup checks the full
+8 px grab target, blocked rail clicks, and normal clicks outside the rail,
+without an OS window or system clipboard.
+
 External Intel 8080 binary suites are not included in this workspace.
 When available, add them as an additional compatibility gate instead of
 replacing the local semantic tests.
@@ -289,6 +294,10 @@ worth eyeballing after touching `crates/ui`:
   part of its rail, moves by only a few addresses for a minimal drag, catches the
   pointer within 12 px, stays under it for a fast drag, reaches both track ends
   without stutter, and leaves wheel/touchpad sensitivity unchanged;
+- in both the RAM list and opcode picker, grab the unpainted left half of the
+  8 px target and confirm dragging starts without a jump; click the empty rail
+  and confirm no row or opcode is selected, then click just outside the rail
+  and confirm the normal row action still works;
 - in the opcode picker, type part of an opcode or mnemonic, confirm
   ArrowDown/Tab and ArrowUp/Shift+Tab move the highlighted filtered row
   with wrapping, and Enter writes the highlighted opcode to the selected

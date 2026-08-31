@@ -87,25 +87,25 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
         _viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_mut::<State>();
-        let handle = handle_bounds(layout.bounds(), self.offset, self.max_offset);
+        let bounds = layout.bounds();
 
         match event {
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
-                if let Some(position) = cursor.position()
-                    && handle.contains(position)
-                {
-                    state.drag_origin = Some(DragOrigin {
-                        cursor_y: position.y,
-                        handle_y: handle.y,
-                    });
+                if let Some(position) = cursor.position_over(bounds) {
+                    let hit = handle_hit_bounds(bounds, self.offset, self.max_offset);
+                    if hit.contains(position) {
+                        state.drag_origin = Some(DragOrigin {
+                            cursor_y: position.y,
+                            handle_y: hit.y,
+                        });
+                        shell.request_redraw();
+                    }
                     shell.capture_event();
-                    shell.request_redraw();
                 }
             }
             Event::Mouse(mouse::Event::CursorMoved { position }) => {
                 if let Some(origin) = state.drag_origin {
-                    let offset =
-                        drag_target_offset(layout.bounds(), origin, position.y, self.max_offset);
+                    let offset = drag_target_offset(bounds, origin, position.y, self.max_offset);
                     if (offset - self.offset).abs() > f32::EPSILON {
                         shell.publish((self.on_drag)(offset));
                     }
@@ -121,7 +121,7 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
             _ => {}
         }
 
-        let track_hovered = cursor.is_over(layout.bounds());
+        let track_hovered = cursor.is_over(bounds);
         if state.track_hovered != track_hovered {
             state.track_hovered = track_hovered;
             shell.request_redraw();
@@ -165,13 +165,21 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
         _renderer: &iced::Renderer,
     ) -> mouse::Interaction {
         let state = tree.state.downcast_ref::<State>();
-        let handle = handle_bounds(layout.bounds(), self.offset, self.max_offset);
+        let hit = handle_hit_bounds(layout.bounds(), self.offset, self.max_offset);
 
-        if state.drag_origin.is_some() || cursor.is_over(handle) {
+        if state.drag_origin.is_some() || cursor.is_over(hit) {
             mouse::Interaction::Pointer
         } else {
             mouse::Interaction::default()
         }
+    }
+}
+
+fn handle_hit_bounds(bounds: Rectangle, offset: f32, max_offset: f32) -> Rectangle {
+    Rectangle {
+        x: bounds.x,
+        width: bounds.width,
+        ..handle_bounds(bounds, offset, max_offset)
     }
 }
 
@@ -218,75 +226,4 @@ fn precision_adjusted_drag_delta(pointer_delta: f32) -> f32 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn grabbing_off_center_does_not_move_thumb() {
-        let bounds = Rectangle::new(iced::Point::ORIGIN, Size::new(8.0, 300.0));
-        let max_offset = 1_000_000.0;
-        let offset = 375_000.0;
-        let handle = handle_bounds(bounds, offset, max_offset);
-        let cursor_y = handle.y + handle.height * 0.25;
-        let origin = DragOrigin {
-            cursor_y,
-            handle_y: handle.y,
-        };
-
-        assert!((drag_target_offset(bounds, origin, cursor_y, max_offset) - offset).abs() < 0.1);
-    }
-
-    #[test]
-    fn minimal_drag_uses_precision_zone() {
-        let bounds = Rectangle::new(iced::Point::ORIGIN, Size::new(8.0, 300.0));
-        let max_offset = 1_000_000.0;
-        let offset = 250_000.0;
-        let handle = handle_bounds(bounds, offset, max_offset);
-        let origin = DragOrigin {
-            cursor_y: handle.y + handle.height * 0.5,
-            handle_y: handle.y,
-        };
-        let target = drag_target_offset(bounds, origin, origin.cursor_y + 1.0, max_offset);
-        let moved_handle = handle_bounds(bounds, target, max_offset);
-
-        assert!(moved_handle.y > handle.y);
-        assert!(moved_handle.y - handle.y < 0.03);
-    }
-
-    #[test]
-    fn thumb_catches_pointer_and_tracks_one_to_one() {
-        let bounds = Rectangle::new(iced::Point::ORIGIN, Size::new(8.0, 300.0));
-        let max_offset = 1_000_000.0;
-        let offset = 250_000.0;
-        let handle = handle_bounds(bounds, offset, max_offset);
-        let origin = DragOrigin {
-            cursor_y: handle.y + handle.height * 0.5,
-            handle_y: handle.y,
-        };
-        for pointer_delta in [PRECISION_DRAG_DISTANCE, 50.0] {
-            let target =
-                drag_target_offset(bounds, origin, origin.cursor_y + pointer_delta, max_offset);
-            let moved_handle = handle_bounds(bounds, target, max_offset);
-
-            assert!((moved_handle.y - handle.y - pointer_delta).abs() < 0.001);
-        }
-    }
-
-    #[test]
-    fn drag_clamps_at_track_ends() {
-        let bounds = Rectangle::new(iced::Point::ORIGIN, Size::new(8.0, 300.0));
-        let origin = DragOrigin {
-            cursor_y: 100.0,
-            handle_y: 100.0,
-        };
-
-        for (cursor_y, expected_offset, expected_top) in
-            [(-1_000.0, 0.0, 0.0), (1_000.0, 60_000.0, 280.0)]
-        {
-            let offset = drag_target_offset(bounds, origin, cursor_y, 60_000.0);
-
-            assert_eq!(offset, expected_offset);
-            assert_eq!(handle_bounds(bounds, offset, 60_000.0).y, expected_top);
-        }
-    }
-}
+mod tests;
