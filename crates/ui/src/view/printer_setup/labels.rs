@@ -2,6 +2,9 @@ use super::driver_locale;
 use crate::i18n::Lang;
 use k580_ui::devices::printer::{PrinterPaper, PrinterSource, PrinterStatus};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Copy)]
 pub(super) enum Label {
     Title,
@@ -109,270 +112,257 @@ pub(super) fn localized_status(status: PrinterStatus, lang: Lang) -> &'static st
 }
 
 pub(super) fn localized_paper_name(paper: &PrinterPaper, lang: Lang) -> String {
-    if lang == Lang::Ru {
-        return paper.name.clone();
-    }
-    standard_paper_name(paper.id)
-        .map(str::to_owned)
-        .unwrap_or_else(|| english_driver_name(&paper.name, format!("Paper {}", paper.id)))
+    localized_capability_name(
+        paper.id,
+        &paper.name,
+        lang,
+        standard_paper_name(paper.id, lang),
+        ("Бумага", "Paper"),
+    )
 }
 
 pub(super) fn localized_source_name(source: &PrinterSource, lang: Lang) -> String {
-    if lang == Lang::Ru {
-        return source.name.clone();
-    }
-    standard_source_name(source.id)
-        .map(str::to_owned)
-        .unwrap_or_else(|| english_driver_name(&source.name, format!("Source {}", source.id)))
+    localized_capability_name(
+        source.id,
+        &source.name,
+        lang,
+        standard_source_name(source.id, lang),
+        ("Подача", "Source"),
+    )
 }
 
-fn standard_source_name(id: i16) -> Option<&'static str> {
-    Some(match id {
-        1 => "Upper tray",
-        2 => "Lower tray",
-        3 => "Middle tray",
-        4 => "Manual feed",
-        5 => "Envelope",
-        6 => "Manual envelope feed",
-        7 => "Auto select",
-        8 => "Tractor feed",
-        9 => "Small format",
-        10 => "Large format",
-        11 => "Large capacity",
-        14 => "Cassette",
-        15 => "Form source",
-        _ => return None,
-    })
+fn localized_capability_name(
+    id: i16,
+    name: &str,
+    lang: Lang,
+    standard: Option<&'static str>,
+    fallback_prefix: (&'static str, &'static str),
+) -> String {
+    let localized = match lang {
+        Lang::Ru => localized_driver_name(name, lang).or_else(|| standard.map(str::to_owned)),
+        Lang::En => standard
+            .map(str::to_owned)
+            .or_else(|| localized_driver_name(name, lang)),
+    };
+    localized.unwrap_or_else(|| format!("{} {id}", pick(lang, fallback_prefix)))
 }
 
-fn standard_paper_name(id: i16) -> Option<&'static str> {
-    Some(match id {
-        1 => "Letter",
-        2 => "Letter small",
-        3 => "Tabloid",
-        4 => "Ledger",
-        5 => "Legal",
-        6 => "Statement",
-        7 => "Executive",
-        8 => "A3",
-        9 => "A4",
-        10 => "A4 small",
-        11 => "A5",
-        12 => "B4 (JIS)",
-        13 => "B5 (JIS)",
-        14 => "Folio",
-        15 => "Quarto",
-        16 => "10 × 14 in",
-        17 => "11 × 17 in",
-        18 => "Note",
-        19 => "No. 9 envelope",
-        20 => "No. 10 envelope",
-        21 => "No. 11 envelope",
-        22 => "No. 12 envelope",
-        23 => "No. 14 envelope",
-        24 => "C sheet",
-        25 => "D sheet",
-        26 => "E sheet",
-        27 => "DL envelope",
-        28 => "C5 envelope",
-        29 => "C3 envelope",
-        30 => "C4 envelope",
-        31 => "C6 envelope",
-        32 => "C65 envelope",
-        33 => "B4 envelope",
-        34 => "B5 envelope",
-        35 => "B6 envelope",
-        36 => "Italy envelope",
-        37 => "Monarch envelope",
-        38 => "6 3/4 envelope",
-        39 => "US standard fanfold",
-        40 => "German standard fanfold",
-        41 => "German legal fanfold",
-        42 => "B4 (ISO)",
-        43 => "Japanese postcard",
-        44 => "9 × 11 in",
-        45 => "10 × 11 in",
-        46 => "15 × 11 in",
-        47 => "Invite envelope",
-        49 => "Letter extra",
-        50 => "Legal extra",
-        51 => "Tabloid extra",
-        52 => "A4 extra",
-        53 => "Letter transverse",
-        54 => "A4 transverse",
-        55 => "Letter extra transverse",
-        56 => "Super A",
-        57 => "Super B",
-        58 => "Letter plus",
-        59 => "A4 plus",
-        60 => "A5 transverse",
-        61 => "B5 (JIS) transverse",
-        62 => "A3 extra",
-        63 => "A5 extra",
-        64 => "B5 (ISO) extra",
-        65 => "A2",
-        66 => "A3 transverse",
-        67 => "A3 extra transverse",
-        68 => "Japanese double postcard",
-        69 => "A6",
-        70 => "Japanese Kaku No. 2 envelope",
-        71 => "Japanese Kaku No. 3 envelope",
-        72 => "Japanese Chou No. 3 envelope",
-        73 => "Japanese Chou No. 4 envelope",
-        74 => "Letter rotated",
-        75 => "A3 rotated",
-        76 => "A4 rotated",
-        77 => "A5 rotated",
-        78 => "B4 (JIS) rotated",
-        79 => "B5 (JIS) rotated",
-        80 => "Japanese postcard rotated",
-        81 => "Japanese double postcard rotated",
-        82 => "A6 rotated",
-        83 => "Japanese Kaku No. 2 envelope rotated",
-        84 => "Japanese Kaku No. 3 envelope rotated",
-        85 => "Japanese Chou No. 3 envelope rotated",
-        86 => "Japanese Chou No. 4 envelope rotated",
-        87 => "B6 (JIS)",
-        88 => "B6 (JIS) rotated",
-        89 => "12 × 11 in",
-        90 => "Japanese You No. 4 envelope",
-        91 => "Japanese You No. 4 envelope rotated",
-        92 => "PRC 16K",
-        93 => "PRC 32K",
-        94 => "PRC 32K big",
-        95 => "PRC No. 1 envelope",
-        96 => "PRC No. 2 envelope",
-        97 => "PRC No. 3 envelope",
-        98 => "PRC No. 4 envelope",
-        99 => "PRC No. 5 envelope",
-        100 => "PRC No. 6 envelope",
-        101 => "PRC No. 7 envelope",
-        102 => "PRC No. 8 envelope",
-        103 => "PRC No. 9 envelope",
-        104 => "PRC No. 10 envelope",
-        105 => "PRC 16K rotated",
-        106 => "PRC 32K rotated",
-        107 => "PRC 32K big rotated",
-        108 => "PRC No. 1 envelope rotated",
-        109 => "PRC No. 2 envelope rotated",
-        110 => "PRC No. 3 envelope rotated",
-        111 => "PRC No. 4 envelope rotated",
-        112 => "PRC No. 5 envelope rotated",
-        113 => "PRC No. 6 envelope rotated",
-        114 => "PRC No. 7 envelope rotated",
-        115 => "PRC No. 8 envelope rotated",
-        116 => "PRC No. 9 envelope rotated",
-        117 => "PRC No. 10 envelope rotated",
-        _ => return None,
-    })
-}
-
-fn english_driver_name(name: &str, fallback: String) -> String {
+fn localized_driver_name(name: &str, lang: Lang) -> Option<String> {
     let name = name.trim();
     if name.is_empty() {
-        return fallback;
+        return None;
     }
-    if !driver_locale::has_cyrillic(name) {
-        return name.to_owned();
+    match lang {
+        Lang::Ru if driver_locale::has_cyrillic(name) => Some(name.to_owned()),
+        Lang::Ru => driver_locale::russian(name),
+        Lang::En if driver_locale::has_cyrillic(name) => driver_locale::english(name),
+        Lang::En => Some(name.to_owned()),
     }
-    driver_locale::english(name).unwrap_or(fallback)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+fn standard_source_name(id: i16, lang: Lang) -> Option<&'static str> {
+    let names = match id {
+        1 => ("Верхний лоток", "Upper tray"),
+        2 => ("Нижний лоток", "Lower tray"),
+        3 => ("Средний лоток", "Middle tray"),
+        4 => ("Ручная подача", "Manual feed"),
+        5 => ("Конверт", "Envelope"),
+        6 => ("Ручная подача конвертов", "Manual envelope feed"),
+        7 => ("Автовыбор", "Auto select"),
+        8 => ("Тракторная подача", "Tractor feed"),
+        9 => ("Малый формат", "Small format"),
+        10 => ("Большой формат", "Large format"),
+        11 => ("Лоток большой ёмкости", "Large capacity"),
+        14 => ("Кассета", "Cassette"),
+        15 => ("Источник формы", "Form source"),
+        _ => return None,
+    };
+    Some(pick(lang, names))
+}
 
-    #[test]
-    fn english_printer_capabilities_ignore_the_driver_locale() {
-        let auto = PrinterSource {
-            id: 7,
-            name: "Автовыбор".to_owned(),
-        };
-        let tray = PrinterSource {
-            id: 257,
-            name: "Лоток 1".to_owned(),
-        };
-        let envelope = PrinterPaper {
-            id: 27,
-            name: "Конверт DL".to_owned(),
-        };
-        let vendor_source = PrinterSource {
-            id: 258,
-            name: "Нестандартная подача".to_owned(),
-        };
-        let blank_paper = PrinterPaper {
-            id: 200,
-            name: "   ".to_owned(),
-        };
+fn standard_paper_name(id: i16, lang: Lang) -> Option<&'static str> {
+    let names = match id {
+        1 => ("Letter", "Letter"),
+        2 => ("Letter (малый)", "Letter small"),
+        3 => ("Tabloid", "Tabloid"),
+        4 => ("Ledger", "Ledger"),
+        5 => ("Legal", "Legal"),
+        6 => ("Statement", "Statement"),
+        7 => ("Executive", "Executive"),
+        8 => ("A3", "A3"),
+        9 => ("A4", "A4"),
+        10 => ("A4 (малый)", "A4 small"),
+        11 => ("A5", "A5"),
+        12 => ("B4 (JIS)", "B4 (JIS)"),
+        13 => ("B5 (JIS)", "B5 (JIS)"),
+        14 => ("Folio", "Folio"),
+        15 => ("Quarto", "Quarto"),
+        16 => ("10 × 14 дюймов", "10 × 14 in"),
+        17 => ("11 × 17 дюймов", "11 × 17 in"),
+        18 => ("Note", "Note"),
+        19 => ("Конверт № 9", "No. 9 envelope"),
+        20 => ("Конверт № 10", "No. 10 envelope"),
+        21 => ("Конверт № 11", "No. 11 envelope"),
+        22 => ("Конверт № 12", "No. 12 envelope"),
+        23 => ("Конверт № 14", "No. 14 envelope"),
+        24 => ("Лист C", "C sheet"),
+        25 => ("Лист D", "D sheet"),
+        26 => ("Лист E", "E sheet"),
+        27 => ("Конверт DL", "DL envelope"),
+        28 => ("Конверт C5", "C5 envelope"),
+        29 => ("Конверт C3", "C3 envelope"),
+        30 => ("Конверт C4", "C4 envelope"),
+        31 => ("Конверт C6", "C6 envelope"),
+        32 => ("Конверт C65", "C65 envelope"),
+        33 => ("Конверт B4", "B4 envelope"),
+        34 => ("Конверт B5", "B5 envelope"),
+        35 => ("Конверт B6", "B6 envelope"),
+        36 => ("Итальянский конверт", "Italy envelope"),
+        37 => ("Конверт Monarch", "Monarch envelope"),
+        38 => ("Конверт 6 3/4", "6 3/4 envelope"),
+        39 => ("Стандартная фальцованная бумага США", "US standard fanfold"),
+        40 => (
+            "Стандартная фальцованная бумага Германии",
+            "German standard fanfold",
+        ),
+        41 => (
+            "Фальцованная бумага Legal (Германия)",
+            "German legal fanfold",
+        ),
+        42 => ("B4 (ISO)", "B4 (ISO)"),
+        43 => ("Японская открытка", "Japanese postcard"),
+        44 => ("9 × 11 дюймов", "9 × 11 in"),
+        45 => ("10 × 11 дюймов", "10 × 11 in"),
+        46 => ("15 × 11 дюймов", "15 × 11 in"),
+        47 => ("Конверт Invite", "Invite envelope"),
+        49 => ("Letter (увеличенный)", "Letter extra"),
+        50 => ("Legal (увеличенный)", "Legal extra"),
+        51 => ("Tabloid (увеличенный)", "Tabloid extra"),
+        52 => ("A4 (увеличенный)", "A4 extra"),
+        53 => ("Letter (поперечный)", "Letter transverse"),
+        54 => ("A4 (поперечный)", "A4 transverse"),
+        55 => ("Letter (увеличенный поперечный)", "Letter extra transverse"),
+        56 => ("Super A", "Super A"),
+        57 => ("Super B", "Super B"),
+        58 => ("Letter Plus", "Letter plus"),
+        59 => ("A4 Plus", "A4 plus"),
+        60 => ("A5 (поперечный)", "A5 transverse"),
+        61 => ("B5 (JIS, поперечный)", "B5 (JIS) transverse"),
+        62 => ("A3 (увеличенный)", "A3 extra"),
+        63 => ("A5 (увеличенный)", "A5 extra"),
+        64 => ("B5 (ISO, увеличенный)", "B5 (ISO) extra"),
+        65 => ("A2", "A2"),
+        66 => ("A3 (поперечный)", "A3 transverse"),
+        67 => ("A3 (увеличенный поперечный)", "A3 extra transverse"),
+        68 => ("Японская двойная открытка", "Japanese double postcard"),
+        69 => ("A6", "A6"),
+        70 => ("Японский конверт Kaku № 2", "Japanese Kaku No. 2 envelope"),
+        71 => ("Японский конверт Kaku № 3", "Japanese Kaku No. 3 envelope"),
+        72 => ("Японский конверт Chou № 3", "Japanese Chou No. 3 envelope"),
+        73 => ("Японский конверт Chou № 4", "Japanese Chou No. 4 envelope"),
+        74 => ("Letter (с поворотом)", "Letter rotated"),
+        75 => ("A3 (с поворотом)", "A3 rotated"),
+        76 => ("A4 (с поворотом)", "A4 rotated"),
+        77 => ("A5 (с поворотом)", "A5 rotated"),
+        78 => ("B4 (JIS, с поворотом)", "B4 (JIS) rotated"),
+        79 => ("B5 (JIS, с поворотом)", "B5 (JIS) rotated"),
+        80 => (
+            "Японская открытка (с поворотом)",
+            "Japanese postcard rotated",
+        ),
+        81 => (
+            "Японская двойная открытка (с поворотом)",
+            "Japanese double postcard rotated",
+        ),
+        82 => ("A6 (с поворотом)", "A6 rotated"),
+        83 => (
+            "Японский конверт Kaku № 2 (с поворотом)",
+            "Japanese Kaku No. 2 envelope rotated",
+        ),
+        84 => (
+            "Японский конверт Kaku № 3 (с поворотом)",
+            "Japanese Kaku No. 3 envelope rotated",
+        ),
+        85 => (
+            "Японский конверт Chou № 3 (с поворотом)",
+            "Japanese Chou No. 3 envelope rotated",
+        ),
+        86 => (
+            "Японский конверт Chou № 4 (с поворотом)",
+            "Japanese Chou No. 4 envelope rotated",
+        ),
+        87 => ("B6 (JIS)", "B6 (JIS)"),
+        88 => ("B6 (JIS, с поворотом)", "B6 (JIS) rotated"),
+        89 => ("12 × 11 дюймов", "12 × 11 in"),
+        90 => ("Японский конверт You № 4", "Japanese You No. 4 envelope"),
+        91 => (
+            "Японский конверт You № 4 (с поворотом)",
+            "Japanese You No. 4 envelope rotated",
+        ),
+        92 => ("PRC 16K", "PRC 16K"),
+        93 => ("PRC 32K", "PRC 32K"),
+        94 => ("PRC 32K (большой)", "PRC 32K big"),
+        95 => ("Конверт PRC № 1", "PRC No. 1 envelope"),
+        96 => ("Конверт PRC № 2", "PRC No. 2 envelope"),
+        97 => ("Конверт PRC № 3", "PRC No. 3 envelope"),
+        98 => ("Конверт PRC № 4", "PRC No. 4 envelope"),
+        99 => ("Конверт PRC № 5", "PRC No. 5 envelope"),
+        100 => ("Конверт PRC № 6", "PRC No. 6 envelope"),
+        101 => ("Конверт PRC № 7", "PRC No. 7 envelope"),
+        102 => ("Конверт PRC № 8", "PRC No. 8 envelope"),
+        103 => ("Конверт PRC № 9", "PRC No. 9 envelope"),
+        104 => ("Конверт PRC № 10", "PRC No. 10 envelope"),
+        105 => ("PRC 16K (с поворотом)", "PRC 16K rotated"),
+        106 => ("PRC 32K (с поворотом)", "PRC 32K rotated"),
+        107 => ("PRC 32K (большой, с поворотом)", "PRC 32K big rotated"),
+        108 => (
+            "Конверт PRC № 1 (с поворотом)",
+            "PRC No. 1 envelope rotated",
+        ),
+        109 => (
+            "Конверт PRC № 2 (с поворотом)",
+            "PRC No. 2 envelope rotated",
+        ),
+        110 => (
+            "Конверт PRC № 3 (с поворотом)",
+            "PRC No. 3 envelope rotated",
+        ),
+        111 => (
+            "Конверт PRC № 4 (с поворотом)",
+            "PRC No. 4 envelope rotated",
+        ),
+        112 => (
+            "Конверт PRC № 5 (с поворотом)",
+            "PRC No. 5 envelope rotated",
+        ),
+        113 => (
+            "Конверт PRC № 6 (с поворотом)",
+            "PRC No. 6 envelope rotated",
+        ),
+        114 => (
+            "Конверт PRC № 7 (с поворотом)",
+            "PRC No. 7 envelope rotated",
+        ),
+        115 => (
+            "Конверт PRC № 8 (с поворотом)",
+            "PRC No. 8 envelope rotated",
+        ),
+        116 => (
+            "Конверт PRC № 9 (с поворотом)",
+            "PRC No. 9 envelope rotated",
+        ),
+        117 => (
+            "Конверт PRC № 10 (с поворотом)",
+            "PRC No. 10 envelope rotated",
+        ),
+        _ => return None,
+    };
+    Some(pick(lang, names))
+}
 
-        assert_eq!(localized_source_name(&auto, Lang::En), "Auto select");
-        assert_eq!(localized_source_name(&tray, Lang::En), "Tray 1");
-        assert_eq!(localized_paper_name(&envelope, Lang::En), "DL envelope");
-        assert_eq!(
-            localized_source_name(&vendor_source, Lang::En),
-            "Source 258"
-        );
-        assert_eq!(localized_paper_name(&blank_paper, Lang::En), "Paper 200");
-    }
-
-    #[test]
-    fn every_printer_status_is_translated_into_russian() {
-        let statuses = [
-            PrinterStatus::Ready,
-            PrinterStatus::Paused,
-            PrinterStatus::Error,
-            PrinterStatus::PendingDeletion,
-            PrinterStatus::PaperJam,
-            PrinterStatus::PaperOut,
-            PrinterStatus::ManualFeed,
-            PrinterStatus::PaperProblem,
-            PrinterStatus::Offline,
-            PrinterStatus::Busy,
-            PrinterStatus::Printing,
-            PrinterStatus::OutputBinFull,
-            PrinterStatus::NotAvailable,
-            PrinterStatus::Waiting,
-            PrinterStatus::Processing,
-            PrinterStatus::Initializing,
-            PrinterStatus::WarmingUp,
-            PrinterStatus::TonerLow,
-            PrinterStatus::NoToner,
-            PrinterStatus::UserIntervention,
-            PrinterStatus::OutOfMemory,
-            PrinterStatus::DoorOpen,
-            PrinterStatus::Unknown,
-        ];
-
-        for status in statuses {
-            let russian = localized_status(status, Lang::Ru);
-            let english = localized_status(status, Lang::En);
-            assert!(
-                driver_locale::has_cyrillic(russian),
-                "{status:?}: {russian}"
-            );
-            assert!(
-                !driver_locale::has_cyrillic(english),
-                "{status:?}: {english}"
-            );
-        }
-
-        assert_eq!(
-            localized_status(PrinterStatus::PaperJam, Lang::Ru),
-            "Замятие бумаги"
-        );
-        assert_eq!(
-            localized_status(PrinterStatus::TonerLow, Lang::En),
-            "Toner low"
-        );
-    }
-
-    #[test]
-    fn russian_printer_capabilities_keep_driver_labels() {
-        let source = PrinterSource {
-            id: 7,
-            name: "Автовыбор".to_owned(),
-        };
-
-        assert_eq!(localized_source_name(&source, Lang::Ru), "Автовыбор");
+fn pick(lang: Lang, names: (&'static str, &'static str)) -> &'static str {
+    match lang {
+        Lang::Ru => names.0,
+        Lang::En => names.1,
     }
 }

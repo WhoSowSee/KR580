@@ -702,12 +702,14 @@ Native printing belongs to the internal printer device module, not the UI. The d
 Printer setup is custom by default. `view/printer_setup.rs` renders a 720 px emulator-styled modal with the system dialog's structure: printer selector, compact Properties button, status/type/location/comment details, paper size, paper source, and portrait/landscape orientation. Session setup follows the printer device window: when the printer is detached, `view/windows.rs` routes Setup to an undecorated `720×500` OS window centred over the unchanged `760×340` Printer. Like the detached Monitor view, the panel fills that native surface directly instead of being rendered over an empty backdrop. Properties has its own `printer_properties_window_id`: it opens hidden at its final `1040×680` bounds above the still-compact Setup window, renders its panel only after `WindowOpened`, and then becomes visible and focused. While that child window exists, Setup's close glyph, Cancel, and OK buttons use muted disabled styling with unchanged borders. Trying any of them, or sending a native close request to Setup, refocuses Properties and restarts a visible but restrained 520 ms surface/border pulse instead of closing either window. The pulse rises after focus transfer before fading, so the blocked window remains identifiable without a bright flash. Closing Properties destroys only that window and returns focus to Setup; closing Setup or its Printer owner closes both descendant windows. Neither child dialog resizes or replaces another window. Setup launched from the application Settings dialog remains an overlay owned by the main emulator. The modal reserves the final Printer group height before the asynchronous printer and driver configuration calls complete, so it opens at its final size instead of resizing after the first frame; that height also keeps the Name and Comment text margins visually balanced. It keeps footer buttons at a stable height, draws left-aligned section legends through their borders, uses the standard framed 34 px modal close button, and omits decorative header/footer separators. The Paper and Orientation groups share one fixed row height; the orientation controls are vertically centred inside that row, while the preview changes between portrait and landscape dimensions with the selected radio option. Printer, paper, and source selectors use a controlled anchored overlay with a 6 px gap and 4 px panel padding, so an opened menu neither participates in parent layout nor obscures its final border. Clicking elsewhere inside the modal closes the open selector. `Tab` and `Shift+Tab` cycle the enabled controls in both directions and enable the blue keyboard ring through `PrinterSetupDialog::focus_visible`; `Enter` or a left click clears that ring before activating the control, so an opened selector uses its normal active fill instead of retaining a focus outline. Selected orientation radios keep the blue dot but return to the resting border when the ring is hidden. Arrow keys move the highlighted option inside an open selector without committing it, and `Esc` closes the selector before closing the modal. `EnumPrintersW` loads printer metadata, `DeviceCapabilitiesW` loads the paper and source lists, and `DocumentPropertiesW` loads and normalizes the complete driver `DEVMODEW`. The Status row renders the `PrinterStatus` enum through `labels.rs::localized_status`, which covers all 23 spooler states in both languages, including `Замятие бумаги`, `Мало тонера`, and `Открыта крышка`.
 
 Paper and source labels are localized at render time in both Setup and
-Properties. English uses the stable Windows paper/bin identifiers for
-standard capabilities and translates common driver-specific names such
-as `Автовыбор`, `Лоток N`, and `Конверт N`; unknown Cyrillic capability
-names fall back to a neutral English identifier instead of leaking the
-driver locale into the UI. Printer names and user-created preset names
-remain unchanged because they are external proper names.
+Properties. Both application languages use stable Windows paper/bin
+identifiers for standard capabilities and translate common driver-specific
+names in either direction, including `Автовыбор` / `Automatically Select`,
+`Лоток N` / `Tray N`, and `Конверт N` / `N envelope`. An unknown label in
+the other language falls back to the localized neutral `Бумага` / `Подача`
+or `Paper` / `Source` identifier instead of leaking the driver locale into
+the UI. Printer names and user-created preset names remain unchanged because
+they are external proper names.
 
 The same rule holds one level up, in the application-wide registry.
 `i18n/ru.rs` and `i18n/en.rs` both end in a wildcard arm, so a `Key` with
@@ -723,12 +725,13 @@ until both languages have a string. `PrinterPaper` and `PrinterSource`
 deliberately have no `Display` impl, so a stray `paper.to_string()`
 cannot silently reintroduce the driver locale.
 
-`view/printer_setup/driver_locale.rs` owns the single Russian-to-English
-table for driver-supplied strings, together with the one Cyrillic range
-test used across the feature. Top-level Setup reaches it through
-`labels.rs` and Properties through `properties/localization/en.rs`, so the
-two dialogs cannot drift apart: adding `Автовыбор` or `Лоток N` once makes
-it render identically in the Paper group and in the PrintTicket rows.
+`view/printer_setup/driver_locale.rs` owns the single bidirectional
+Russian/English table for driver-supplied strings, together with the one
+Cyrillic range test used across the feature. Setup and the Properties Paper
+tab reach it through `labels.rs`; PrintTicket option fallbacks use the same
+English direction through `properties/localization/en.rs`. Adding
+`Автовыбор`, `Automatically Select`, or `Лоток N` once therefore keeps the
+paper/source controls consistent across both dialogs.
 Layer-specific vocabulary stays where it belongs – numeric Windows
 paper/bin identifiers in `labels.rs`, canonical PrintTicket QNames in
 `properties/localization/`.
@@ -2169,7 +2172,7 @@ selected field.
 **View:** `view/printer.rs` – `printer_window_overlay()` and
 `printer_window()`; `view/printer_setup.rs` – the emulator-styled printer
 selection modal; `view/printer_setup/driver_locale.rs` – the shared
-Russian-to-English table for driver-supplied labels;
+bidirectional Russian/English table for driver-supplied labels;
 `view/printer_setup/properties.rs` and its submodules – the embedded
 properties tabs, feature controls, profiles, and preview.
 

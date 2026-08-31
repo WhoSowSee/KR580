@@ -377,8 +377,13 @@ worth eyeballing after touching `crates/ui`:
   duplex mode, and automatic paper-source selection; also inspect the paper
   and source selectors in both Setup and the Properties Paper tab and confirm
   standard bins such as `Автовыбор` / `Лоток 1` render as `Auto select` /
-  `Tray 1` identically in both dialogs, since they share one table in
-  `view/printer_setup/driver_locale.rs`; change a driver option, close it,
+  `Tray 1` identically in both dialogs; with an English driver and the
+  application in Russian, confirm `Automatically Select`, `Tray 1`, and
+  `DL envelope` render as `Автовыбор`, `Лоток 1`, and `Конверт DL`, while
+  unknown foreign names use `Подача <id>` or `Бумага <id>`; both directions
+  share one table in `view/printer_setup/driver_locale.rs`; focused direction
+  and fallback regressions live in `view/printer_setup/labels/tests.rs`;
+  change a driver option, close it,
   and confirm the emulator remains responsive and refreshes the top-level
   controls; confirm dropdown panels keep a gap below their anchors, retain
   the bottom border under the final option in both setup windows, and close
