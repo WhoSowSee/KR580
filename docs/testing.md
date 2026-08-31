@@ -95,9 +95,9 @@ current selected option without submitting a physical print job.
 
 `view/widgets/compact_scrollbar/tests.rs` uses headless `tiny-skia` with real iced
 `Stack`, button and `Scrollable` fixtures. It checks geometry, grab/click
-protection, native line/pixel wheel behavior for direct and `responsive` layers,
-hover-cursor restoration and covering-overlay isolation, without an OS window
-or system clipboard.
+protection, rail recentering and continued dragging, native line/pixel wheel
+behavior for direct and `responsive` layers, hover-cursor restoration and
+covering-overlay isolation, without an OS window or system clipboard.
 
 `runtime/memory/editor/tests.rs` checks minimal scrolling and wrapping for
 arrows and Tab, search/cell-change scroll resets, and Enter selection.
@@ -304,9 +304,10 @@ worth eyeballing after touching `crates/ui`:
   pointer within 12 px, stays under it for a fast drag, reaches both track ends
   without stutter, and leaves wheel/touchpad sensitivity unchanged;
 - in both the RAM list and opcode picker, grab the unpainted left half of the
-  8 px target and confirm dragging starts without a jump; click the empty rail
-  and confirm no row or opcode is selected, then click just outside the rail
-  and confirm the normal row action still works;
+  8 px target and confirm dragging starts without a jump; click the empty rail,
+  confirm the thumb centres on the pointer and follows a continued drag without
+  selecting a row or opcode, then click just outside the rail and confirm the
+  normal row action still works;
 - in both lists, scroll with the wheel or touchpad directly over the painted
   thumb and its unpainted grab area, confirm sensitivity matches scrolling over
   the content, and confirm hovering, dragging, and a covering popup still work;

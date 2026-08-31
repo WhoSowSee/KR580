@@ -106,13 +106,22 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
                     .map(|position| state.last_cursor_position.unwrap_or(position));
                 if let Some(position) = position.filter(|position| bounds.contains(*position)) {
                     let hit = handle_hit_bounds(bounds, self.offset, self.max_offset);
-                    if hit.contains(position) {
-                        state.drag_origin = Some(DragOrigin {
+                    let grabbed_thumb = hit.contains(position);
+                    let origin = if grabbed_thumb {
+                        DragOrigin {
                             cursor_y: position.y,
                             handle_y: hit.y,
-                        });
-                        shell.request_redraw();
+                        }
+                    } else {
+                        centered_drag_origin(bounds, position.y)
+                    };
+                    state.drag_origin = Some(origin);
+                    if !grabbed_thumb {
+                        let offset =
+                            drag_target_offset(bounds, origin, origin.cursor_y, self.max_offset);
+                        shell.publish((self.on_drag)(offset));
                     }
+                    shell.request_redraw();
                     shell.capture_event();
                 }
             }
@@ -232,6 +241,15 @@ fn drag_target_offset(
     let handle_y = origin.handle_y + precision_adjusted_drag_delta(pointer_delta);
     let progress = (handle_y - bounds.y) / travel;
     progress.clamp(0.0, 1.0) * max_offset
+}
+
+fn centered_drag_origin(bounds: Rectangle, cursor_y: f32) -> DragOrigin {
+    let height = THUMB_HEIGHT.min(bounds.height);
+    let handle_y = (cursor_y - height * 0.5).clamp(bounds.y, bounds.y + bounds.height - height);
+    DragOrigin {
+        cursor_y: handle_y + height * 0.5,
+        handle_y,
+    }
 }
 
 fn precision_adjusted_drag_delta(pointer_delta: f32) -> f32 {

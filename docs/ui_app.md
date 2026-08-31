@@ -312,10 +312,11 @@ order, top to bottom:
    The memory scrollbar paints a compact 20 × 4 logical-pixel thumb with a
    20 × 8 px grab target over a hidden native rail. Both halves of that target
    start dragging, including the unpainted half. Hovering any part of the rail
-   reveals the thumb; a left click on the remaining rail is consumed without
-   scrolling or selecting the row underneath. Grabbing the thumb preserves its
-   grab point instead of recentering it under the pointer. The first 12 logical
-   pixels of a drag use a smooth precision curve,
+   reveals the thumb. A left click on the remaining rail follows iced's native
+   scrollbar behavior: it centres the thumb on the pointer, scrolls immediately,
+   and starts a drag without selecting the row underneath. Grabbing the thumb
+   preserves its grab point instead of recentering it under the pointer. The
+   first 12 logical pixels of a drag use a smooth precision curve,
    reducing subpixel movement from dozens of addresses to individual rows. At
    12 px the thumb catches the pointer with
    matching velocity; longer and faster drags remain one-to-one and traverse the

@@ -79,26 +79,39 @@ fn full_width_thumb_grab_does_not_activate_underlying_option() {
 }
 
 #[test]
-fn rail_clicks_do_not_activate_underlying_option() {
-    for release in [Point::new(194.0, 250.0), Point::new(180.0, 250.0)] {
-        let mut scene = TestScene::new();
-        scene.mouse(
-            mouse::Event::ButtonPressed(mouse::Button::Left),
-            Point::new(194.0, 250.0),
-        );
-        scene.mouse(mouse::Event::CursorMoved { position: release }, release);
-        scene.mouse(mouse::Event::ButtonReleased(mouse::Button::Left), release);
-        assert!(scene.messages.is_empty());
+fn rail_click_centers_thumb_and_starts_drag_without_activating_option() {
+    let mut scene = TestScene::new();
+    let rail = Point::new(194.0, 250.0);
+    scene.mouse(mouse::Event::CursorMoved { position: rail }, rail);
+    scene.mouse(mouse::Event::ButtonPressed(mouse::Button::Left), rail);
 
-        let option = Point::new(180.0, 250.0);
-        scene.mouse(mouse::Event::CursorMoved { position: option }, option);
-        scene.mouse(mouse::Event::ButtonPressed(mouse::Button::Left), option);
-        scene.mouse(mouse::Event::ButtonReleased(mouse::Button::Left), option);
-        assert!(matches!(
-            scene.messages.as_slice(),
-            [Message::OpcodeSelected(0x1234, 0x00)]
-        ));
-    }
+    let [Message::OpcodeScrollbarDragged(target)] = scene.messages.as_slice() else {
+        panic!("unexpected messages: {:?}", scene.messages);
+    };
+    let bounds = Rectangle::new(Point::new(192.0, 0.0), Size::new(8.0, 300.0));
+    assert!((handle_bounds(bounds, *target, 1_000_000.0).center_y() - rail.y).abs() < 0.01);
+
+    let moved = Point::new(194.0, 270.0);
+    scene.mouse(mouse::Event::CursorMoved { position: moved }, moved);
+    scene.mouse(mouse::Event::ButtonReleased(mouse::Button::Left), moved);
+    let [
+        Message::OpcodeScrollbarDragged(_),
+        Message::OpcodeScrollbarDragged(target),
+    ] = scene.messages.as_slice()
+    else {
+        panic!("unexpected messages: {:?}", scene.messages);
+    };
+    assert!((handle_bounds(bounds, *target, 1_000_000.0).center_y() - moved.y).abs() < 0.01);
+
+    scene.messages.clear();
+    let option = Point::new(180.0, 250.0);
+    scene.mouse(mouse::Event::CursorMoved { position: option }, option);
+    scene.mouse(mouse::Event::ButtonPressed(mouse::Button::Left), option);
+    scene.mouse(mouse::Event::ButtonReleased(mouse::Button::Left), option);
+    assert!(matches!(
+        scene.messages.as_slice(),
+        [Message::OpcodeSelected(0x1234, 0x00)]
+    ));
 }
 
 #[test]
