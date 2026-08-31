@@ -271,7 +271,9 @@ worth eyeballing after touching `crates/ui`:
   scrolls the list without painting a scrollbar, the options keep the same
   four-pixel inner panel spacing as the language dropdown, the popup keeps a
   separate eight-pixel gap below its closed selector, both visible options are
-  fully rendered, and every target stays on one clipped, middle-shortened row;
+  fully rendered and vertically centred in their highlight, and every target
+  stays on one clipped, middle-shortened row; toggle the selector repeatedly
+  and verify neither the footer geometry nor the anchor highlight changes;
 - in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
   and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`;
 - paste `3E 41 D3 03 76` into a memory value field and confirm the five

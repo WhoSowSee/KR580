@@ -75,28 +75,23 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
     .spacing(8)
     .width(Length::Fixed(DIALOG_WIDTH))
     .height(Length::Fixed(BODY_HEIGHT));
+    let body_frame = container(body_content).height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT));
 
-    let body_content: Element<'_, Message> =
-        if target_dropdown_open && format.is_some() && !target_options.is_empty() {
-            let close_layer = mouse_area(
-                container(Space::new())
-                    .width(Length::Fill)
-                    .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT)),
-            )
-            .on_press(Message::ImportTargetDropdownToggled);
-            stack![
-                body_content,
-                close_layer,
-                target_dropdown_overlay(target_options, target_highlight),
-            ]
-            .width(Length::Fixed(DIALOG_WIDTH))
-            .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT))
-            .into()
-        } else {
-            container(body_content)
-                .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT))
-                .into()
-        };
+    let mut body_stack = stack![body_frame];
+    if target_dropdown_open && format.is_some() && !target_options.is_empty() {
+        let close_layer = mouse_area(
+            container(Space::new())
+                .width(Length::Fill)
+                .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT)),
+        )
+        .on_press(Message::ImportTargetDropdownToggled);
+        body_stack = body_stack
+            .push(close_layer)
+            .push(target_dropdown_overlay(target_options, target_highlight));
+    }
+    let body_content = body_stack
+        .width(Length::Fixed(DIALOG_WIDTH))
+        .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT));
 
     let body = container(body_content)
         .padding(Padding {

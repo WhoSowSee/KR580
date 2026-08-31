@@ -3,12 +3,12 @@ use super::super::theme::{tokyo_muted, tokyo_red, tokyo_text, ui_text};
 use super::super::widgets::{modal_footer_button_focused, shorten_middle};
 use super::styles::{
     drop_zone_style, dropdown_option_style, dropdown_panel_style, field_button_style_focused,
-    footer_button_style,
+    footer_button_style, target_anchor_style_focused,
 };
 use crate::app::{ImportFileFormat, ImportModalFocus, Message};
 use crate::i18n::{Key, Lang};
 use iced::widget::{Space, button, column, container, opaque, row, scrollable, svg, text};
-use iced::{Element, Length, alignment};
+use iced::{Element, Length, Padding, alignment};
 
 const FIELD_WIDTH: f32 = 420.0;
 const LABEL_WIDTH: f32 = 72.0;
@@ -253,7 +253,7 @@ fn target_anchor<'a>(value: &'a str, focused: bool) -> Element<'a, Message> {
     )
     .on_press(Message::ImportTargetDropdownToggled)
     .padding(0)
-    .style(move |_theme, status| field_button_style_focused(status, focused))
+    .style(move |_theme, status| target_anchor_style_focused(status, focused))
     .into()
 }
 
@@ -300,10 +300,16 @@ fn dropdown_option(label_text: String, highlighted: bool) -> Element<'static, Me
         13,
         tokyo_text(),
     )
+    .line_height(1.0)
     .wrapping(text::Wrapping::None);
     button(
         container(label)
-            .padding([0, 10])
+            .padding(Padding {
+                top: 0.0,
+                right: 10.0,
+                bottom: 5.0,
+                left: 10.0,
+            })
             .width(Length::Fill)
             .height(Length::Fixed(DROPDOWN_OPTION_HEIGHT))
             .align_y(alignment::Vertical::Center)

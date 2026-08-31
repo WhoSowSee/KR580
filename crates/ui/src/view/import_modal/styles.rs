@@ -17,6 +17,14 @@ pub(super) fn field_button_style_focused(status: button::Status, focused: bool) 
     style
 }
 
+pub(super) fn target_anchor_style_focused(status: button::Status, focused: bool) -> button::Style {
+    let mut style = field_button_style_focused(status, focused);
+    if status == button::Status::Pressed {
+        style.background = field_button_style(button::Status::Hovered).background;
+    }
+    style
+}
+
 pub(super) fn drop_zone_style(
     _theme: &iced::Theme,
     hovered: bool,
@@ -44,7 +52,7 @@ pub(super) fn drop_zone_style(
 
 #[cfg(test)]
 mod tests {
-    use super::{drop_zone_style, field_button_style_focused};
+    use super::{drop_zone_style, field_button_style_focused, target_anchor_style_focused};
     use crate::view::theme::{tokyo_blue, tokyo_text};
     use iced::Theme;
     use iced::widget::button;
@@ -61,5 +69,13 @@ mod tests {
         let style = drop_zone_style(&Theme::TokyoNight, true, false);
 
         assert_eq!(style.border.color, tokyo_blue());
+    }
+
+    #[test]
+    fn target_anchor_keeps_hover_fill_while_pressed() {
+        let hovered = target_anchor_style_focused(button::Status::Hovered, false);
+        let pressed = target_anchor_style_focused(button::Status::Pressed, false);
+
+        assert_eq!(pressed.background, hovered.background);
     }
 }

@@ -1892,14 +1892,19 @@ hint. The zone does not repeat the drop instruction or show a format badge.
 
 The target selector is a fixed stacked dialog overlay anchored to the
 source group, so opening it does not reflow the source rows or footer.
+The 244-logical-pixel body remains the first child of a persistent
+251-logical-pixel stack. Opening only appends dismiss and popup layers, so the
+footer geometry and iced button state stay unchanged. The anchor uses the same
+fill while hovered and pressed, keeping one continuous highlight during clicks.
 Long target lists scroll with the wheel or touchpad through
 `Vertical(Scrollbar::hidden())`; neither a rail nor a scroller is painted.
 Selected and listed target names are shortened from the middle to 39
 characters, rendered with `text::Wrapping::None`, and clipped inside their
-fixed-height rows. The two-row popup reserves enough vertical space for
-both option labels, uses the same four-logical-pixel inner panel spacing
-as the language selector, keeps a separate eight-logical-pixel gap below
-its closed selector, and remains inside the modal overlay. Selection messages
+fixed-height rows. The two-row popup vertically centres both labels with a
+single-em line box and optical bottom inset. It uses the same four-logical-pixel
+inner panel spacing as the language selector, keeps a separate
+eight-logical-pixel gap below its closed selector, and remains inside the modal
+overlay. Selection messages
 retain the full target name. Confirm dispatches the
 specific worker command for the selected target: `ImportXlsxSheet`,
 `ImportTxtSection`, `ImportXlsx`, or `ImportTxt`. Successful import
