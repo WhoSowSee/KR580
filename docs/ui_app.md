@@ -321,6 +321,8 @@ order, top to bottom:
    pixel/line sensitivity. The list remains virtualised at 96 rendered rows with
    12 rows of overscan, so thumb interaction does not increase per-frame row
    construction.
+   The thumb widget lives in `view/widgets/compact_scrollbar.rs` and is shared
+   with the opcode picker; the RAM drag curve and virtualisation are unchanged.
 2. **«Ячейка ОЗУ и ее значение»** – address spinner + value field +
    `↵` apply button.
 3. **«Регистр и его значение»** – register name spinner + value field +
@@ -1588,6 +1590,12 @@ the search text resets the highlight to that first match. ArrowDown and
 Tab advance the highlight through filtered matches, ArrowUp and
 Shift+Tab move it backward, both directions wrap, and Enter writes the
 highlighted opcode into the selected memory cell.
+
+The opcode list uses the RAM viewer's shared compact scrollbar over a hidden
+native scrollable. Its 27 px rows and 172 px viewport define the scroll range;
+the shared widget hides the thumb when all matches fit. `OpcodeScrolled(offset)`
+keeps `DesktopApp::opcode_scroll_offset` synchronized with the native list, while
+`OpcodeScrollbarDragged(offset)` moves it through `OPCODE_SCROLL_ID`.
 
 ## Speed switch (left schematic panel)
 

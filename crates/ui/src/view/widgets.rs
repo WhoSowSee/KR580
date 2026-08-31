@@ -5,10 +5,12 @@
 //! modules themselves so this file does not turn into another monolith.
 
 mod anchored_overlay;
+mod compact_scrollbar;
 mod inputs;
 mod text_fit;
 
 pub(super) use anchored_overlay::anchored_overlay;
+pub(super) use compact_scrollbar::compact_scrollbar;
 pub(super) use inputs::{compact_text_input_shell, text_input_shell};
 pub(super) use text_fit::shorten_middle;
 

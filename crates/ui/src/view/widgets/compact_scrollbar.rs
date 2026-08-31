@@ -1,7 +1,8 @@
 use iced::advanced::{
     Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, renderer, widget,
 };
-use iced::{Background, Border, Element, Event, Length, Rectangle, Size};
+use iced::widget::{Space, container};
+use iced::{Background, Border, Element, Event, Length, Rectangle, Size, alignment};
 
 use super::super::styles::memory_scrollbar_color;
 use crate::app::Message;
@@ -11,25 +12,33 @@ const THUMB_WIDTH: f32 = 4.0;
 const THUMB_HEIGHT: f32 = 20.0;
 const PRECISION_DRAG_DISTANCE: f32 = 12.0;
 
-pub(super) fn memory_scrollbar(
+pub(in crate::view) fn compact_scrollbar(
     offset: f32,
     max_offset: f32,
-    viewport_height: f32,
     reveal: bool,
+    on_drag: impl Fn(f32) -> Message + 'static,
 ) -> Element<'static, Message> {
-    Element::new(MemoryScrollbar {
-        offset,
-        max_offset,
-        viewport_height,
-        reveal,
-    })
+    if max_offset > 0.0 {
+        container(Element::new(CompactScrollbar {
+            offset,
+            max_offset,
+            reveal,
+            on_drag,
+        }))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .align_x(alignment::Horizontal::Right)
+        .into()
+    } else {
+        Space::new().width(Length::Fill).height(Length::Fill).into()
+    }
 }
 
-struct MemoryScrollbar {
+struct CompactScrollbar<F> {
     offset: f32,
     max_offset: f32,
-    viewport_height: f32,
     reveal: bool,
+    on_drag: F,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -44,7 +53,7 @@ struct State {
     track_hovered: bool,
 }
 
-impl Widget<Message, iced::Theme, iced::Renderer> for MemoryScrollbar {
+impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for CompactScrollbar<F> {
     fn tag(&self) -> widget::tree::Tag {
         widget::tree::Tag::of::<State>()
     }
@@ -98,10 +107,7 @@ impl Widget<Message, iced::Theme, iced::Renderer> for MemoryScrollbar {
                     let offset =
                         drag_target_offset(layout.bounds(), origin, position.y, self.max_offset);
                     if (offset - self.offset).abs() > f32::EPSILON {
-                        shell.publish(Message::MemoryScrollbarDragged(
-                            offset,
-                            self.viewport_height,
-                        ));
+                        shell.publish((self.on_drag)(offset));
                     }
                     shell.capture_event();
                 }
@@ -172,11 +178,7 @@ impl Widget<Message, iced::Theme, iced::Renderer> for MemoryScrollbar {
 fn handle_bounds(bounds: Rectangle, offset: f32, max_offset: f32) -> Rectangle {
     let height = THUMB_HEIGHT.min(bounds.height);
     let travel = (bounds.height - height).max(0.0);
-    let progress = if max_offset > 0.0 {
-        (offset / max_offset).clamp(0.0, 1.0)
-    } else {
-        0.0
-    };
+    let progress = (offset / max_offset).clamp(0.0, 1.0);
 
     Rectangle {
         x: bounds.x + bounds.width - THUMB_WIDTH,
@@ -261,16 +263,13 @@ mod tests {
             cursor_y: handle.y + handle.height * 0.5,
             handle_y: handle.y,
         };
-        let pointer_delta = 50.0;
-        let target =
-            drag_target_offset(bounds, origin, origin.cursor_y + pointer_delta, max_offset);
-        let moved_handle = handle_bounds(bounds, target, max_offset);
+        for pointer_delta in [PRECISION_DRAG_DISTANCE, 50.0] {
+            let target =
+                drag_target_offset(bounds, origin, origin.cursor_y + pointer_delta, max_offset);
+            let moved_handle = handle_bounds(bounds, target, max_offset);
 
-        assert!((moved_handle.y - handle.y - pointer_delta).abs() < 0.001);
-        assert_eq!(
-            precision_adjusted_drag_delta(PRECISION_DRAG_DISTANCE),
-            PRECISION_DRAG_DISTANCE
-        );
+            assert!((moved_handle.y - handle.y - pointer_delta).abs() < 0.001);
+        }
     }
 
     #[test]
@@ -281,18 +280,13 @@ mod tests {
             handle_y: 100.0,
         };
 
-        assert_eq!(drag_target_offset(bounds, origin, -1_000.0, 60_000.0), 0.0);
-        assert_eq!(
-            drag_target_offset(bounds, origin, 1_000.0, 60_000.0),
-            60_000.0
-        );
-    }
+        for (cursor_y, expected_offset, expected_top) in
+            [(-1_000.0, 0.0, 0.0), (1_000.0, 60_000.0, 280.0)]
+        {
+            let offset = drag_target_offset(bounds, origin, cursor_y, 60_000.0);
 
-    #[test]
-    fn thumb_stays_inside_track() {
-        let bounds = Rectangle::new(iced::Point::ORIGIN, Size::new(8.0, 300.0));
-
-        assert_eq!(handle_bounds(bounds, 0.0, 100.0).y, 0.0);
-        assert_eq!(handle_bounds(bounds, 100.0, 100.0).y, 280.0);
+            assert_eq!(offset, expected_offset);
+            assert_eq!(handle_bounds(bounds, offset, 60_000.0).y, expected_top);
+        }
     }
 }

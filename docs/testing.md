@@ -293,6 +293,12 @@ worth eyeballing after touching `crates/ui`:
   ArrowDown/Tab and ArrowUp/Shift+Tab move the highlighted filtered row
   with wrapping, and Enter writes the highlighted opcode to the selected
   memory cell;
+- in the opcode picker, confirm the thumb has the same 20 px length as the RAM
+  viewer's thumb, reveals on rail hover, keeps its grab point, and reaches both
+  ends of the full and filtered lists; confirm wheel/touchpad scrolling still
+  works over the list and rail, filtering to a few or no matches hides the
+  thumb, and clearing the filter or reopening the picker keeps the thumb in
+  sync with the visible options;
 - switch to the Russian layout and confirm the same physical shortcuts
   still resolve: `У` opens the opcode picker, `Ctrl+Ы` saves, `Ctrl+У`
   exports, `Ctrl+Ь` opens the monitor, and `Ctrl+А` opens the floppy

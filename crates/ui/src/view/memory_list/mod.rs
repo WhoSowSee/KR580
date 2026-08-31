@@ -11,10 +11,8 @@ use k580_core::{Cpu8080State, decode_opcode};
 
 mod cells;
 mod operands;
-mod scrollbar;
 use cells::{address_cell, command_cell, memory_value_cell};
 use operands::classify_operands;
-use scrollbar::memory_scrollbar;
 
 pub(crate) use operands::{operand_jump_target, operand_port_number};
 
@@ -24,7 +22,7 @@ use super::theme::{
     tokyo_blue, tokyo_cyan, tokyo_green, tokyo_magenta, tokyo_muted, tokyo_red, tokyo_subtle_line,
     tokyo_yellow, ui_text,
 };
-use super::widgets::legend_panel;
+use super::widgets::{compact_scrollbar, legend_panel};
 use crate::app::{
     DesktopApp, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS, MEMORY_RENDER_ROWS,
     MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, Message,
@@ -89,21 +87,12 @@ impl DesktopApp {
             .into();
         let memory_scroll_offset = self.memory_scroll_offset;
         let memory_scrollbar: Element<'_, Message> = responsive(move |size| {
-            let max_offset = memory_max_scroll_offset(view_count, size.height);
-            if max_offset <= 0.0 {
-                return Space::new().width(Length::Fill).height(Length::Fill).into();
-            }
-
-            container(memory_scrollbar(
+            compact_scrollbar(
                 memory_scroll_offset,
-                max_offset,
-                size.height,
+                memory_max_scroll_offset(view_count, size.height),
                 memory_scroll_reveal,
-            ))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(alignment::Horizontal::Right)
-            .into()
+                move |offset| Message::MemoryScrollbarDragged(offset, size.height),
+            )
         })
         .into();
         let scrollable_memory: Element<'_, Message> = stack![scrollable_memory, memory_scrollbar]
@@ -124,6 +113,7 @@ impl DesktopApp {
                     address,
                     &self.opcode_search_input,
                     self.opcode_highlight_index,
+                    self.opcode_scroll_offset,
                     self.opcode_scroll_visible_ticks > 0,
                     top,
                     self.lang,

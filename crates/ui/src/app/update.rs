@@ -265,8 +265,9 @@ impl DesktopApp {
             Message::OpcodeSelected(address, value) if !self.running => {
                 self.select_opcode(address, value)
             }
-            Message::OpcodeScrolled => {
-                self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+            Message::OpcodeScrolled(offset) => self.handle_opcode_scrolled(offset),
+            Message::OpcodeScrollbarDragged(offset) => {
+                return self.drag_opcode_scrollbar(offset);
             }
             Message::HideOpcodeDropdown => self.hide_opcode_dropdown(),
             Message::DismissErrorNotice => self.clear_error_notice(),

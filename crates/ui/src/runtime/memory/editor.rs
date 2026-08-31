@@ -1,10 +1,10 @@
 use crate::app::{
-    DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message,
-    StatusKind,
+    DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_SCROLL_VISIBLE_TICKS,
+    MEMORY_VALUE_INPUT_ID, Message, OPCODE_SCROLL_ID, StatusKind,
 };
 use crate::backend::AppCommand;
 use iced::Task;
-use iced::widget::operation;
+use iced::widget::{operation, scrollable::AbsoluteOffset};
 
 use crate::app::filtered_opcode_choices;
 use crate::runtime::parse::{
@@ -151,6 +151,9 @@ impl DesktopApp {
             self.opcode_search_input.clear();
             return;
         }
+        if self.opcode_dropdown_address.is_none() {
+            self.opcode_scroll_offset = 0.0;
+        }
         self.set_memory_address(address);
         self.opcode_dropdown_address = Some(address);
         self.opcode_highlight_index = 0;
@@ -159,6 +162,16 @@ impl DesktopApp {
     pub(crate) fn change_opcode_search(&mut self, value: String) {
         self.opcode_search_input = value;
         self.opcode_highlight_index = 0;
+    }
+
+    pub(crate) fn handle_opcode_scrolled(&mut self, offset: f32) {
+        self.opcode_scroll_offset = offset;
+        self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+    }
+
+    pub(crate) fn drag_opcode_scrollbar(&mut self, offset: f32) -> Task<Message> {
+        self.handle_opcode_scrolled(offset);
+        operation::scroll_to(OPCODE_SCROLL_ID, AbsoluteOffset { x: 0.0, y: offset })
     }
 
     pub(crate) fn step_opcode_highlight(&mut self, delta: i32) {
