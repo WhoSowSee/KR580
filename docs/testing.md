@@ -99,6 +99,14 @@ protection, native line/pixel wheel behavior for direct and `responsive` layers,
 hover-cursor restoration and covering-overlay isolation, without an OS window
 or system clipboard.
 
+`runtime/memory/editor/tests.rs` checks minimal scrolling and wrapping for
+arrows and Tab, search/cell-change scroll resets, and Enter selection.
+
+The opcode picker view test applies native scroll and focus operations to the
+real picker, then sends a drag whose press and movement share a frame's final
+cursor position. It verifies dragging and wheel scrolling after search focus,
+both at the top and after keyboard scrolling.
+
 External Intel 8080 binary suites are not included in this workspace.
 When available, add them as an additional compatibility gate instead of
 replacing the local semantic tests.
@@ -304,8 +312,13 @@ worth eyeballing after touching `crates/ui`:
   the content, and confirm hovering, dragging, and a covering popup still work;
 - in the opcode picker, type part of an opcode or mnemonic, confirm
   ArrowDown/Tab and ArrowUp/Shift+Tab move the highlighted filtered row
-  with wrapping, and Enter writes the highlighted opcode to the selected
-  memory cell;
+  with wrapping and keep it fully visible without moving already visible rows;
+  after Tab scrolls the list, immediately quick-drag the thumb and use the
+  wheel, and confirm both keep working;
+  scroll down manually, change or clear the search, and confirm the first result
+  is shown at the top even after a short or empty result list; open the picker
+  for another RAM cell and confirm it starts at the top; confirm Enter writes
+  the highlighted opcode to the selected memory cell;
 - in the opcode picker, confirm the thumb has the same 20 px length as the RAM
   viewer's thumb, reveals on rail hover, keeps its grab point, and reaches both
   ends of the full and filtered lists; confirm wheel/touchpad scrolling still

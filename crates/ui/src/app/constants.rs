@@ -17,6 +17,8 @@ pub(crate) const REGISTER_INLINE_INPUT_ID: &str = "register-inline-input";
 pub(crate) const MEMORY_INLINE_INPUT_ID: &str = "memory-inline-input";
 pub(crate) const OPCODE_SEARCH_INPUT_ID: &str = "opcode-search-input";
 pub(crate) const OPCODE_SCROLL_ID: &str = "opcode-scroll";
+pub(crate) const OPCODE_LIST_HEIGHT: f32 = 172.0;
+pub(crate) const OPCODE_OPTION_HEIGHT: f32 = 27.0;
 pub(crate) const SETTINGS_SEARCH_INPUT_ID: &str = "settings-search-input";
 
 /// Number of 100 ms ticks the memory scrollbar stays visible after the

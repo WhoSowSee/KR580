@@ -257,17 +257,17 @@ impl DesktopApp {
             }
             Message::MemoryBytesPasted(None) => {}
             Message::OpcodeDropdownToggled(address) if !self.running => {
-                self.toggle_opcode_dropdown(address)
+                return self.toggle_opcode_dropdown(address);
             }
             Message::OpcodeSearchChanged(value) if !self.running => {
-                self.change_opcode_search(value)
+                return self.change_opcode_search(value);
             }
             Message::OpcodeSelected(address, value) if !self.running => {
                 self.select_opcode(address, value)
             }
             Message::OpcodeScrolled(offset) => self.handle_opcode_scrolled(offset),
             Message::OpcodeScrollbarDragged(offset) => {
-                return self.drag_opcode_scrollbar(offset);
+                return self.scroll_opcode_to(offset);
             }
             Message::HideOpcodeDropdown => self.hide_opcode_dropdown(),
             Message::DismissErrorNotice => self.clear_error_notice(),
@@ -326,12 +326,12 @@ impl DesktopApp {
                 let Some(address) = self.selected_memory_address() else {
                     return Task::none();
                 };
-                self.toggle_opcode_dropdown(address);
+                let scroll = self.toggle_opcode_dropdown(address);
                 if self.opcode_dropdown_address.is_none() {
                     return Task::none();
                 }
                 self.focused_input = Some(OPCODE_SEARCH_INPUT_ID);
-                return iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID);
+                return scroll.chain(iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID));
             }
             Message::ApplyMemory if !self.running => {
                 if self.keyboard_modifiers.command() {
@@ -353,9 +353,9 @@ impl DesktopApp {
             }
             Message::FocusCycle { backward } => {
                 if self.opcode_dropdown_address.is_some() {
-                    self.step_opcode_highlight(if backward { -1 } else { 1 });
+                    let scroll = self.step_opcode_highlight(if backward { -1 } else { 1 });
                     self.focused_input = Some(OPCODE_SEARCH_INPUT_ID);
-                    return iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID);
+                    return scroll.chain(iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID));
                 }
                 if self.focused_input == Some(REGISTER_INLINE_INPUT_ID)
                     || (self.focused_input.is_none() && self.active_register_target.is_some())

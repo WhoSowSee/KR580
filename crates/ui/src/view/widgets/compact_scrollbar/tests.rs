@@ -91,6 +91,7 @@ fn rail_clicks_do_not_activate_underlying_option() {
         assert!(scene.messages.is_empty());
 
         let option = Point::new(180.0, 250.0);
+        scene.mouse(mouse::Event::CursorMoved { position: option }, option);
         scene.mouse(mouse::Event::ButtonPressed(mouse::Button::Left), option);
         scene.mouse(mouse::Event::ButtonReleased(mouse::Button::Left), option);
         assert!(matches!(

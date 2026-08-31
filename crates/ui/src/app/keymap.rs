@@ -12,8 +12,7 @@ impl DesktopApp {
     /// `direction`: `+1` for ArrowUp, `-1` for ArrowDown.
     pub(crate) fn handle_arrow_key(&mut self, direction: i32) -> Task<Message> {
         if self.opcode_dropdown_address.is_some() {
-            self.step_opcode_highlight(if direction > 0 { -1 } else { 1 });
-            return Task::none();
+            return self.step_opcode_highlight(if direction > 0 { -1 } else { 1 });
         }
 
         match self.focused_input {

@@ -2,7 +2,7 @@ use iced::advanced::{
     Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, renderer, widget,
 };
 use iced::widget::{Space, container};
-use iced::{Background, Border, Element, Event, Length, Rectangle, Size, alignment};
+use iced::{Background, Border, Element, Event, Length, Point, Rectangle, Size, alignment};
 
 use super::super::styles::memory_scrollbar_color;
 use crate::app::Message;
@@ -52,6 +52,7 @@ struct DragOrigin {
 #[derive(Debug, Default)]
 struct State {
     drag_origin: Option<DragOrigin>,
+    last_cursor_position: Option<Point>,
     track_hovered: bool,
 }
 
@@ -99,7 +100,11 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
 
         match event {
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
-                if let Some(position) = cursor.position_over(bounds) {
+                // iced 0.14 supplies the final cursor position to every event in a batch.
+                let position = cursor
+                    .position()
+                    .map(|position| state.last_cursor_position.unwrap_or(position));
+                if let Some(position) = position.filter(|position| bounds.contains(*position)) {
                     let hit = handle_hit_bounds(bounds, self.offset, self.max_offset);
                     if hit.contains(position) {
                         state.drag_origin = Some(DragOrigin {
@@ -112,6 +117,7 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
                 }
             }
             Event::Mouse(mouse::Event::CursorMoved { position }) => {
+                state.last_cursor_position = Some(*position);
                 if let Some(origin) = state.drag_origin {
                     let offset = drag_target_offset(bounds, origin, position.y, self.max_offset);
                     if (offset - self.offset).abs() > f32::EPSILON {
@@ -120,6 +126,7 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
                     shell.capture_event();
                 }
             }
+            Event::Mouse(mouse::Event::CursorLeft) => state.last_cursor_position = None,
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left))
                 if state.drag_origin.take().is_some() =>
             {

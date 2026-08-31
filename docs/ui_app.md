@@ -328,6 +328,10 @@ order, top to bottom:
    increase per-frame row construction.
    The thumb widget lives in `view/widgets/compact_scrollbar.rs` and is shared
    with the opcode picker; the RAM drag curve and virtualisation are unchanged.
+   It remembers cursor-move event positions for grabbing: iced 0.14 passes the
+   final cursor position to every event in a batch, so a fast drag must not use
+   that final position as its press location. A hidden cursor from a covering
+   overlay still blocks grabs, and leaving the window clears the cached point.
 2. **«Ячейка ОЗУ и ее значение»** – address spinner + value field +
    `↵` apply button.
 3. **«Регистр и его значение»** – register name spinner + value field +
@@ -1591,14 +1595,20 @@ is room and flips upward inside the RAM viewport when the lower edge
 would clip. The search field filters the same documented opcode list by
 hexadecimal byte or mnemonic text. When
 the filtered list is non-empty, the first row is highlighted; changing
-the search text resets the highlight to that first match. ArrowDown and
-Tab advance the highlight through filtered matches, ArrowUp and
-Shift+Tab move it backward, both directions wrap, and Enter writes the
-highlighted opcode into the selected memory cell.
+the search text selects that first match and scrolls the opcode list to the top.
+The same reset applies when opening the picker for another RAM cell. ArrowDown
+and Tab advance the highlight through filtered matches, ArrowUp and
+Shift+Tab move it backward, both directions wrap, and the list scrolls only as
+far as needed to keep the highlighted row fully visible. Enter writes that
+opcode into the selected memory cell. Tab returns focus to the search field;
+arrow navigation leaves the current input focus unchanged.
 
 The opcode list uses the RAM viewer's shared compact scrollbar over a hidden
-native scrollable. Its 27 px rows and 172 px viewport define the scroll range;
-the shared widget hides the thumb when all matches fit. `OpcodeScrolled(offset)`
+native scrollable. Its 27 px rows and 172 px viewport define the scroll range.
+`OPCODE_OPTION_HEIGHT` and `OPCODE_LIST_HEIGHT` are shared by the view and
+navigation logic. `scroll_opcode_to` updates the cached position and issues the
+native scroll task for search resets, keyboard navigation, and thumb dragging.
+The shared widget hides the thumb when all matches fit. `OpcodeScrolled(offset)`
 keeps `DesktopApp::opcode_scroll_offset` synchronized with the native list, while
 `OpcodeScrollbarDragged(offset)` moves it through `OPCODE_SCROLL_ID`.
 

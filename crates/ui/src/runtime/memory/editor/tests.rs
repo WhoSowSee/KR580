@@ -1,4 +1,7 @@
-use crate::app::{DesktopApp, MEMORY_INLINE_INPUT_ID, Message, OPCODE_SEARCH_INPUT_ID, StatusKind};
+use crate::app::{
+    DesktopApp, MEMORY_INLINE_INPUT_ID, Message, OPCODE_LIST_HEIGHT, OPCODE_OPTION_HEIGHT,
+    OPCODE_SEARCH_INPUT_ID, StatusKind,
+};
 use std::thread;
 use std::time::Duration;
 
@@ -12,53 +15,78 @@ fn app_with_clean_startup() -> DesktopApp {
 }
 
 #[test]
-fn opcode_search_navigation_walks_filtered_results_and_wraps() {
-    let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.toggle_opcode_dropdown(0x1234);
-    app.change_opcode_search("MVI".to_owned());
+fn opcode_navigation_keeps_highlight_visible_and_wraps() {
+    for (forward, backward, focused_input) in [
+        (Message::ArrowKey(-1), Message::ArrowKey(1), None),
+        (
+            Message::FocusCycle { backward: false },
+            Message::FocusCycle { backward: true },
+            Some(OPCODE_SEARCH_INPUT_ID),
+        ),
+    ] {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        let _ = app.update(Message::OpcodeDropdownToggled(0x1234));
+        let _ = app.update(Message::OpcodeSearchChanged("MVI".to_owned()));
 
-    assert_eq!(app.highlighted_opcode_value(), Some(0x06));
+        for _ in 0..5 {
+            let _ = app.update(forward.clone());
+        }
+        assert_eq!(app.opcode_highlight_index, 5);
+        assert_eq!(app.opcode_scroll_offset, 0.0);
 
-    app.step_opcode_highlight(1);
-    assert_eq!(app.highlighted_opcode_value(), Some(0x0E));
+        let _ = app.update(forward.clone());
+        assert_eq!(app.opcode_highlight_index, 6);
+        assert_eq!(
+            app.opcode_scroll_offset,
+            7.0 * OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT
+        );
 
-    app.step_opcode_highlight(-1);
-    assert_eq!(app.highlighted_opcode_value(), Some(0x06));
+        let _ = app.update(forward.clone());
+        let _ = app.update(forward);
+        assert_eq!(app.opcode_highlight_index, 0);
+        assert_eq!(app.opcode_scroll_offset, 0.0);
 
-    app.step_opcode_highlight(-1);
-    assert_eq!(app.highlighted_opcode_value(), Some(0x3E));
+        let _ = app.update(backward.clone());
+        assert_eq!(app.opcode_highlight_index, 7);
+        assert_eq!(
+            app.opcode_scroll_offset,
+            8.0 * OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT
+        );
+
+        app.opcode_highlight_index = 2;
+        let _ = app.update(backward);
+        assert_eq!(app.opcode_highlight_index, 1);
+        assert_eq!(app.opcode_scroll_offset, OPCODE_OPTION_HEIGHT);
+        assert_eq!(app.focused_input, focused_input);
+    }
 }
 
 #[test]
-fn opcode_search_keyboard_messages_control_highlight() {
+fn opcode_search_and_address_changes_reset_scroll() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.toggle_opcode_dropdown(0x1234);
-    app.change_opcode_search("MVI".to_owned());
+    let _ = app.update(Message::OpcodeDropdownToggled(0x1234));
+    let _ = app.update(Message::OpcodeScrolled(3_000.0));
+    app.opcode_highlight_index = 7;
+    let _ = app.update(Message::OpcodeSearchChanged("SUI".to_owned()));
+    assert_eq!(app.opcode_highlight_index, 0);
+    assert_eq!(app.opcode_scroll_offset, 0.0);
 
-    let _ = app.update(Message::FocusCycle { backward: false });
-    assert_eq!(app.highlighted_opcode_value(), Some(0x0E));
-    assert_eq!(app.focused_input, Some(OPCODE_SEARCH_INPUT_ID));
-
-    let _ = app.update(Message::FocusCycle { backward: true });
-    assert_eq!(app.highlighted_opcode_value(), Some(0x06));
-
-    let _ = app.update(Message::ArrowKey(-1));
-    assert_eq!(app.highlighted_opcode_value(), Some(0x0E));
-
-    let _ = app.update(Message::ArrowKey(1));
-    assert_eq!(app.highlighted_opcode_value(), Some(0x06));
+    let _ = app.update(Message::OpcodeScrolled(3_000.0));
+    app.opcode_highlight_index = 7;
+    let _ = app.update(Message::OpcodeDropdownToggled(0x5678));
+    assert_eq!(app.opcode_dropdown_address, Some(0x5678));
+    assert_eq!(app.opcode_highlight_index, 0);
+    assert_eq!(app.opcode_scroll_offset, 0.0);
 }
 
 #[test]
 fn enter_applies_highlighted_opcode() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.toggle_opcode_dropdown(0x1234);
-    app.change_opcode_search("MVI A".to_owned());
+    let _ = app.update(Message::OpcodeDropdownToggled(0x1234));
+    let _ = app.update(Message::OpcodeSearchChanged("MVI A".to_owned()));
 
     assert_eq!(app.highlighted_opcode_value(), Some(0x3E));
-
     let _ = app.update(Message::EnterPressed);
-
     assert_eq!(app.opcode_dropdown_address, None);
     assert_eq!(app.opcode_search_input, "");
     assert_eq!(app.memory_address_input, "1234");

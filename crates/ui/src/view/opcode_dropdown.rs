@@ -8,13 +8,12 @@ use super::theme::{MONO_FONT, mono_text, tokyo_green, tokyo_text};
 use super::utils::row_separator;
 use super::widgets::compact_scrollbar;
 use crate::app::{
-    Message, OPCODE_SCROLL_ID, OPCODE_SEARCH_INPUT_ID, OpcodeChoice, filtered_opcode_choices,
+    Message, OPCODE_LIST_HEIGHT, OPCODE_OPTION_HEIGHT, OPCODE_SCROLL_ID, OPCODE_SEARCH_INPUT_ID,
+    OpcodeChoice, filtered_opcode_choices,
 };
 use crate::i18n::{Key, Lang};
 
 pub(super) const OPCODE_DROPDOWN_HEIGHT: f32 = 224.0;
-const OPCODE_LIST_HEIGHT: f32 = 172.0;
-const OPCODE_OPTION_HEIGHT: f32 = 27.0;
 
 pub(super) fn opcode_dropdown_overlay<'a>(
     address: u16,
@@ -123,4 +122,166 @@ fn opcode_option(
     .height(Length::Fixed(OPCODE_OPTION_HEIGHT))
     .style(move |_theme, status| opcode_option_style(status, highlighted))
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use iced::advanced::{Layout, Shell, clipboard, layout, mouse, renderer::Headless, widget};
+    use iced::{Event, Point, Rectangle, Size, Vector};
+
+    use super::*;
+
+    #[test]
+    fn scrollbar_drag_and_wheel_work_after_search_focus() {
+        let after_tab = 10.0 * OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT;
+        for (offset, highlighted) in [(0.0, 0), (after_tab, 9)] {
+            let mut scene = PickerScene::new(offset, highlighted);
+            scene.operate(&mut widget::operation::scrollable::scroll_to::<()>(
+                OPCODE_SCROLL_ID.into(),
+                iced::widget::scrollable::AbsoluteOffset { x: 0.0, y: offset }.into(),
+            ));
+            scene.operate(&mut widget::operation::focusable::focus::<()>(
+                OPCODE_SEARCH_INPUT_ID.into(),
+            ));
+
+            let mut geometry = ScrollGeometry::default();
+            scene.operate(&mut geometry);
+            let bounds = geometry.bounds.expect("opcode scroll bounds");
+            let grab = Point::new(
+                bounds.x + bounds.width - 2.0,
+                bounds.y + (bounds.height - 20.0) * offset / geometry.max_offset + 5.0,
+            );
+            scene.event(
+                Event::Window(iced::window::Event::RedrawRequested(
+                    iced::time::Instant::now(),
+                )),
+                grab,
+            );
+            let moved = Point::new(grab.x, grab.y + 60.0);
+            scene.messages.clear();
+            scene.event(
+                Event::Mouse(mouse::Event::CursorMoved { position: grab }),
+                moved,
+            );
+            scene.event(
+                Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+                moved,
+            );
+            scene.event(
+                Event::Mouse(mouse::Event::CursorMoved { position: moved }),
+                moved,
+            );
+            scene.event(
+                Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+                moved,
+            );
+
+            let [Message::OpcodeScrollbarDragged(target)] = scene.messages.as_slice() else {
+                panic!("offset {offset}: {:?}", scene.messages);
+            };
+            let target = *target;
+            assert!(target > offset);
+            scene.operate(&mut widget::operation::scrollable::scroll_to::<()>(
+                OPCODE_SCROLL_ID.into(),
+                iced::widget::scrollable::AbsoluteOffset { x: 0.0, y: target }.into(),
+            ));
+            scene.messages.clear();
+            scene.event(
+                Event::Mouse(mouse::Event::WheelScrolled {
+                    delta: mouse::ScrollDelta::Pixels { x: 0.0, y: -12.5 },
+                }),
+                grab,
+            );
+            assert!(matches!(
+                scene.messages.as_slice(),
+                [Message::OpcodeScrolled(actual)] if *actual == target + 12.5
+            ));
+        }
+    }
+
+    #[derive(Default)]
+    struct ScrollGeometry {
+        bounds: Option<Rectangle>,
+        max_offset: f32,
+    }
+
+    impl widget::Operation for ScrollGeometry {
+        fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn widget::Operation)) {
+            operate(self);
+        }
+
+        fn scrollable(
+            &mut self,
+            id: Option<&widget::Id>,
+            bounds: Rectangle,
+            content_bounds: Rectangle,
+            _translation: Vector,
+            _state: &mut dyn widget::operation::Scrollable,
+        ) {
+            if id == Some(&widget::Id::new(OPCODE_SCROLL_ID)) {
+                self.bounds = Some(bounds);
+                self.max_offset = content_bounds.height - bounds.height;
+            }
+        }
+    }
+
+    struct PickerScene {
+        root: Element<'static, Message>,
+        tree: widget::Tree,
+        layout: layout::Node,
+        renderer: iced::Renderer,
+        messages: Vec<Message>,
+    }
+
+    impl PickerScene {
+        fn new(offset: f32, highlighted: usize) -> Self {
+            let renderer = tokio::runtime::Builder::new_current_thread()
+                .build()
+                .expect("renderer runtime")
+                .block_on(iced::Renderer::new(
+                    iced::Font::DEFAULT,
+                    13.0.into(),
+                    Some("tiny-skia"),
+                ))
+                .expect("software renderer");
+            let mut root =
+                opcode_dropdown_overlay(0x1234, "", highlighted, offset, true, 0.0, Lang::En);
+            let mut tree = widget::Tree::new(&root);
+            let layout = root.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, Size::new(330.0, 400.0)),
+            );
+            Self {
+                root,
+                tree,
+                layout,
+                renderer,
+                messages: Vec::new(),
+            }
+        }
+
+        fn operate(&mut self, operation: &mut dyn widget::Operation) {
+            self.root.as_widget_mut().operate(
+                &mut self.tree,
+                Layout::new(&self.layout),
+                &self.renderer,
+                operation,
+            );
+        }
+
+        fn event(&mut self, event: Event, position: Point) {
+            let layout = Layout::new(&self.layout);
+            self.root.as_widget_mut().update(
+                &mut self.tree,
+                &event,
+                layout,
+                mouse::Cursor::Available(position),
+                &self.renderer,
+                &mut clipboard::Null,
+                &mut Shell::new(&mut self.messages),
+                &layout.bounds(),
+            );
+        }
+    }
 }

@@ -1,6 +1,7 @@
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_SCROLL_VISIBLE_TICKS,
-    MEMORY_VALUE_INPUT_ID, Message, OPCODE_SCROLL_ID, StatusKind,
+    MEMORY_VALUE_INPUT_ID, Message, OPCODE_LIST_HEIGHT, OPCODE_OPTION_HEIGHT, OPCODE_SCROLL_ID,
+    StatusKind,
 };
 use crate::backend::AppCommand;
 use iced::Task;
@@ -145,23 +146,22 @@ impl DesktopApp {
         .discard()
     }
 
-    pub(crate) fn toggle_opcode_dropdown(&mut self, address: u16) {
+    pub(crate) fn toggle_opcode_dropdown(&mut self, address: u16) -> Task<Message> {
         if self.opcode_dropdown_address == Some(address) {
             self.opcode_dropdown_address = None;
             self.opcode_search_input.clear();
-            return;
-        }
-        if self.opcode_dropdown_address.is_none() {
-            self.opcode_scroll_offset = 0.0;
+            return Task::none();
         }
         self.set_memory_address(address);
         self.opcode_dropdown_address = Some(address);
         self.opcode_highlight_index = 0;
+        self.scroll_opcode_to(0.0)
     }
 
-    pub(crate) fn change_opcode_search(&mut self, value: String) {
+    pub(crate) fn change_opcode_search(&mut self, value: String) -> Task<Message> {
         self.opcode_search_input = value;
         self.opcode_highlight_index = 0;
+        self.scroll_opcode_to(0.0)
     }
 
     pub(crate) fn handle_opcode_scrolled(&mut self, offset: f32) {
@@ -169,20 +169,31 @@ impl DesktopApp {
         self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
     }
 
-    pub(crate) fn drag_opcode_scrollbar(&mut self, offset: f32) -> Task<Message> {
+    pub(crate) fn scroll_opcode_to(&mut self, offset: f32) -> Task<Message> {
         self.handle_opcode_scrolled(offset);
         operation::scroll_to(OPCODE_SCROLL_ID, AbsoluteOffset { x: 0.0, y: offset })
     }
 
-    pub(crate) fn step_opcode_highlight(&mut self, delta: i32) {
+    pub(crate) fn step_opcode_highlight(&mut self, delta: i32) -> Task<Message> {
         let len = filtered_opcode_choices(&self.opcode_search_input).len();
         if len == 0 {
             self.opcode_highlight_index = 0;
-            return;
+            return Task::none();
         }
 
         let current = self.opcode_highlight_index.min(len - 1) as i32;
         self.opcode_highlight_index = (current + delta).rem_euclid(len as i32) as usize;
+
+        let row_top = self.opcode_highlight_index as f32 * OPCODE_OPTION_HEIGHT;
+        let min_offset = (row_top + OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT).max(0.0);
+        let max_offset =
+            row_top.min((len as f32 * OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT).max(0.0));
+        let offset = self.opcode_scroll_offset.clamp(min_offset, max_offset);
+        if offset == self.opcode_scroll_offset {
+            Task::none()
+        } else {
+            self.scroll_opcode_to(offset)
+        }
     }
 
     pub(crate) fn highlighted_opcode_value(&self) -> Option<u8> {
