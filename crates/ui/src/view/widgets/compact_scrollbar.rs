@@ -23,6 +23,7 @@ pub(in crate::view) fn compact_scrollbar(
             offset,
             max_offset,
             reveal,
+            forwarding_wheel: false,
             on_drag,
         }))
         .width(Length::Fill)
@@ -38,6 +39,7 @@ struct CompactScrollbar<F> {
     offset: f32,
     max_offset: f32,
     reveal: bool,
+    forwarding_wheel: bool,
     on_drag: F,
 }
 
@@ -88,6 +90,12 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
     ) {
         let state = tree.state.downcast_mut::<State>();
         let bounds = layout.bounds();
+        self.forwarding_wheel = matches!(event, Event::Mouse(mouse::Event::WheelScrolled { .. }))
+            && state.drag_origin.is_none()
+            && cursor.is_over(handle_hit_bounds(bounds, self.offset, self.max_offset));
+        if self.forwarding_wheel {
+            shell.request_redraw();
+        }
 
         match event {
             Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => {
@@ -164,6 +172,11 @@ impl<F: Fn(f32) -> Message> Widget<Message, iced::Theme, iced::Renderer> for Com
         _viewport: &Rectangle,
         _renderer: &iced::Renderer,
     ) -> mouse::Interaction {
+        // iced 0.14 Stack uses mouse_interaction to gate wheel input to lower layers.
+        if self.forwarding_wheel {
+            return mouse::Interaction::None;
+        }
+
         let state = tree.state.downcast_ref::<State>();
         let hit = handle_hit_bounds(layout.bounds(), self.offset, self.max_offset);
 

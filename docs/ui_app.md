@@ -319,10 +319,13 @@ order, top to bottom:
    reducing subpixel movement from dozens of addresses to individual rows. At
    12 px the thumb catches the pointer with
    matching velocity; longer and faster drags remain one-to-one and traverse the
-   complete 64 KiB address range. Wheel and touchpad scrolling keep iced's native
-   pixel/line sensitivity. The list remains virtualised at 96 rendered rows with
-   12 rows of overscan, so thumb interaction does not increase per-frame row
-   construction.
+   complete 64 KiB address range. Wheel and touchpad input over either half of
+   the thumb's grab target reaches the native list unchanged, preserving iced's
+   pixel/line sensitivity. The widget temporarily yields mouse interaction for
+   that wheel event and requests a redraw to restore the hover cursor; active
+   dragging and covering overlays retain control. The list remains virtualised
+   at 96 rendered rows with 12 rows of overscan, so thumb interaction does not
+   increase per-frame row construction.
    The thumb widget lives in `view/widgets/compact_scrollbar.rs` and is shared
    with the opcode picker; the RAM drag curve and virtualisation are unchanged.
 2. **«Ячейка ОЗУ и ее значение»** – address spinner + value field +
