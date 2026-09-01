@@ -1415,7 +1415,7 @@ dependencies = [
 
 [[package]]
 name = "k580-core"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
@@ -1449,7 +1449,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "kr580"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "calamine",
  "crossbeam-channel",

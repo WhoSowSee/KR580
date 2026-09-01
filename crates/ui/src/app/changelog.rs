@@ -129,18 +129,19 @@ mod tests {
     fn release_index_follows_changelog_order() {
         let releases = parse_releases(CHANGELOG_SOURCE_EN);
 
-        assert_eq!(releases[0].version, "2.1.0");
-        assert_eq!(releases[0].date, "2026-08-30");
-        assert_eq!(releases[1].version, "2.0.0");
-        assert_eq!(releases[2].version, "1.1.0");
-        assert_eq!(releases[3].version, "1.0.0");
+        assert_eq!(releases[0].version, "2.1.1");
+        assert_eq!(releases[0].date, "2026-09-01");
+        assert_eq!(releases[1].version, "2.1.0");
+        assert_eq!(releases[2].version, "2.0.0");
+        assert_eq!(releases[3].version, "1.1.0");
+        assert_eq!(releases[4].version, "1.0.0");
     }
 
     #[test]
     fn selecting_release_limits_reader_to_that_release() {
         let mut dialog = ChangelogDialog::new(Lang::En);
 
-        dialog.select_release(3);
+        dialog.select_release(4);
 
         let text = dialog.article_content.text();
         assert!(text.contains("1.1.0 · 2026-07-21"));

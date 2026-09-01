@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.1] - 2026-09-01
+
+### Bug Fixes
+
+- Fixed: export target labels update immediately when the language changes
+- Fixed: printer property inputs align with selector controls
+- Fixed: printer capabilities localize independently of the driver locale
+- Fixed: printer paper controls align consistently and no longer use a redundant group frame
+- Fixed: import target dropdown layout and highlighting remain stable
+- Fixed: the opcode picker uses the shared compact RAM scrollbar
+- Fixed: scrollbar hit areas are wider and rail clicks no longer reach list content
+- Fixed: mouse-wheel scrolling works while the pointer is over a scrollbar thumb
+- Fixed: the opcode picker keeps its selection visible and its scrollbar responsive
+- Fixed: clicks on compact scrollbar rails scroll the corresponding lists
+- Fixed: the full top area of detached windows can be used for dragging
+- Fixed: detached device windows cannot be resized, maximized, or tiled with Windows Snap
+
 ## [2.1.0] - 2026-08-30
 
 ### Features
