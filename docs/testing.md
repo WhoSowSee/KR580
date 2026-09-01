@@ -89,7 +89,7 @@ current selected option without submitting a physical print job.
   printer view-mode toggling, printer target/settings updates, memory-cell action and return shortcut
   rebinding, main-window file drag/drop hover routing, supported-extension
   validation, dropped-path dirty confirmation, full-width detached-window
-  drag routing, detachable tool-window lifecycle,
+  drag routing, fixed user-resize settings, detachable tool-window lifecycle,
   native-dialog parent selection, installer layout helpers, install-mode
   detection, embedded/fallback installer payload selection, and launcher-to-app
   path resolution.
@@ -172,6 +172,10 @@ worth eyeballing after touching `crates/ui`:
 - open native dialogs from the main window, detached Monitor/Floppy/HDD,
   Settings, Import/Export, and the installer; confirm each dialog belongs to its
   owning window and cancellation leaves state unchanged;
+- on Windows, detach Monitor, Floppy, HDD, Network, and Printer; confirm their
+  title bands still move the windows, borders and corners cannot resize them,
+  and dragging them into top, side, or corner Snap zones does not maximize or
+  tile them;
 - export the full memory range to XLSX and confirm Field/Value/Address/Command
   columns open at readable widths and long values do not stretch the worksheet;
 - run `cargo run -p kr580 --bin kr -- --help` and confirm usage prints

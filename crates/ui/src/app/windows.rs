@@ -287,6 +287,7 @@ fn tool_window_settings(kind: ToolWindowKind, main_window_size: Size) -> window:
         position: window::Position::Centered,
         min_size: Some(tool_window_min_size(kind)),
         icon: window_icon(),
+        resizable: false,
         decorations: false,
         visible: false,
         exit_on_close_request: false,
@@ -342,4 +343,18 @@ pub(super) fn detached_monitor_size(main_window_size: Size) -> Size {
 
 pub(crate) fn detached_storage_size() -> Size {
     Size::new(760.0, 340.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detached_tool_windows_are_not_user_resizable() {
+        for kind in TOOL_WINDOWS {
+            let settings = tool_window_settings(kind, Size::new(1180.0, 720.0));
+
+            assert!(!settings.resizable, "{kind:?}");
+        }
+    }
 }

@@ -503,7 +503,11 @@ open/close lifecycle. Both presentations share the same
 `MonitorState`, split mode, byte-stream popup, and live updates. The native
 window size is the current main-window size minus the attached modal's two
 60-px edge insets, so detaching preserves the dialog dimensions instead of
-switching to a separate fixed size.
+switching to a separate fixed size. All five detached device windows set
+`resizable: false`; on Windows iced/winit therefore omits the native sizing and
+maximize styles, so border drags and Snap zones cannot change their dimensions
+or maximize them. The app can still choose the current monitor dimensions when
+it shows a reused window.
 
 Localized categorical values in every device footer start with a lowercase
 letter after their label and colon in both Russian and English. This contextual
