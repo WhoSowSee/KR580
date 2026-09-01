@@ -206,7 +206,7 @@ pub(crate) enum Message {
     MenuBatch(Vec<Message>),
     SpeedTierChanged(SpeedTier),
     WindowDragStart,
-    ToolWindowDragStart(ToolWindowKind),
+    DetachedWindowDragStart(iced::window::Id),
     WindowMinimize,
     WindowToggleMaximize,
     WindowClose,

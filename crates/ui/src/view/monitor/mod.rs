@@ -161,16 +161,7 @@ fn monitor_header<'a>(
         icons::square_split_vertical()
     };
 
-    let title = container(Space::new())
-        .width(Length::Fill)
-        .height(Length::Fixed(ICON_BUTTON_SIZE));
-    let drag_handle: Element<'_, Message> = if detached {
-        mouse_area(title)
-            .on_press(Message::ToolWindowDragStart(ToolWindowKind::Monitor))
-            .into()
-    } else {
-        title.into()
-    };
+    let title = Space::new().width(Length::Fill);
     let window_toggle = if detached {
         icon_button(
             icons::panel_attach(),
@@ -209,7 +200,7 @@ fn monitor_header<'a>(
     };
 
     row![
-        drag_handle,
+        title,
         window_toggle,
         Space::new().width(Length::Fixed(6.0)),
         pin_toggle,

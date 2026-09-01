@@ -88,7 +88,8 @@ current selected option without submitting a physical print job.
 - `kr580` UI and installer: pure view helpers, printer HEX and CP866 text formatting,
   printer view-mode toggling, printer target/settings updates, memory-cell action and return shortcut
   rebinding, main-window file drag/drop hover routing, supported-extension
-  validation, dropped-path dirty confirmation, detachable tool-window lifecycle,
+  validation, dropped-path dirty confirmation, full-width detached-window
+  drag routing, detachable tool-window lifecycle,
   native-dialog parent selection, installer layout helpers, install-mode
   detection, embedded/fallback installer payload selection, and launcher-to-app
   path resolution.
@@ -456,7 +457,10 @@ worth eyeballing after touching `crates/ui`:
   stays centred over the Printer, and uses a separate `1040×680` Properties
   window above the unchanged `720×500` Setup window; neither dialog may resize
   the Printer from its original `760×340` bounds, and Properties must appear at
-  its final text scale immediately without stretching the Setup window; while
+  its final text scale immediately without stretching the Setup window; drag the
+  Printer, Setup, and Properties from the blank inset above their header controls
+  and confirm the exact grabbed window moves, then confirm every header button
+  still activates without starting a drag; while
   Properties is open, confirm Setup's close glyph, Cancel, and OK buttons stay
   muted with unchanged borders; try each control and a native Setup close request,
   confirm Properties receives focus plus a clearly visible but restrained 520 ms

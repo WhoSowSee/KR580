@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use iced::widget::{Space, button, container, mouse_area, row, svg};
+use iced::widget::{Space, button, container, row, svg};
 use iced::{Background, Border, Color, Element, Length, Theme, alignment};
 
 use super::super::icons;
@@ -44,16 +44,7 @@ pub(in crate::view) fn window_controls(
     always_on_top: bool,
     lang: Lang,
 ) -> Element<'static, Message> {
-    let title = container(Space::new())
-        .width(Length::Fill)
-        .height(Length::Fixed(ICON_BUTTON_SIZE));
-    let drag_handle: Element<'_, Message> = if detached {
-        mouse_area(title)
-            .on_press(Message::ToolWindowDragStart(kind))
-            .into()
-    } else {
-        title.into()
-    };
+    let title = Space::new().width(Length::Fill);
     let window_toggle = icon_button(
         if detached {
             icons::panel_attach()
@@ -94,7 +85,7 @@ pub(in crate::view) fn window_controls(
     };
 
     row![
-        drag_handle,
+        title,
         window_toggle,
         Space::new().width(Length::Fixed(6.0)),
         pin,

@@ -79,7 +79,7 @@ impl DesktopApp {
             }
             Message::FrameRendered => self.frame_rendered(),
             Message::WindowDragStart => self.drag_main_window(),
-            Message::ToolWindowDragStart(kind) => self.drag_tool_window(*kind),
+            Message::DetachedWindowDragStart(id) => window::drag(*id),
             Message::WindowMinimize => self
                 .main_window_id
                 .map_or_else(Task::none, |id| window::minimize(id, true)),
@@ -194,12 +194,6 @@ impl DesktopApp {
         }
         self.main_window_id
             .map_or_else(Task::none, iced::window::drag)
-    }
-
-    fn drag_tool_window(&self, kind: ToolWindowKind) -> Task<Message> {
-        self.tool_window(kind)
-            .id
-            .map_or_else(Task::none, window::drag)
     }
 
     fn toggle_main_window_maximized(&mut self) -> Task<Message> {
