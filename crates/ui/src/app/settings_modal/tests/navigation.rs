@@ -53,6 +53,14 @@ fn general_toggle_segments_are_individually_tab_indexed() {
     );
     assert_eq!(
         dialog.next_content_focus(ContentFocus::MemoryOperandHighlightingOff),
+        Some(ContentFocus::ShowFileNameOn)
+    );
+    assert_eq!(
+        dialog.next_content_focus(ContentFocus::ShowFileNameOn),
+        Some(ContentFocus::ShowFileNameOff)
+    );
+    assert_eq!(
+        dialog.next_content_focus(ContentFocus::ShowFileNameOff),
         Some(ContentFocus::FileAssociation)
     );
     assert_eq!(dialog.last_content_focus(), ContentFocus::FileAssociation);

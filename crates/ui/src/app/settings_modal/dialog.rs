@@ -23,6 +23,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) draft_color_scheme: ColorScheme,
     pub(crate) draft_follow_pc: bool,
     pub(crate) draft_memory_operand_highlighting: bool,
+    pub(crate) draft_show_file_name: bool,
     pub(crate) draft_floppy_image_path: Option<std::path::PathBuf>,
     pub(crate) draft_hdd_directory: Option<std::path::PathBuf>,
     pub(crate) draft_printer_settings: Option<PrinterSettings>,
@@ -47,6 +48,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) original_color_scheme: ColorScheme,
     pub(crate) original_follow_pc: bool,
     pub(crate) original_memory_operand_highlighting: bool,
+    pub(crate) original_show_file_name: bool,
     pub(crate) original_printer_dialog_mode: PrinterDialogMode,
     pub(crate) footer_focus: FooterFocus,
     pub(crate) reset_confirm_open: bool,
@@ -74,6 +76,7 @@ impl SettingsDialog {
             ColorScheme::DEFAULT,
             follow_pc,
             memory_operand_highlighting,
+            false,
             floppy_image_path,
             hdd_directory,
             None,
@@ -102,6 +105,7 @@ impl SettingsDialog {
             color_scheme,
             follow_pc,
             memory_operand_highlighting,
+            false,
             floppy_image_path,
             hdd_directory,
             None,
@@ -118,6 +122,7 @@ impl SettingsDialog {
         color_scheme: ColorScheme,
         follow_pc: bool,
         memory_operand_highlighting: bool,
+        show_file_name: bool,
         floppy_image_path: Option<std::path::PathBuf>,
         hdd_directory: Option<std::path::PathBuf>,
         printer_settings: Option<PrinterSettings>,
@@ -136,6 +141,7 @@ impl SettingsDialog {
             draft_color_scheme: color_scheme,
             draft_follow_pc: follow_pc,
             draft_memory_operand_highlighting: memory_operand_highlighting,
+            draft_show_file_name: show_file_name,
             draft_floppy_image_path: floppy_image_path,
             draft_hdd_directory: hdd_directory,
             draft_printer_settings: printer_settings,
@@ -156,6 +162,7 @@ impl SettingsDialog {
             original_color_scheme: color_scheme,
             original_follow_pc: follow_pc,
             original_memory_operand_highlighting: memory_operand_highlighting,
+            original_show_file_name: show_file_name,
             original_printer_dialog_mode: printer_dialog_mode,
             footer_focus: FooterFocus::Cancel,
             reset_confirm_open: false,
@@ -212,7 +219,9 @@ impl SettingsDialog {
                 ContentFocus::MemoryOperandHighlightingOn => {
                     Some(ContentFocus::MemoryOperandHighlightingOff)
                 }
-                ContentFocus::MemoryOperandHighlightingOff => Some(ContentFocus::FileAssociation),
+                ContentFocus::MemoryOperandHighlightingOff => Some(ContentFocus::ShowFileNameOn),
+                ContentFocus::ShowFileNameOn => Some(ContentFocus::ShowFileNameOff),
+                ContentFocus::ShowFileNameOff => Some(ContentFocus::FileAssociation),
                 ContentFocus::FileAssociation => None,
                 _ => Some(self.first_content_focus()),
             },
@@ -249,7 +258,9 @@ impl SettingsDialog {
                 ContentFocus::MemoryOperandHighlightingOff => {
                     Some(ContentFocus::MemoryOperandHighlightingOn)
                 }
-                ContentFocus::FileAssociation => Some(ContentFocus::MemoryOperandHighlightingOff),
+                ContentFocus::ShowFileNameOn => Some(ContentFocus::MemoryOperandHighlightingOff),
+                ContentFocus::ShowFileNameOff => Some(ContentFocus::ShowFileNameOn),
+                ContentFocus::FileAssociation => Some(ContentFocus::ShowFileNameOff),
                 _ => Some(self.last_content_focus()),
             },
             SettingsCategory::ExternalDevices => match current {

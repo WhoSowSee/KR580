@@ -139,6 +139,8 @@ pub(crate) enum ContentFocus {
     FollowPcOff,
     MemoryOperandHighlightingOn,
     MemoryOperandHighlightingOff,
+    ShowFileNameOn,
+    ShowFileNameOff,
     FloppyImage,
     HddDirectory,
     PrinterDefault,

@@ -29,6 +29,7 @@ impl DesktopApp {
                     self.color_scheme,
                     self.follow_pc,
                     self.memory_operand_highlighting,
+                    self.show_file_name,
                     settings.general.floppy_image_path,
                     settings.general.hdd_directory,
                     settings.general.printer_settings,
@@ -50,6 +51,7 @@ impl DesktopApp {
                     self.default_speed = dialog.original_speed;
                     self.follow_pc = dialog.original_follow_pc;
                     self.memory_operand_highlighting = dialog.original_memory_operand_highlighting;
+                    self.show_file_name = dialog.original_show_file_name;
                     self.printer_dialog_mode = dialog.original_printer_dialog_mode;
                     self.shortcut_settings = dialog.original_shortcuts;
                     if speed_changed {
@@ -140,6 +142,13 @@ impl DesktopApp {
                     dialog.draft_memory_operand_highlighting = value;
                 }
                 self.memory_operand_highlighting = value;
+                Some(Task::none())
+            }
+            Message::SettingsDraftShowFileNameSet(value) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_show_file_name = value;
+                }
+                self.show_file_name = value;
                 Some(Task::none())
             }
             Message::SettingsDraftColorSchemeChanged(scheme) => {
@@ -271,6 +280,7 @@ impl DesktopApp {
                 let default_color_scheme = crate::persistence::ColorScheme::DEFAULT;
                 let default_follow_pc = false;
                 let default_memory_operand_highlighting = true;
+                let default_show_file_name = false;
                 let default_printer_dialog_mode = crate::persistence::PrinterDialogMode::default();
                 let network = crate::persistence::NetworkSettings::default();
                 let shortcuts = crate::persistence::ShortcutSettings::default();
@@ -295,9 +305,11 @@ impl DesktopApp {
                     dialog.recording_shortcut = None;
                     dialog.draft_follow_pc = default_follow_pc;
                     dialog.draft_memory_operand_highlighting = default_memory_operand_highlighting;
+                    dialog.draft_show_file_name = default_show_file_name;
                     dialog.original_follow_pc = default_follow_pc;
                     dialog.original_memory_operand_highlighting =
                         default_memory_operand_highlighting;
+                    dialog.original_show_file_name = default_show_file_name;
                     dialog.original_printer_dialog_mode = default_printer_dialog_mode;
                     dialog.network_error = None;
                     dialog.reset_confirm_open = false;
@@ -305,6 +317,7 @@ impl DesktopApp {
                 }
                 self.follow_pc = default_follow_pc;
                 self.memory_operand_highlighting = default_memory_operand_highlighting;
+                self.show_file_name = default_show_file_name;
                 self.shortcut_settings = shortcuts;
                 self.printer_default_settings = None;
                 self.printer_dialog_mode = default_printer_dialog_mode;
@@ -352,6 +365,7 @@ impl DesktopApp {
         dialog.original_color_scheme = dialog.draft_color_scheme;
         dialog.original_follow_pc = dialog.draft_follow_pc;
         dialog.original_memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
+        dialog.original_show_file_name = dialog.draft_show_file_name;
         dialog.original_printer_dialog_mode = dialog.draft_printer_dialog_mode;
         dialog.original_shortcuts = dialog.draft_shortcuts.clone();
     }
@@ -362,6 +376,7 @@ impl DesktopApp {
         settings.general.default_speed = preset_from_speed_tier(self.default_speed);
         settings.general.follow_pc = dialog.draft_follow_pc;
         settings.general.memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
+        settings.general.show_file_name = dialog.draft_show_file_name;
         settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
         settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
         settings

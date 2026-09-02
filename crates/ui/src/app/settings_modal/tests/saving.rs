@@ -28,6 +28,7 @@ fn committed_settings_stay_open_and_advance_cancel_snapshot() {
     ));
     let _ = app.update(Message::SettingsDraftFollowPcSet(false));
     let _ = app.update(Message::SettingsDraftMemoryOperandHighlightingSet(false));
+    let _ = app.update(Message::SettingsDraftShowFileNameSet(true));
     let _ = app.update(Message::SettingsDraftPrinterDialogModeSet(
         PrinterDialogMode::System,
     ));
@@ -48,6 +49,7 @@ fn committed_settings_stay_open_and_advance_cancel_snapshot() {
     assert_eq!(dialog.original_color_scheme, ColorScheme::GruvboxDark);
     assert!(!dialog.original_follow_pc);
     assert!(!dialog.original_memory_operand_highlighting);
+    assert!(dialog.original_show_file_name);
     assert_eq!(
         dialog.original_printer_dialog_mode,
         PrinterDialogMode::System
@@ -59,6 +61,7 @@ fn committed_settings_stay_open_and_advance_cancel_snapshot() {
     ));
     let _ = app.update(Message::SettingsDraftFollowPcSet(true));
     let _ = app.update(Message::SettingsDraftMemoryOperandHighlightingSet(true));
+    let _ = app.update(Message::SettingsDraftShowFileNameSet(false));
     let _ = app.update(Message::SettingsDraftPrinterDialogModeSet(
         PrinterDialogMode::Custom,
     ));
@@ -69,6 +72,7 @@ fn committed_settings_stay_open_and_advance_cancel_snapshot() {
     assert_eq!(app.color_scheme, ColorScheme::GruvboxDark);
     assert!(!app.follow_pc);
     assert!(!app.memory_operand_highlighting);
+    assert!(app.show_file_name);
     assert_eq!(app.printer_dialog_mode, PrinterDialogMode::System);
     assert_eq!(
         app.shortcut_settings.binding(ShortcutAction::OpenMonitor),

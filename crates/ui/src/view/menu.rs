@@ -2,7 +2,7 @@
 //! title bar (drag handle + caption buttons) since the window runs with
 //! `decorations: false`.
 
-use iced::widget::{Space, button, column, container, mouse_area, row, svg};
+use iced::widget::{Space, button, column, container, mouse_area, row, stack, svg};
 use iced::{Border, Color, Element, Length, alignment};
 
 use super::icons;
@@ -14,7 +14,8 @@ use super::menu_labels::{inactive_category_keys, settings_category_key};
 use super::styles::{
     caption_button_style, close_caption_button_style, menu_bar_divider_style, menu_bar_style,
 };
-use super::theme::{tokyo_blue, tokyo_magenta, tokyo_text, ui_text};
+use super::theme::{tokyo_blue, tokyo_magenta, tokyo_muted, tokyo_text, ui_text};
+use super::widgets::shorten_middle;
 use crate::app::{DesktopApp, MenuId, Message, TopMenuFocus, TopMenuIndicator};
 use crate::i18n::Key;
 
@@ -24,6 +25,7 @@ const CAPTION_ICON_SIZE: f32 = 14.0;
 const CAPTION_CLOSE_ICON_SIZE: f32 = 16.0;
 const CAPTION_BUTTON_WIDTH: f32 = 32.0;
 const CAPTION_BUTTON_HEIGHT: f32 = 24.0;
+const TITLE_FILE_NAME_BUDGET: usize = 36;
 const MENU_CATEGORY_PADDING: iced::Padding = iced::Padding {
     top: 3.0,
     right: 6.0,
@@ -137,6 +139,47 @@ impl DesktopApp {
         .width(Length::Fill)
         .height(Length::Fixed(34.0))
         .style(menu_bar_style);
+
+        let file_name = if self.show_file_name {
+            self.current_snapshot_path
+                .as_ref()
+                .and_then(|path| path.file_name())
+                .map(|name| shorten_middle(&name.to_string_lossy(), TITLE_FILE_NAME_BUDGET))
+        } else {
+            None
+        };
+        let bar: Element<'_, Message> = if let Some(file_name) = file_name {
+            let file_icon = svg(icons::file())
+                .width(Length::Fixed(13.0))
+                .height(Length::Fixed(13.0))
+                .style(|_theme, _status| svg::Style {
+                    color: Some(tokyo_muted()),
+                });
+            let title = mouse_area(
+                container(
+                    row![
+                        file_icon,
+                        ui_text(file_name, 12, tokyo_muted())
+                            .wrapping(iced::widget::text::Wrapping::None),
+                    ]
+                    .spacing(6)
+                    .align_y(alignment::Vertical::Center),
+                )
+                .padding([4, 8]),
+            )
+            .on_press(Message::WindowDragStart);
+            stack![
+                bar,
+                container(title)
+                    .width(Length::Fill)
+                    .height(Length::Fixed(34.0))
+                    .align_x(alignment::Horizontal::Center)
+                    .align_y(alignment::Vertical::Center),
+            ]
+            .into()
+        } else {
+            bar.into()
+        };
 
         // While a dropdown is open the divider gets a hole punched
         // under it; the bleed pushes segment endpoints under the

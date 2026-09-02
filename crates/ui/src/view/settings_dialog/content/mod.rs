@@ -241,6 +241,16 @@ fn collect_category_rows<'a>(
             }
             if matches_query(
                 &[
+                    Key::SettingsShowFileNameLabel,
+                    Key::SettingsShowFileNameHint,
+                ],
+                lang,
+                lower_query,
+            ) {
+                out.push(show_file_name_toggle_row(dialog, lang));
+            }
+            if matches_query(
+                &[
                     Key::SettingsFileAssociationLabel,
                     Key::SettingsFileAssociationHint,
                     Key::SettingsFileAssociationAdd,

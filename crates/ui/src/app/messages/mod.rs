@@ -343,6 +343,7 @@ pub(crate) enum Message {
     SettingsDraftSpeedChanged(SpeedTier),
     SettingsDraftFollowPcSet(bool),
     SettingsDraftMemoryOperandHighlightingSet(bool),
+    SettingsDraftShowFileNameSet(bool),
     SettingsDraftColorSchemeChanged(ColorScheme),
     SettingsDraftPrinterDialogModeSet(PrinterDialogMode),
     SettingsFloppyImageBrowse,

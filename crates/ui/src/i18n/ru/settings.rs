@@ -17,6 +17,8 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::SettingsFollowPcHint => "Перемещать подсветку за счётчиком команд во время выполнения",
         Key::SettingsMemoryOperandHighlightingLabel => "Подсвечивать операнды памяти",
         Key::SettingsMemoryOperandHighlightingHint => "Раскрашивать операнды команд в списке ОЗУ",
+        Key::SettingsShowFileNameLabel => "Показывать имя файла",
+        Key::SettingsShowFileNameHint => "Показывать имя открытого файла в заголовке окна",
         Key::SettingsFloppyImageLabel => "Образ дисковода",
         Key::SettingsFloppyImageHint => "Образ дисковода, загружаемый по умолчанию",
         Key::SettingsFloppyImageBrowse => "Обзор…",

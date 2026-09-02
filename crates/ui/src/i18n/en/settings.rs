@@ -19,6 +19,8 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::SettingsMemoryOperandHighlightingHint => {
             "Color-code instruction operands in the RAM list"
         }
+        Key::SettingsShowFileNameLabel => "Show file name",
+        Key::SettingsShowFileNameHint => "Display the open file name in the window title bar",
         Key::SettingsFloppyImageLabel => "Floppy image",
         Key::SettingsFloppyImageHint => "Default floppy image loaded on startup",
         Key::SettingsFloppyImageBrowse => "Browse…",

@@ -14,31 +14,16 @@ pub(super) fn follow_pc_toggle_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let on_focused = dialog.content_focus_is_visible(ContentFocus::FollowPcOn);
-    let off_focused = dialog.content_focus_is_visible(ContentFocus::FollowPcOff);
-
-    let segments = row![
-        segmented_button_width(
-            lang.t(Key::SettingsToggleOn),
-            dialog.draft_follow_pc,
-            on_focused,
-            Message::SettingsDraftFollowPcSet(true),
-            toggle_segment_width(lang),
-        ),
-        segmented_button_width(
-            lang.t(Key::SettingsToggleOff),
-            !dialog.draft_follow_pc,
-            off_focused,
-            Message::SettingsDraftFollowPcSet(false),
-            toggle_segment_width(lang),
-        ),
-    ]
-    .spacing(6);
-
-    setting_row(
-        lang.t(Key::SettingsFollowPcLabel),
-        lang.t(Key::SettingsFollowPcHint),
-        segments.into(),
+    boolean_toggle_row(
+        lang,
+        dialog.draft_follow_pc,
+        [
+            dialog.content_focus_is_visible(ContentFocus::FollowPcOn),
+            dialog.content_focus_is_visible(ContentFocus::FollowPcOff),
+        ],
+        Message::SettingsDraftFollowPcSet,
+        Key::SettingsFollowPcLabel,
+        Key::SettingsFollowPcHint,
     )
 }
 
@@ -46,32 +31,64 @@ pub(super) fn memory_operand_highlighting_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let on_focused = dialog.content_focus_is_visible(ContentFocus::MemoryOperandHighlightingOn);
-    let off_focused = dialog.content_focus_is_visible(ContentFocus::MemoryOperandHighlightingOff);
+    boolean_toggle_row(
+        lang,
+        dialog.draft_memory_operand_highlighting,
+        [
+            dialog.content_focus_is_visible(ContentFocus::MemoryOperandHighlightingOn),
+            dialog.content_focus_is_visible(ContentFocus::MemoryOperandHighlightingOff),
+        ],
+        Message::SettingsDraftMemoryOperandHighlightingSet,
+        Key::SettingsMemoryOperandHighlightingLabel,
+        Key::SettingsMemoryOperandHighlightingHint,
+    )
+}
 
+pub(super) fn show_file_name_toggle_row<'a>(
+    dialog: &'a SettingsDialog,
+    lang: Lang,
+) -> Element<'a, Message> {
+    boolean_toggle_row(
+        lang,
+        dialog.draft_show_file_name,
+        [
+            dialog.content_focus_is_visible(ContentFocus::ShowFileNameOn),
+            dialog.content_focus_is_visible(ContentFocus::ShowFileNameOff),
+        ],
+        Message::SettingsDraftShowFileNameSet,
+        Key::SettingsShowFileNameLabel,
+        Key::SettingsShowFileNameHint,
+    )
+}
+
+fn boolean_toggle_row<'a>(
+    lang: Lang,
+    value: bool,
+    focused: [bool; 2],
+    message: fn(bool) -> Message,
+    label: Key,
+    hint: Key,
+) -> Element<'a, Message> {
+    let width = toggle_segment_width(lang);
     let segments = row![
         segmented_button_width(
             lang.t(Key::SettingsToggleOn),
-            dialog.draft_memory_operand_highlighting,
-            on_focused,
-            Message::SettingsDraftMemoryOperandHighlightingSet(true),
-            toggle_segment_width(lang),
+            value,
+            focused[0],
+            message(true),
+            width,
         ),
         segmented_button_width(
             lang.t(Key::SettingsToggleOff),
-            !dialog.draft_memory_operand_highlighting,
-            off_focused,
-            Message::SettingsDraftMemoryOperandHighlightingSet(false),
-            toggle_segment_width(lang),
+            !value,
+            focused[1],
+            message(false),
+            width,
         ),
     ]
     .spacing(6);
 
-    setting_row(
-        lang.t(Key::SettingsMemoryOperandHighlightingLabel),
-        lang.t(Key::SettingsMemoryOperandHighlightingHint),
-        segments.into(),
-    )
+    setting_row(lang.t(label), lang.t(hint), segments.into())
 }
 
 pub(super) fn hdd_directory_row<'a>(

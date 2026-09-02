@@ -68,6 +68,7 @@ impl DesktopApp {
             | Message::SettingsDraftSpeedChanged(_)
             | Message::SettingsDraftFollowPcSet(_)
             | Message::SettingsDraftMemoryOperandHighlightingSet(_)
+            | Message::SettingsDraftShowFileNameSet(_)
             | Message::SettingsDraftColorSchemeChanged(_)
             | Message::SettingsDraftPrinterDialogModeSet(_)
             | Message::SettingsFloppyImageBrowse
@@ -192,6 +193,10 @@ impl DesktopApp {
             }
             ContentFocus::MemoryOperandHighlightingOff => {
                 Task::done(Message::SettingsDraftMemoryOperandHighlightingSet(false))
+            }
+            ContentFocus::ShowFileNameOn => Task::done(Message::SettingsDraftShowFileNameSet(true)),
+            ContentFocus::ShowFileNameOff => {
+                Task::done(Message::SettingsDraftShowFileNameSet(false))
             }
             ContentFocus::FloppyImage => Task::done(Message::SettingsFloppyImageBrowse),
             ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),

@@ -244,14 +244,17 @@ worth eyeballing after touching `crates/ui`:
   opens Settings from its category stop;
 - open the in-app Settings dialog (`,`), confirm logical focus starts on the
   language control without a white outline, and use Tab/Shift+Tab to visit both
-  On and Off segments for Follow PC and memory-operand highlighting; confirm
-  a soft lower fade and small down chevron reveal additional content without
+  On and Off segments for Follow PC, memory-operand highlighting, and Show file
+  name; open a `.580` or `.krs` file and confirm that enabling the option centres
+  only its base name in the top title bar, disabling it clears the title, and a
+  long name keeps its extension after middle shortening; confirm a soft lower
+  fade and small down chevron reveal that General has more content without
   drawing a scrollbar; verify the smaller wheel step and smooth touchpad pixels,
-  then scroll to the final row. The lower hint must vanish
+  then scroll to the `.580` / `.krs` association row. The lower hint must vanish
   at the bottom, the mirrored upper hint must vanish at the top, and both must be
   visible between them without jumps. Repeat in Russian and English; in
   Appearance, continued wheel-down at the bottom must remain stationary. Verify
-  the `.580` / `.krs` association row plus Reset, Cancel, and Save show a white
+  the association row plus Reset, Cancel, and Save show a white
   border without a fill change, and that Enter or a mouse click clears the border before
   activation; open the language dropdown and confirm its anchor gains the same
   active fill as an opened printer selector; open the Reset confirmation and

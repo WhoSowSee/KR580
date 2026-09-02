@@ -106,6 +106,7 @@ pub(crate) struct DesktopApp {
     pub(crate) window_maximized: bool,
     pub(crate) follow_pc: bool,
     pub(crate) memory_operand_highlighting: bool,
+    pub(crate) show_file_name: bool,
     pub(crate) menu_categories_visible: bool,
     pub(crate) undo_stack: UndoStack,
     pub(crate) dirty: bool,
@@ -295,6 +296,7 @@ impl DesktopApp {
             menu_categories_visible: true,
             follow_pc,
             memory_operand_highlighting,
+            show_file_name: settings.general.show_file_name,
             undo_stack: UndoStack::default(),
             dirty: false,
             saved_cpu: k580_core::Cpu8080State::default(),
@@ -377,9 +379,7 @@ impl DesktopApp {
         };
         app.apply_speed_tier(default_speed);
 
-        // Let the startup commands settle before the first frame so
-        // that synchronous dispatchers (e.g. import) do not race with
-        // pending StateChanged events from AttachHddFile / AttachFloppyImage.
+        // Startup commands must settle before synchronous import drains StateChanged events.
         let settle_deadline = Instant::now() + Duration::from_millis(100);
         loop {
             let remaining = settle_deadline.saturating_duration_since(Instant::now());

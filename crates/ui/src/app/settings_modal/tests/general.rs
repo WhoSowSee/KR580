@@ -22,9 +22,10 @@ fn memory_operand_highlighting_live_change_updates_app_state() {
 }
 
 #[test]
-fn cancel_rolls_back_memory_operand_highlighting_to_pre_open_snapshot() {
+fn cancel_rolls_back_live_general_toggles_to_pre_open_snapshot() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     app.memory_operand_highlighting = false;
+    app.show_file_name = false;
     app.settings_dialog = Some(SettingsDialog::new(
         app.lang,
         app.default_speed,
@@ -36,8 +37,12 @@ fn cancel_rolls_back_memory_operand_highlighting_to_pre_open_snapshot() {
     ));
 
     let _ = app.update(Message::SettingsDraftMemoryOperandHighlightingSet(true));
+    let _ = app.update(Message::SettingsDraftShowFileNameSet(true));
+    assert!(app.memory_operand_highlighting);
+    assert!(app.show_file_name);
     let _ = app.update(Message::CloseSettings);
 
     assert!(!app.memory_operand_highlighting);
+    assert!(!app.show_file_name);
     assert!(app.settings_dialog.is_none());
 }

@@ -3,7 +3,7 @@ use crate::persistence::{SettingsError, ShortcutSettings};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::{Path, PathBuf};
 
-const SETTINGS_VERSION: u32 = 8;
+const SETTINGS_VERSION: u32 = 9;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,6 +27,8 @@ pub struct GeneralSettings {
     pub default_speed: SpeedPreset,
     pub follow_pc: bool,
     pub memory_operand_highlighting: bool,
+    #[serde(default)]
+    pub show_file_name: bool,
     pub floppy_image_path: Option<PathBuf>,
     pub hdd_directory: Option<PathBuf>,
     #[serde(default)]
@@ -246,6 +248,7 @@ impl Default for GeneralSettings {
             default_speed: SpeedPreset::High,
             follow_pc: false,
             memory_operand_highlighting: true,
+            show_file_name: false,
             floppy_image_path: None,
             hdd_directory: None,
             printer_name: None,
@@ -305,7 +308,7 @@ impl SettingsStore {
         let source_version = settings.settings_version;
         match source_version {
             SETTINGS_VERSION => {}
-            1..=7 => {
+            1..=8 => {
                 if source_version == 1 {
                     settings.network = NetworkSettings::default();
                 }

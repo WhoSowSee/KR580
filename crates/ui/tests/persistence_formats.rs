@@ -199,6 +199,7 @@ fn settings_are_versioned_camel_case_json() {
     assert!(json.contains("printerSettings"));
     assert!(json.contains("printerDialogMode"));
     assert!(json.contains("printerPresets"));
+    assert!(json.contains("\"showFileName\": false"));
     assert!(!settings.general.follow_pc);
     assert_eq!(settings.general.default_speed, SpeedPreset::High);
     assert!(settings.general.memory_operand_highlighting);
@@ -206,10 +207,10 @@ fn settings_are_versioned_camel_case_json() {
     assert_eq!(settings.ui.theme, ColorScheme::TokyoNight);
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
-    let unsupported = json.replace("\"settingsVersion\": 8", "\"settingsVersion\": 9");
+    let unsupported = json.replace("\"settingsVersion\": 9", "\"settingsVersion\": 10");
     assert!(matches!(
         SettingsStore::from_json(&unsupported),
-        Err(SettingsError::UnsupportedVersion(9))
+        Err(SettingsError::UnsupportedVersion(10))
     ));
 }
 
@@ -222,7 +223,7 @@ fn version_two_settings_gain_default_shortcuts() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(migrated.settings_version, 9);
     assert_eq!(
         migrated
             .shortcuts
@@ -249,7 +250,7 @@ fn version_one_settings_reset_legacy_runtime_network_endpoints() {
 
     let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
 
-    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(migrated.settings_version, 9);
     assert_eq!(migrated.network, Default::default());
 }
 
@@ -265,7 +266,7 @@ fn version_four_settings_gain_default_printer_name() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(migrated.settings_version, 9);
     assert_eq!(migrated.general.printer_name, None);
 }
 
@@ -281,7 +282,7 @@ fn version_five_settings_gain_custom_printer_dialog_mode() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(migrated.settings_version, 9);
     assert_eq!(
         migrated.general.printer_dialog_mode,
         PrinterDialogMode::Custom
@@ -297,7 +298,7 @@ fn legacy_dark_theme_migrates_to_tokyo_night() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(migrated.settings_version, 9);
     assert_eq!(migrated.ui.theme, ColorScheme::TokyoNight);
 }
 
@@ -315,7 +316,7 @@ fn version_six_printer_name_gains_full_printer_settings() {
 
     let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
 
-    assert_eq!(migrated.settings_version, 8);
+    assert_eq!(migrated.settings_version, 9);
     assert_eq!(
         migrated.general.printer_settings,
         Some(PrinterSettings::named(

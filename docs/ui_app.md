@@ -102,10 +102,8 @@ RAM-range dialog. Detached device windows do not accept program drops.
     state, and modal message ownership.
   - `app/read_only_text.rs` – shared selectable-but-non-editable
     `text_editor` action handling used by Help and Changelog readers.
-  - `app/state.rs` – the `DesktopApp` struct, `PendingAction`,
-    `with_initial_path`, and the floating-notice helpers
-    (`clear_*_notice` / `raise_halt_notice` / `raise_info_notice` /
-    `run_new_file`).
+  - `app/state.rs` – the `DesktopApp` state and `with_initial_path` startup
+    construction.
   - `app/hex_stream_filter.rs` – the monitor hex-popup stream filter.
   - `app/state_helpers.rs` – `DesktopApp` status, dirty-state, new-file, theme, and speed helpers.
   - `app/messages/mod.rs` – the `Message`, `MenuId`, `TopMenuFocus`, and
@@ -225,6 +223,13 @@ divider slot paints `active board token`, so the top of the app reads as one
 quieter surface while the dropdown offsets stay unchanged. Dropdowns
 still open at the same 34 px vertical offset and keep their own framed
 panel border.
+
+When General → Show file name is enabled and a `.580` or `.krs` file is
+associated with the current state, the bar centres a muted file glyph and the
+base file name over the full window. Long names are shortened in the middle so
+their extension remains visible. The label remains part of the draggable title
+surface; the preference defaults to off, and a new unsaved file leaves the
+centre empty.
 
 After any dropdown category is opened by click, entering another dropdown-backed
 top-level label immediately switches the open dropdown to that category. Hover
@@ -1984,7 +1989,8 @@ source zone, without the field shell border used by editable inputs.
 Opened via default `Ctrl+,` or the menu bar. Four categories (General,
 External Devices, Appearance, Shortcuts) with keyboard-navigable
 sidebar chips. General holds language, speed, follow-PC, memory operand
-highlighting, and the `.580` / `.krs` file associations; External Devices holds
+highlighting, optional title-bar file-name visibility, and the `.580` / `.krs`
+file associations; External Devices holds
 the floppy image, HDD directory, and network defaults. Appearance holds
 the color-scheme picker, grouped into Dark and Light lists without a
 separate setting label column; each option renders a medium-size theme name in
@@ -2007,8 +2013,8 @@ complete matching category.
 `settings_saved_notice: Option<SettingsSavedNotice>` from
 `app/settings_saved_notice.rs`. `SettingsDialog` lives in
 `app/settings_modal/` and is a standalone draft – the live
-`lang`, `default_speed`, and `color_scheme` fields on `DesktopApp` are
-kept in sync with the draft while editing, then rolled back to
+`lang`, `default_speed`, `color_scheme`, and `show_file_name` fields on
+`DesktopApp` are kept in sync with the draft while editing, then rolled back to
 `original_*` on Cancel or committed on Save.
 
 **View:** `view/settings_dialog/` – `settings_modal_overlay()`.
@@ -2386,6 +2392,7 @@ false so no white ring is drawn until keyboard navigation starts.
     the right-hand pane (`LanguageAnchor`, `SpeedSlow`, `SpeedMedium`,
     `SpeedFast`, `SpeedMax`, `FollowPcOn`, `FollowPcOff`,
     `MemoryOperandHighlightingOn`, `MemoryOperandHighlightingOff`,
+    `ShowFileNameOn`, `ShowFileNameOff`,
     `FloppyImage`, `HddDirectory`, `PrinterDefault`,
     `PrinterDialogModeCustom`, `PrinterDialogModeSystem`, `NetworkDefaults`,
     `FileAssociation`, `Theme`,
@@ -2396,7 +2403,7 @@ false so no white ring is drawn until keyboard navigation starts.
 | Shortcut | Effect |
 |---|---|
 | Ctrl+Tab / Ctrl+Shift+Tab | Cycle between sections. The keyboard subscription routes `Ctrl+Tab` to `Message::SettingsSectionCycle { backward }` before `to_latin` runs, so the shortcut does not depend on layout. Entering a section seeds its local focus: Content lands on the first / last interactive item, Footer lands on `Cancel` / `Save`, Sidebar copies the active category into `sidebar_focus`, and Search additionally focuses the text input through `iced::widget::operation::focus(SETTINGS_SEARCH_INPUT_ID)` so typing routes into the field; on every other section the dialog focuses a dummy id no widget owns to blur the search input and keep Tab/Enter from being eaten by it. |
-| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPcOn → FollowPcOff → MemoryOperandHighlightingOn → MemoryOperandHighlightingOff → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → PrinterDefault → PrinterDialogModeCustom → PrinterDialogModeSystem → NetworkDefaults`; on Appearance it is `Theme`; and on Shortcuts it walks every `ShortcutAction` row in table order. Each category wraps at both ends. In `Footer` the normal ring is `Reset → Cancel → Save → Reset`; on Shortcuts it becomes `Reset → ShortcutReset → Cancel → Save → Reset`. In `Sidebar` Tab moves only `sidebar_focus` through `General → External Devices → Appearance → Shortcuts → General`; the content category does not change until Enter. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
+| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPcOn → FollowPcOff → MemoryOperandHighlightingOn → MemoryOperandHighlightingOff → ShowFileNameOn → ShowFileNameOff → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → PrinterDefault → PrinterDialogModeCustom → PrinterDialogModeSystem → NetworkDefaults`; on Appearance it is `Theme`; and on Shortcuts it walks every `ShortcutAction` row in table order. Each category wraps at both ends. In `Footer` the normal ring is `Reset → Cancel → Save → Reset`; on Shortcuts it becomes `Reset → ShortcutReset → Cancel → Save → Reset`. In `Sidebar` Tab moves only `sidebar_focus` through `General → External Devices → Appearance → Shortcuts → General`; the content category does not change until Enter. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
 | ArrowUp / ArrowDown | Inside `Sidebar` moves `sidebar_focus` through `General ↔ External Devices ↔ Appearance ↔ Shortcuts` without applying the category, stopping at the ends instead of wrapping; Enter applies the cursor. With the language dropdown open the arrows only **highlight** the next/previous option without committing – `dropdown_highlight: Option<Lang>` on `SettingsDialog` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
 | ArrowLeft / ArrowRight | Inside the speed segment row of `Content` walks the four chips. Wraps at the ends. Has no effect outside the speed row. |
 | Enter | Clears the visible keyboard ring, then activates the focused item. In `Sidebar` it applies `sidebar_focus` as the active category. When the language dropdown is open, it applies `dropdown_highlight` (or the current draft if nothing was highlighted) and closes the panel. Otherwise it opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier or an individual On/Off segment, starts shortcut capture when a `ShortcutAction` row has focus, and triggers `SettingsResetRequested` / `SettingsShortcutsReset` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
@@ -2447,13 +2454,13 @@ and the dialog draft with defaults.
 
 ### Settings dialog: live preview, sub-modal, persistence
 
-`SettingsDialog::{draft_lang, draft_speed, draft_color_scheme}` are
+`SettingsDialog::{draft_lang, draft_speed, draft_color_scheme, draft_show_file_name}` are
 the user's tentative values; `original_lang`, `original_speed`, and
 `original_color_scheme` snapshot the latest committed state, initially
 captured when the modal opens.
 
 - Editing a draft updates **live state** (`DesktopApp::lang`,
-  `default_speed`, `speed_tier`, `color_scheme`) immediately so the
+  `default_speed`, `speed_tier`, `color_scheme`, `show_file_name`) immediately so the
   schematic, status bar, and chrome re-render in the new language /
   pacing / theme without waiting for `Save`. The settings router
   whitelists only its own message variants, so the speed change is
@@ -2487,8 +2494,8 @@ captured when the modal opens.
   stores the draft shortcut overrides. These are draft-only until `Save`. Their
   compact fields use the same control scale as the segmented buttons.
 - The settings content pane scrolls vertically when its rows exceed the fixed
-  dialog height. Every category uses `Scrollbar::hidden()`, so all settings
-  remain reachable without a visible rail. Wheel lines are reduced from
+  dialog height. Every category uses `Scrollbar::hidden()`, so General's sixth
+  row remains reachable without a visible rail. Wheel lines are reduced from
   iced's fixed 60 px to 40 px; touchpad pixel deltas remain 1:1. The custom
   operation passes that delta directly to iced for exact boundary clamping, so
   fractional Appearance content cannot rebound at the bottom. Unfiltered lists
@@ -2504,8 +2511,8 @@ captured when the modal opens.
   the white keyboard border until Enter or pointer input. `Confirm` writes
   the system default language from `system_locale::default_language()` /
   `SpeedTier::High` (120 instructions/sec), restores the default
-  `ColorScheme::TokyoNight`, turns Follow PC off, restores memory-operand
-  highlighting, the custom printer dialog mode, and the default shortcut map,
+  `ColorScheme::TokyoNight`, turns Follow PC and file-name display off, restores
+  memory-operand highlighting, the custom printer dialog mode, and the default shortcut map,
   rewrites the dialog's `original_*` snapshot so a follow-up `Cancel`
   cannot restore the pre-reset values, and persists.
 
