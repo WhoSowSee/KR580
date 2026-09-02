@@ -1,5 +1,5 @@
-use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
-use iced::{Element, Length, Padding};
+use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack, svg};
+use iced::{Element, Length, Padding, mouse};
 
 use super::super::theme::{tokyo_muted, ui_text};
 use super::consts::{CONTENT_PADDING, SETTING_ROW_HEIGHT};
@@ -7,12 +7,19 @@ use super::language::{language_dropdown_list, language_setting_row};
 use super::network::network_defaults_row;
 use super::shortcuts_row::shortcuts_setting_row;
 use super::speed::speed_setting_row;
+use super::styles::scroll_hint_style;
 use super::theme_row::{theme_search_matches, theme_setting_row};
-use crate::app::{Message, SettingsCategory, SettingsDialog};
+use crate::app::settings_modal::scroll_hint_visibility;
+use crate::app::{Message, SETTINGS_CONTENT_SCROLL_ID, SettingsCategory, SettingsDialog};
 use crate::i18n::{Key, Lang, NetworkKey};
+use crate::view::icons;
 
 mod rows;
 use rows::*;
+
+const SCROLL_HINT_HEIGHT: f32 = 24.0;
+const SCROLL_HINT_ICON_SIZE: f32 = 12.0;
+const SETTINGS_SCROLL_LINE_STEP: f32 = 40.0;
 
 pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
     let lower_query = dialog.search_query().to_lowercase();
@@ -73,17 +80,44 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         column(rows).spacing(20).padding(content_padding).into()
     };
 
-    let body: Element<'a, Message> = if settings_content_needs_scroll(dialog.category, searching) {
-        scrollable(body)
-            .direction(scrollable::Direction::Vertical(
-                scrollable::Scrollbar::hidden(),
-            ))
+    let body: Element<'a, Message> = scrollable(body)
+        .id(SETTINGS_CONTENT_SCROLL_ID)
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::hidden(),
+        ))
+        .on_scroll(|viewport| {
+            let offset = viewport.absolute_offset().y;
+            let (can_scroll_up, can_scroll_down) = scroll_hint_visibility(
+                offset,
+                viewport.bounds().height,
+                viewport.content_bounds().height,
+            );
+            Message::SettingsContentScrolled {
+                can_scroll_up,
+                can_scroll_down,
+            }
+        })
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
+
+    let hints_visible = !searching;
+    let top_hint = scroll_hint(hints_visible && dialog.content_can_scroll_up, true);
+    let bottom_hint = scroll_hint(hints_visible && dialog.content_can_scroll_down, false);
+    let hints = column![top_hint, Space::new().height(Length::Fill), bottom_hint]
+        .width(Length::Fill)
+        .height(Length::Fill);
+    let wheel_capture = mouse_area(
+        container(Space::new())
             .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
-    } else {
-        body
-    };
+            .height(Length::Fill),
+    )
+    .on_scroll(|delta| Message::SettingsContentWheelScrolled(settings_scroll_delta(delta)));
+    // Keep Stack mounted so iced 0.14 preserves the Scrollable tree state.
+    let body: Element<'a, Message> = stack![body, hints, wheel_capture]
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into();
 
     let body: Element<'a, Message> = match (dialog.language_dropdown_open, language_row_index) {
         (true, Some(idx)) if !searching => {
@@ -136,8 +170,30 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
         .into()
 }
 
-pub(super) fn settings_content_needs_scroll(category: SettingsCategory, searching: bool) -> bool {
-    searching || category != SettingsCategory::General
+fn scroll_hint(visible: bool, top: bool) -> Element<'static, Message> {
+    container(
+        svg(icons::chevron_down())
+            .width(Length::Fixed(SCROLL_HINT_ICON_SIZE))
+            .height(Length::Fixed(SCROLL_HINT_ICON_SIZE))
+            .rotation(if top { std::f32::consts::PI } else { 0.0 })
+            .opacity(f32::from(visible))
+            .style(|_theme, _status| svg::Style {
+                color: Some(tokyo_muted()),
+            }),
+    )
+    .width(Length::Fill)
+    .height(Length::Fixed(SCROLL_HINT_HEIGHT))
+    .align_x(iced::alignment::Horizontal::Center)
+    .align_y(iced::alignment::Vertical::Center)
+    .style(move |_theme| scroll_hint_style(visible, top))
+    .into()
+}
+
+fn settings_scroll_delta(delta: mouse::ScrollDelta) -> f32 {
+    match delta {
+        mouse::ScrollDelta::Lines { y, .. } => -y * SETTINGS_SCROLL_LINE_STEP,
+        mouse::ScrollDelta::Pixels { y, .. } => -y,
+    }
 }
 
 fn collect_category_rows<'a>(

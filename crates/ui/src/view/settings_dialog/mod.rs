@@ -105,16 +105,22 @@ pub(super) fn settings_modal_overlay<'a>(
 
 #[cfg(test)]
 mod tests {
-    use crate::app::SettingsCategory;
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, Shell, clipboard, layout, widget};
+    use iced::mouse;
+    use iced::widget::Space;
+    use iced::{Element, Event, Point, Size};
 
     use super::super::theme::{DARK_COLOR_SCHEMES, LIGHT_COLOR_SCHEMES};
     use super::consts::DIALOG_HEIGHT;
-    use super::content::{category_matches_query, matches_query, settings_content_needs_scroll};
+    use super::content::{category_matches_query, matches_query, settings_content};
     use super::language::language_label_key;
     use super::shortcuts_row::shortcut_action_matches_query;
     use super::theme_row::theme_option_matches_query;
+    use crate::app::messages::SpeedTier;
+    use crate::app::{Message, SettingsCategory, SettingsDialog};
     use crate::i18n::{Key, Lang};
-    use crate::persistence::{ColorScheme, ShortcutAction};
+    use crate::persistence::{ColorScheme, NetworkSettings, ShortcutAction};
 
     #[test]
     fn empty_query_matches_every_row() {
@@ -216,18 +222,88 @@ mod tests {
     }
 
     #[test]
-    fn general_settings_content_does_not_scroll_without_search() {
-        assert!(!settings_content_needs_scroll(
-            SettingsCategory::General,
-            false
-        ));
-        assert!(settings_content_needs_scroll(
-            SettingsCategory::General,
-            true
-        ));
-        assert!(settings_content_needs_scroll(
-            SettingsCategory::ExternalDevices,
-            false
-        ));
+    fn settings_content_captures_wheel_without_native_double_scroll() {
+        let dialog = test_dialog();
+        let mut root = settings_content(&dialog, Lang::Ru);
+        let renderer = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("renderer runtime")
+            .block_on(iced::Renderer::new(
+                iced::Font::DEFAULT,
+                13.0.into(),
+                Some("tiny-skia"),
+            ))
+            .expect("software renderer");
+        let mut tree = widget::Tree::new(&root);
+        let node = root.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(540.0, 388.0)),
+        );
+        let layout = Layout::new(&node);
+
+        for (delta, expected) in [
+            (mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 }, 40.0),
+            (mouse::ScrollDelta::Pixels { x: 0.0, y: -12.5 }, 12.5),
+        ] {
+            let mut messages = Vec::new();
+            let mut shell = Shell::new(&mut messages);
+            root.as_widget_mut().update(
+                &mut tree,
+                &Event::Mouse(mouse::Event::WheelScrolled { delta }),
+                layout,
+                mouse::Cursor::Available(Point::new(270.0, 194.0)),
+                &renderer,
+                &mut clipboard::Null,
+                &mut shell,
+                &layout.bounds(),
+            );
+
+            assert!(matches!(
+                messages.as_slice(),
+                [Message::SettingsContentWheelScrolled(actual)] if *actual == expected
+            ));
+        }
+    }
+
+    #[test]
+    fn scroll_hint_visibility_preserves_scrollable_tree_path() {
+        let mut dialog = test_dialog();
+        dialog.content_can_scroll_down = true;
+        let visible = scrollable_tag_path(&dialog);
+        dialog.content_can_scroll_down = false;
+        let hidden = scrollable_tag_path(&dialog);
+
+        assert_eq!(visible, hidden);
+    }
+
+    fn scrollable_tag_path(dialog: &SettingsDialog) -> Vec<widget::tree::Tag> {
+        let root = settings_content(dialog, Lang::Ru);
+        let tree = widget::Tree::new(&root);
+        let scrollable: Element<'_, Message> = iced::widget::scrollable(Space::new()).into();
+        tag_path(&tree, scrollable.as_widget().tag()).expect("settings scrollable")
+    }
+
+    fn test_dialog() -> SettingsDialog {
+        SettingsDialog::new(
+            Lang::Ru,
+            SpeedTier::High,
+            false,
+            true,
+            None,
+            None,
+            NetworkSettings::default(),
+        )
+    }
+
+    fn tag_path(tree: &widget::Tree, target: widget::tree::Tag) -> Option<Vec<widget::tree::Tag>> {
+        if tree.tag == target {
+            return Some(vec![tree.tag]);
+        }
+        tree.children.iter().find_map(|child| {
+            let mut path = tag_path(child, target)?;
+            path.insert(0, tree.tag);
+            Some(path)
+        })
     }
 }

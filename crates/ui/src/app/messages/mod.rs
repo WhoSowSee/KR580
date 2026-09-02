@@ -334,6 +334,11 @@ pub(crate) enum Message {
     ToggleStackView,
     SettingsCategorySelected(SettingsCategory),
     SettingsSearchChanged(String),
+    SettingsContentScrolled {
+        can_scroll_up: bool,
+        can_scroll_down: bool,
+    },
+    SettingsContentWheelScrolled(f32),
     SettingsDraftLanguageChanged(Lang),
     SettingsDraftSpeedChanged(SpeedTier),
     SettingsDraftFollowPcSet(bool),

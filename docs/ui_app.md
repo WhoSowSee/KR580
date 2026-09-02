@@ -2487,10 +2487,15 @@ captured when the modal opens.
   stores the draft shortcut overrides. These are draft-only until `Save`. Their
   compact fields use the same control scale as the segmented buttons.
 - The settings content pane scrolls vertically when its rows exceed the fixed
-  dialog height. It uses `scrollable::Scrollbar::hidden()`, so wheel scrolling
-  remains available without a visible rail or reserved scrollbar width. The
-  unfiltered General page bypasses the scrollable because its fixed five rows
-  fit the pane; search results and every other category retain scrolling.
+  dialog height. Every category uses `Scrollbar::hidden()`, so all settings
+  remain reachable without a visible rail. Wheel lines are reduced from
+  iced's fixed 60 px to 40 px; touchpad pixel deltas remain 1:1. The custom
+  operation passes that delta directly to iced for exact boundary clamping, so
+  fractional Appearance content cannot rebound at the bottom. Unfiltered lists
+  show 24 px edge fades with down/up chevrons according to their actual viewport;
+  search hides them. Their `Stack` stays mounted to preserve the iced scroll tree,
+  and hidden SVGs use `Svg::opacity` because tint alpha is not applied by the
+  WGPU recolouring path.
 - The `760×496` dialog balances the margins above and below the General rows.
 - `Reset` opens a stack-layer sub-modal whose `Cancel` / `Confirm`
   buttons follow `reset_confirm_focus`. Cancel starts as the logical selection
@@ -2541,6 +2546,8 @@ each file under the 400-line ceiling:
   `previous_content_focus`.
 - `app/settings_modal/routing.rs` – `route_settings_modal_message` plus
   the section-aware Enter / Tab / arrow handlers.
+- `app/settings_modal/scroll.rs` – reduced wheel-step operation and exact
+  boundary clamping for the hidden settings scrollable.
 - `app/settings_modal/tests.rs` – focus / live-preview / reset-confirm
   regression tests.
 - `app/update_settings/{mod,network,shortcuts}.rs` –

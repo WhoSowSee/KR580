@@ -3,6 +3,7 @@ use iced::Task;
 use super::focus::{
     ContentFocus, FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsSection,
 };
+use super::scroll::scroll_settings_content_by;
 use crate::app::messages::{Message, SpeedTier};
 use crate::app::state::DesktopApp;
 use crate::i18n::Lang;
@@ -25,6 +26,31 @@ impl DesktopApp {
         {
             dialog.keyboard_focus_visible = false;
             dialog.reset_confirm_keyboard_focus_visible = false;
+        }
+        if let Message::SettingsContentScrolled {
+            can_scroll_up,
+            can_scroll_down,
+        } = message
+        {
+            if let Some(dialog) = self.settings_dialog.as_mut() {
+                dialog.content_can_scroll_up = *can_scroll_up;
+                dialog.content_can_scroll_down = *can_scroll_down;
+            }
+            return Some(Task::none());
+        }
+        if let Message::SettingsContentWheelScrolled(delta) = message {
+            return Some(scroll_settings_content_by(*delta));
+        }
+        if matches!(
+            message,
+            Message::SettingsCategorySelected(_)
+                | Message::SettingsSearchChanged(_)
+                | Message::SettingsDraftLanguageChanged(_)
+                | Message::SettingsResetConfirmed
+        ) && let Some(dialog) = self.settings_dialog.as_mut()
+        {
+            dialog.content_can_scroll_up = false;
+            dialog.content_can_scroll_down = true;
         }
         let dialog = self.settings_dialog.as_ref()?;
         let reset_open = dialog.reset_confirm_open;

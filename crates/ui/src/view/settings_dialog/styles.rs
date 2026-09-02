@@ -21,6 +21,23 @@ pub(super) fn modal_dialog_style(_theme: &iced::Theme) -> container::Style {
     }
 }
 
+pub(super) fn scroll_hint_style(visible: bool, top: bool) -> container::Style {
+    let transparent = Color {
+        a: 0.0,
+        ..tokyo_board()
+    };
+    container::Style {
+        background: Some(Background::Gradient(
+            iced::gradient::Linear::new(if top { std::f32::consts::PI } else { 0.0 })
+                .add_stop(0.0, tokyo_board())
+                .add_stop(1.0, transparent)
+                .scale_alpha(f32::from(visible))
+                .into(),
+        )),
+        ..container::Style::default()
+    }
+}
+
 pub(super) fn header_close_button_style(status: button::Status) -> button::Style {
     let background = match status {
         button::Status::Hovered => tokyo_surface_2(),

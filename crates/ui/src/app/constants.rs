@@ -21,6 +21,7 @@ pub(crate) const MONITOR_HEX_SCROLL_ID: &str = "monitor-hex-scroll";
 pub(crate) const OPCODE_LIST_HEIGHT: f32 = 172.0;
 pub(crate) const OPCODE_OPTION_HEIGHT: f32 = 27.0;
 pub(crate) const SETTINGS_SEARCH_INPUT_ID: &str = "settings-search-input";
+pub(crate) const SETTINGS_CONTENT_SCROLL_ID: &str = "settings-content-scroll";
 
 /// Number of 100 ms ticks the memory scrollbar stays visible after the
 /// last scroll event.
