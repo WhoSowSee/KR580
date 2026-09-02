@@ -74,6 +74,8 @@ scalar_keys! {
     SettingsHddDirectoryBrowse, SettingsPrinterLabel, SettingsPrinterHint, SettingsPrinterSetup,
     SettingsPrinterSystemDefault, SettingsPrinterClear, SettingsPrinterDialogModeLabel,
     SettingsPrinterDialogModeHint, SettingsPrinterDialogModeCustom, SettingsPrinterDialogModeSystem,
+    SettingsMonitorLayoutLabel, SettingsMonitorLayoutHint,
+    SettingsMonitorLayoutUnified, SettingsMonitorLayoutSplit,
     SettingsFileAssociationLabel, SettingsFileAssociationHint, SettingsFileAssociationAdd,
     SettingsFileAssociationRemove, ErrHddDirectoryNotWritable, SettingsToggleOn,
     SettingsToggleOff, SettingsThemeLabel, SettingsThemeHint, SettingsShortcutsLabel,

@@ -69,6 +69,7 @@ impl DesktopApp {
             | Message::SettingsDraftFollowPcSet(_)
             | Message::SettingsDraftMemoryOperandHighlightingSet(_)
             | Message::SettingsDraftShowFileNameSet(_)
+            | Message::SettingsDraftMonitorSplitSet(_)
             | Message::SettingsDraftColorSchemeChanged(_)
             | Message::SettingsDraftPrinterDialogModeSet(_)
             | Message::SettingsFloppyImageBrowse
@@ -199,6 +200,12 @@ impl DesktopApp {
                 Task::done(Message::SettingsDraftShowFileNameSet(false))
             }
             ContentFocus::FloppyImage => Task::done(Message::SettingsFloppyImageBrowse),
+            ContentFocus::MonitorLayoutUnified => {
+                Task::done(Message::SettingsDraftMonitorSplitSet(false))
+            }
+            ContentFocus::MonitorLayoutSplit => {
+                Task::done(Message::SettingsDraftMonitorSplitSet(true))
+            }
             ContentFocus::HddDirectory => Task::done(Message::SettingsHddDirectoryBrowse),
             ContentFocus::PrinterDefault => Task::done(Message::SettingsPrinterSetup),
             ContentFocus::PrinterDialogModeCustom => Task::done(

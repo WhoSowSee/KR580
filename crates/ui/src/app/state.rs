@@ -350,7 +350,7 @@ impl DesktopApp {
             changelog_dialog: None,
             help_dialog: None,
             monitor_open: false,
-            monitor_split: false,
+            monitor_split: settings.general.monitor_split,
             monitor_hex_popup: false,
             floppy_open: false,
             hdd_open: false,

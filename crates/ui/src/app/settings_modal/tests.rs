@@ -8,7 +8,8 @@ use crate::i18n::Lang;
 use crate::persistence::{
     ColorScheme, NetworkSettings, PrinterDialogMode, ShortcutAction, ShortcutBinding, ShortcutKey,
 };
-use crate::settings_storage::default_lang;
+use crate::settings_storage::lang_from_language;
+use crate::system_locale::default_language;
 
 mod general;
 mod initialization;
@@ -144,16 +145,18 @@ fn cancel_rolls_back_live_theme_to_pre_open_snapshot() {
 #[test]
 fn opening_settings_dismisses_open_device_panel() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.monitor_split = true;
     let _ = app.update(Message::OpenMonitor);
     assert!(app.monitor_open);
 
     let _ = app.update(Message::OpenSettings);
-    assert!(app.settings_dialog.is_some());
+    assert!(app.settings_dialog.as_ref().unwrap().original_monitor_split);
     assert!(!app.monitor_open);
 
     let _ = app.update(Message::CloseSettings);
     assert!(app.settings_dialog.is_none());
     assert!(!app.monitor_open);
+    assert!(app.monitor_split);
 }
 
 #[test]
@@ -163,6 +166,7 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     app.default_speed = SpeedTier::Max;
     app.speed_tier = SpeedTier::Max;
     app.printer_dialog_mode = PrinterDialogMode::System;
+    app.monitor_split = true;
     app.settings_dialog = Some(SettingsDialog::new(
         app.lang,
         app.default_speed,
@@ -175,13 +179,15 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     let dialog = app.settings_dialog.as_mut().unwrap();
     dialog.draft_printer_dialog_mode = PrinterDialogMode::System;
     dialog.original_printer_dialog_mode = PrinterDialogMode::System;
+    dialog.draft_monitor_split = true;
+    dialog.original_monitor_split = true;
 
     let _ = app.update(Message::SettingsResetRequested);
     assert!(app.settings_dialog.as_ref().unwrap().reset_confirm_open);
 
     let _ = app.update(Message::SettingsResetConfirmed);
 
-    let expected_lang = default_lang();
+    let expected_lang = lang_from_language(default_language());
     assert_eq!(app.lang, expected_lang);
     assert_eq!(app.default_speed, SpeedTier::High);
     assert_eq!(app.speed_tier, SpeedTier::High);
@@ -194,6 +200,9 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     assert!(!dialog.original_follow_pc);
     assert!(app.memory_operand_highlighting);
     assert!(dialog.original_memory_operand_highlighting);
+    assert!(!app.monitor_split);
+    assert!(!dialog.draft_monitor_split);
+    assert!(!dialog.original_monitor_split);
     assert_eq!(app.printer_dialog_mode, PrinterDialogMode::Custom);
     assert_eq!(dialog.draft_printer_dialog_mode, PrinterDialogMode::Custom);
     assert_eq!(
@@ -302,7 +311,7 @@ fn enter_in_reset_confirm_activates_focused_button() {
         ResetConfirmFocus::Confirm
     );
     let _ = app.update(Message::SettingsResetConfirmed);
-    assert_eq!(app.lang, default_lang());
+    assert_eq!(app.lang, lang_from_language(default_language()));
     assert_eq!(app.speed_tier, SpeedTier::High);
 }
 

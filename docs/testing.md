@@ -266,6 +266,12 @@ worth eyeballing after touching `crates/ui`:
   associations` row shows `Add` when either association is missing and `Remove`
   when it is present, then click it and verify the button label flips and the
   OS association is created/removed;
+- in Settings → External Devices, confirm Monitor layout follows the printer
+  settings, Unified is the default, and Tab/Shift+Tab visits both layout choices
+  before the network settings. Preview Split and Cancel to restore the previous monitor
+  view; Save and restart to retain Split, then Reset to restore Unified. A
+  temporary split/merge toggle inside the monitor must not change the saved
+  default when an unrelated preference is saved;
 - make the current file dirty and invoke Open, New, Import, Close, and HDD
   deletion confirmations; in each shared confirmation overlay verify Cancel is
   initially filled without a white border, the first Tab/Shift+Tab changes the

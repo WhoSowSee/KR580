@@ -58,6 +58,39 @@ pub(super) fn segmented_button(
     segmented_button_width(label, active, keyboard_focused, action, SPEED_SEGMENT_WIDTH)
 }
 
+pub(super) fn two_option_setting_row(
+    lang: Lang,
+    first_active: bool,
+    focused: [bool; 2],
+    actions: [Message; 2],
+    option_keys: [Key; 2],
+    setting_keys: [Key; 2],
+    width: f32,
+) -> Element<'static, Message> {
+    let [first_action, second_action] = actions;
+    let [first_option, second_option] = option_keys;
+    let [label, hint] = setting_keys;
+    let segments = row![
+        segmented_button_width(
+            lang.t(first_option),
+            first_active,
+            focused[0],
+            first_action,
+            width,
+        ),
+        segmented_button_width(
+            lang.t(second_option),
+            !first_active,
+            focused[1],
+            second_action,
+            width,
+        ),
+    ]
+    .spacing(6);
+
+    setting_row(lang.t(label), lang.t(hint), segments.into())
+}
+
 pub(super) fn segmented_button_width(
     label: &'static str,
     active: bool,

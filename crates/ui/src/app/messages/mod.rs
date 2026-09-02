@@ -344,6 +344,7 @@ pub(crate) enum Message {
     SettingsDraftFollowPcSet(bool),
     SettingsDraftMemoryOperandHighlightingSet(bool),
     SettingsDraftShowFileNameSet(bool),
+    SettingsDraftMonitorSplitSet(bool),
     SettingsDraftColorSchemeChanged(ColorScheme),
     SettingsDraftPrinterDialogModeSet(PrinterDialogMode),
     SettingsFloppyImageBrowse,

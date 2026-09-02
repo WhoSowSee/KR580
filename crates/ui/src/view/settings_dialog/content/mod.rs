@@ -308,6 +308,18 @@ fn collect_category_rows<'a>(
             }
             if matches_query(
                 &[
+                    Key::SettingsMonitorLayoutLabel,
+                    Key::SettingsMonitorLayoutHint,
+                    Key::SettingsMonitorLayoutUnified,
+                    Key::SettingsMonitorLayoutSplit,
+                ],
+                lang,
+                lower_query,
+            ) {
+                out.push(monitor_layout_row(dialog, lang));
+            }
+            if matches_query(
+                &[
                     Key::Network(NetworkKey::GeneralSettingsLabel),
                     Key::Network(NetworkKey::GeneralSettingsHint),
                     Key::Network(NetworkKey::ModeClient),

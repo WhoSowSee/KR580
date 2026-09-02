@@ -1,13 +1,13 @@
 use std::time::Instant;
 
 use super::constants::SETTINGS_SEARCH_INPUT_ID;
-use super::messages::{Message, SpeedTier};
+use super::messages::Message;
 use super::settings_modal::SettingsDialog;
 use super::settings_modal::{FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsSection};
 use super::state::DesktopApp;
 use crate::i18n::Key;
 use crate::settings_storage::{
-    default_lang, language_from_lang, load_settings, preset_from_speed_tier, save_settings,
+    language_from_lang, load_settings, preset_from_speed_tier, save_settings,
 };
 use iced::Task;
 
@@ -38,6 +38,8 @@ impl DesktopApp {
                     settings.shortcuts,
                 );
                 dialog.original_active_speed = self.speed_tier;
+                dialog.draft_monitor_split = settings.general.monitor_split;
+                dialog.original_monitor_split = self.monitor_split;
                 self.settings_dialog = Some(dialog);
                 Some(Task::none())
             }
@@ -52,6 +54,7 @@ impl DesktopApp {
                     self.follow_pc = dialog.original_follow_pc;
                     self.memory_operand_highlighting = dialog.original_memory_operand_highlighting;
                     self.show_file_name = dialog.original_show_file_name;
+                    self.monitor_split = dialog.original_monitor_split;
                     self.printer_dialog_mode = dialog.original_printer_dialog_mode;
                     self.shortcut_settings = dialog.original_shortcuts;
                     if speed_changed {
@@ -149,6 +152,13 @@ impl DesktopApp {
                     dialog.draft_show_file_name = value;
                 }
                 self.show_file_name = value;
+                Some(Task::none())
+            }
+            Message::SettingsDraftMonitorSplitSet(value) => {
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.draft_monitor_split = value;
+                }
+                self.monitor_split = value;
                 Some(Task::none())
             }
             Message::SettingsDraftColorSchemeChanged(scheme) => {
@@ -275,61 +285,7 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SettingsResetConfirmed => {
-                let default_lang = default_lang();
-                let default_speed = SpeedTier::High;
-                let default_color_scheme = crate::persistence::ColorScheme::DEFAULT;
-                let default_follow_pc = false;
-                let default_memory_operand_highlighting = true;
-                let default_show_file_name = false;
-                let default_printer_dialog_mode = crate::persistence::PrinterDialogMode::default();
-                let network = crate::persistence::NetworkSettings::default();
-                let shortcuts = crate::persistence::ShortcutSettings::default();
-                if let Some(dialog) = self.settings_dialog.as_mut() {
-                    dialog.draft_lang = default_lang;
-                    dialog.draft_speed = default_speed;
-                    dialog.draft_color_scheme = default_color_scheme;
-                    dialog.draft_floppy_image_path = None;
-                    dialog.draft_hdd_directory = None;
-                    dialog.draft_printer_settings = None;
-                    dialog.draft_printer_dialog_mode = default_printer_dialog_mode;
-                    dialog.original_lang = default_lang;
-                    dialog.original_speed = default_speed;
-                    dialog.original_active_speed = default_speed;
-                    dialog.original_color_scheme = default_color_scheme;
-                    dialog.draft_network_client_host = network.host;
-                    dialog.draft_network_client_port = network.port.to_string();
-                    dialog.draft_network_server_host = network.bind_host;
-                    dialog.draft_network_server_port = network.bind_port.to_string();
-                    dialog.draft_shortcuts = shortcuts.clone();
-                    dialog.original_shortcuts = shortcuts.clone();
-                    dialog.recording_shortcut = None;
-                    dialog.draft_follow_pc = default_follow_pc;
-                    dialog.draft_memory_operand_highlighting = default_memory_operand_highlighting;
-                    dialog.draft_show_file_name = default_show_file_name;
-                    dialog.original_follow_pc = default_follow_pc;
-                    dialog.original_memory_operand_highlighting =
-                        default_memory_operand_highlighting;
-                    dialog.original_show_file_name = default_show_file_name;
-                    dialog.original_printer_dialog_mode = default_printer_dialog_mode;
-                    dialog.network_error = None;
-                    dialog.reset_confirm_open = false;
-                    dialog.reset_confirm_keyboard_focus_visible = false;
-                }
-                self.follow_pc = default_follow_pc;
-                self.memory_operand_highlighting = default_memory_operand_highlighting;
-                self.show_file_name = default_show_file_name;
-                self.shortcut_settings = shortcuts;
-                self.printer_default_settings = None;
-                self.printer_dialog_mode = default_printer_dialog_mode;
-                self.default_speed = default_speed;
-                self.color_scheme = default_color_scheme;
-                self.apply_speed_tier(default_speed);
-                self.apply_language(default_lang);
-                if let Some(dialog) = self.settings_dialog.as_ref()
-                    && let Ok(network) = parse_network_defaults(dialog)
-                {
-                    self.save_settings_dialog(dialog, network);
-                }
+                self.reset_settings();
                 Some(Task::none())
             }
             Message::SettingsFileAssociationRegister => {
@@ -366,6 +322,7 @@ impl DesktopApp {
         dialog.original_follow_pc = dialog.draft_follow_pc;
         dialog.original_memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
         dialog.original_show_file_name = dialog.draft_show_file_name;
+        dialog.original_monitor_split = self.monitor_split;
         dialog.original_printer_dialog_mode = dialog.draft_printer_dialog_mode;
         dialog.original_shortcuts = dialog.draft_shortcuts.clone();
     }
@@ -377,6 +334,7 @@ impl DesktopApp {
         settings.general.follow_pc = dialog.draft_follow_pc;
         settings.general.memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
         settings.general.show_file_name = dialog.draft_show_file_name;
+        settings.general.monitor_split = dialog.draft_monitor_split;
         settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
         settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
         settings
@@ -391,6 +349,7 @@ impl DesktopApp {
 }
 
 mod network;
+mod reset;
 mod section;
 mod shortcuts;
 mod storage;

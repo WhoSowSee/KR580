@@ -3,12 +3,14 @@ use iced::{Background, Border, Color, Element, Length, alignment};
 
 use super::super::consts::toggle_segment_width;
 use super::super::setting_row::setting_row;
-use super::super::speed::segmented_button_width;
+use super::super::speed::two_option_setting_row;
 use crate::app::{ContentFocus, Message, SettingsDialog};
 use crate::i18n::{Key, Lang};
 use crate::persistence::PrinterDialogMode;
 use crate::view::icons;
 use crate::view::theme::{tokyo_border, tokyo_muted, tokyo_surface, tokyo_text, ui_text};
+
+const MODE_SEGMENT_WIDTH: f32 = 136.0;
 
 pub(super) fn follow_pc_toggle_row<'a>(
     dialog: &'a SettingsDialog,
@@ -69,26 +71,15 @@ fn boolean_toggle_row<'a>(
     label: Key,
     hint: Key,
 ) -> Element<'a, Message> {
-    let width = toggle_segment_width(lang);
-    let segments = row![
-        segmented_button_width(
-            lang.t(Key::SettingsToggleOn),
-            value,
-            focused[0],
-            message(true),
-            width,
-        ),
-        segmented_button_width(
-            lang.t(Key::SettingsToggleOff),
-            !value,
-            focused[1],
-            message(false),
-            width,
-        ),
-    ]
-    .spacing(6);
-
-    setting_row(lang.t(label), lang.t(hint), segments.into())
+    two_option_setting_row(
+        lang,
+        value,
+        focused,
+        [message(true), message(false)],
+        [Key::SettingsToggleOn, Key::SettingsToggleOff],
+        [label, hint],
+        toggle_segment_width(lang),
+    )
 }
 
 pub(super) fn hdd_directory_row<'a>(
@@ -191,33 +182,51 @@ pub(super) fn printer_dialog_mode_row<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
 ) -> Element<'a, Message> {
-    const MODE_SEGMENT_WIDTH: f32 = 136.0;
-    let custom_focused = dialog.content_focus_is_visible(ContentFocus::PrinterDialogModeCustom);
-    let system_focused = dialog.content_focus_is_visible(ContentFocus::PrinterDialogModeSystem);
-
     let custom = dialog.draft_printer_dialog_mode == PrinterDialogMode::Custom;
-    let segments = row![
-        segmented_button_width(
-            lang.t(Key::SettingsPrinterDialogModeCustom),
-            custom,
-            custom_focused,
+    two_option_setting_row(
+        lang,
+        custom,
+        [
+            dialog.content_focus_is_visible(ContentFocus::PrinterDialogModeCustom),
+            dialog.content_focus_is_visible(ContentFocus::PrinterDialogModeSystem),
+        ],
+        [
             Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::Custom),
-            MODE_SEGMENT_WIDTH,
-        ),
-        segmented_button_width(
-            lang.t(Key::SettingsPrinterDialogModeSystem),
-            !custom,
-            system_focused,
             Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::System),
-            MODE_SEGMENT_WIDTH,
-        ),
-    ]
-    .spacing(6);
+        ],
+        [
+            Key::SettingsPrinterDialogModeCustom,
+            Key::SettingsPrinterDialogModeSystem,
+        ],
+        [
+            Key::SettingsPrinterDialogModeLabel,
+            Key::SettingsPrinterDialogModeHint,
+        ],
+        MODE_SEGMENT_WIDTH,
+    )
+}
 
-    setting_row(
-        lang.t(Key::SettingsPrinterDialogModeLabel),
-        lang.t(Key::SettingsPrinterDialogModeHint),
-        segments.into(),
+pub(super) fn monitor_layout_row(dialog: &SettingsDialog, lang: Lang) -> Element<'static, Message> {
+    two_option_setting_row(
+        lang,
+        !dialog.draft_monitor_split,
+        [
+            dialog.content_focus_is_visible(ContentFocus::MonitorLayoutUnified),
+            dialog.content_focus_is_visible(ContentFocus::MonitorLayoutSplit),
+        ],
+        [
+            Message::SettingsDraftMonitorSplitSet(false),
+            Message::SettingsDraftMonitorSplitSet(true),
+        ],
+        [
+            Key::SettingsMonitorLayoutUnified,
+            Key::SettingsMonitorLayoutSplit,
+        ],
+        [
+            Key::SettingsMonitorLayoutLabel,
+            Key::SettingsMonitorLayoutHint,
+        ],
+        MODE_SEGMENT_WIDTH,
     )
 }
 

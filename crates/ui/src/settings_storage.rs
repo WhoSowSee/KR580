@@ -151,10 +151,6 @@ pub(crate) fn default_settings() -> Settings {
     settings
 }
 
-pub(crate) fn default_lang() -> Lang {
-    lang_from_language(crate::system_locale::default_language())
-}
-
 #[cfg(test)]
 mod tests {
     use super::{

@@ -599,10 +599,11 @@ monitor does not suppress runtime ticks – `Message::Tick` keeps pulling
 events while the window is open, so the layers update live as the
 program drives port `00h`.
 
-The unified screen is the default because it matches the original
-KP580 emulator's single-display behaviour. Split mode is kept as a
-debugger affordance – it isolates each device-state buffer for
-inspection without touching the underlying `MonitorState`.
+The monitor starts with `general.monitorSplit` from the saved preferences.
+Settings → External Devices places Monitor layout after the printer settings:
+Unified (the factory default) or Split. Split mode isolates the graphics and text
+buffers without changing `MonitorState`. The monitor's own split/merge button
+changes only the current session view; it does not overwrite the saved default.
 
 Strings live under the `MonitorUnifiedScreen…MonitorImageSaveFailed`
 keys in `crates/ui/src/i18n/keys.rs` with both `ru` and `en`
@@ -1990,8 +1991,9 @@ Opened via default `Ctrl+,` or the menu bar. Four categories (General,
 External Devices, Appearance, Shortcuts) with keyboard-navigable
 sidebar chips. General holds language, speed, follow-PC, memory operand
 highlighting, optional title-bar file-name visibility, and the `.580` / `.krs`
-file associations; External Devices holds
-the floppy image, HDD directory, and network defaults. Appearance holds
+file associations; External Devices holds the floppy image, HDD directory,
+printer defaults, printer dialog mode, default monitor layout, and network
+defaults. Appearance holds
 the color-scheme picker, grouped into Dark and Light lists without a
 separate setting label column; each option renders a medium-size theme name in
 the left visual column and larger palette swatches in the right visual
@@ -2013,7 +2015,7 @@ complete matching category.
 `settings_saved_notice: Option<SettingsSavedNotice>` from
 `app/settings_saved_notice.rs`. `SettingsDialog` lives in
 `app/settings_modal/` and is a standalone draft – the live
-`lang`, `default_speed`, `color_scheme`, and `show_file_name` fields on
+`lang`, `default_speed`, `color_scheme`, `show_file_name`, and `monitor_split` fields on
 `DesktopApp` are kept in sync with the draft while editing, then rolled back to
 `original_*` on Cancel or committed on Save.
 
@@ -2393,6 +2395,7 @@ false so no white ring is drawn until keyboard navigation starts.
     `SpeedFast`, `SpeedMax`, `FollowPcOn`, `FollowPcOff`,
     `MemoryOperandHighlightingOn`, `MemoryOperandHighlightingOff`,
     `ShowFileNameOn`, `ShowFileNameOff`,
+    `MonitorLayoutUnified`, `MonitorLayoutSplit`,
     `FloppyImage`, `HddDirectory`, `PrinterDefault`,
     `PrinterDialogModeCustom`, `PrinterDialogModeSystem`, `NetworkDefaults`,
     `FileAssociation`, `Theme`,
@@ -2403,7 +2406,7 @@ false so no white ring is drawn until keyboard navigation starts.
 | Shortcut | Effect |
 |---|---|
 | Ctrl+Tab / Ctrl+Shift+Tab | Cycle between sections. The keyboard subscription routes `Ctrl+Tab` to `Message::SettingsSectionCycle { backward }` before `to_latin` runs, so the shortcut does not depend on layout. Entering a section seeds its local focus: Content lands on the first / last interactive item, Footer lands on `Cancel` / `Save`, Sidebar copies the active category into `sidebar_focus`, and Search additionally focuses the text input through `iced::widget::operation::focus(SETTINGS_SEARCH_INPUT_ID)` so typing routes into the field; on every other section the dialog focuses a dummy id no widget owns to blur the search input and keep Tab/Enter from being eaten by it. |
-| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPcOn → FollowPcOff → MemoryOperandHighlightingOn → MemoryOperandHighlightingOff → ShowFileNameOn → ShowFileNameOff → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → PrinterDefault → PrinterDialogModeCustom → PrinterDialogModeSystem → NetworkDefaults`; on Appearance it is `Theme`; and on Shortcuts it walks every `ShortcutAction` row in table order. Each category wraps at both ends. In `Footer` the normal ring is `Reset → Cancel → Save → Reset`; on Shortcuts it becomes `Reset → ShortcutReset → Cancel → Save → Reset`. In `Sidebar` Tab moves only `sidebar_focus` through `General → External Devices → Appearance → Shortcuts → General`; the content category does not change until Enter. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
+| Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPcOn → FollowPcOff → MemoryOperandHighlightingOn → MemoryOperandHighlightingOff → ShowFileNameOn → ShowFileNameOff → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → PrinterDefault → PrinterDialogModeCustom → PrinterDialogModeSystem → MonitorLayoutUnified → MonitorLayoutSplit → NetworkDefaults`; on Appearance it is `Theme`; and on Shortcuts it walks every `ShortcutAction` row in table order. Each category wraps at both ends. In `Footer` the normal ring is `Reset → Cancel → Save → Reset`; on Shortcuts it becomes `Reset → ShortcutReset → Cancel → Save → Reset`. In `Sidebar` Tab moves only `sidebar_focus` through `General → External Devices → Appearance → Shortcuts → General`; the content category does not change until Enter. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
 | ArrowUp / ArrowDown | Inside `Sidebar` moves `sidebar_focus` through `General ↔ External Devices ↔ Appearance ↔ Shortcuts` without applying the category, stopping at the ends instead of wrapping; Enter applies the cursor. With the language dropdown open the arrows only **highlight** the next/previous option without committing – `dropdown_highlight: Option<Lang>` on `SettingsDialog` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
 | ArrowLeft / ArrowRight | Inside the speed segment row of `Content` walks the four chips. Wraps at the ends. Has no effect outside the speed row. |
 | Enter | Clears the visible keyboard ring, then activates the focused item. In `Sidebar` it applies `sidebar_focus` as the active category. When the language dropdown is open, it applies `dropdown_highlight` (or the current draft if nothing was highlighted) and closes the panel. Otherwise it opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier or an individual On/Off segment, starts shortcut capture when a `ShortcutAction` row has focus, and triggers `SettingsResetRequested` / `SettingsShortcutsReset` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
@@ -2454,13 +2457,13 @@ and the dialog draft with defaults.
 
 ### Settings dialog: live preview, sub-modal, persistence
 
-`SettingsDialog::{draft_lang, draft_speed, draft_color_scheme, draft_show_file_name}` are
-the user's tentative values; `original_lang`, `original_speed`, and
+`SettingsDialog` holds tentative `draft_lang`, `draft_speed`, `draft_color_scheme`,
+`draft_show_file_name`, and `draft_monitor_split` values; `original_lang`, `original_speed`, and
 `original_color_scheme` snapshot the latest committed state, initially
 captured when the modal opens.
 
 - Editing a draft updates **live state** (`DesktopApp::lang`,
-  `default_speed`, `speed_tier`, `color_scheme`, `show_file_name`) immediately so the
+  `default_speed`, `speed_tier`, `color_scheme`, `show_file_name`, `monitor_split`) immediately so the
   schematic, status bar, and chrome re-render in the new language /
   pacing / theme without waiting for `Save`. The settings router
   whitelists only its own message variants, so the speed change is
@@ -2472,6 +2475,12 @@ captured when the modal opens.
   through the same chokepoint. The active `speed_tier` snapshot is distinct
   from `default_speed`, so closing Settings after changing an unrelated option
   does not replace the speed selected in the main window with the saved default.
+- Monitor layout starts from the saved `general.monitorSplit`, while
+  `original_monitor_split` snapshots the actual pre-open monitor view. Selecting
+  Unified or Split previews immediately in both attached and detached monitors;
+  Cancel restores the pre-open view, and Save stores only the selected default.
+  Saving an unrelated setting therefore does not turn a temporary split/merge
+  choice in the monitor into a new default or change that view on Cancel.
 - `Save` keeps the dialog open, keeps the live state, writes the complete dialog
   snapshot to JSON once, and advances `original_*` so a later `Cancel` returns
   to the latest saved values. A text-only top-centre `Настройки сохранены` /
@@ -2487,7 +2496,7 @@ captured when the modal opens.
   emits `DismissSettingsSavedNotice` and dismisses it immediately. The animation is
   derived from
   `SettingsSavedNotice::presentation` on the settings dialog's existing frame
-  subscription, while `Message::Tick` removes the expired state. The General page
+  subscription, while `Message::Tick` removes the expired state. External Devices
   also stores a default floppy image path
   (loaded on startup) and separate startup address/port pairs for the network
   client and server; the Appearance page stores `ui.theme`; the Shortcuts page
@@ -2514,7 +2523,8 @@ captured when the modal opens.
   the system default language from `system_locale::default_language()` /
   `SpeedTier::High` (120 instructions/sec), restores the default
   `ColorScheme::TokyoNight`, turns Follow PC and file-name display off, restores
-  memory-operand highlighting, the custom printer dialog mode, and the default shortcut map,
+  memory-operand highlighting, unified monitor layout, the custom printer dialog mode,
+  and the default shortcut map,
   rewrites the dialog's `original_*` snapshot so a follow-up `Cancel`
   cannot restore the pre-reset values, and persists.
 
@@ -2559,12 +2569,14 @@ each file under the 400-line ceiling:
   boundary clamping for the hidden settings scrollable.
 - `app/settings_modal/tests.rs` – focus / live-preview / reset-confirm
   regression tests.
-- `app/update_settings/{mod,network,shortcuts}.rs` –
+- `app/update_settings/{mod,network,reset,section,shortcuts,storage}.rs` –
   `dispatch_settings_message` lives in `mod.rs` and is called from the main
   `update` loop before the big `match` so every `Message::Settings*` is
   handled in one focused module; network parsing helpers and the
   directory-writability check live in `network.rs`, while shortcut capture
-  messages live in `shortcuts.rs`.
+  messages live in `shortcuts.rs`. `reset.rs` restores and persists defaults,
+  `section.rs` handles section traversal, and `storage.rs` owns device-default
+  browse/setup workflows.
 - `app/update_overlays.rs` – `dispatch_overlay_message`, called from
   the main `update` loop for About, Help, external URL, and monitor
   overlay messages.

@@ -98,7 +98,7 @@ fn sidebar_tab_moves_cursor_without_activating_category() {
 }
 
 #[test]
-fn external_devices_focus_keeps_printer_before_network() {
+fn external_devices_focus_matches_settings_order() {
     let mut dialog = SettingsDialog::new(
         Lang::Ru,
         SpeedTier::Medium,
@@ -110,36 +110,24 @@ fn external_devices_focus_keeps_printer_before_network() {
     );
     dialog.category = SettingsCategory::ExternalDevices;
 
-    assert_eq!(dialog.first_content_focus(), ContentFocus::FloppyImage);
-    assert_eq!(dialog.last_content_focus(), ContentFocus::NetworkDefaults);
-    assert_eq!(
-        dialog.next_content_focus(ContentFocus::HddDirectory),
-        Some(ContentFocus::PrinterDefault)
-    );
-    assert_eq!(
-        dialog.next_content_focus(ContentFocus::PrinterDefault),
-        Some(ContentFocus::PrinterDialogModeCustom)
-    );
-    assert_eq!(
-        dialog.next_content_focus(ContentFocus::PrinterDialogModeCustom),
-        Some(ContentFocus::PrinterDialogModeSystem)
-    );
-    assert_eq!(
-        dialog.next_content_focus(ContentFocus::PrinterDialogModeSystem),
-        Some(ContentFocus::NetworkDefaults)
-    );
-    assert_eq!(
-        dialog.previous_content_focus(ContentFocus::NetworkDefaults),
-        Some(ContentFocus::PrinterDialogModeSystem)
-    );
-    assert_eq!(
-        dialog.previous_content_focus(ContentFocus::PrinterDialogModeSystem),
-        Some(ContentFocus::PrinterDialogModeCustom)
-    );
-    assert_eq!(
-        dialog.previous_content_focus(ContentFocus::PrinterDialogModeCustom),
-        Some(ContentFocus::PrinterDefault)
-    );
+    let order = [
+        ContentFocus::FloppyImage,
+        ContentFocus::HddDirectory,
+        ContentFocus::PrinterDefault,
+        ContentFocus::PrinterDialogModeCustom,
+        ContentFocus::PrinterDialogModeSystem,
+        ContentFocus::MonitorLayoutUnified,
+        ContentFocus::MonitorLayoutSplit,
+        ContentFocus::NetworkDefaults,
+    ];
+    assert_eq!(dialog.first_content_focus(), order[0]);
+    assert_eq!(dialog.last_content_focus(), order[order.len() - 1]);
+    assert_eq!(dialog.previous_content_focus(order[0]), None);
+    assert_eq!(dialog.next_content_focus(order[order.len() - 1]), None);
+    for pair in order.windows(2) {
+        assert_eq!(dialog.next_content_focus(pair[0]), Some(pair[1]));
+        assert_eq!(dialog.previous_content_focus(pair[1]), Some(pair[0]));
+    }
 }
 
 #[test]

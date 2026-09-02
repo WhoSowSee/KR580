@@ -146,6 +146,8 @@ pub(crate) enum ContentFocus {
     PrinterDefault,
     PrinterDialogModeCustom,
     PrinterDialogModeSystem,
+    MonitorLayoutUnified,
+    MonitorLayoutSplit,
     NetworkDefaults,
     FileAssociation,
     Theme,

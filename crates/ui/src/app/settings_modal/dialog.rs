@@ -24,6 +24,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) draft_follow_pc: bool,
     pub(crate) draft_memory_operand_highlighting: bool,
     pub(crate) draft_show_file_name: bool,
+    pub(crate) draft_monitor_split: bool,
     pub(crate) draft_floppy_image_path: Option<std::path::PathBuf>,
     pub(crate) draft_hdd_directory: Option<std::path::PathBuf>,
     pub(crate) draft_printer_settings: Option<PrinterSettings>,
@@ -49,6 +50,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) original_follow_pc: bool,
     pub(crate) original_memory_operand_highlighting: bool,
     pub(crate) original_show_file_name: bool,
+    pub(crate) original_monitor_split: bool,
     pub(crate) original_printer_dialog_mode: PrinterDialogMode,
     pub(crate) footer_focus: FooterFocus,
     pub(crate) reset_confirm_open: bool,
@@ -142,6 +144,7 @@ impl SettingsDialog {
             draft_follow_pc: follow_pc,
             draft_memory_operand_highlighting: memory_operand_highlighting,
             draft_show_file_name: show_file_name,
+            draft_monitor_split: false,
             draft_floppy_image_path: floppy_image_path,
             draft_hdd_directory: hdd_directory,
             draft_printer_settings: printer_settings,
@@ -163,6 +166,7 @@ impl SettingsDialog {
             original_follow_pc: follow_pc,
             original_memory_operand_highlighting: memory_operand_highlighting,
             original_show_file_name: show_file_name,
+            original_monitor_split: false,
             original_printer_dialog_mode: printer_dialog_mode,
             footer_focus: FooterFocus::Cancel,
             reset_confirm_open: false,
@@ -232,7 +236,9 @@ impl SettingsDialog {
                 ContentFocus::PrinterDialogModeCustom => {
                     Some(ContentFocus::PrinterDialogModeSystem)
                 }
-                ContentFocus::PrinterDialogModeSystem => Some(ContentFocus::NetworkDefaults),
+                ContentFocus::PrinterDialogModeSystem => Some(ContentFocus::MonitorLayoutUnified),
+                ContentFocus::MonitorLayoutUnified => Some(ContentFocus::MonitorLayoutSplit),
+                ContentFocus::MonitorLayoutSplit => Some(ContentFocus::NetworkDefaults),
                 ContentFocus::NetworkDefaults => None,
                 _ => Some(self.first_content_focus()),
             },
@@ -271,7 +277,9 @@ impl SettingsDialog {
                 ContentFocus::PrinterDialogModeSystem => {
                     Some(ContentFocus::PrinterDialogModeCustom)
                 }
-                ContentFocus::NetworkDefaults => Some(ContentFocus::PrinterDialogModeSystem),
+                ContentFocus::MonitorLayoutUnified => Some(ContentFocus::PrinterDialogModeSystem),
+                ContentFocus::MonitorLayoutSplit => Some(ContentFocus::MonitorLayoutUnified),
+                ContentFocus::NetworkDefaults => Some(ContentFocus::MonitorLayoutSplit),
                 _ => Some(self.last_content_focus()),
             },
             SettingsCategory::Appearance => match current {
