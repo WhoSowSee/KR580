@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.2.0] - 2026-09-03
+
+### Features
+
+- Added: compact scrollbar to the monitor byte stream window
+- Added: edge hints and smoother scrolling to Settings content
+- Added: optional display of the open file name in the window title bar
+- Added: persisted default monitor layout selection with Unified and Split options
+
+### Bug Fixes
+
+- Fixed: Import and Export replace active panels and switch directly between each other without restoring the previous panel
+- Fixed: the visible RAM region remains in place when opening a device through Alt+Enter
+- Fixed: Tab and Shift+Tab navigation on selected RAM cells outside edit mode
+- Fixed: spacing between the export target field and its dropdown matches other selectors
+- Fixed: scroll hint fades no longer cover the Settings dialog border
+
 ## [2.1.1] - 2026-09-01
 
 ### Bug Fixes
