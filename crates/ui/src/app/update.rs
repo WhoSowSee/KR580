@@ -357,10 +357,8 @@ impl DesktopApp {
                     self.focused_input = Some(OPCODE_SEARCH_INPUT_ID);
                     return scroll.chain(iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID));
                 }
-                if self.focused_input == Some(REGISTER_INLINE_INPUT_ID)
-                    || (self.focused_input.is_none() && self.active_register_target.is_some())
-                {
-                    return self.cycle_register_target_focus(backward);
+                if let Some(task) = self.cycle_selected_focus(backward) {
+                    return task;
                 }
                 use iced::advanced::widget::operation::focusable::find_focused;
                 return iced::advanced::widget::operate(find_focused())

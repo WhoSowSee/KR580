@@ -45,6 +45,18 @@ impl DesktopApp {
         Task::none()
     }
 
+    pub(crate) fn cycle_selected_focus(&mut self, backward: bool) -> Option<Task<Message>> {
+        if self.focused_input == Some(REGISTER_INLINE_INPUT_ID)
+            || (self.focused_input.is_none() && self.active_register_target.is_some())
+        {
+            return Some(self.cycle_register_target_focus(backward));
+        }
+        if self.focused_input.is_none() && self.selected_memory_address().is_some() {
+            return Some(self.step_memory_address(if backward { -1 } else { 1 }));
+        }
+        None
+    }
+
     pub(crate) fn cycle_register_target_focus(&mut self, backward: bool) -> Task<Message> {
         let editing = self.focused_input == Some(REGISTER_INLINE_INPUT_ID);
         let target = if editing {
@@ -77,7 +89,7 @@ mod tests {
     use k580_core::RegisterName;
 
     #[test]
-    fn tab_cycles_selected_registers_across_schematic_and_mux() {
+    fn tab_cycles_selected_registers_and_memory_without_inline_editing() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
         use RegisterInlineTarget::{Mux, Schematic};
 
@@ -91,5 +103,14 @@ mod tests {
             let _ = app.update(Message::FocusCycle { backward });
             assert_eq!(app.active_register_target, Some(expected));
         }
+
+        app.select_memory(0x1234);
+        let _ = app.update(Message::FocusCycle { backward: false });
+        assert_eq!(app.memory_address_input, "1235");
+        assert_eq!(app.focused_input, None);
+
+        let _ = app.update(Message::FocusCycle { backward: true });
+        assert_eq!(app.memory_address_input, "1234");
+        assert_eq!(app.focused_input, None);
     }
 }

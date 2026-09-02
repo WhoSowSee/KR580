@@ -308,9 +308,10 @@ worth eyeballing after touching `crates/ui`:
   existing two-digit value; malformed or overflowing input must not
   write a partial sequence and must show a short localized status
   without repeating the pasted text;
-- in the inline memory list, confirm Tab walks down through addresses
-  and Shift+Tab walks back up, with each destination empty and its stored
-  byte shown as the placeholder;
+- in the memory list, select a row without entering its editor and confirm Tab
+  walks down through addresses while Shift+Tab walks back up without activating
+  edit mode; then focus the inline editor and confirm the same traversal leaves
+  each destination empty with its stored byte shown as the placeholder;
 - in the inline memory list, confirm the scrollbar thumb is compact, does not
   jump when grabbed off-centre, appears when hovering either the thumb or an empty
   part of its rail, moves by only a few addresses for a minimal drag, catches the
