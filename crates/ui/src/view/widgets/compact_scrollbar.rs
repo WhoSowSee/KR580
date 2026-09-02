@@ -8,8 +8,8 @@ use super::super::styles::memory_scrollbar_color;
 use crate::app::Message;
 
 const HIT_WIDTH: f32 = 8.0;
-const THUMB_WIDTH: f32 = 4.0;
-const THUMB_HEIGHT: f32 = 20.0;
+const THUMB_WIDTH: f32 = 5.0;
+const THUMB_HEIGHT: f32 = 28.0;
 const PRECISION_DRAG_DISTANCE: f32 = 12.0;
 
 pub(in crate::view) fn compact_scrollbar(

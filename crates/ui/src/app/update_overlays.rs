@@ -1,10 +1,11 @@
 use iced::Task;
 
 use super::changelog::ChangelogDialog;
-use super::constants::MEMORY_SCROLL_VISIBLE_TICKS;
+use super::constants::{MEMORY_SCROLL_VISIBLE_TICKS, MONITOR_HEX_SCROLL_ID};
 use super::help::HelpDialog;
 use super::messages::Message;
 use super::{DesktopApp, PendingAction};
+use crate::runtime::parse::scroll_y_to;
 
 impl DesktopApp {
     pub(crate) fn dispatch_overlay_message(&mut self, message: &Message) -> Option<Task<Message>> {
@@ -107,6 +108,7 @@ impl DesktopApp {
             Message::ToggleMonitorHexPopup => {
                 self.monitor_hex_popup = !self.monitor_hex_popup;
                 if self.monitor_hex_popup {
+                    self.monitor_hex_scroll_offset = 0.0;
                     self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
                 }
             }
@@ -114,8 +116,14 @@ impl DesktopApp {
                 self.monitor_hex_filter = self.monitor_hex_filter.next();
                 self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }
-            Message::MonitorHexScrolled => {
+            Message::MonitorHexScrolled(offset) => {
+                self.monitor_hex_scroll_offset = *offset;
                 self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+            }
+            Message::MonitorHexScrollbarDragged(offset) => {
+                self.monitor_hex_scroll_offset = *offset;
+                self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+                return Some(scroll_y_to(MONITOR_HEX_SCROLL_ID, *offset));
             }
             Message::ClearMonitorBuffer => {
                 self.dispatch(crate::backend::AppCommand::ClearMonitorBuffer);

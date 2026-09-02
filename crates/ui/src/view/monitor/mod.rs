@@ -11,7 +11,7 @@ use crate::backend::MonitorState;
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack, svg};
 use iced::{Element, Length};
 
-use crate::app::{HexStreamFilter, Message, ToolWindowKind};
+use crate::app::{DesktopApp, HexStreamFilter, Message, ToolWindowKind};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
 use crate::view::theme::{tokyo_blue, tokyo_device_accent, tokyo_text};
@@ -24,12 +24,28 @@ use styles::{
     icon_button_style,
 };
 
+pub(in crate::view) struct HexPopupViewState {
+    open: bool,
+    filter: HexStreamFilter,
+    scroll_offset: f32,
+    reveal_scrollbar: bool,
+}
+
+impl DesktopApp {
+    pub(in crate::view) fn hex_popup_view_state(&self) -> HexPopupViewState {
+        HexPopupViewState {
+            open: self.monitor_hex_popup,
+            filter: self.monitor_hex_filter,
+            scroll_offset: self.monitor_hex_scroll_offset,
+            reveal_scrollbar: self.monitor_hex_scroll_visible_ticks > 0,
+        }
+    }
+}
+
 pub(in crate::view) fn monitor_window_overlay<'a>(
     state: &'a MonitorState,
     split: bool,
-    hex_popup: bool,
-    hex_filter: HexStreamFilter,
-    hex_reveal: bool,
+    hex: HexPopupViewState,
     lang: Lang,
 ) -> Element<'a, Message> {
     let backdrop = mouse_area(
@@ -40,7 +56,7 @@ pub(in crate::view) fn monitor_window_overlay<'a>(
     )
     .on_press(Message::CloseMonitor);
 
-    let body = monitor_content(state, split, false, false, hex_popup, lang);
+    let body = monitor_content(state, split, false, false, hex.open, lang);
 
     let dialog = container(body)
         .padding(16)
@@ -66,14 +82,11 @@ pub(in crate::view) fn monitor_window_overlay<'a>(
         .height(Length::Fill)
         .into();
 
-    if hex_popup {
-        stack![
-            monitor_layer,
-            hex_popup_overlay(state, hex_filter, hex_reveal, lang)
-        ]
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    if hex.open {
+        stack![monitor_layer, hex_popup_overlay(state, hex, lang)]
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into()
     } else {
         monitor_layer
     }
@@ -82,9 +95,7 @@ pub(in crate::view) fn monitor_window_overlay<'a>(
 pub(in crate::view) fn monitor_window<'a>(
     state: &'a MonitorState,
     split: bool,
-    hex_popup: bool,
-    hex_filter: HexStreamFilter,
-    hex_reveal: bool,
+    hex: HexPopupViewState,
     always_on_top: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
@@ -93,15 +104,15 @@ pub(in crate::view) fn monitor_window<'a>(
         split,
         true,
         always_on_top,
-        hex_popup,
+        hex.open,
         lang,
     ))
     .padding(16)
     .style(dialog_style)
     .width(Length::Fill)
     .height(Length::Fill);
-    if hex_popup {
-        stack![body, hex_popup_overlay(state, hex_filter, hex_reveal, lang)]
+    if hex.open {
+        stack![body, hex_popup_overlay(state, hex, lang)]
             .width(Length::Fill)
             .height(Length::Fill)
             .into()

@@ -149,7 +149,7 @@ mod tests {
             let bounds = geometry.bounds.expect("opcode scroll bounds");
             let grab = Point::new(
                 bounds.x + bounds.width - 2.0,
-                bounds.y + (bounds.height - 20.0) * offset / geometry.max_offset + 5.0,
+                bounds.y + bounds.height * offset / geometry.max_offset + 5.0,
             );
             scene.event(
                 Event::Window(iced::window::Event::RedrawRequested(

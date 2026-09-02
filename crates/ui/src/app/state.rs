@@ -45,14 +45,14 @@ pub(crate) struct DesktopApp {
     pub(crate) opcode_scroll_visible_ticks: u8,
     pub(crate) opcode_scroll_offset: f32,
     pub(crate) monitor_hex_scroll_visible_ticks: u8,
+    pub(crate) monitor_hex_scroll_offset: f32,
     pub(crate) memory_address_input: String,
     pub(crate) memory_value_input: String,
     pub(crate) memory_inline_value_input: String,
     pub(crate) opcode_dropdown_address: Option<u16>,
     pub(crate) opcode_search_input: String,
     pub(crate) opcode_highlight_index: usize,
-    /// Stored separately because every successful match overwrites
-    /// `memory_address_input` with the matched 4-digit address.
+    /// Stored separately because each match overwrites `memory_address_input`.
     pub(crate) memory_search_pattern: Option<String>,
     pub(crate) memory_operand_return_address: Option<u16>,
     pub(crate) memory_operand_return_scroll_offset: Option<f32>,
@@ -245,6 +245,7 @@ impl DesktopApp {
             opcode_scroll_visible_ticks: 0,
             opcode_scroll_offset: 0.0,
             monitor_hex_scroll_visible_ticks: 0,
+            monitor_hex_scroll_offset: 0.0,
             memory_address_input: String::new(),
             memory_value_input: String::new(),
             memory_inline_value_input: String::new(),

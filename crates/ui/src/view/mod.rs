@@ -289,9 +289,7 @@ impl DesktopApp {
                 monitor_window_overlay(
                     &self.snapshot.devices.monitor,
                     self.monitor_split,
-                    self.monitor_hex_popup,
-                    self.monitor_hex_filter,
-                    self.monitor_hex_scroll_visible_ticks > 0,
+                    self.hex_popup_view_state(),
                     self.lang
                 )
             ]

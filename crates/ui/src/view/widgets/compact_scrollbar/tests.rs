@@ -48,9 +48,10 @@ fn drag_clamps_at_track_ends() {
         handle_y: 100.0,
     };
 
-    for (cursor_y, expected_offset, expected_top) in
-        [(-1_000.0, 0.0, 0.0), (1_000.0, 60_000.0, 280.0)]
-    {
+    for (cursor_y, expected_offset, expected_top) in [
+        (-1_000.0, 0.0, bounds.y),
+        (1_000.0, 60_000.0, bounds.y + bounds.height - THUMB_HEIGHT),
+    ] {
         let offset = drag_target_offset(bounds, origin, cursor_y, 60_000.0);
 
         assert_eq!(offset, expected_offset);

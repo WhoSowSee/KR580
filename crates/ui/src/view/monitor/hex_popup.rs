@@ -1,20 +1,26 @@
 use crate::backend::MonitorState;
-use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable, stack};
+use iced::widget::{
+    Space, column, container, mouse_area, opaque, responsive, row, scrollable, stack,
+};
 use iced::{Element, Length};
 
-use crate::app::{HexStreamFilter, Message};
+use crate::app::{HexStreamFilter, MONITOR_HEX_SCROLL_ID, Message};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
-use crate::view::styles::scrollable_style;
 use crate::view::theme::{mono_text, tokyo_muted, tokyo_text, ui_text};
+use crate::view::widgets::compact_scrollbar;
 
-use super::icon_button;
 use super::styles::{HEX_GROUP, dialog_style, framebuffer_style, popup_backdrop_style};
+use super::{HexPopupViewState, icon_button};
+
+const HEX_TEXT_SIZE: u32 = 12;
+const HEX_ROW_HEIGHT: f32 = HEX_TEXT_SIZE as f32 * 1.3;
+const HEX_ROW_SPACING: f32 = 2.0;
+const HEX_CONTENT_PADDING: f32 = 12.0;
 
 pub(super) fn hex_popup_overlay<'a>(
     state: &'a MonitorState,
-    filter: HexStreamFilter,
-    reveal: bool,
+    hex: HexPopupViewState,
     lang: Lang,
 ) -> Element<'a, Message> {
     let backdrop = mouse_area(
@@ -25,9 +31,14 @@ pub(super) fn hex_popup_overlay<'a>(
     )
     .on_press(Message::ToggleMonitorHexPopup);
 
-    let kept = filtered_hex_bytes(&state.hex_buffer, filter);
+    let kept = filtered_hex_bytes(&state.hex_buffer, hex.filter);
 
-    let mut col = column![].spacing(2);
+    let byte_count = kept.len();
+    let row_count = byte_count.div_ceil(HEX_GROUP);
+    let content_height = row_count as f32 * HEX_ROW_HEIGHT
+        + row_count.saturating_sub(1) as f32 * HEX_ROW_SPACING
+        + HEX_CONTENT_PADDING * 2.0;
+    let mut col = column![].spacing(HEX_ROW_SPACING);
     for (chunk_idx, chunk) in kept.chunks(HEX_GROUP).enumerate() {
         let offset = chunk_idx * HEX_GROUP;
         let hex: String = chunk
@@ -37,21 +48,38 @@ pub(super) fn hex_popup_overlay<'a>(
             .join(" ");
         col = col.push(
             row![
-                mono_text(format!("{offset:04X}"), 12, tokyo_muted()),
+                mono_text(format!("{offset:04X}"), HEX_TEXT_SIZE, tokyo_muted()),
                 Space::new().width(Length::Fixed(12.0)),
-                mono_text(hex, 12, tokyo_text()),
+                mono_text(hex, HEX_TEXT_SIZE, tokyo_text()),
             ]
-            .align_y(iced::alignment::Vertical::Center),
+            .align_y(iced::alignment::Vertical::Center)
+            .height(Length::Fixed(HEX_ROW_HEIGHT)),
         );
     }
-    let body: Element<'_, Message> = scrollable(container(col).padding(12))
+    let stream: Element<'_, Message> = scrollable(container(col).padding(HEX_CONTENT_PADDING))
+        .id(MONITOR_HEX_SCROLL_ID)
         .width(Length::Fill)
         .height(Length::Fill)
-        .on_scroll(|_| Message::MonitorHexScrolled)
-        .style(move |theme, status| scrollable_style(reveal, theme, status))
+        .direction(scrollable::Direction::Vertical(
+            scrollable::Scrollbar::hidden(),
+        ))
+        .on_scroll(|viewport| Message::MonitorHexScrolled(viewport.absolute_offset().y))
+        .into();
+    let scrollbar: Element<'_, Message> = responsive(move |size| {
+        compact_scrollbar(
+            hex.scroll_offset,
+            (content_height - size.height).max(0.0),
+            hex.reveal_scrollbar,
+            Message::MonitorHexScrollbarDragged,
+        )
+    })
+    .into();
+    let body: Element<'_, Message> = stack![stream, scrollbar]
+        .width(Length::Fill)
+        .height(Length::Fill)
         .into();
 
-    let (filter_icon, filter_hint) = match filter {
+    let (filter_icon, filter_hint) = match hex.filter {
         HexStreamFilter::All => (icons::binary(), Key::MonitorHexFilterAll),
         HexStreamFilter::Graphics => (icons::line_squiggle(), Key::MonitorHexFilterGraphics),
         HexStreamFilter::Text => (icons::text_cursor(), Key::MonitorHexFilterText),
@@ -60,7 +88,7 @@ pub(super) fn hex_popup_overlay<'a>(
     let header = row![
         ui_text(lang.t(Key::MonitorHexBuffer), 14, tokyo_text()),
         Space::new().width(Length::Fixed(16.0)),
-        ui_text(format!("{} B", kept.len()), 12, tokyo_muted()),
+        ui_text(format!("{byte_count} B"), 12, tokyo_muted()),
         Space::new().width(Length::Fill),
         icon_button(
             filter_icon,

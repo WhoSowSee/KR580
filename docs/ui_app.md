@@ -311,9 +311,9 @@ order, top to bottom:
    address-field shortcut independently.
    The return command restores the previous memory scroll offset, so
    the source operand keeps the same visible row position after a round trip.
-   The memory scrollbar paints a compact 20 × 4 logical-pixel thumb with a
-   20 × 8 px grab target over a hidden native rail. Both halves of that target
-   start dragging, including the unpainted half. Hovering any part of the rail
+   The memory scrollbar paints a compact 28 × 5 logical-pixel thumb with a
+   28 × 8 px grab target over a hidden native rail. Both its painted and
+   unpainted portions start dragging. Hovering any part of the rail
    reveals the thumb. A left click on the remaining rail follows iced's native
    scrollbar behavior: it centres the thumb on the pointer, scrolls immediately,
    and starts a drag without selecting the row underneath. Grabbing the thumb
@@ -561,12 +561,15 @@ button whose icon and tooltip cycle through `binary` (всё), `line-squiggle`
 `MonitorState::hex_buffer` keeps every recorded byte; `filtered_hex_bytes`
 re-runs the KR580 phase machine to classify each byte as part of a
 graphics or text command on the fly. The byte counter shown next to
-the title reflects the filtered count, not the raw buffer size. The
-scrollbar auto-hides when idle: `DesktopApp::monitor_hex_scroll_visible_ticks`
-is bumped to `MEMORY_SCROLL_VISIBLE_TICKS` whenever the user opens the
-popup, scrolls (`Message::MonitorHexScrolled`), or cycles the filter,
-and decremented every `Tick` until the scroller fades back to
-transparent. Esc handling: while either monitor presentation is open, Esc first
+the title reflects the filtered count, not the raw buffer size. Its native
+scrollbar is hidden beneath the same compact 28 × 5 logical-pixel thumb and
+8-pixel hit area used by RAM and the opcode picker. Wheel movement updates
+`monitor_hex_scroll_offset`; rail clicks and thumb drags dispatch
+`MonitorHexScrollbarDragged` back to the hidden scrollable. The thumb auto-hides
+when idle: `monitor_hex_scroll_visible_ticks` is bumped to
+`MEMORY_SCROLL_VISIBLE_TICKS` whenever the user opens the popup, scrolls, drags,
+or cycles the filter, and decremented every `Tick` until it becomes transparent.
+Esc handling: while either monitor presentation is open, Esc first
 closes the popup if it's up, otherwise it closes the monitor itself.
 This is implemented in `DesktopApp::handle_esc` ahead of the menu /
 notice fallbacks.
@@ -2119,7 +2122,7 @@ split/unified view toggling, and PNG export.
 
 **State:** `monitor_open: bool`, `monitor_window: ToolWindowState`, `monitor_split: bool`,
 `monitor_hex_popup: bool`, `monitor_hex_filter: HexStreamFilter`,
-`monitor_hex_scroll_visible_ticks: u8`.
+`monitor_hex_scroll_offset: f32`, `monitor_hex_scroll_visible_ticks: u8`.
 
 **View:** `view/monitor/` – `monitor_window_overlay()` and `monitor_window()`.
 

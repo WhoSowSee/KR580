@@ -319,12 +319,13 @@ worth eyeballing after touching `crates/ui`:
   part of its rail, moves by only a few addresses for a minimal drag, catches the
   pointer within 12 px, stays under it for a fast drag, reaches both track ends
   without stutter, and leaves wheel/touchpad sensitivity unchanged;
-- in both the RAM list and opcode picker, grab the unpainted left half of the
-  8 px target and confirm dragging starts without a jump; click the empty rail,
+- in the RAM list, opcode picker, and Monitor byte stream, grab the unpainted
+  left portion of the 8 px target and confirm dragging starts without a jump;
+  click the empty rail,
   confirm the thumb centres on the pointer and follows a continued drag without
-  selecting a row or opcode, then click just outside the rail and confirm the
-  normal row action still works;
-- in both lists, scroll with the wheel or touchpad directly over the painted
+  selecting underlying content, then click just outside the rail and confirm the
+  scrollbar does not capture it and RAM/opcode row actions still work;
+- in all three lists, scroll with the wheel or touchpad directly over the painted
   thumb and its unpainted grab area, confirm sensitivity matches scrolling over
   the content, and confirm hovering, dragging, and a covering popup still work;
 - in the opcode picker, type part of an opcode or mnemonic, confirm
@@ -336,7 +337,7 @@ worth eyeballing after touching `crates/ui`:
   is shown at the top even after a short or empty result list; open the picker
   for another RAM cell and confirm it starts at the top; confirm Enter writes
   the highlighted opcode to the selected memory cell;
-- in the opcode picker, confirm the thumb has the same 20 px length as the RAM
+- in the opcode picker, confirm the thumb has the same 28 px length as the RAM
   viewer's thumb, reveals on rail hover, keeps its grab point, and reaches both
   ends of the full and filtered lists; confirm wheel/touchpad scrolling still
   works over the list and rail, filtering to a few or no matches hides the

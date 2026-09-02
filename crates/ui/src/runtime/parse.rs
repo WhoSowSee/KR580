@@ -8,8 +8,12 @@ use iced::widget::operation;
 use k580_core::RegisterName;
 
 pub(crate) fn scroll_memory_to(offset: f32) -> Task<Message> {
+    scroll_y_to(MEMORY_SCROLL_ID, offset)
+}
+
+pub(crate) fn scroll_y_to(id: &'static str, offset: f32) -> Task<Message> {
     operation::scroll_to(
-        MEMORY_SCROLL_ID,
+        id,
         operation::AbsoluteOffset {
             x: None,
             y: Some(offset),
