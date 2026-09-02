@@ -1818,10 +1818,11 @@ each target keeps its own RAM range, column toggles, register selection,
 and flag selection. Exporting XLSX writes all current pages as workbook
 worksheets; exporting TXT writes all current sections as named blocks in
 one file. The opened dropdown is a stacked overlay over the RAM
-group, so it does not reflow the range
-fields or checkbox rows. The add/delete target buttons are icon-only
-controls with localized hover tooltips; adding while the current name
-already exists creates the next numbered page or section without opening
+group, so it does not reflow the range fields or checkbox rows. Its panel
+starts six logical pixels below the anchor, matching the printer selector
+and the visible rhythm of the Settings language selector. The add/delete
+target buttons are icon-only controls with localized hover tooltips; adding
+while the current name already exists creates the next numbered page or section without opening
 a closed dropdown. Add and delete actions keep an already open dropdown
 open and highlight the selected entry after the list changes. The option
 list is capped at six rows (`6 × 28 px` – `target::dropdown_list_height`)

@@ -273,7 +273,9 @@ worth eyeballing after touching `crates/ui`:
   its selected fill/check,
   skip the unavailable Import target selector and disabled Import action, move
   directly from Export's Text file tab to its target selector without an
-  invisible intermediate stop, and let Enter or pointer input clear the
+  invisible intermediate stop, confirm the opened Export target panel keeps a
+  six-logical-pixel gap below its anchor like the language and printer selectors,
+  and let Enter or pointer input clear the
   keyboard-only outline before activating the current control; confirm Import
   opens at a fixed size without a title bar or close action, with a large source
   drop zone, `.txt`/`.xlsx` format hint inside the zone below Choose file, and

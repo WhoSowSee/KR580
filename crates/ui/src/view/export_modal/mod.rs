@@ -194,7 +194,7 @@ mod tests {
         checkbox_style, checklist_button_style, flag_checkbox_style, tab_button_style,
         target_icon_focus_color,
     };
-    use super::target::dropdown_list_height;
+    use super::target::{DROPDOWN_OFFSET, dropdown_list_height, target_row_height};
     use iced::Background;
     use iced::widget::button;
 
@@ -213,9 +213,9 @@ mod tests {
     #[test]
     fn capped_target_list_stays_inside_the_memory_group() {
         const PANEL_PADDING: f32 = 4.0 + 4.0;
-        const DROPDOWN_OFFSET: f32 = 35.0;
         const GROUP_CONTENT_HEIGHT: f32 = GROUP_HEIGHT - 9.0 - 18.0 - 12.0;
 
+        assert_eq!(DROPDOWN_OFFSET - target_row_height(), 6.0);
         let bottom = DROPDOWN_OFFSET + dropdown_list_height(64) + PANEL_PADDING;
 
         assert!(bottom <= GROUP_CONTENT_HEIGHT);
