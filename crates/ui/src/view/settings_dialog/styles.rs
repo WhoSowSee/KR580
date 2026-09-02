@@ -5,6 +5,7 @@ pub(super) use super::super::styles::{dropdown_panel_style, modal_backdrop_style
 use super::super::theme::{
     tokyo_board, tokyo_border, tokyo_surface, tokyo_surface_2, tokyo_surface_3, tokyo_text,
 };
+use super::consts::DIALOG_BORDER_WIDTH;
 
 /// Dialog body uses `tokyo_board()` so it blends with the schematic plate
 /// behind the backdrop instead of standing out as a light-grey panel.
@@ -14,7 +15,7 @@ pub(super) fn modal_dialog_style(_theme: &iced::Theme) -> container::Style {
         background: Some(Background::Color(tokyo_board())),
         border: Border {
             radius: 10.0.into(),
-            width: 1.0,
+            width: DIALOG_BORDER_WIDTH,
             color: tokyo_border(),
         },
         ..container::Style::default()

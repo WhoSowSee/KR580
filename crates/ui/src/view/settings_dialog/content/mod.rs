@@ -2,7 +2,7 @@ use iced::widget::{Space, column, container, mouse_area, opaque, row, scrollable
 use iced::{Element, Length, Padding, mouse};
 
 use super::super::theme::{tokyo_muted, ui_text};
-use super::consts::{CONTENT_PADDING, SETTING_ROW_HEIGHT};
+use super::consts::{CONTENT_PADDING, DIALOG_BORDER_WIDTH, SETTING_ROW_HEIGHT};
 use super::language::{language_dropdown_list, language_setting_row};
 use super::network::network_defaults_row;
 use super::shortcuts_row::shortcuts_setting_row;
@@ -105,6 +105,7 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
     let top_hint = scroll_hint(hints_visible && dialog.content_can_scroll_up, true);
     let bottom_hint = scroll_hint(hints_visible && dialog.content_can_scroll_down, false);
     let hints = column![top_hint, Space::new().height(Length::Fill), bottom_hint]
+        .padding([0.0, DIALOG_BORDER_WIDTH])
         .width(Length::Fill)
         .height(Length::Fill);
     let wheel_capture = mouse_area(

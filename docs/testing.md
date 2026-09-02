@@ -252,8 +252,9 @@ worth eyeballing after touching `crates/ui`:
   drawing a scrollbar; verify the smaller wheel step and smooth touchpad pixels,
   then scroll to the `.580` / `.krs` association row. The lower hint must vanish
   at the bottom, the mirrored upper hint must vanish at the top, and both must be
-  visible between them without jumps. Repeat in Russian and English; in
-  Appearance, continued wheel-down at the bottom must remain stationary. Verify
+  visible between them without jumps. At 100% and 125% display scaling, verify
+  the right dialog frame stays continuous beneath both fades. Repeat in Russian
+  and English; in Appearance, continued wheel-down at the bottom must remain stationary. Verify
   the association row plus Reset, Cancel, and Save show a white
   border without a fill change, and that Enter or a mouse click clears the border before
   activation; open the language dropdown and confirm its anchor gains the same

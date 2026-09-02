@@ -2500,7 +2500,9 @@ captured when the modal opens.
   operation passes that delta directly to iced for exact boundary clamping, so
   fractional Appearance content cannot rebound at the bottom. Unfiltered lists
   show 24 px edge fades with down/up chevrons according to their actual viewport;
-  search hides them. Their `Stack` stays mounted to preserve the iced scroll tree,
+  search hides them. The fade layer is inset horizontally by the dialog border
+  width so it cannot paint over the outer frame; content layout is unchanged.
+  Their `Stack` stays mounted to preserve the iced scroll tree,
   and hidden SVGs use `Svg::opacity` because tint alpha is not applied by the
   WGPU recolouring path.
 - The `760×496` dialog balances the margins above and below the General rows.

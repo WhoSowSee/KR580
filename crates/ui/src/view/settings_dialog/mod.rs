@@ -105,14 +105,14 @@ pub(super) fn settings_modal_overlay<'a>(
 
 #[cfg(test)]
 mod tests {
-    use iced::advanced::renderer::Headless;
+    use iced::advanced::renderer::{self, Headless, Renderer as _};
     use iced::advanced::{Layout, Shell, clipboard, layout, widget};
     use iced::mouse;
     use iced::widget::Space;
-    use iced::{Element, Event, Point, Size};
+    use iced::{Color, Element, Event, Point, Rectangle, Size};
 
     use super::super::theme::{DARK_COLOR_SCHEMES, LIGHT_COLOR_SCHEMES};
-    use super::consts::DIALOG_HEIGHT;
+    use super::consts::{DIALOG_HEIGHT, DIALOG_WIDTH, FOOTER_HEIGHT, HEADER_HEIGHT};
     use super::content::{category_matches_query, matches_query, settings_content};
     use super::language::language_label_key;
     use super::shortcuts_row::shortcut_action_matches_query;
@@ -225,15 +225,7 @@ mod tests {
     fn settings_content_captures_wheel_without_native_double_scroll() {
         let dialog = test_dialog();
         let mut root = settings_content(&dialog, Lang::Ru);
-        let renderer = tokio::runtime::Builder::new_current_thread()
-            .build()
-            .expect("renderer runtime")
-            .block_on(iced::Renderer::new(
-                iced::Font::DEFAULT,
-                13.0.into(),
-                Some("tiny-skia"),
-            ))
-            .expect("software renderer");
+        let renderer = test_renderer();
         let mut tree = widget::Tree::new(&root);
         let node = root.as_widget_mut().layout(
             &mut tree,
@@ -275,6 +267,65 @@ mod tests {
         let hidden = scrollable_tag_path(&dialog);
 
         assert_eq!(visible, hidden);
+    }
+
+    #[test]
+    fn scroll_hints_preserve_dialog_frame() {
+        let mut renderer = test_renderer();
+        let bounds = Rectangle::with_size(Size::new(DIALOG_WIDTH, DIALOG_HEIGHT));
+        for (up, down) in [(false, true), (true, true), (true, false)] {
+            let mut dialog = test_dialog();
+            dialog.content_can_scroll_up = up;
+            dialog.content_can_scroll_down = down;
+            let mut root = super::settings_modal_overlay(&dialog, Lang::Ru, 0);
+            let mut tree = widget::Tree::new(&root);
+            let node = root.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds.size()),
+            );
+            for scale in [1.0, 1.25] {
+                renderer.reset(bounds);
+                root.as_widget().draw(
+                    &tree,
+                    &mut renderer,
+                    &iced::Theme::Dark,
+                    &renderer::Style::default(),
+                    Layout::new(&node),
+                    mouse::Cursor::Unavailable,
+                    &bounds,
+                );
+                let size = Size::new(
+                    (DIALOG_WIDTH * scale) as u32,
+                    (DIALOG_HEIGHT * scale) as u32,
+                );
+                let pixels = renderer.screenshot(size, scale, Color::BLACK);
+                let index = ((size.height / 2 * size.width + size.width - 1) * 4) as usize;
+                let border = &pixels[index..index + 4];
+                for y in (scale * (HEADER_HEIGHT + 2.0)) as u32
+                    ..(scale * (DIALOG_HEIGHT - FOOTER_HEIGHT - 2.0)) as u32
+                {
+                    let index = ((y * size.width + size.width - 1) * 4) as usize;
+                    assert_eq!(
+                        &pixels[index..index + 4],
+                        border,
+                        "right frame covered at y={y}, scale={scale}, hints=({up}, {down})",
+                    );
+                }
+            }
+        }
+    }
+
+    fn test_renderer() -> iced::Renderer {
+        tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("renderer runtime")
+            .block_on(iced::Renderer::new(
+                iced::Font::DEFAULT,
+                13.0.into(),
+                Some("tiny-skia"),
+            ))
+            .expect("software renderer")
     }
 
     fn scrollable_tag_path(dialog: &SettingsDialog) -> Vec<widget::tree::Tag> {
