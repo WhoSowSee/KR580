@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 impl DesktopApp {
     pub(crate) fn open_import_modal(&mut self) {
+        self.close_export_modal();
         self.import_modal_open = true;
         self.import_modal_focus = ImportModalFocus::Browse;
         self.import_modal_keyboard_focus_visible = false;
@@ -16,6 +17,7 @@ impl DesktopApp {
         self.import_error = None;
         self.close_top_menu();
         self.hide_opcode_dropdown();
+        self.close_open_device_panel();
     }
 
     pub(crate) fn close_import_modal(&mut self) {
@@ -68,6 +70,7 @@ impl DesktopApp {
         }
 
         match message {
+            Message::Export => None,
             Message::Tick | Message::CursorMoved(_) | Message::ModifiersChanged(_) => None,
             Message::ImportFileBrowse => Some(self.choose_import_file()),
             Message::ImportFileSelected(path) => {

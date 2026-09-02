@@ -9,6 +9,7 @@ use iced::advanced::widget::{Id, operate};
 
 impl DesktopApp {
     pub(crate) fn open_export_modal(&mut self) {
+        self.close_import_modal();
         self.export_modal_open = true;
         self.export_tab = ExportTab::Xlsx;
         self.export_modal_focus = ExportModalFocus::TabXlsx;
@@ -23,6 +24,7 @@ impl DesktopApp {
         self.export_flags = ExportFlagSelection::default();
         self.close_top_menu();
         self.hide_opcode_dropdown();
+        self.close_open_device_panel();
     }
 
     pub(crate) fn close_export_modal(&mut self) {
@@ -55,6 +57,7 @@ impl DesktopApp {
         }
 
         match message {
+            Message::Import => None,
             Message::Tick | Message::CursorMoved(_) | Message::ModifiersChanged(_) => None,
             Message::ExportTabSelected(tab) => {
                 self.select_export_tab(*tab);

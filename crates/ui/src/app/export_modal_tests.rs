@@ -7,12 +7,14 @@ use crate::i18n::Lang;
 use crate::persistence::{ExportFlagKind, ExportRegisterKind};
 
 #[test]
-fn export_opens_excel_tab_with_full_range_defaults() {
+fn export_opens_with_defaults_and_can_switch_to_import() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let _task = app.update(Message::OpenMonitor);
 
     let _task = app.update(Message::Export);
 
     assert!(app.export_modal_open);
+    assert!(!app.monitor_open);
     assert_eq!(app.export_tab, ExportTab::Xlsx);
     assert_eq!(app.export_modal_focus, ExportModalFocus::TabXlsx);
     assert_eq!(app.export_memory_start_input, "0000");
@@ -23,6 +25,16 @@ fn export_opens_excel_tab_with_full_range_defaults() {
     assert!(!app.export_flags.sign);
     assert!(!app.export_flags.zero);
     assert!(!app.export_flags.carry);
+
+    let _task = app.update(Message::Import);
+    assert!(!app.export_modal_open);
+    assert!(app.import_modal_open);
+    assert!(!app.monitor_open);
+
+    let _task = app.update(Message::CancelImport);
+
+    assert!(!app.import_modal_open);
+    assert!(!app.monitor_open);
 }
 
 #[test]

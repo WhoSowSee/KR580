@@ -5,15 +5,27 @@ use iced::{Event, window};
 use std::path::PathBuf;
 
 #[test]
-fn import_opens_modal_instead_of_file_dialog_path() {
+fn import_opens_without_picker_and_can_switch_to_export() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    let _task = app.update(Message::OpenMonitor);
 
     let _task = app.update(Message::Import);
 
     assert!(app.import_modal_open);
+    assert!(!app.monitor_open);
     assert_eq!(app.import_modal_focus, ImportModalFocus::Browse);
     assert!(app.import_file_path.is_none());
     assert!(app.import_target_options.is_empty());
+
+    let _task = app.update(Message::Export);
+    assert!(!app.import_modal_open);
+    assert!(app.export_modal_open);
+    assert!(!app.monitor_open);
+
+    let _task = app.update(Message::CancelExport);
+
+    assert!(!app.export_modal_open);
+    assert!(!app.monitor_open);
 }
 
 #[test]

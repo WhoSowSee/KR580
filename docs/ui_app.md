@@ -1766,6 +1766,13 @@ messages that would affect the underlying app state – `Tick`, keyboard
 shortcuts, menu actions – and only lets through modal-specific messages
 (Esc, Enter, Tab, button clicks) and read-only signals (`CursorMoved`,
 `FrameRendered`, etc.). Closing the modal restores full input routing.
+Opening Import, Export, Settings, About, or Help replaces any attached
+device panel occupying the same overlay slot. Closing the modal returns
+to the main app instead of restoring that panel; detached device windows
+remain independent.
+Import and Export can replace one another through their existing commands
+and shortcuts. Switching to Import still uses the unsaved-changes discard
+gate before the Import modal opens.
 The shared modal and attached-device backdrops derive their translucent
 dim color from the active color scheme's board token instead of using one
 fixed tint.

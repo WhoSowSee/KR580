@@ -261,6 +261,11 @@ worth eyeballing after touching `crates/ui`:
   initially filled without a white border, the first Tab/Shift+Tab changes the
   indication to a white border without focus fill, and Enter or pointer input
   hides the border before activating the chosen button;
+- with the attached Monitor open, open and cancel Export; reopen Monitor, then
+  open and cancel Import; confirm each modal replaces the Monitor panel and
+  cancellation returns to the main app instead of restoring it; while Export
+  is open invoke Import, then invoke Export from Import, and confirm each
+  command replaces the current modal;
 - open Export and Import and use Tab/Shift+Tab from their native text inputs and
   buttons; confirm captured keyboard events still traverse each custom wrapping
   focus ring in both directions, draw a white outline on the active tab,
