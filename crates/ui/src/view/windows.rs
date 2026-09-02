@@ -156,6 +156,64 @@ mod tests {
         );
     }
 
+    #[test]
+    fn attached_monitor_preserves_base_scrollable_states() {
+        let (mut app, _task) = DesktopApp::with_initial_path(None);
+        let window = iced::window::Id::unique();
+        app.main_window_id = Some(window);
+        let mut tree = {
+            let root = app.view(window);
+            widget::Tree::new(&root)
+        };
+        let scrollable: Element<'_, Message> = iced::widget::scrollable(Space::new()).into();
+        let tag = scrollable.as_widget().tag();
+        let before = state_addresses(&tree, tag);
+        assert!(!before.is_empty());
+
+        app.monitor_open = true;
+        {
+            let root = app.view(window);
+            tree.diff(&root);
+        }
+        assert!(
+            before
+                .iter()
+                .all(|address| state_addresses(&tree, tag).contains(address))
+        );
+
+        app.monitor_open = false;
+        {
+            let root = app.view(window);
+            tree.diff(&root);
+        }
+        assert!(
+            before
+                .iter()
+                .all(|address| state_addresses(&tree, tag).contains(address))
+        );
+    }
+
+    fn state_addresses(tree: &widget::Tree, tag: widget::tree::Tag) -> Vec<*const ()> {
+        let mut addresses = Vec::new();
+        collect_state_addresses(tree, tag, &mut addresses);
+        addresses
+    }
+
+    fn collect_state_addresses(
+        tree: &widget::Tree,
+        tag: widget::tree::Tag,
+        addresses: &mut Vec<*const ()>,
+    ) {
+        if tree.tag == tag
+            && let widget::tree::State::Some(state) = &tree.state
+        {
+            addresses.push(state.as_ref() as *const dyn std::any::Any as *const ());
+        }
+        for child in &tree.children {
+            collect_state_addresses(child, tag, addresses);
+        }
+    }
+
     fn press_messages(mut root: Element<'_, Message>, position: Point) -> Vec<Message> {
         let renderer = tokio::runtime::Builder::new_current_thread()
             .build()

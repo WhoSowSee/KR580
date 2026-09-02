@@ -346,7 +346,10 @@ impl DesktopApp {
             .height(Length::Fill)
             .into()
         } else {
-            scrimmed
+            stack![scrimmed]
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
         };
 
         with_settings_saved_notice(

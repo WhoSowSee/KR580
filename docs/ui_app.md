@@ -302,7 +302,9 @@ order, top to bottom:
    selected (and the inline editor is not focused) relocates the
    memory view to the address the two operand bytes encode, and on
    the operand byte of an `IN`/`OUT` instruction opens the matching
-   device window. Both behaviours are independent of the toggle.
+   device window without changing the selected operand or resetting the
+   memory scroll position to `0000`. Both behaviours are independent of
+   the toggle.
    Settings → Shortcuts lists the selected-cell action as `Alt+Enter`
    and the operand-return action as `Shift+Alt+Enter`; rebinding those
    rows changes the selected-operand command, return command, and focused
@@ -2320,7 +2322,7 @@ the accumulator. Invalid value input leaves the register field empty.
 | Shortcut | Effect |
 |---|---|
 | Enter | Apply the typed value to the selected address. An empty replacement field keeps the previous byte. |
-| Alt+Enter | Relocate the memory view to the 16-bit address encoded by the operand when the selected cell is the low or high byte of a 3-byte address instruction (`LXI`, `JMP`, `CALL`, `SHLD`, `LHLD`, `STA`, `LDA`, and the conditional `Jcond`/`Ccond` family). Both operand bytes resolve to the same little-endian target, so the jump works from either half. On the operand byte of a 2-byte `IN`/`OUT` instruction, opens the corresponding device window — `0x00` monitor, `0x01` floppy, `0x02` HDD, `0x03` network, `0x04` printer (matches the internal `IoBus` port constants). Unknown ports fall through. Independent of the Highlight memory operands toggle, and only when the inline editor is not focused — the address/value fields below keep their own Alt+Enter behavior. Falls back to the plain inline-edit Enter on non-address, non-port cells (including 8-bit data operands). |
+| Alt+Enter | Relocate the memory view to the 16-bit address encoded by the operand when the selected cell is the low or high byte of a 3-byte address instruction (`LXI`, `JMP`, `CALL`, `SHLD`, `LHLD`, `STA`, `LDA`, and the conditional `Jcond`/`Ccond` family). Both operand bytes resolve to the same little-endian target, so the jump works from either half. On the operand byte of a 2-byte `IN`/`OUT` instruction, opens the corresponding device window — `0x00` monitor, `0x01` floppy, `0x02` HDD, `0x03` network, `0x04` printer (matches the internal `IoBus` port constants) — while preserving the operand selection and memory scroll position. Unknown ports fall through. Independent of the Highlight memory operands toggle, and only when the inline editor is not focused — the address/value fields below keep their own Alt+Enter behavior. Falls back to the plain inline-edit Enter on non-address, non-port cells (including 8-bit data operands). |
 | Alt+Shift+Enter | Return to the low/high operand cell that launched the last 16-bit address jump. This return slot is written only by 16-bit address-operand jumps; port operands and 8-bit data operands do not create one. |
 | Tab / Shift+Tab | Move the selection to the next/previous address and refocus an empty replacement editor for the new row. |
 | Esc | Discard the unsaved byte typed into the inline editor and restore it to the value currently in memory. With no pending edit, falls through to closing the opcode dropdown. |
