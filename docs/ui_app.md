@@ -2483,7 +2483,8 @@ captured when the modal opens.
   choice in the monitor into a new default or change that view on Cancel.
 - `Save` keeps the dialog open, keeps the live state, writes the complete dialog
   snapshot to JSON once, and advances `original_*` so a later `Cancel` returns
-  to the latest saved values. A text-only top-centre `Настройки сохранены` /
+  to the latest saved values without changing the current content-pane scroll
+  position. A text-only top-centre `Настройки сохранены` /
   `Settings saved` notice appears above the modal using the standard board fill,
   neutral border, padding, and radius shared by the existing notices. It eases in,
   holds, and fades out within a two-second lifetime. Its top lane is 48 logical

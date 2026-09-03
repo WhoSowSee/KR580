@@ -34,19 +34,14 @@ pub(super) fn with_settings_saved_notice<'a>(
     notice: Option<SettingsSavedNotice>,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let Some(notice) = notice else {
-        return base;
-    };
-    stack![
-        base,
-        settings_saved_notice_overlay(
+    let mut layers = stack![base].width(Length::Fill).height(Length::Fill);
+    if let Some(notice) = notice {
+        layers = layers.push(settings_saved_notice_overlay(
             lang.t(Key::SettingsSavedNotice),
             notice.presentation(Instant::now()),
-        )
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
+        ));
+    }
+    layers.into()
 }
 
 fn settings_saved_notice_overlay(
@@ -122,11 +117,34 @@ fn notice_overlay(
 
 #[cfg(test)]
 mod tests {
-    use super::{NOTICE_TOP, SETTINGS_SAVED_NOTICE_TOP};
+    use std::time::Instant;
+
+    use iced::Length;
+    use iced::advanced::widget;
+    use iced::widget::{Space, scrollable};
+
+    use super::{NOTICE_TOP, SETTINGS_SAVED_NOTICE_TOP, with_settings_saved_notice};
+    use crate::app::SettingsSavedNotice;
+    use crate::i18n::Lang;
 
     #[test]
     fn settings_saved_notice_uses_the_higher_notice_lane() {
         assert_eq!(SETTINGS_SAVED_NOTICE_TOP, 48.0);
         assert_eq!(NOTICE_TOP - SETTINGS_SAVED_NOTICE_TOP, 48.0);
+    }
+
+    #[test]
+    fn settings_saved_notice_preserves_base_tree_position() {
+        let tree = |notice| {
+            let base = scrollable(Space::new())
+                .width(Length::Fill)
+                .height(Length::Fill);
+            widget::Tree::new(with_settings_saved_notice(base.into(), notice, Lang::Ru))
+        };
+        let without_notice = tree(None);
+        let with_notice = tree(Some(SettingsSavedNotice::new(Instant::now())));
+
+        assert_eq!(without_notice.tag, with_notice.tag);
+        assert_eq!(without_notice.children[0].tag, with_notice.children[0].tag);
     }
 }
