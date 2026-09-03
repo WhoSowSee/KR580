@@ -35,10 +35,13 @@ impl DesktopApp {
             return self.cycle_register_target_focus(backward);
         }
         if focused == iced::widget::Id::new(MEMORY_INLINE_INPUT_ID) {
+            let replacing = self.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
             self.finish_replacement();
             let step = if backward { -1 } else { 1 };
             let scroll_task = self.step_memory_address(step);
-            self.begin_replacement(MEMORY_INLINE_INPUT_ID);
+            if replacing {
+                self.begin_replacement(MEMORY_INLINE_INPUT_ID);
+            }
             self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
             return scroll_task.chain(operation::focus(MEMORY_INLINE_INPUT_ID));
         }
@@ -85,8 +88,22 @@ impl DesktopApp {
 
 #[cfg(test)]
 mod tests {
-    use crate::app::{DesktopApp, Message, RegisterInlineTarget};
+    use crate::app::{DesktopApp, MEMORY_INLINE_INPUT_ID, Message, RegisterInlineTarget};
     use k580_core::RegisterName;
+
+    #[test]
+    fn tab_preserves_regular_inline_memory_edit_mode() {
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.select_memory(0x1234);
+        app.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+
+        for (backward, address) in [(false, 0x1235), (true, 0x1234)] {
+            let _ = app.cycle_focus(iced::widget::Id::new(MEMORY_INLINE_INPUT_ID), backward);
+            assert_eq!(app.selected_memory_address(), Some(address));
+            assert_eq!(app.memory_inline_value_input, "00");
+            assert_eq!(app.replacement_input, None);
+        }
+    }
 
     #[test]
     fn tab_cycles_selected_registers_and_memory_without_inline_editing() {
