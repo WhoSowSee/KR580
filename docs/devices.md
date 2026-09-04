@@ -59,8 +59,8 @@ graphics command (3 bytes): [1 ccccccc] [x] [y]
 
 The window has two visual modes, toggled from the header button:
 
-- **unified** (default) – one 256×256 canvas with the pixel layer and the rasterised text layer composited on top, mirroring the original KP580 emulator's single-display behaviour. The text glyphs come from a bundled 5×7 ASCII font (`view::monitor_font`).
-- **split** – separate graphics and text blocks, each 1:1 with its source buffer. Useful when debugging a program that mixes layers and you need to see exactly which command wrote what.
+- **unified** (default) – one 256×256 canvas with the pixel layer and the rasterised text layer composited on top, mirroring the original KP580 emulator's single-display behaviour. The text renderer indexes a bundled 8×8 bold CP866 bitmap directly by the original byte and places each glyph in an 8×12 cell, so Cyrillic, box drawing, blocks, and OEM symbols render identically on every platform.
+- **split** – separate graphics and text blocks, each 1:1 with its source buffer. Text bytes are decoded as CP866 for the Unicode text view. Useful when debugging a program that mixes layers and you need to see exactly which command wrote what.
 
 Both modes share the meta strip (phase, text cursor, pixel count, last command) and the raw byte stream (`hex_buffer`). The window never writes back to the device – it is strictly a debug surface, matching `prompt/03_peripherals.md`'s rule that the hex buffer is a debug surface, not the primary state. See `docs/ui_app.md` for the rendering details.
 

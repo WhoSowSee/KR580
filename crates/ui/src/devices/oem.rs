@@ -14,14 +14,20 @@ pub fn decode_oem_text(buffer: &[u8]) -> String {
             }
             b'\n' => '\n',
             b'\t' => '\t',
-            0x20..=0x7E => byte as char,
-            0x80..=0xFF => cp866(byte),
-            _ => '·',
+            byte => decode_oem_byte(byte),
         };
         output.push(character);
         previous_cr = false;
     }
     output
+}
+
+pub fn decode_oem_byte(byte: u8) -> char {
+    match byte {
+        0x20..=0x7E => byte as char,
+        0x80..=0xFF => cp866(byte),
+        _ => '·',
+    }
 }
 
 fn cp866(byte: u8) -> char {

@@ -18,6 +18,19 @@ startup-only warmup layer for both paths while the main window is still
 cloaked, so the renderer pays the cold glyph cost before the first
 visible run.
 
+## Monitor bitmap font
+
+`crates/ui/src/view/monitor_font/cp866.rs` contains the complete 256-slot
+CP866 glyph table used by the monitor Canvas and image exporter. Its 8×8 bold
+glyphs are mapped from Alex Frush's public-domain
+[`512_8`](https://github.com/alexfru/512_8/tree/726f6fa1d09775f9962a47fe78ce1aeacaa4cf34)
+font. The checked-in table removes any
+runtime dependency on a platform font, ANSI/OEM code page, or font rasterizer.
+
+`monitor_font/mod.rs` defines the 8×12 cell geometry and byte-indexed lookup.
+The table needs no generated asset or build-time step. Tests cover every byte
+slot and the text-layer `MICROPROCESSOR` sequence.
+
 ## `assets/screenshots/`
 
 | File | Purpose |

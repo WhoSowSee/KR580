@@ -65,7 +65,8 @@ current selected option without submitting a physical print job.
   regressions proving that partial T-state walks do not commit PC,
   memory, or device I/O before the instruction boundary.
 - `kr580` internal modules: port routing, invalid-port typed errors,
-  monitor framebuffer/attribute state, storage worker queueing, storage
+  monitor framebuffer/attribute state, complete CP866 byte-to-glyph coverage,
+  split-view text sequencing, storage worker queueing, storage
   visible-buffer clearing, storage debug-buffer acceptance without an
   attached file, network no-data handling, Tokio TCP worker roundtrip,
   CP866 decoding and 80-column native printer line wrapping, PrintTicket

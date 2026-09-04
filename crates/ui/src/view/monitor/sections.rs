@@ -1,4 +1,4 @@
-use crate::backend::{MonitorState, TextCell};
+use crate::backend::{MonitorState, TextCell, decode_oem_byte};
 use iced::widget::canvas::Cache;
 use iced::widget::{Canvas, container, stack, text::Wrapping};
 use iced::{Element, Length, Padding};
@@ -79,17 +79,12 @@ fn text_layer_text(cells: &[TextCell]) -> (String, bool) {
     let mut empty = true;
 
     for cell in &cells[..visible_len] {
-        let glyph = if cell.ch.is_ascii_graphic() || cell.ch == b' ' {
-            cell.ch as char
-        } else if cell.ch == 0 {
+        text.push(if cell.ch == 0 {
             ' '
         } else {
-            '·'
-        };
-        if cell.ch != 0 && cell.ch != b' ' {
-            empty = false;
-        }
-        text.push(glyph);
+            decode_oem_byte(cell.ch)
+        });
+        empty &= matches!(cell.ch, 0 | b' ');
     }
 
     (text, empty)
@@ -132,5 +127,15 @@ mod tests {
         assert!(!empty);
         assert_eq!(text.len(), 104);
         assert!(!text.contains('\n'));
+    }
+
+    #[test]
+    fn text_only_layer_preserves_ascii_sequence() {
+        let cells = b"MICROPROCESSOR".map(|ch| TextCell { ch, color: 0x7F });
+
+        let (text, empty) = text_layer_text(&cells);
+
+        assert!(!empty);
+        assert_eq!(text, "MICROPROCESSOR");
     }
 }

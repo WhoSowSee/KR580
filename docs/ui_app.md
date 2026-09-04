@@ -554,9 +554,9 @@ Body sections (top to bottom):
 
 | Mode | Section | Source | Render |
 |---|---|---|---|
-| unified (default) | Экран | `pixels` + `text_cells` composited | one `iced::widget::Canvas`. The pixel layer is drawn first using the reference KP580 Delphi formula `0xFFFFFF / 127 * (color & 0x7F)` reinterpreted as a `TColor` (LE DWORD, low byte = R) – a 128-step pseudo-coloured palette, not grayscale. The 64×20 text cells are then rasterised on top through the bundled 5×7 ASCII font in `view::monitor_font` using their own scale (the text grid is 448×200 logical px while the graphics raster is 256×256). The section title is overlaid only while the layer is empty; once any pixel or character lands the title disappears and the Canvas claims the full surface. |
+| unified (default) | Экран | `pixels` + `text_cells` composited | one `iced::widget::Canvas`. The pixel layer is drawn first using the reference KP580 Delphi formula `0xFFFFFF / 127 * (color & 0x7F)` reinterpreted as a `TColor` (LE DWORD, low byte = R) – a 128-step pseudo-coloured palette, not grayscale. The 64×20 text cells are then rasterised on top through the bundled full-byte CP866 font in `view::monitor_font`. Its 8×8 bold glyphs occupy 8×12 cells, making the text grid 512×240 logical px while the graphics raster remains 256×256. Raw bytes index the glyph table directly, so rendering does not depend on the host code page or installed fonts. The section title is overlaid only while the layer is empty; once any pixel or character lands the title disappears and the Canvas claims the full surface. |
 | split | Графический слой | `pixels: Vec<(u8,u8,u8)>` | Pixel-only `iced::widget::Canvas`, top-left anchored, same Delphi-`TColor` palette as unified |
-| split | Текстовый слой | `text_cells: Vec<TextCell { ch, color }>` | one continuous mono text run in `active text token` over `active board token`; framebuffer row boundaries do not insert line breaks, and glyph wrapping occurs only at the actual panel width. Non-printable bytes render as `·`, embedded zero cells as spaces, and trailing zero cells are omitted. |
+| split | Текстовый слой | `text_cells: Vec<TextCell { ch, color }>` | one continuous CP866-decoded mono text run in `active text token` over `active board token`; framebuffer row boundaries do not insert line breaks, and glyph wrapping occurs only at the actual panel width. Unsupported control bytes render as `·`, embedded zero cells as spaces, and trailing zero cells are omitted. |
 
 The byte-stream popup (`hex_buffer: Vec<u8>`) is rendered by
 `hex_popup_overlay` – a centred panel (`430×480 px`) shown only when
@@ -629,7 +629,9 @@ shared `icon_button` helper),
 tests), `hex_popup.rs` (popup overlay, filter, `filtered_hex_bytes`
 and its tests), and `styles.rs` (every container / button style and the
 `framebuffer_padding` helper). PNG/JPEG/WebP/BMP export lives next to
-the view in `view::monitor_image`.
+the view in `view::monitor_image`. `view/monitor_font/mod.rs` owns glyph
+geometry and lookup, while `view/monitor_font/cp866.rs` holds the compact
+full-byte bitmap table shared by the Canvas and image exporter.
 
 ### Окно дисковода (Quick-access → Дисковод)
 
