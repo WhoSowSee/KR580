@@ -4,7 +4,7 @@ use super::dialog::SettingsDialog;
 use super::focus::ResetConfirmFocus;
 use crate::app::messages::SpeedTier;
 use crate::app::{DesktopApp, Message, StatusKind};
-use crate::i18n::Lang;
+use crate::i18n::{Key, Lang};
 use crate::persistence::{
     ColorScheme, NetworkSettings, PrinterDialogMode, ShortcutAction, ShortcutBinding, ShortcutKey,
 };
@@ -184,7 +184,6 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
 
     let _ = app.update(Message::SettingsResetRequested);
     assert!(app.settings_dialog.as_ref().unwrap().reset_confirm_open);
-
     let _ = app.update(Message::SettingsResetConfirmed);
 
     let expected_lang = lang_from_language(default_language());
@@ -212,6 +211,10 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
     assert_eq!(
         app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))
+    );
+    assert_eq!(
+        app.settings_notice.unwrap().message_key(),
+        Key::SettingsResetNotice
     );
 }
 

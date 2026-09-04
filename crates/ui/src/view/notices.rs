@@ -5,11 +5,11 @@ use iced::{Background, Border, Color, Element, Length, alignment};
 
 use super::styles::error_inset_style;
 use super::theme::{tokyo_board, tokyo_border, tokyo_text, ui_text};
-use crate::app::{Message, SettingsSavedNotice, SettingsSavedNoticePresentation};
-use crate::i18n::{Key, Lang};
+use crate::app::{Message, SettingsNotice, SettingsNoticePresentation};
+use crate::i18n::Lang;
 
 const NOTICE_TOP: f32 = 96.0;
-const SETTINGS_SAVED_NOTICE_TOP: f32 = 48.0;
+const SETTINGS_NOTICE_TOP: f32 = 48.0;
 
 pub(super) fn halt_notice_overlay(notice: &str) -> Element<'_, Message> {
     notice_overlay(
@@ -29,36 +29,34 @@ pub(super) fn error_notice_overlay(notice: &str) -> Element<'_, Message> {
     )
 }
 
-pub(super) fn with_settings_saved_notice<'a>(
+pub(super) fn with_settings_notice<'a>(
     base: Element<'a, Message>,
-    notice: Option<SettingsSavedNotice>,
+    notice: Option<SettingsNotice>,
     lang: Lang,
 ) -> Element<'a, Message> {
     let mut layers = stack![base].width(Length::Fill).height(Length::Fill);
     if let Some(notice) = notice {
-        layers = layers.push(settings_saved_notice_overlay(
-            lang.t(Key::SettingsSavedNotice),
+        layers = layers.push(settings_notice_overlay(
+            lang.t(notice.message_key()),
             notice.presentation(Instant::now()),
         ));
     }
     layers.into()
 }
 
-fn settings_saved_notice_overlay(
+fn settings_notice_overlay(
     notice: &'static str,
-    presentation: SettingsSavedNoticePresentation,
+    presentation: SettingsNoticePresentation,
 ) -> Element<'static, Message> {
     let opacity = presentation.opacity;
     let body = container(
         ui_text(notice, 15, faded(tokyo_text(), opacity)).align_x(alignment::Horizontal::Center),
     )
     .padding([12, 22])
-    .style(move |_| settings_saved_style(opacity));
-    let dismissible = mouse_area(opaque(body)).on_press(Message::DismissSettingsSavedNotice);
+    .style(move |_| settings_notice_style(opacity));
+    let dismissible = mouse_area(opaque(body)).on_press(Message::DismissSettingsNotice);
     column![
-        Space::new().height(Length::Fixed(
-            SETTINGS_SAVED_NOTICE_TOP + presentation.offset_y
-        )),
+        Space::new().height(Length::Fixed(SETTINGS_NOTICE_TOP + presentation.offset_y)),
         row![
             Space::new().width(Length::Fill),
             dismissible,
@@ -71,7 +69,7 @@ fn settings_saved_notice_overlay(
     .into()
 }
 
-fn settings_saved_style(opacity: f32) -> iced::widget::container::Style {
+fn settings_notice_style(opacity: f32) -> iced::widget::container::Style {
     iced::widget::container::Style {
         text_color: Some(faded(tokyo_text(), opacity)),
         background: Some(Background::Color(faded(tokyo_board(), opacity))),
@@ -123,26 +121,29 @@ mod tests {
     use iced::advanced::widget;
     use iced::widget::{Space, scrollable};
 
-    use super::{NOTICE_TOP, SETTINGS_SAVED_NOTICE_TOP, with_settings_saved_notice};
-    use crate::app::SettingsSavedNotice;
-    use crate::i18n::Lang;
+    use super::{NOTICE_TOP, SETTINGS_NOTICE_TOP, with_settings_notice};
+    use crate::app::SettingsNotice;
+    use crate::i18n::{Key, Lang};
 
     #[test]
-    fn settings_saved_notice_uses_the_higher_notice_lane() {
-        assert_eq!(SETTINGS_SAVED_NOTICE_TOP, 48.0);
-        assert_eq!(NOTICE_TOP - SETTINGS_SAVED_NOTICE_TOP, 48.0);
+    fn settings_notice_uses_the_higher_notice_lane() {
+        assert_eq!(SETTINGS_NOTICE_TOP, 48.0);
+        assert_eq!(NOTICE_TOP - SETTINGS_NOTICE_TOP, 48.0);
     }
 
     #[test]
-    fn settings_saved_notice_preserves_base_tree_position() {
+    fn settings_notice_preserves_base_tree_position() {
         let tree = |notice| {
             let base = scrollable(Space::new())
                 .width(Length::Fill)
                 .height(Length::Fill);
-            widget::Tree::new(with_settings_saved_notice(base.into(), notice, Lang::Ru))
+            widget::Tree::new(with_settings_notice(base.into(), notice, Lang::Ru))
         };
         let without_notice = tree(None);
-        let with_notice = tree(Some(SettingsSavedNotice::new(Instant::now())));
+        let with_notice = tree(Some(SettingsNotice::new(
+            Key::SettingsSavedNotice,
+            Instant::now(),
+        )));
 
         assert_eq!(without_notice.tag, with_notice.tag);
         assert_eq!(without_notice.children[0].tag, with_notice.children[0].tag);

@@ -4,6 +4,7 @@ use super::constants::SETTINGS_SEARCH_INPUT_ID;
 use super::messages::Message;
 use super::settings_modal::SettingsDialog;
 use super::settings_modal::{FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsSection};
+use super::settings_notice::SettingsNotice;
 use super::state::DesktopApp;
 use crate::i18n::Key;
 use crate::settings_storage::{
@@ -18,7 +19,7 @@ impl DesktopApp {
         }
         match message {
             Message::OpenSettings => {
-                self.settings_saved_notice = None;
+                self.settings_notice = None;
                 self.close_top_menu();
                 self.hide_opcode_dropdown();
                 self.close_open_device_panel();
@@ -44,7 +45,7 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::CloseSettings => {
-                self.settings_saved_notice = None;
+                self.settings_notice = None;
                 if let Some(dialog) = self.settings_dialog.take() {
                     self.apply_language(dialog.original_lang);
                     self.color_scheme = dialog.original_color_scheme;
@@ -64,13 +65,13 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SaveSettings => {
-                let previous_notice = self.settings_saved_notice.take();
                 let Some(dialog) = self.settings_dialog.as_ref() else {
                     return Some(Task::none());
                 };
                 let network = match parse_network_defaults(dialog) {
                     Ok(network) => network,
                     Err(_) => {
+                        self.settings_notice = None;
                         let error = self
                             .lang
                             .t(Key::Network(
@@ -85,11 +86,7 @@ impl DesktopApp {
                 };
                 self.save_settings_dialog(dialog, network);
                 self.commit_settings_dialog_state();
-                let started_at = Instant::now();
-                self.settings_saved_notice = Some(match previous_notice {
-                    Some(notice) => notice.restarted(started_at),
-                    None => super::SettingsSavedNotice::new(started_at),
-                });
+                self.show_settings_notice(Key::SettingsSavedNotice);
                 Some(Task::none())
             }
             Message::SettingsCategorySelected(category) => {
@@ -286,6 +283,7 @@ impl DesktopApp {
             }
             Message::SettingsResetConfirmed => {
                 self.reset_settings();
+                self.show_settings_notice(Key::SettingsResetNotice);
                 Some(Task::none())
             }
             Message::SettingsFileAssociationRegister => {
@@ -345,6 +343,14 @@ impl DesktopApp {
         apply_network_defaults(&mut settings.network, network);
         settings.shortcuts = dialog.draft_shortcuts.clone();
         save_settings(&settings);
+    }
+
+    fn show_settings_notice(&mut self, message_key: Key) {
+        let started_at = Instant::now();
+        self.settings_notice = Some(match self.settings_notice.take() {
+            Some(notice) => notice.restarted(message_key, started_at),
+            None => SettingsNotice::new(message_key, started_at),
+        });
     }
 }
 

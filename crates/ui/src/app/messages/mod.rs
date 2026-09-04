@@ -222,7 +222,7 @@ pub(crate) enum Message {
     OpenSettings,
     CloseSettings,
     SaveSettings,
-    DismissSettingsSavedNotice,
+    DismissSettingsNotice,
     OpenAbout,
     CloseAbout,
     OpenChangelog,

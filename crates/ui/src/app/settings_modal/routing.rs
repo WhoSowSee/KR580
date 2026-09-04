@@ -57,7 +57,7 @@ impl DesktopApp {
 
         match message {
             Message::Tick
-            | Message::DismissSettingsSavedNotice
+            | Message::DismissSettingsNotice
             | Message::CursorMoved(_)
             | Message::ModifiersChanged(_) => None,
             Message::CloseSettings

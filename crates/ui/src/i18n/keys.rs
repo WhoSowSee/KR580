@@ -64,7 +64,8 @@ scalar_keys! {
     StatusOpened, StatusSavedTo, StatusExportTo, StatusImportFrom, ErrorPrefix, HaltNotice,
 
     SpeedTitle, SpeedUnit,
-    SettingsTitle, SettingsSavedNotice, SettingsSearchPlaceholder, SettingsCategoryGeneral,
+    SettingsTitle, SettingsSavedNotice, SettingsResetNotice, SettingsShortcutsResetNotice,
+    SettingsSearchPlaceholder, SettingsCategoryGeneral,
     SettingsCategoryExternalDevices, SettingsCategoryAppearance, SettingsCategoryShortcuts,
     SettingsLanguageLabel, SettingsLanguageHint, SettingsSpeedLabel, SettingsSpeedHint,
     SettingsFollowPcLabel, SettingsFollowPcHint, SettingsMemoryOperandHighlightingLabel,

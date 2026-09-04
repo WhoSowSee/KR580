@@ -748,8 +748,8 @@ The same rule holds one level up, in the application-wide registry.
 `i18n/ru.rs` and `i18n/en.rs` both end in a wildcard arm, so a `Key` with
 only one language's string compiles and panics inside `view()`. `i18n/keys.rs`
 generates the `Key` enum and a `SCALAR_KEYS` list from one macro
-invocation, and `i18n/mod.rs` resolves all 402 keys in both languages in a
-test, so a missing translation fails the build instead of the running app.
+invocation, and `i18n/mod.rs` resolves every scalar key in both languages in
+a test, so a missing translation fails the build instead of the running app.
 
 Values that originate below the view layer never carry display text at
 all: `PrinterInfo::status` is a `PrinterStatus` enum, and the exhaustive
@@ -2018,8 +2018,8 @@ Localized sidebar category names also participate in search and show the
 complete matching category.
 
 **State:** `settings_dialog: Option<SettingsDialog>` and the transient
-`settings_saved_notice: Option<SettingsSavedNotice>` from
-`app/settings_saved_notice.rs`. `SettingsDialog` lives in
+`settings_notice: Option<SettingsNotice>` from
+`app/settings_notice.rs`. `SettingsDialog` lives in
 `app/settings_modal/` and is a standalone draft – the live
 `lang`, `default_speed`, `color_scheme`, `show_file_name`, and `monitor_split` fields on
 `DesktopApp` are kept in sync with the draft while editing, then rolled back to
@@ -2492,19 +2492,19 @@ captured when the modal opens.
 - `Save` keeps the dialog open, keeps the live state, writes the complete dialog
   snapshot to JSON once, and advances `original_*` so a later `Cancel` returns
   to the latest saved values without changing the current content-pane scroll
-  position. A text-only top-centre `Настройки сохранены` /
-  `Settings saved` notice appears above the modal using the standard board fill,
-  neutral border, padding, and radius shared by the existing notices. It eases in,
+  position. A text-only top-centre settings notice appears above the modal using
+  the standard board fill, neutral border, padding, and radius shared by the
+  existing notices. It eases in,
   holds, and fades out within a two-second lifetime. Its top lane is 48 logical
   pixels from the window edge, leaving clear space above the modal header instead
-  of straddling its top border. Pressing `Save` again captures
+  of straddling its top border. Showing another notice captures
   the active notice's current opacity and vertical offset, starts the replacement
   from that exact frame, and runs a subtle continuity-preserving pulse before
-  settling; rapid repeated saves therefore restart the full lifetime without the
+  settling; rapid repeated actions therefore restart the full lifetime without the
   old `0.2` opacity / `-10 px` position snap. Clicking the notice
-  emits `DismissSettingsSavedNotice` and dismisses it immediately. The animation is
+  emits `DismissSettingsNotice` and dismisses it immediately. The animation is
   derived from
-  `SettingsSavedNotice::presentation` on the settings dialog's existing frame
+  `SettingsNotice::presentation` on the settings dialog's existing frame
   subscription, while `Message::Tick` removes the expired state. External Devices
   also stores a default floppy image path
   (loaded on startup) and separate startup address/port pairs for the network
@@ -2535,7 +2535,10 @@ captured when the modal opens.
   memory-operand highlighting, unified monitor layout, the custom printer dialog mode,
   and the default shortcut map,
   rewrites the dialog's `original_*` snapshot so a follow-up `Cancel`
-  cannot restore the pre-reset values, and persists.
+  cannot restore the pre-reset values, and persists. Confirming this reset shows
+  `Настройки сброшены` / `Settings reset` in the same animated notice. The
+  Shortcuts footer reset shows `Сочетания сброшены` / `Shortcuts reset`; Save
+  continues to show `Настройки сохранены` / `Settings saved`.
 
 The first launch may not have a `settings.json` yet. `load_settings()`
 silently uses defaults for that expected `NotFound` case, including the system

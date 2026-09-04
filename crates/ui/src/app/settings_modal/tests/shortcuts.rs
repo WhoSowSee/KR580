@@ -1,7 +1,7 @@
 use crate::app::messages::SpeedTier;
 use crate::app::settings_modal::SettingsDialog;
 use crate::app::{DesktopApp, Message};
-use crate::i18n::Lang;
+use crate::i18n::{Key, Lang};
 use crate::persistence::{
     ColorScheme, NetworkSettings, ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings,
 };
@@ -109,6 +109,10 @@ fn shortcut_reset_updates_live_preview_and_rolls_back_on_cancel() {
         Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))
     );
     assert_eq!(dialog.recording_shortcut, None);
+    assert_eq!(
+        app.settings_notice.unwrap().message_key(),
+        Key::SettingsShortcutsResetNotice
+    );
 
     let _ = app.update(Message::CloseSettings);
 

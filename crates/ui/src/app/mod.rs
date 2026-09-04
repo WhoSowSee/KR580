@@ -27,7 +27,7 @@ mod printer;
 mod read_only_text;
 mod register_inline;
 pub(crate) mod settings_modal;
-mod settings_saved_notice;
+mod settings_notice;
 pub(crate) mod shortcuts;
 mod speed;
 mod state;
@@ -80,7 +80,7 @@ pub(crate) use register_inline::RegisterMove;
 pub(crate) use settings_modal::{
     ContentFocus, FooterFocus, ResetConfirmFocus, SettingsDialog, SettingsSection,
 };
-pub(crate) use settings_saved_notice::{SettingsSavedNotice, SettingsSavedNoticePresentation};
+pub(crate) use settings_notice::{SettingsNotice, SettingsNoticePresentation};
 pub(crate) use speed::tier_hz;
 pub(crate) use state::DesktopApp;
 pub(crate) use status::{StatusKind, shorten_status_for_width};

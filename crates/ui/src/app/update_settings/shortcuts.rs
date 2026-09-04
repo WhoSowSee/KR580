@@ -2,6 +2,7 @@ use iced::Task;
 
 use crate::app::messages::Message;
 use crate::app::state::DesktopApp;
+use crate::i18n::Key;
 use crate::persistence::ShortcutSettings;
 
 impl DesktopApp {
@@ -38,6 +39,7 @@ impl DesktopApp {
                     dialog.draft_shortcuts = ShortcutSettings::default();
                     self.shortcut_settings = dialog.draft_shortcuts.clone();
                     dialog.recording_shortcut = None;
+                    self.show_settings_notice(Key::SettingsShortcutsResetNotice);
                 }
                 Some(Task::none())
             }

@@ -48,7 +48,7 @@ use iced::{Element, Length};
 use modal::discard_modal_overlay;
 use monitor::monitor_window_overlay;
 use network::network_window_overlay;
-use notices::{error_notice_overlay, halt_notice_overlay, with_settings_saved_notice};
+use notices::{error_notice_overlay, halt_notice_overlay, with_settings_notice};
 use printer::printer_window_overlay;
 use printer_setup::with_printer_setup_overlay;
 use settings_dialog::settings_modal_overlay;
@@ -350,7 +350,7 @@ impl DesktopApp {
                 .into()
         };
 
-        with_settings_saved_notice(
+        with_settings_notice(
             with_printer_setup_overlay(
                 layered,
                 self.printer_setup_dialog
@@ -358,7 +358,7 @@ impl DesktopApp {
                     .filter(|_| !self.printer_setup_uses_detached_window()),
                 self.lang,
             ),
-            self.settings_saved_notice,
+            self.settings_notice,
             self.lang,
         )
     }

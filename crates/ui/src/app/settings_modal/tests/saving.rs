@@ -1,7 +1,8 @@
 use std::time::{Duration, Instant};
 
 use super::*;
-use crate::app::SettingsSavedNotice;
+use crate::app::SettingsNotice;
+use crate::i18n::Key;
 use crate::persistence::{ShortcutAction, ShortcutBinding, ShortcutKey};
 
 #[test]
@@ -97,11 +98,14 @@ fn settings_router_allows_notice_dismissal() {
         None,
         NetworkSettings::default(),
     ));
-    app.settings_saved_notice = Some(SettingsSavedNotice::new(Instant::now()));
+    app.settings_notice = Some(SettingsNotice::new(
+        Key::SettingsSavedNotice,
+        Instant::now(),
+    ));
 
-    let _ = app.update(Message::DismissSettingsSavedNotice);
+    let _ = app.update(Message::DismissSettingsNotice);
 
-    assert!(app.settings_saved_notice.is_none());
+    assert!(app.settings_notice.is_none());
     assert!(app.settings_dialog.is_some());
 }
 
@@ -121,11 +125,14 @@ fn rejected_save_clears_previous_success_notice() {
         .as_mut()
         .unwrap()
         .draft_network_client_port = "invalid".to_owned();
-    app.settings_saved_notice = Some(SettingsSavedNotice::new(Instant::now()));
+    app.settings_notice = Some(SettingsNotice::new(
+        Key::SettingsSavedNotice,
+        Instant::now(),
+    ));
 
     let _ = app.update(Message::SaveSettings);
 
-    assert!(app.settings_saved_notice.is_none());
+    assert!(app.settings_notice.is_none());
     assert!(
         app.settings_dialog
             .as_ref()
@@ -138,11 +145,12 @@ fn rejected_save_clears_previous_success_notice() {
 #[test]
 fn tick_removes_notice_at_two_second_deadline() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.settings_saved_notice = Some(SettingsSavedNotice::new(
+    app.settings_notice = Some(SettingsNotice::new(
+        Key::SettingsSavedNotice,
         Instant::now() - Duration::from_secs(2),
     ));
 
     let _ = app.handle_tick();
 
-    assert!(app.settings_saved_notice.is_none());
+    assert!(app.settings_notice.is_none());
 }
