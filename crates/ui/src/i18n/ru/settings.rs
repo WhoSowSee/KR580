@@ -41,7 +41,9 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::SettingsMonitorLayoutUnified => "Объединённый",
         Key::SettingsMonitorLayoutSplit => "Разделённый",
         Key::SettingsFileAssociationLabel => "Ассоциации .580 и .krs",
-        Key::SettingsFileAssociationHint => "Открывать файлы .580 и .krs в KR580 по двойному клику",
+        Key::SettingsFileAssociationHint => {
+            "Зарегистрировать KR580 как обработчик файлов .580 и .krs"
+        }
         Key::SettingsFileAssociationAdd => "Добавить",
         Key::SettingsFileAssociationRemove => "Удалить",
         Key::ErrHddDirectoryNotWritable => {

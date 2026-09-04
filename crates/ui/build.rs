@@ -77,6 +77,8 @@ fn embed_windows_resources() {
     }
 
     let mut resource = winresource::WindowsResource::new();
+    resource.set("ProductName", "KR580");
+    resource.set("FileDescription", "KR580");
     resource.set_icon(
         icon_path
             .to_str()

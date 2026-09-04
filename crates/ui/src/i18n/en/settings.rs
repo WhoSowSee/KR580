@@ -43,7 +43,7 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::SettingsMonitorLayoutUnified => "Unified",
         Key::SettingsMonitorLayoutSplit => "Split",
         Key::SettingsFileAssociationLabel => ".580 and .krs file associations",
-        Key::SettingsFileAssociationHint => "Open .580 and .krs files in KR580 on double-click",
+        Key::SettingsFileAssociationHint => "Register KR580 as a handler for .580 and .krs files",
         Key::SettingsFileAssociationAdd => "Add",
         Key::SettingsFileAssociationRemove => "Remove",
         Key::ErrHddDirectoryNotWritable => "Cannot use this directory – no write permission",

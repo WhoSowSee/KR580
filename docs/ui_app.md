@@ -2726,9 +2726,9 @@ to start the GUI binary directly.
 - `kr --help` / `kr -h` – print usage to stdout and exit.
 - `kr --version` / `kr -V` – print the version and exit.
 - `kr --register-file-type` / `kr -r` – register the `.580` and `.krs` file
-  associations. The open command points directly to the neighboring
-  `k580` GUI binary, so double-clicking either file type from the file
-  manager does not show a transient console window.
+  handlers. The open command points directly to the neighboring `k580` GUI
+  binary, so launching an associated file does not show a transient console
+  window.
 - `kr --unregister-file-type` / `kr -u` – remove the `.580` and `.krs` file
   associations.
 
@@ -2743,11 +2743,12 @@ the button label without closing and reopening the dialog.
 (`k580.exe` on Windows, `k580` elsewhere), redirects its stdio to `/dev/null`,
 spawns it, and returns without waiting.
 
-On Windows, registering the `.580` and `.krs` associations from either `kr.exe` or
-`k580.exe` writes the same Explorer open command: `"k580.exe" "%1"` in the
-same directory as the registering binary. Existing registry entries that
-still point at `kr.exe` are treated as stale by the settings toggle and are
-overwritten on the next register action.
+On Windows, registering from either `kr.exe` or `k580.exe` maps both `.580`
+and `.krs` to the same `K580.Snapshot` ProgID and `OpenWithProgids` entry.
+Both use the Explorer open command `"k580.exe" "%1"` in the registering
+binary's installation. Existing registry entries that still point at
+`kr.exe` are treated as stale by the settings toggle and are overwritten on
+the next register action.
 
 If the given path does not exist, is not a file, or is not a valid `.580`
 snapshot or `.krs` subprogram, the GUI still launches and surfaces a localized error notice

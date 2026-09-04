@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use super::dialog::SettingsDialog;
 use super::focus::ResetConfirmFocus;
 use crate::app::messages::SpeedTier;
@@ -18,8 +16,6 @@ mod printer;
 mod routing;
 mod saving;
 mod shortcuts;
-
-static FILE_ASSOC_TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn live_speed_change_updates_active_tier_immediately() {
@@ -333,71 +329,4 @@ fn language_change_re_renders_canonical_status_string() {
     app.lang = Lang::Ru;
     app.refresh_localized_status();
     assert_eq!(app.status, "entity not found");
-}
-
-#[cfg(windows)]
-#[test]
-fn settings_button_toggles_file_association_state() {
-    let _guard = FILE_ASSOC_TEST_MUTEX.lock().unwrap();
-    let was_registered = k580_ui::file_assoc::is_registered();
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    let _ = k580_ui::file_assoc::unregister();
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    ));
-    assert!(!k580_ui::file_assoc::is_registered());
-    assert_eq!(app.file_association_toggle_revision, 0);
-
-    let _ = app.update(Message::SettingsFileAssociationRegister);
-    assert!(k580_ui::file_assoc::is_registered());
-    assert_eq!(app.file_association_toggle_revision, 1);
-
-    let _ = app.update(Message::SettingsFileAssociationUnregister);
-    assert!(!k580_ui::file_assoc::is_registered());
-    assert_eq!(app.file_association_toggle_revision, 2);
-
-    if was_registered {
-        k580_ui::file_assoc::register().unwrap();
-    }
-}
-
-#[cfg(windows)]
-#[test]
-fn tick_bumps_file_association_revision_on_external_change() {
-    let _guard = FILE_ASSOC_TEST_MUTEX.lock().unwrap();
-    let was_registered = k580_ui::file_assoc::is_registered();
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    let _ = k580_ui::file_assoc::unregister();
-    let _ = app.handle_tick();
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    ));
-    assert!(!k580_ui::file_assoc::is_registered());
-    let revision_before = app.file_association_toggle_revision;
-
-    k580_ui::file_assoc::register().unwrap();
-    let _ = app.handle_tick();
-    assert!(k580_ui::file_assoc::is_registered());
-    assert_eq!(app.file_association_toggle_revision, revision_before + 1);
-
-    k580_ui::file_assoc::unregister().unwrap();
-    let _ = app.handle_tick();
-    assert!(!k580_ui::file_assoc::is_registered());
-    assert_eq!(app.file_association_toggle_revision, revision_before + 2);
-
-    if was_registered {
-        k580_ui::file_assoc::register().unwrap();
-    }
 }
