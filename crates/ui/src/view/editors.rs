@@ -14,13 +14,16 @@ use super::theme::{
 };
 use super::tooltips::shortcut_hint;
 use super::widgets::{
-    enter_button, enter_button_disabled, icon_action_button, legend_panel, spinner_text_input,
+    enter_button, enter_button_disabled, icon_action_button, legend_panel, shortcut_capture,
+    spinner_text_input,
 };
+use crate::app::shortcuts::shortcut_context;
 use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message, REGISTER_NAME_INPUT_ID,
     REGISTER_VALUE_INPUT_ID,
 };
 use crate::i18n::Key;
+use crate::persistence::ShortcutAction;
 
 impl DesktopApp {
     pub(super) fn side_panel(&self) -> Element<'_, Message> {
@@ -37,6 +40,7 @@ impl DesktopApp {
     }
 
     fn memory_editor_panel(&self) -> Element<'_, Message> {
+        let address_focused = self.focused_input == Some(MEMORY_ADDRESS_INPUT_ID);
         let value_focused = self.focused_input == Some(MEMORY_VALUE_INPUT_ID);
         let mut value_text = text_input(
             self.input_placeholder(MEMORY_VALUE_INPUT_ID, "00"),
@@ -66,28 +70,35 @@ impl DesktopApp {
             .style(move |theme| input_shell_style(theme, value_focused && !self.running))
             .into();
 
-        let controls = row![
-            spinner_text_input(
-                self.input_placeholder(MEMORY_ADDRESS_INPUT_ID, "0000"),
-                &self.memory_address_input,
-                Message::MemoryAddressChanged,
-                Message::MemoryAddressNext,
-                Message::MemoryAddressPrevious,
-                Length::Fixed(96.0),
-                Message::JumpMemoryAddress,
-                MEMORY_ADDRESS_INPUT_ID,
-                self.focused_input == Some(MEMORY_ADDRESS_INPUT_ID),
-                self.running,
-            ),
-            value_input,
-            if self.running {
-                enter_button_disabled()
-            } else {
-                enter_button(Message::ApplyMemory)
-            },
-        ]
-        .spacing(6)
-        .align_y(alignment::Vertical::Center);
+        let address_input = spinner_text_input(
+            self.input_placeholder(MEMORY_ADDRESS_INPUT_ID, "0000"),
+            &self.memory_address_input,
+            Message::MemoryAddressChanged,
+            Message::MemoryAddressNext,
+            Message::MemoryAddressPrevious,
+            Length::Fixed(96.0),
+            Message::JumpMemoryAddress,
+            MEMORY_ADDRESS_INPUT_ID,
+            address_focused,
+            self.running,
+        );
+
+        let controls = shortcut_capture(
+            row![
+                address_input,
+                value_input,
+                if self.running {
+                    enter_button_disabled()
+                } else {
+                    enter_button(Message::ApplyMemory)
+                },
+            ]
+            .spacing(6)
+            .align_y(alignment::Vertical::Center),
+            &self.shortcut_settings,
+            ShortcutAction::MemoryPatternSearch,
+            !self.running && shortcut_context(self).allows(ShortcutAction::MemoryPatternSearch),
+        );
 
         let content = container(controls)
             .width(Length::Fill)

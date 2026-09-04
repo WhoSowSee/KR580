@@ -930,6 +930,9 @@ with a wide remaining row.
   Используется и модалом импорта (путь к файлу), и dropdown экспорта
   (имена подпрограмм/разделов), поэтому живёт в общем `view/widgets`,
   а не копируется по модалам.
+- `view/widgets/shortcut_capture.rs` – прозрачная обёртка редакторов ОЗУ,
+  перехватывающая назначенное контекстное сочетание до `text_input`, чтобы
+  печатная клавиша вроде `Alt+F` запускала действие без вставки символа.
 - `view/menu_labels.rs` (~10 строк) – localized labels for inactive
   top-level menu categories (`Вид`, `Настройки`, `Справка`) plus a
   regression test.

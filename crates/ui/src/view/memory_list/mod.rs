@@ -22,12 +22,14 @@ use super::theme::{
     tokyo_blue, tokyo_cyan, tokyo_green, tokyo_magenta, tokyo_muted, tokyo_red, tokyo_subtle_line,
     tokyo_yellow, ui_text,
 };
-use super::widgets::{compact_scrollbar, legend_panel};
+use super::widgets::{compact_scrollbar, legend_panel, shortcut_capture};
+use crate::app::shortcuts::shortcut_context;
 use crate::app::{
     DesktopApp, MEMORY_INLINE_INPUT_ID, MEMORY_OVERSCAN_ROWS, MEMORY_RENDER_ROWS,
     MEMORY_ROW_HEIGHT, MEMORY_SCROLL_ID, Message,
 };
 use crate::i18n::Key;
+use crate::persistence::ShortcutAction;
 
 impl DesktopApp {
     pub(super) fn memory_panel(&self) -> Element<'_, Message> {
@@ -75,16 +77,20 @@ impl DesktopApp {
         }
 
         let memory_scroll_reveal = self.memory_scroll_visible_ticks > 0;
-        let scrollable_memory: Element<'_, Message> = scrollable(rows)
-            .id(MEMORY_SCROLL_ID)
-            .height(Length::Fill)
-            .direction(scrollable::Direction::Vertical(
-                scrollable::Scrollbar::hidden(),
-            ))
-            .on_scroll(|viewport| {
-                Message::MemoryScrolled(viewport.absolute_offset().y, viewport.bounds().height)
-            })
-            .into();
+        let scrollable_memory: Element<'_, Message> = shortcut_capture(
+            scrollable(rows)
+                .id(MEMORY_SCROLL_ID)
+                .height(Length::Fill)
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::hidden(),
+                ))
+                .on_scroll(|viewport| {
+                    Message::MemoryScrolled(viewport.absolute_offset().y, viewport.bounds().height)
+                }),
+            &self.shortcut_settings,
+            ShortcutAction::MemoryCellReplace,
+            !self.running && shortcut_context(self).allows(ShortcutAction::MemoryCellReplace),
+        );
         let memory_scroll_offset = self.memory_scroll_offset;
         let memory_scrollbar: Element<'_, Message> = responsive(move |size| {
             compact_scrollbar(

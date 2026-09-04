@@ -1,5 +1,6 @@
 use super::{
-    ShortcutContext, captured_register_arrow, command_shortcut_message, runtime_event_message,
+    ShortcutContext, captured_register_arrow, command_shortcut_message,
+    contextual_shortcut_message, runtime_event_message,
 };
 use crate::app::{DesktopApp, Message, RegisterMove};
 use crate::persistence::{ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings};
@@ -188,6 +189,20 @@ fn captured_ctrl_s_still_saves_snapshot() {
             ShortcutContext::General,
         ),
         Message::SaveSnapshot,
+    );
+}
+
+#[test]
+fn captured_scoped_shortcut_is_not_dispatched_twice() {
+    assert!(
+        contextual_shortcut_message(
+            &default_settings(),
+            physical(Code::Enter),
+            Modifiers::COMMAND,
+            event::Status::Captured,
+            ShortcutContext::MemoryEditor,
+        )
+        .is_none()
     );
 }
 

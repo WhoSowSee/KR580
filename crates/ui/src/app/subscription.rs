@@ -238,9 +238,17 @@ fn contextual_shortcut_message(
     settings: &ShortcutSettings,
     physical_key: keyboard::key::Physical,
     modifiers: keyboard::Modifiers,
-    _status: event::Status,
+    status: event::Status,
     context: ShortcutContext,
 ) -> Option<Message> {
+    if status == event::Status::Captured
+        && context.scoped_action().is_some_and(|action| {
+            binding_from_event(physical_key, modifiers)
+                .is_some_and(|binding| settings.matches(action, binding))
+        })
+    {
+        return None;
+    }
     shortcut_message_for_context(settings, physical_key, modifiers, context)
 }
 
