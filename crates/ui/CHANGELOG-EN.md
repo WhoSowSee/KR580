@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.0] - 2026-09-04
+
+### Features
+
+- Added: contextual shortcuts for memory address search and cell value replacement
+- Added: notices after resetting settings and keyboard shortcuts
+
+### Bug Fixes
+
+- Fixed: saving settings no longer resets the content scroll position
+- Fixed: Tab navigation preserves the active inline memory editing mode
+- Fixed: remapped memory editing shortcuts no longer type characters into the active field
+
 ## [2.2.0] - 2026-09-03
 
 ### Features

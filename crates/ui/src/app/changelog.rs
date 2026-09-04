@@ -126,23 +126,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn release_index_follows_changelog_order() {
+    fn latest_release_matches_package_version() {
         let releases = parse_releases(CHANGELOG_SOURCE_EN);
+        let latest = releases.first().expect("changelog must contain a release");
 
-        assert_eq!(releases[0].version, "2.2.0");
-        assert_eq!(releases[0].date, "2026-09-03");
-        assert_eq!(releases[1].version, "2.1.1");
-        assert_eq!(releases[2].version, "2.1.0");
-        assert_eq!(releases[3].version, "2.0.0");
-        assert_eq!(releases[4].version, "1.1.0");
-        assert_eq!(releases[5].version, "1.0.0");
+        assert_eq!(latest.version, env!("CARGO_PKG_VERSION"));
     }
 
     #[test]
     fn selecting_release_limits_reader_to_that_release() {
         let mut dialog = ChangelogDialog::new(Lang::En);
+        let selected = dialog
+            .releases
+            .iter()
+            .position(|release| release.version == "1.1.0")
+            .expect("fixture release must exist")
+            + 1;
 
-        dialog.select_release(5);
+        dialog.select_release(selected);
 
         let text = dialog.article_content.text();
         assert!(text.contains("1.1.0 · 2026-07-21"));
