@@ -1,4 +1,6 @@
-use super::{captured_register_arrow, command_shortcut_message, runtime_event_message};
+use super::{
+    ShortcutContext, captured_register_arrow, command_shortcut_message, runtime_event_message,
+};
 use crate::app::{DesktopApp, Message, RegisterMove};
 use crate::persistence::{ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings};
 use iced::keyboard;
@@ -120,6 +122,7 @@ fn captured_ctrl_a_keeps_text_input_select_all() {
                 physical(code),
                 Modifiers::COMMAND,
                 event::Status::Captured,
+                ShortcutContext::General,
             )
             .is_none()
         );
@@ -136,6 +139,7 @@ fn captured_ctrl_v_keeps_text_input_paste() {
                 physical(code),
                 Modifiers::COMMAND,
                 event::Status::Captured,
+                ShortcutContext::General,
             )
             .is_none()
         );
@@ -151,6 +155,7 @@ fn ignored_ctrl_v_requests_memory_paste() {
             physical(Code::KeyV),
             Modifiers::COMMAND,
             event::Status::Ignored,
+            ShortcutContext::General,
         ),
         Message::PasteMemoryBytesRequested,
     );
@@ -165,6 +170,7 @@ fn ignored_ctrl_a_still_opens_network_adapter() {
             physical(Code::KeyA),
             Modifiers::COMMAND,
             event::Status::Ignored,
+            ShortcutContext::General,
         ),
         Message::OpenNetwork,
     );
@@ -179,6 +185,7 @@ fn captured_ctrl_s_still_saves_snapshot() {
             physical(Code::KeyS),
             Modifiers::COMMAND,
             event::Status::Captured,
+            ShortcutContext::General,
         ),
         Message::SaveSnapshot,
     );
@@ -199,6 +206,7 @@ fn ignored_ctrl_v_uses_custom_shortcut_when_assigned() {
             physical(Code::KeyV),
             Modifiers::COMMAND,
             event::Status::Ignored,
+            ShortcutContext::General,
         ),
         Message::OpenMonitor,
     );

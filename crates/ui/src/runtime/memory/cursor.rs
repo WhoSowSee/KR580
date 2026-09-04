@@ -26,6 +26,16 @@ impl DesktopApp {
         parse_hex_u16(&self.memory_address_input)
     }
 
+    pub(crate) fn selected_memory_action_address(&self) -> Option<u16> {
+        if self.focused_input.is_none()
+            && self.active_register_target.is_none()
+            && self.inline_register_target.is_none()
+        {
+            return self.selected_memory_address();
+        }
+        None
+    }
+
     pub(crate) fn memory_view(&self) -> (u16, usize) {
         if self.stack_view {
             (STACK_VIEW_START, STACK_VIEW_SIZE)

@@ -132,7 +132,8 @@ RAM-range dialog. Detached device windows do not accept program drops.
   - `app/keymap.rs` – arrow-key dispatch (`handle_arrow_key`,
     `handle_horizontal_arrow_key`).
   - `app/shortcuts.rs` – physical-key shortcut matching, action labels,
-    and `Message` mapping for configurable shortcuts.
+    and `Message` mapping for configurable shortcuts; focused tests live in
+    `app/shortcuts/tests.rs`.
   - `app/speed.rs` – speed-tier constants and the `tier_hz` resolver.
   - `app/modal.rs` – discard modal focus state and routing.
   - `app/export_modal.rs` and `app/export_modal_state.rs` – export
@@ -165,7 +166,7 @@ RAM-range dialog. Detached device windows do not accept program drops.
     pattern search, and step-instruction follow-PC, split into:
     - `cursor.rs` – cursor / spinner state, scroll math, PC-sync.
     - `editor.rs` – value-cell editing, inline editing, opcode picker.
-    - `search.rs` – Ctrl+Enter pattern search and Alt+Enter jump.
+    - `search.rs` – configured pattern search and Alt+Enter jump.
     - `step.rs` – step-instruction / step-tact + follow-PC during a
       paced run.
   - `runtime/focus.rs` – Tab/Shift+Tab cycling between fields.
@@ -310,10 +311,12 @@ order, top to bottom:
    device window without changing the selected operand or resetting the
    memory scroll position to `0000`. Both behaviours are independent of
    the toggle.
-   Settings → Shortcuts lists the selected-cell action as `Alt+Enter`
-   and the operand-return action as `Shift+Alt+Enter`; rebinding those
-   rows changes the selected-operand command, return command, and focused
-   address-field shortcut independently.
+   Settings → Shortcuts lists memory pattern search and replacement editing as
+   `Ctrl+Enter`, the selected-cell action as `Alt+Enter`, and the operand-return
+   action as `Shift+Alt+Enter`. The two `Ctrl+Enter` actions are scoped
+   independently: pattern search applies in the address/value editor, while
+   replacement applies to a selected RAM row or its inline editor. Rebinding
+   one does not change the other.
    The return command restores the previous memory scroll offset, so
    the source operand keeps the same visible row position after a round trip.
    The memory scrollbar paints a compact 28 × 5 logical-pixel thumb with a
@@ -2247,7 +2250,8 @@ English and Russian layouts use the same positions: `E` and `У` both open
 the opcode picker, `Alt+Q` and `Alt+Й` both jump to `0000`, `Ctrl+S` and
 `Ctrl+Ы` both save, and the same rule applies to the rest of the letter
 shortcuts. Reassigning a shortcut already used by another action unbinds the
-older action so one key chord resolves to one command.
+older action so one key chord resolves to one command, except for the scoped
+memory pattern-search and cell-replacement actions, which may share a chord.
 
 ### Memory cell editor (address + value pair)
 
@@ -2255,7 +2259,7 @@ older action so one key chord resolves to one command.
 |---|---|
 | Enter (in address field) | Jump to the typed address; remembers the typed substring as the search pattern. |
 | Enter (in value field) | Write the typed byte into the currently selected address. |
-| Ctrl+Enter | Find the next address whose 4-digit hex form contains the cached search pattern, advancing past the current cell and wrapping around 64 KiB. The pattern is captured before the first plain Enter so iterating after an initial jump uses the original short hex (`FF`) rather than the matched address (`00FF`). The pattern is reset whenever the user edits the address field by hand. |
+| Ctrl+Enter | Run the configured memory pattern-search action (default `Ctrl+Enter`): find the next address whose 4-digit hex form contains the cached search pattern, advancing past the current cell and wrapping around 64 KiB. Holding Shift searches backward. The pattern is captured before the first plain Enter so iterating after an initial jump uses the original short hex (`FF`) rather than the matched address (`00FF`). The pattern is reset whenever the user edits the address field by hand. |
 | Alt+Enter | Step to the next sequential address (same as ArrowDown). Never writes memory, never touches the search pattern cache. |
 | ArrowUp / ArrowDown (in address field) | Step the highlighted address by one. |
 | ArrowUp / ArrowDown (in value field) | Bump the byte in the value field by ±1, saturating at `0x00`/`0xFF`. The byte is *not* written to memory until Enter; ArrowUp on `FF` and ArrowDown on `00` are no-ops. |
@@ -2334,6 +2338,7 @@ the accumulator. Invalid value input leaves the register field empty.
 | Shortcut | Effect |
 |---|---|
 | Enter | Apply the typed value to the selected address. An empty replacement field keeps the previous byte. |
+| Ctrl+Enter | Run the configured memory-cell replacement action (default `Ctrl+Enter`) from either a selected row or its focused inline editor. The input becomes empty, the current displayed value remains as its placeholder, and memory and selection stay unchanged. This action is independent of the pattern-search action with the same default chord. |
 | Alt+Enter | Relocate the memory view to the 16-bit address encoded by the operand when the selected cell is the low or high byte of a 3-byte address instruction (`LXI`, `JMP`, `CALL`, `SHLD`, `LHLD`, `STA`, `LDA`, and the conditional `Jcond`/`Ccond` family). Both operand bytes resolve to the same little-endian target, so the jump works from either half. On the operand byte of a 2-byte `IN`/`OUT` instruction, opens the corresponding device window — `0x00` monitor, `0x01` floppy, `0x02` HDD, `0x03` network, `0x04` printer (matches the internal `IoBus` port constants) — while preserving the operand selection and memory scroll position. Unknown ports fall through. Independent of the Highlight memory operands toggle, and only when the inline editor is not focused — the address/value fields below keep their own Alt+Enter behavior. Falls back to the plain inline-edit Enter on non-address, non-port cells (including 8-bit data operands). |
 | Alt+Shift+Enter | Return to the low/high operand cell that launched the last 16-bit address jump. This return slot is written only by 16-bit address-operand jumps; port operands and 8-bit data operands do not create one. |
 | Tab / Shift+Tab | With only a row selected, move the highlight to the next/previous address without entering edit mode. With the inline editor focused, move the selection and refocus the new row without changing modes: a regular editor shows the target byte, while an active replacement editor stays empty and shows that byte as its placeholder. |

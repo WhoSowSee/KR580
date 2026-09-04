@@ -1,5 +1,5 @@
 **Find an address by hex fragment**
-Enter part of a four-digit address in the address field and press Ctrl+Enter. Search moves forward and wraps within the current area; Ctrl+Shift+Enter searches backward. Repeating the shortcut continues with the same fragment.
+Enter part of a four-digit address in the address field and press the pattern-search shortcut (Ctrl+Enter by default). Search moves forward and wraps within the current area; holding Shift searches backward. Repeating the shortcut continues with the same fragment.
 
 For example, FF matches 00FFh, 01FFh, and later addresses. Editing the address field starts a new search.
 

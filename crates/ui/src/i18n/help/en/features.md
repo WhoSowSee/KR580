@@ -15,4 +15,4 @@
 **Devices and interface**
 • Monitor, floppy, HDD, TCP network, and system printer
 • Russian and English languages with light and dark themes
-• Settings/help search and 27 reassignable actions
+• Settings/help search and 29 reassignable actions

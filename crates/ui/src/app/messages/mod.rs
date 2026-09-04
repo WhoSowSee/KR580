@@ -165,6 +165,8 @@ pub(crate) enum Message {
     ToggleHalt,
     EscPressed,
     EnterPressed,
+    MemoryPatternSearch,
+    MemoryCellReplace,
     MemoryCellAction,
     MemoryCellReturn,
     OpenOpcodePicker,

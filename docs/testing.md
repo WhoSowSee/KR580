@@ -317,7 +317,9 @@ worth eyeballing after touching `crates/ui`:
   stays on one clipped, middle-shortened row; toggle the selector repeatedly
   and verify neither the footer geometry nor the anchor highlight changes;
 - in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
-  and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`; select an
+  and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`; assign different
+  shortcuts to pattern search and cell replacement and confirm each remains
+  limited to its own editor context; select an
   `IN`/`OUT` port operand below the first visible page, open its device with
   `Alt+Enter`, and confirm the selected address and scroll position do not
   reset to `0000`;

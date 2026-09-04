@@ -2,7 +2,7 @@
 Click a RAM row or enter four hexadecimal digits in the address field. Arrow keys move the selection, PageUp/PageDown scroll, and Alt+Q / Alt+E jump to 0000h / FFFFh.
 
 **Writing bytes**
-Enter two hexadecimal digits in the value field and press Enter or the apply button. The editor advances after a write. Pasting space-separated hexadecimal pairs writes a block from the selected cell; a block extending beyond FFFFh is rejected.
+Enter two hexadecimal digits in the value field and press Enter or the apply button. The editor advances after a write. The cell-replacement shortcut (Ctrl+Enter by default) enters replacement mode from a selected row or its editor: the input is cleared while the current displayed value remains as its placeholder. Pasting space-separated hexadecimal pairs writes a block from the selected cell; a block extending beyond FFFFh is rejected.
 
 **Opcodes**
 Press E or “…” to open the 244 documented encodings. Search by hexadecimal code or mnemonic and press Enter to write the selected opcode.

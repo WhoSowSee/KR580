@@ -326,6 +326,36 @@ fn inline_memory_enter_keeps_replacement_mode_on_next_cell() {
 }
 
 #[test]
+fn memory_cell_replace_action_switches_inline_editor_to_replacement_mode() {
+    let (mut app, _) = DesktopApp::with_initial_path(None);
+    app.snapshot.cpu.memory.write(0x0010, 0x3E);
+    app.memory_address_input = "0010".to_owned();
+    app.memory_inline_value_input = "41".to_owned();
+    app.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+
+    let _ = app.update(Message::MemoryCellReplace);
+
+    assert_eq!(app.memory_address_input, "0010");
+    assert!(app.memory_inline_value_input.is_empty());
+    assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "41");
+    assert_eq!(app.snapshot.cpu.memory.read(0x0010), 0x3E);
+}
+
+#[test]
+fn memory_cell_replace_action_starts_from_the_selected_row() {
+    let (mut app, _) = DesktopApp::with_initial_path(None);
+    app.snapshot.cpu.memory.write(0x0000, 0x3E);
+    app.memory_address_input = "0000".to_owned();
+    app.memory_inline_value_input = "3E".to_owned();
+
+    let _ = app.update(Message::MemoryCellReplace);
+
+    assert_eq!(app.focused_input, Some(MEMORY_INLINE_INPUT_ID));
+    assert!(app.memory_inline_value_input.is_empty());
+    assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "3E");
+}
+
+#[test]
 fn clearing_a_hex_field_reports_a_localized_status() {
     let mut app = app_with_clean_startup();
     app.lang = crate::i18n::Lang::Ru;

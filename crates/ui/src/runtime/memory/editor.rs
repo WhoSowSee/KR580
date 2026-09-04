@@ -101,16 +101,6 @@ impl DesktopApp {
         // Enter.
     }
 
-    pub(crate) fn selected_memory_paste_address(&self) -> Option<u16> {
-        if self.focused_input.is_none()
-            && self.active_register_target.is_none()
-            && self.inline_register_target.is_none()
-        {
-            return self.selected_memory_address();
-        }
-        None
-    }
-
     pub(crate) fn paste_memory_bytes(&mut self, address: u16, value: String) {
         match parse_hex_byte_sequence(&value) {
             Ok(Some(values)) => self.write_memory_block(address, values),
@@ -131,6 +121,37 @@ impl DesktopApp {
             }
             None => self.set_status(StatusKind::InvalidByteHex),
         }
+    }
+
+    pub(crate) fn enter_memory_cell_replacement(&mut self, address: u16) -> Task<Message> {
+        self.enter_inline_memory_replacing(address);
+        self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+        Task::done(Message::RefocusInline)
+    }
+
+    pub(crate) fn enter_selected_memory_replacement(&mut self) -> Task<Message> {
+        if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
+            if self.replacement_input != Some(MEMORY_INLINE_INPUT_ID) {
+                self.begin_replacement(MEMORY_INLINE_INPUT_ID);
+            }
+            return Task::none();
+        }
+        let Some(address) = self.selected_memory_action_address() else {
+            return Task::none();
+        };
+        self.enter_memory_cell_replacement(address)
+    }
+
+    pub(crate) fn handle_inline_memory_submit(&mut self, address: u16) -> Task<Message> {
+        let replacing = self.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
+        let backward = self.keyboard_modifiers.shift();
+        self.apply_inline_memory_value(address);
+        let step = self.step_memory_address(if backward { -1 } else { 1 });
+        if replacing {
+            self.begin_replacement(MEMORY_INLINE_INPUT_ID);
+        }
+        self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+        step.chain(operation::focus(MEMORY_INLINE_INPUT_ID))
     }
 
     pub(crate) fn cancel_inline_memory_edit(&mut self) -> Task<Message> {

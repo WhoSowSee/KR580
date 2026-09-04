@@ -2,7 +2,9 @@ use iced::{Subscription, Task, event, keyboard, mouse, time};
 
 use super::handlers::tick_interval;
 use super::messages::Message;
-use super::shortcuts::{binding_from_event, shortcut_message};
+use super::shortcuts::{
+    ShortcutContext, binding_from_event, shortcut_context, shortcut_message_for_context,
+};
 use super::state::DesktopApp;
 use crate::persistence::ShortcutSettings;
 
@@ -73,6 +75,7 @@ fn runtime_event_message(
         .as_ref()
         .and_then(|dialog| dialog.recording_shortcut)
         .is_some();
+    let context = shortcut_context(app);
     match (event, status) {
         (iced::Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)), _) => {
             Some(Message::ModifiersChanged(modifiers))
@@ -115,6 +118,7 @@ fn runtime_event_message(
             physical_key,
             modifiers,
             status,
+            context,
         ),
         (
             iced::Event::Keyboard(keyboard::Event::KeyPressed {
@@ -122,8 +126,14 @@ fn runtime_event_message(
                 modifiers,
                 ..
             }),
-            _,
-        ) if modifiers.alt() => shortcut_message(&app.shortcut_settings, physical_key, modifiers),
+            status,
+        ) if modifiers.alt() => contextual_shortcut_message(
+            &app.shortcut_settings,
+            physical_key,
+            modifiers,
+            status,
+            context,
+        ),
         (
             iced::Event::Keyboard(keyboard::Event::KeyPressed {
                 key,
@@ -132,15 +142,24 @@ fn runtime_event_message(
                 ..
             }),
             iced::event::Status::Ignored,
-        ) => super::menu_keyboard::navigation_key_message(&key, modifiers).or_else(|| match key {
-            keyboard::Key::Named(keyboard::key::Named::PageUp) => {
-                Some(Message::MemoryAddressPageUp)
-            }
-            keyboard::Key::Named(keyboard::key::Named::PageDown) => {
-                Some(Message::MemoryAddressPageDown)
-            }
-            keyboard::Key::Named(keyboard::key::Named::F1) => Some(Message::OpenHelp),
-            _ => shortcut_message(&app.shortcut_settings, physical_key, modifiers),
+        ) => contextual_shortcut_message(
+            &app.shortcut_settings,
+            physical_key,
+            modifiers,
+            event::Status::Ignored,
+            context,
+        )
+        .or_else(|| {
+            super::menu_keyboard::navigation_key_message(&key, modifiers).or(match key {
+                keyboard::Key::Named(keyboard::key::Named::PageUp) => {
+                    Some(Message::MemoryAddressPageUp)
+                }
+                keyboard::Key::Named(keyboard::key::Named::PageDown) => {
+                    Some(Message::MemoryAddressPageDown)
+                }
+                keyboard::Key::Named(keyboard::key::Named::F1) => Some(Message::OpenHelp),
+                _ => None,
+            })
         }),
         (
             iced::Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }),
@@ -186,6 +205,7 @@ fn command_shortcut_message(
     physical_key: keyboard::key::Physical,
     modifiers: keyboard::Modifiers,
     status: event::Status,
+    context: ShortcutContext,
 ) -> Option<Message> {
     if let Some(direction) = super::register_inline::ctrl_arrow_move(key, modifiers) {
         return Some(Message::RegisterArrowKey(direction));
@@ -201,7 +221,8 @@ fn command_shortcut_message(
     {
         return None;
     }
-    let configured = shortcut_message(settings, physical_key, modifiers);
+    let configured =
+        contextual_shortcut_message(settings, physical_key, modifiers, status, context);
     if configured.is_some() {
         return configured;
     }
@@ -211,6 +232,16 @@ fn command_shortcut_message(
         return Some(Message::PasteMemoryBytesRequested);
     }
     None
+}
+
+fn contextual_shortcut_message(
+    settings: &ShortcutSettings,
+    physical_key: keyboard::key::Physical,
+    modifiers: keyboard::Modifiers,
+    _status: event::Status,
+    context: ShortcutContext,
+) -> Option<Message> {
+    shortcut_message_for_context(settings, physical_key, modifiers, context)
 }
 
 fn is_text_select_all_shortcut(

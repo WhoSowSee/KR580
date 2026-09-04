@@ -136,10 +136,6 @@ impl DesktopApp {
                 self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
             }
             Message::ApplyRegister if !self.running => {
-                if self.keyboard_modifiers.command() {
-                    return self
-                        .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
-                }
                 return self.apply_register_and_step(self.keyboard_modifiers.shift());
             }
             Message::RegisterSelected(target) if !self.running => {
@@ -176,9 +172,7 @@ impl DesktopApp {
                 return Task::done(Message::RefocusInline);
             }
             Message::MemoryReplace(address) if !self.running => {
-                self.enter_inline_memory_replacing(address);
-                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
-                return Task::done(Message::RefocusInline);
+                return self.enter_memory_cell_replacement(address);
             }
             Message::RefocusInline => {
                 return iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID);
@@ -206,10 +200,6 @@ impl DesktopApp {
                 return scroll_memory_to(self.memory_scroll_offset);
             }
             Message::JumpMemoryAddress if !self.running => {
-                if self.keyboard_modifiers.command() {
-                    return self
-                        .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
-                }
                 if self.keyboard_modifiers.alt() {
                     return self.jump_memory_address();
                 }
@@ -234,24 +224,16 @@ impl DesktopApp {
                 self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
             }
             Message::ApplyInlineMemoryValue(address) if !self.running => {
-                let replacing = self.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
-                let backward = self.keyboard_modifiers.shift();
-                self.apply_inline_memory_value(address);
-                let step = self.step_memory_address(if backward { -1 } else { 1 });
-                if replacing {
-                    self.begin_replacement(MEMORY_INLINE_INPUT_ID);
-                }
-                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
-                return step.chain(iced::widget::operation::focus(MEMORY_INLINE_INPUT_ID));
+                return self.handle_inline_memory_submit(address);
             }
             Message::PasteMemoryBytesRequested if !self.running => {
-                if self.selected_memory_paste_address().is_none() {
+                if self.selected_memory_action_address().is_none() {
                     return Task::none();
                 }
                 return iced::clipboard::read().map(Message::MemoryBytesPasted);
             }
             Message::MemoryBytesPasted(Some(value)) if !self.running => {
-                if let Some(address) = self.selected_memory_paste_address() {
+                if let Some(address) = self.selected_memory_action_address() {
                     self.paste_memory_bytes(address, value);
                 }
             }
@@ -291,6 +273,9 @@ impl DesktopApp {
                 };
                 return Task::done(Message::MemoryEnter(address));
             }
+            Message::MemoryCellReplace if !self.running => {
+                return self.enter_selected_memory_replacement();
+            }
             Message::MemoryCellAction => {
                 if self.running {
                     return Task::none();
@@ -322,6 +307,15 @@ impl DesktopApp {
                 }
                 return self.return_to_memory_operand();
             }
+            Message::MemoryPatternSearch if !self.running => {
+                if matches!(
+                    self.focused_input,
+                    Some(MEMORY_ADDRESS_INPUT_ID | MEMORY_VALUE_INPUT_ID)
+                ) {
+                    return self
+                        .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
+                }
+            }
             Message::OpenOpcodePicker if !self.running => {
                 let Some(address) = self.selected_memory_address() else {
                     return Task::none();
@@ -334,10 +328,6 @@ impl DesktopApp {
                 return scroll.chain(iced::widget::operation::focus(OPCODE_SEARCH_INPUT_ID));
             }
             Message::ApplyMemory if !self.running => {
-                if self.keyboard_modifiers.command() {
-                    return self
-                        .find_next_memory_address_in_direction(self.keyboard_modifiers.shift());
-                }
                 if self.keyboard_modifiers.alt() {
                     return self.apply_memory_and_jump();
                 }

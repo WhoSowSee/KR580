@@ -80,10 +80,7 @@ impl DesktopApp {
         self.memory_search_pattern = None;
     }
 
-    /// The pattern is cached on the first call so subsequent presses
-    /// iterate matches – every match overwrites the address input
-    /// with a full hex code that would otherwise become the next
-    /// pattern.
+    /// Cache the initial fragment because each match replaces the address input.
     pub(crate) fn find_next_memory_address_in_direction(
         &mut self,
         backward: bool,

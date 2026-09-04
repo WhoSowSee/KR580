@@ -1,7 +1,9 @@
 use iced::keyboard;
 use iced::keyboard::key::{Code, Physical};
 
+use super::constants::{MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID};
 use super::messages::Message;
+use super::state::DesktopApp;
 use crate::i18n::{Key, Lang};
 use crate::persistence::{
     ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutModifiers, ShortcutSettings,
@@ -21,16 +23,62 @@ pub(crate) fn binding_from_event(
     })
 }
 
+#[cfg(test)]
 pub(crate) fn shortcut_message(
     settings: &ShortcutSettings,
     physical_key: Physical,
     modifiers: keyboard::Modifiers,
 ) -> Option<Message> {
+    shortcut_message_for_context(settings, physical_key, modifiers, ShortcutContext::General)
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ShortcutContext {
+    General,
+    MemoryEditor,
+    MemoryCell,
+}
+
+pub(crate) fn shortcut_context(app: &DesktopApp) -> ShortcutContext {
+    match app.focused_input {
+        Some(MEMORY_ADDRESS_INPUT_ID | MEMORY_VALUE_INPUT_ID) => ShortcutContext::MemoryEditor,
+        Some(MEMORY_INLINE_INPUT_ID) => ShortcutContext::MemoryCell,
+        None if app.selected_memory_action_address().is_some() => ShortcutContext::MemoryCell,
+        _ => ShortcutContext::General,
+    }
+}
+
+pub(crate) fn shortcut_message_for_context(
+    settings: &ShortcutSettings,
+    physical_key: Physical,
+    modifiers: keyboard::Modifiers,
+    context: ShortcutContext,
+) -> Option<Message> {
     let binding = binding_from_event(physical_key, modifiers)?;
     ShortcutAction::ALL
         .into_iter()
-        .find(|action| settings.binding(*action) == Some(binding))
+        .filter(|action| context.allows(*action))
+        .find(|action| settings.matches(*action, binding))
         .map(message_for_action)
+}
+
+impl ShortcutContext {
+    pub(crate) fn scoped_action(self) -> Option<ShortcutAction> {
+        match self {
+            Self::MemoryEditor => Some(ShortcutAction::MemoryPatternSearch),
+            Self::MemoryCell => Some(ShortcutAction::MemoryCellReplace),
+            Self::General => None,
+        }
+    }
+
+    pub(crate) fn allows(self, action: ShortcutAction) -> bool {
+        match action {
+            ShortcutAction::MemoryPatternSearch | ShortcutAction::MemoryCellReplace => {
+                self.scoped_action() == Some(action)
+            }
+            _ => true,
+        }
+    }
 }
 
 pub(crate) fn shortcut_label(settings: &ShortcutSettings, message: &Message) -> Option<String> {
@@ -71,6 +119,14 @@ pub(crate) fn shortcut_action_label(action: ShortcutAction, lang: Lang) -> &'sta
         ShortcutAction::OpenOpcodePicker => match lang {
             Lang::Ru => "Выбор команды",
             Lang::En => "Opcode picker",
+        },
+        ShortcutAction::MemoryPatternSearch => match lang {
+            Lang::Ru => "Переход по шаблону адреса ОЗУ",
+            Lang::En => "Find memory address pattern",
+        },
+        ShortcutAction::MemoryCellReplace => match lang {
+            Lang::Ru => "Замена значения ячейки ОЗУ",
+            Lang::En => "Replace memory cell value",
         },
         ShortcutAction::MemoryCellAction => match lang {
             Lang::Ru => "Действие с ячейкой ОЗУ",
@@ -124,6 +180,8 @@ pub(crate) fn message_for_action(action: ShortcutAction) -> Message {
         ShortcutAction::Undo => Message::Undo,
         ShortcutAction::Redo => Message::Redo,
         ShortcutAction::OpenOpcodePicker => Message::OpenOpcodePicker,
+        ShortcutAction::MemoryPatternSearch => Message::MemoryPatternSearch,
+        ShortcutAction::MemoryCellReplace => Message::MemoryCellReplace,
         ShortcutAction::MemoryCellAction => Message::MemoryCellAction,
         ShortcutAction::MemoryCellReturn => Message::MemoryCellReturn,
         ShortcutAction::JumpMemoryStart => Message::JumpMemoryTo(0x0000),
@@ -156,6 +214,8 @@ fn action_for_message(message: &Message) -> Option<ShortcutAction> {
         Message::Undo => Some(ShortcutAction::Undo),
         Message::Redo => Some(ShortcutAction::Redo),
         Message::OpenOpcodePicker => Some(ShortcutAction::OpenOpcodePicker),
+        Message::MemoryPatternSearch => Some(ShortcutAction::MemoryPatternSearch),
+        Message::MemoryCellReplace => Some(ShortcutAction::MemoryCellReplace),
         Message::MemoryCellAction => Some(ShortcutAction::MemoryCellAction),
         Message::MemoryCellReturn => Some(ShortcutAction::MemoryCellReturn),
         Message::JumpMemoryTo(0x0000) => Some(ShortcutAction::JumpMemoryStart),
@@ -222,198 +282,5 @@ fn shortcut_key_from_physical(physical_key: Physical) -> Option<ShortcutKey> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{binding_from_event, shortcut_message};
-    use crate::app::Message;
-    use crate::persistence::{
-        ShortcutAction, ShortcutBinding, ShortcutKey, ShortcutSettings, default_binding,
-    };
-    use iced::keyboard;
-    use iced::keyboard::key::{Code, Physical};
-    use std::mem::discriminant;
-
-    fn physical(code: Code) -> Physical {
-        Physical::Code(code)
-    }
-
-    fn assert_message(actual: Option<Message>, expected: Message) {
-        let actual = actual.expect("shortcut should resolve");
-        assert_eq!(discriminant(&actual), discriminant(&expected));
-    }
-
-    #[test]
-    fn default_shortcuts_use_physical_qwerty_positions() {
-        assert_message(
-            shortcut_message(
-                &ShortcutSettings::default(),
-                physical(Code::KeyM),
-                keyboard::Modifiers::COMMAND,
-            ),
-            Message::OpenMonitor,
-        );
-    }
-
-    #[test]
-    fn default_alt_enter_runs_memory_cell_shortcut() {
-        assert_message(
-            shortcut_message(
-                &ShortcutSettings::default(),
-                physical(Code::Enter),
-                keyboard::Modifiers::ALT,
-            ),
-            Message::MemoryCellAction,
-        );
-    }
-
-    #[test]
-    fn default_alt_shift_enter_runs_memory_cell_return_shortcut() {
-        assert_message(
-            shortcut_message(
-                &ShortcutSettings::default(),
-                physical(Code::Enter),
-                keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT,
-            ),
-            Message::MemoryCellReturn,
-        );
-    }
-
-    #[test]
-    fn default_memory_cell_return_shortcut_label_is_alt_shift_enter() {
-        assert_eq!(
-            default_binding(ShortcutAction::MemoryCellReturn).map(ShortcutBinding::label),
-            Some("Shift+Alt+Enter".to_owned())
-        );
-    }
-
-    #[test]
-    fn default_memory_cell_shortcut_label_is_alt_enter() {
-        assert_eq!(
-            default_binding(ShortcutAction::MemoryCellAction).map(ShortcutBinding::label),
-            Some("Alt+Enter".to_owned())
-        );
-    }
-
-    #[test]
-    fn custom_memory_cell_shortcut_resolves_without_alt_modifier() {
-        let mut settings = ShortcutSettings::default();
-        settings.assign(
-            ShortcutAction::MemoryCellAction,
-            ShortcutBinding::new(true, false, false, ShortcutKey::J),
-        );
-
-        assert_message(
-            shortcut_message(
-                &settings,
-                physical(Code::KeyJ),
-                keyboard::Modifiers::COMMAND,
-            ),
-            Message::MemoryCellAction,
-        );
-        assert!(
-            shortcut_message(&settings, physical(Code::Enter), keyboard::Modifiers::ALT).is_none()
-        );
-    }
-
-    #[test]
-    fn custom_memory_cell_shortcut_resolves_alt_letter_binding() {
-        let mut settings = ShortcutSettings::default();
-        settings.assign(
-            ShortcutAction::MemoryCellAction,
-            ShortcutBinding::new(false, false, true, ShortcutKey::L),
-        );
-
-        assert_message(
-            shortcut_message(&settings, physical(Code::KeyL), keyboard::Modifiers::ALT),
-            Message::MemoryCellAction,
-        );
-    }
-
-    #[test]
-    fn custom_memory_cell_return_shortcut_resolves_alt_letter_binding() {
-        let mut settings = ShortcutSettings::default();
-        settings.assign(
-            ShortcutAction::MemoryCellReturn,
-            ShortcutBinding::new(false, false, true, ShortcutKey::K),
-        );
-
-        assert_message(
-            shortcut_message(&settings, physical(Code::KeyK), keyboard::Modifiers::ALT),
-            Message::MemoryCellReturn,
-        );
-        assert!(
-            shortcut_message(
-                &settings,
-                physical(Code::Enter),
-                keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT,
-            )
-            .is_none()
-        );
-    }
-
-    #[test]
-    fn custom_shortcuts_support_all_three_modifiers() {
-        let mut settings = ShortcutSettings::default();
-        settings.assign(
-            ShortcutAction::OpenMonitor,
-            ShortcutBinding::new(true, true, true, ShortcutKey::M),
-        );
-
-        assert_message(
-            shortcut_message(
-                &settings,
-                physical(Code::KeyM),
-                keyboard::Modifiers::COMMAND
-                    | keyboard::Modifiers::SHIFT
-                    | keyboard::Modifiers::ALT,
-            ),
-            Message::OpenMonitor,
-        );
-        assert!(
-            shortcut_message(
-                &settings,
-                physical(Code::KeyM),
-                keyboard::Modifiers::COMMAND,
-            )
-            .is_none()
-        );
-    }
-
-    #[test]
-    fn assigning_existing_binding_unbinds_previous_action() {
-        let mut settings = ShortcutSettings::default();
-        let printer = default_binding(ShortcutAction::OpenPrinter).unwrap();
-        settings.assign(ShortcutAction::OpenMonitor, printer);
-
-        assert_eq!(settings.binding(ShortcutAction::OpenPrinter), None);
-        assert_message(
-            shortcut_message(
-                &settings,
-                physical(Code::KeyP),
-                keyboard::Modifiers::COMMAND,
-            ),
-            Message::OpenMonitor,
-        );
-    }
-
-    #[test]
-    fn captured_binding_keeps_command_shift_alt_flags() {
-        let binding = binding_from_event(
-            physical(Code::KeyM),
-            keyboard::Modifiers::COMMAND | keyboard::Modifiers::SHIFT | keyboard::Modifiers::ALT,
-        )
-        .unwrap();
-
-        assert!(binding.modifiers.ctrl);
-        assert!(binding.modifiers.shift);
-        assert!(binding.modifiers.alt);
-        assert_eq!(binding.key, ShortcutKey::M);
-    }
-
-    #[test]
-    fn captured_binding_supports_enter_key() {
-        let binding = binding_from_event(physical(Code::Enter), keyboard::Modifiers::ALT).unwrap();
-
-        assert!(binding.modifiers.alt);
-        assert_eq!(binding.key, ShortcutKey::Enter);
-    }
-}
+#[path = "shortcuts/tests.rs"]
+mod tests;

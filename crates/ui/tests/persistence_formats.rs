@@ -2,7 +2,8 @@ use k580_core::{Cpu8080State, Memory64K};
 use k580_ui::devices::printer::PrinterSettings;
 use k580_ui::persistence::{
     ColorScheme, GeneralSettings, LEGACY_LENGTH, PrinterDialogMode, ProgramError,
-    ProgramSerializer, Settings, SettingsError, SettingsStore, ShortcutAction, SpeedPreset,
+    ProgramSerializer, Settings, SettingsError, SettingsStore, ShortcutAction, ShortcutBinding,
+    ShortcutKey, ShortcutOverride, SpeedPreset,
 };
 
 #[test]
@@ -208,11 +209,30 @@ fn settings_are_versioned_camel_case_json() {
     assert_eq!(settings.ui.theme, ColorScheme::TokyoNight);
     assert_eq!(SettingsStore::from_json(&json).unwrap(), settings);
 
-    let unsupported = json.replace("\"settingsVersion\": 10", "\"settingsVersion\": 11");
+    let unsupported = json.replace("\"settingsVersion\": 11", "\"settingsVersion\": 12");
     assert!(matches!(
         SettingsStore::from_json(&unsupported),
-        Err(SettingsError::UnsupportedVersion(11))
+        Err(SettingsError::UnsupportedVersion(12))
     ));
+}
+
+#[test]
+fn legacy_settings_preserve_custom_ctrl_enter_binding() {
+    use ShortcutAction as Action;
+    let mut settings = Settings {
+        settings_version: 10,
+        ..Default::default()
+    };
+    let binding = ShortcutBinding::new(true, false, false, ShortcutKey::Enter);
+    settings.shortcuts.bindings = vec![ShortcutOverride {
+        action: Action::OpenMonitor,
+        binding: Some(binding),
+    }];
+    let migrated = SettingsStore::from_json(&SettingsStore::to_json(&settings).unwrap()).unwrap();
+    let shortcuts = &migrated.shortcuts;
+    assert_eq!(shortcuts.binding(Action::OpenMonitor), Some(binding));
+    assert_eq!(shortcuts.binding(Action::MemoryCellReplace), None);
+    assert_eq!(shortcuts.binding(Action::MemoryPatternSearch), None);
 }
 
 #[test]
@@ -226,7 +246,7 @@ fn version_nine_settings_default_to_unified_monitor_layout() {
 
     let migrated = SettingsStore::from_json(&value.to_string()).unwrap();
 
-    assert_eq!(migrated.settings_version, 10);
+    assert_eq!(migrated.settings_version, 11);
     assert!(!migrated.general.monitor_split);
 }
 
@@ -239,7 +259,7 @@ fn version_two_settings_gain_default_shortcuts() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 10);
+    assert_eq!(migrated.settings_version, 11);
     assert_eq!(
         migrated
             .shortcuts
@@ -266,7 +286,7 @@ fn version_one_settings_reset_legacy_runtime_network_endpoints() {
 
     let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
 
-    assert_eq!(migrated.settings_version, 10);
+    assert_eq!(migrated.settings_version, 11);
     assert_eq!(migrated.network, Default::default());
 }
 
@@ -282,7 +302,7 @@ fn version_four_settings_gain_default_printer_name() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 10);
+    assert_eq!(migrated.settings_version, 11);
     assert_eq!(migrated.general.printer_name, None);
 }
 
@@ -298,7 +318,7 @@ fn version_five_settings_gain_custom_printer_dialog_mode() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 10);
+    assert_eq!(migrated.settings_version, 11);
     assert_eq!(
         migrated.general.printer_dialog_mode,
         PrinterDialogMode::Custom
@@ -314,7 +334,7 @@ fn legacy_dark_theme_migrates_to_tokyo_night() {
 
     let migrated = SettingsStore::from_json(&json).unwrap();
 
-    assert_eq!(migrated.settings_version, 10);
+    assert_eq!(migrated.settings_version, 11);
     assert_eq!(migrated.ui.theme, ColorScheme::TokyoNight);
 }
 
@@ -332,7 +352,7 @@ fn version_six_printer_name_gains_full_printer_settings() {
 
     let migrated = SettingsStore::from_json(&SettingsStore::to_json(&legacy).unwrap()).unwrap();
 
-    assert_eq!(migrated.settings_version, 10);
+    assert_eq!(migrated.settings_version, 11);
     assert_eq!(
         migrated.general.printer_settings,
         Some(PrinterSettings::named(

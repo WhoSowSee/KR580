@@ -26,6 +26,8 @@ pub enum ShortcutAction {
     Undo,
     Redo,
     OpenOpcodePicker,
+    MemoryPatternSearch,
+    MemoryCellReplace,
     #[serde(alias = "memoryOperandAction")]
     MemoryCellAction,
     MemoryCellReturn,
@@ -34,7 +36,7 @@ pub enum ShortcutAction {
 }
 
 impl ShortcutAction {
-    pub const ALL: [Self; 27] = [
+    pub const ALL: [Self; 29] = [
         Self::NewFile,
         Self::OpenSnapshot,
         Self::SaveSnapshot,
@@ -58,6 +60,8 @@ impl ShortcutAction {
         Self::Undo,
         Self::Redo,
         Self::OpenOpcodePicker,
+        Self::MemoryPatternSearch,
+        Self::MemoryCellReplace,
         Self::MemoryCellAction,
         Self::MemoryCellReturn,
         Self::JumpMemoryStart,
@@ -238,7 +242,10 @@ impl ShortcutSettings {
 
     pub fn assign(&mut self, action: ShortcutAction, binding: ShortcutBinding) {
         for other in ShortcutAction::ALL {
-            if other != action && self.binding(other) == Some(binding) {
+            if other != action
+                && !actions_can_share_binding(action, other)
+                && bindings_overlap(action, binding, other, self.binding(other))
+            {
                 self.set_raw(other, None);
             }
         }
@@ -277,10 +284,71 @@ impl ShortcutSettings {
         self.bindings = normalized;
     }
 
+    pub fn matches(&self, action: ShortcutAction, binding: ShortcutBinding) -> bool {
+        let Some(configured) = self.binding(action) else {
+            return false;
+        };
+        binding_matches(action, configured, binding)
+    }
+
+    pub(super) fn disable_default_on_conflict(&mut self, action: ShortcutAction) {
+        let Some(binding) = default_binding(action) else {
+            return;
+        };
+        if ShortcutAction::ALL.into_iter().any(|other| {
+            other != action
+                && !actions_can_share_binding(action, other)
+                && bindings_overlap(action, binding, other, self.binding(other))
+        }) {
+            self.set_raw(action, None);
+        }
+    }
+
     fn set_raw(&mut self, action: ShortcutAction, binding: Option<ShortcutBinding>) {
         self.bindings.retain(|entry| entry.action != action);
         self.bindings.push(ShortcutOverride { action, binding });
     }
+}
+
+fn actions_can_share_binding(left: ShortcutAction, right: ShortcutAction) -> bool {
+    matches!(
+        (left, right),
+        (
+            ShortcutAction::MemoryPatternSearch,
+            ShortcutAction::MemoryCellReplace
+        ) | (
+            ShortcutAction::MemoryCellReplace,
+            ShortcutAction::MemoryPatternSearch
+        )
+    )
+}
+
+fn bindings_overlap(
+    left_action: ShortcutAction,
+    left: ShortcutBinding,
+    right_action: ShortcutAction,
+    right: Option<ShortcutBinding>,
+) -> bool {
+    right.is_some_and(|right| {
+        binding_matches(left_action, left, right) || binding_matches(right_action, right, left)
+    })
+}
+
+fn binding_matches(
+    action: ShortcutAction,
+    configured: ShortcutBinding,
+    candidate: ShortcutBinding,
+) -> bool {
+    configured == candidate
+        || (action == ShortcutAction::MemoryPatternSearch
+            && !configured.modifiers.shift
+            && candidate
+                == ShortcutBinding::new(
+                    configured.modifiers.ctrl,
+                    true,
+                    configured.modifiers.alt,
+                    configured.key,
+                ))
 }
 
 pub fn default_binding(action: ShortcutAction) -> Option<ShortcutBinding> {
@@ -311,6 +379,8 @@ pub fn default_binding(action: ShortcutAction) -> Option<ShortcutBinding> {
         Action::Redo => Some(ShortcutBinding::new(true, true, false, Key::Z)),
         Action::OpenOpcodePicker => Some(ShortcutBinding::new(false, false, false, Key::E)),
         Action::JumpMemoryStart => Some(ShortcutBinding::new(false, false, true, Key::Q)),
+        Action::MemoryPatternSearch => Some(ShortcutBinding::new(true, false, false, Key::Enter)),
+        Action::MemoryCellReplace => Some(ShortcutBinding::new(true, false, false, Key::Enter)),
         Action::MemoryCellAction => Some(ShortcutBinding::new(false, false, true, Key::Enter)),
         Action::MemoryCellReturn => Some(ShortcutBinding::new(false, true, true, Key::Enter)),
         Action::JumpMemoryEnd => Some(ShortcutBinding::new(false, false, true, Key::E)),

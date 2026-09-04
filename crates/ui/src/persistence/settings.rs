@@ -1,9 +1,9 @@
 use crate::devices::printer::PrinterSettings;
-use crate::persistence::{SettingsError, ShortcutSettings};
+use crate::persistence::{SettingsError, ShortcutAction, ShortcutSettings};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::path::{Path, PathBuf};
 
-const SETTINGS_VERSION: u32 = 10;
+const SETTINGS_VERSION: u32 = 11;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -311,7 +311,7 @@ impl SettingsStore {
         let source_version = settings.settings_version;
         match source_version {
             SETTINGS_VERSION => {}
-            1..=9 => {
+            1..=10 => {
                 if source_version == 1 {
                     settings.network = NetworkSettings::default();
                 }
@@ -333,6 +333,14 @@ impl SettingsStore {
                 .map(PrinterSettings::named)
         });
         settings.general.set_printer_settings(printer_settings);
+        if source_version <= 10 {
+            for action in [
+                ShortcutAction::MemoryCellReplace,
+                ShortcutAction::MemoryPatternSearch,
+            ] {
+                settings.shortcuts.disable_default_on_conflict(action);
+            }
+        }
         settings.shortcuts.normalize();
         Ok(settings)
     }
