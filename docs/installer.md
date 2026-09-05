@@ -96,6 +96,9 @@ file associations use a separate `NoDisplay` `kr580-file-handler.desktop`.
 Toggling associations therefore cannot remove KR580 from the application menu.
 The hidden handler records its exact executable; a target build, portable copy,
 or older installation cannot remove a handler owned by another path.
+User-level integration follows `XDG_DATA_HOME`; when it is unset or relative,
+KR580 uses `$HOME/.local/share`. Registration fails instead of writing into the
+working directory when no absolute home location is available.
 Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
 Installed-state messages use user-facing wording and do not expose the internal

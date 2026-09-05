@@ -224,8 +224,9 @@ worth eyeballing after touching `crates/ui`:
 - run `cargo run -p kr580 --bin kr -- nonexistent.580` and confirm
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm
-  `~/.local/share/mime/packages/application-x-kr580.xml` and
-  `~/.local/share/applications/kr580-file-handler.desktop` were created, the
+  `$XDG_DATA_HOME/mime/packages/application-x-kr580.xml` and
+  `$XDG_DATA_HOME/applications/kr580-file-handler.desktop` were created (using
+  `$HOME/.local/share` when `XDG_DATA_HOME` is unset), the
   handler does not appear as a second application-menu entry, and `.580` and
   `.krs` files open with `kr` from the file manager;
 - on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
