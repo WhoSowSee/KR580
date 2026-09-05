@@ -186,8 +186,9 @@ multi-binary installer. The Snapcraft Rust plugin provisions its toolchain in
 the pull phase, which runs before any part's build and cannot cooperate with a
 custom `override-build`, so the part manages the toolchain directly.
 On Linux, rfd 0.17 loads `libdbus` for XDG dialogs and falls back to `zenity`.
-The Debian, Snap, and Nix packages provide both; the desktop supplies its portal
-backend.
+The Debian setup package provides both plus `shared-mime-info` and
+`desktop-file-utils`, which supply the cache update commands used by file-type
+registration. The desktop supplies its portal backend.
 If the Windows target artifact is locked by a running installer, the PowerShell
 script writes the same setup under a numbered suffix such as
 `KR580-Setup-<version>-windows-<arch>-1.exe` instead of failing after the

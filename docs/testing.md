@@ -219,8 +219,9 @@ worth eyeballing after touching `crates/ui`:
   on Windows or `bash scripts/build_installer.sh` on Unix/macOS and confirm
   a standalone `KR580-Setup-*` artifact appears under `dist/`; for release
   packaging, also smoke-check `--target` builds and `scripts/package_installer_deb.sh` for one Linux target, confirm the
-  Debian control metadata contains `libdbus-1-3` and `zenity`, and open a file
-  dialog in the Debian, Snap, and Nix artifacts;
+  Debian control metadata contains `desktop-file-utils`, `libdbus-1-3`,
+  `shared-mime-info`, and `zenity`, and open a file dialog in the Debian, Snap,
+  and Nix artifacts;
 - run `cargo run -p kr580 --bin kr -- nonexistent.580` and confirm
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm
