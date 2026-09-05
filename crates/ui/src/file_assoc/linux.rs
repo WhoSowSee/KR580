@@ -3,14 +3,15 @@ use std::path::{Path, PathBuf};
 const HANDLER_DESKTOP_FILE: &str = "kr580-file-handler.desktop";
 
 pub fn register() -> Result<(), String> {
-    let kr = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
-    register_for_executable(&kr, crate::install_mode::InstallScope::User)
+    let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+    register_for_executable(&exe, crate::install_mode::InstallScope::User)
 }
 
 pub fn register_for_executable(
     exe: &Path,
     _scope: crate::install_mode::InstallScope,
 ) -> Result<(), String> {
+    let exe = association_executable_from(exe.to_path_buf());
     let exe_str = exe
         .to_str()
         .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
@@ -38,6 +39,11 @@ pub fn register_for_executable(
 }
 
 pub fn unregister() -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+    unregister_for_executable(&exe, crate::install_mode::InstallScope::User)
+}
+
+fn remove_registration() -> Result<(), String> {
     let _ = std::fs::remove_file(mime_dir().join("application-x-kr580.xml"));
     let _ = std::fs::remove_file(apps_dir().join(HANDLER_DESKTOP_FILE));
     let _ = std::fs::remove_file(hicolor_icon_dir().join("kr580.png"));
@@ -49,22 +55,52 @@ pub fn unregister_for_executable(
     exe: &Path,
     _scope: crate::install_mode::InstallScope,
 ) -> Result<(), String> {
+    let exe = association_executable_from(exe.to_path_buf());
     let exe_str = exe
         .to_str()
         .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
     let desktop_file = apps_dir().join(HANDLER_DESKTOP_FILE);
     let current = std::fs::read_to_string(&desktop_file).unwrap_or_default();
-    if current.contains(&format!("Exec={exe_str} %f")) {
-        unregister()?;
+    if desktop_entry_owned_by(&current, exe_str) {
+        remove_registration()?;
     }
     Ok(())
 }
 
 pub fn is_registered() -> bool {
+    let Ok(exe) = std::env::current_exe() else {
+        return false;
+    };
+    let exe = association_executable_from(exe);
+    let Some(exe_str) = exe.to_str() else {
+        return false;
+    };
     let Ok(mime) = std::fs::read_to_string(mime_dir().join("application-x-kr580.xml")) else {
         return false;
     };
-    apps_dir().join(HANDLER_DESKTOP_FILE).is_file() && mime_registration_is_current(&mime)
+    let Ok(desktop) = std::fs::read_to_string(apps_dir().join(HANDLER_DESKTOP_FILE)) else {
+        return false;
+    };
+    mime_registration_is_current(&mime) && desktop_entry_owned_by(&desktop, exe_str)
+}
+
+fn association_executable_from(exe: PathBuf) -> PathBuf {
+    if exe.file_name().is_some_and(|name| name == "kr") {
+        if let Some(directory) = exe.parent()
+            && directory.file_name().is_some_and(|name| name == "bin")
+            && let Some(root) = directory.parent()
+            && root.join(crate::install_mode::MANIFEST_FILENAME).is_file()
+        {
+            return root.join("app").join("k580");
+        }
+        return exe.with_file_name("k580");
+    }
+    exe
+}
+
+fn desktop_entry_owned_by(entry: &str, exe: &str) -> bool {
+    let expected = format!("Exec={exe} %f");
+    entry.lines().any(|line| line == expected)
 }
 
 fn home_dir() -> PathBuf {
@@ -128,7 +164,11 @@ fn update_databases() {
 
 #[cfg(test)]
 mod tests {
-    use super::{desktop_entry, mime_registration_is_current, mime_xml};
+    use super::{
+        association_executable_from, desktop_entry, desktop_entry_owned_by,
+        mime_registration_is_current, mime_xml,
+    };
+    use std::path::PathBuf;
 
     #[test]
     fn mime_registration_covers_snapshots_and_subprograms() {
@@ -142,5 +182,21 @@ mod tests {
 
         assert!(entry.contains("NoDisplay=true\n"));
         assert!(entry.contains("MimeType=application/x-kr580;\n"));
+    }
+
+    #[test]
+    fn ownership_requires_the_exact_executable() {
+        let entry = desktop_entry("/opt/kr580/app/k580");
+
+        assert!(desktop_entry_owned_by(&entry, "/opt/kr580/app/k580"));
+        assert!(!desktop_entry_owned_by(&entry, "/opt/kr580/app/k58"));
+    }
+
+    #[test]
+    fn adjacent_launcher_resolves_to_gui() {
+        assert_eq!(
+            association_executable_from(PathBuf::from("/opt/kr580/kr")),
+            PathBuf::from("/opt/kr580/k580")
+        );
     }
 }
