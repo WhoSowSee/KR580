@@ -115,6 +115,8 @@ Linux integration returns an error when `update-mime-database` or
 and Settings cannot report a cache update as completed when it failed.
 After updating those databases, Linux assigns `application/x-kr580` to the
 hidden KR580 handler through `xdg-mime`.
+Strict Snap confinement suppresses this in-app action because it cannot mutate
+the host shared-MIME database; snapd owns the package's exported handler.
 Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
 Installed-state messages use user-facing wording and do not expose the internal

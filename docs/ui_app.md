@@ -2749,6 +2749,9 @@ On Linux and macOS the row instead has one `Set as default` action. Linux
 registers the handler metadata and runs `xdg-mime default` for
 `application/x-kr580`; macOS registers the containing `KR580.app` and assigns
 both exported UTIs to its stable bundle identifier.
+Inside strict Snap confinement the row and its keyboard focus stop are omitted:
+snapd owns the exported desktop handler, while writes to the snap's private XDG
+directories cannot change the host MIME database.
 
 Finder launches deliver document paths through the `kAEOpenDocuments` Apple
 event rather than process arguments. The macOS platform bridge queues a

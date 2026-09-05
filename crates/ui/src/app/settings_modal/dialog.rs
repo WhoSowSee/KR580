@@ -201,7 +201,10 @@ impl SettingsDialog {
 
     pub(crate) fn last_content_focus(&self) -> ContentFocus {
         match self.category {
-            SettingsCategory::General => ContentFocus::FileAssociation,
+            SettingsCategory::General if k580_ui::file_assoc::is_user_configurable() => {
+                ContentFocus::FileAssociation
+            }
+            SettingsCategory::General => ContentFocus::ShowFileNameOff,
             SettingsCategory::ExternalDevices => ContentFocus::NetworkDefaults,
             SettingsCategory::Appearance => ContentFocus::Theme,
             SettingsCategory::Shortcuts => {
@@ -225,7 +228,10 @@ impl SettingsDialog {
                 }
                 ContentFocus::MemoryOperandHighlightingOff => Some(ContentFocus::ShowFileNameOn),
                 ContentFocus::ShowFileNameOn => Some(ContentFocus::ShowFileNameOff),
-                ContentFocus::ShowFileNameOff => Some(ContentFocus::FileAssociation),
+                ContentFocus::ShowFileNameOff if k580_ui::file_assoc::is_user_configurable() => {
+                    Some(ContentFocus::FileAssociation)
+                }
+                ContentFocus::ShowFileNameOff => None,
                 ContentFocus::FileAssociation => None,
                 _ => Some(self.first_content_focus()),
             },

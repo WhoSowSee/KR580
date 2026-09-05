@@ -216,6 +216,9 @@ impl DesktopApp {
                 Message::SettingsDraftPrinterDialogModeSet(PrinterDialogMode::System),
             ),
             ContentFocus::NetworkDefaults => Task::none(),
+            ContentFocus::FileAssociation if !k580_ui::file_assoc::is_user_configurable() => {
+                Task::none()
+            }
             ContentFocus::FileAssociation => {
                 #[cfg(target_os = "windows")]
                 {

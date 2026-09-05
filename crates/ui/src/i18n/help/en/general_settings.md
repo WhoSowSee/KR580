@@ -2,6 +2,7 @@ Open Settings with Ctrl+,. The dialog searches across every setting.
 
 **General**
 Language, default speed, Follow PC, operand-type highlighting, and system .580/.krs file associations.
+The association action is hidden in a confined Snap because snapd owns host desktop integration.
 
 **External Devices**
 Default floppy image, HDD directory, printer and properties-dialog mode, plus TCP client/server endpoints.

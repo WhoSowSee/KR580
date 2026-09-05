@@ -252,16 +252,18 @@ fn collect_category_rows<'a>(
             ) {
                 out.push(show_file_name_toggle_row(dialog, lang));
             }
-            if matches_query(
-                &[
-                    Key::SettingsFileAssociationLabel,
-                    Key::SettingsFileAssociationHint,
-                    Key::SettingsFileAssociationAdd,
-                    Key::SettingsFileAssociationRemove,
-                ],
-                lang,
-                lower_query,
-            ) {
+            if k580_ui::file_assoc::is_user_configurable()
+                && matches_query(
+                    &[
+                        Key::SettingsFileAssociationLabel,
+                        Key::SettingsFileAssociationHint,
+                        Key::SettingsFileAssociationAdd,
+                        Key::SettingsFileAssociationRemove,
+                    ],
+                    lang,
+                    lower_query,
+                )
+            {
                 out.push(file_association_row(dialog, lang));
             }
         }

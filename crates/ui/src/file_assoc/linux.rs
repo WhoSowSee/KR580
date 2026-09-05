@@ -13,6 +13,9 @@ pub fn register_for_executable(
     exe: &Path,
     _scope: crate::install_mode::InstallScope,
 ) -> Result<(), String> {
+    if !super::is_user_configurable() {
+        return Err("file associations are managed by snapd".to_owned());
+    }
     let exe = association_executable_from(exe.to_path_buf());
     let paths = IntegrationPaths::current()?;
 
@@ -63,6 +66,9 @@ pub fn unregister_for_executable(
     exe: &Path,
     _scope: crate::install_mode::InstallScope,
 ) -> Result<(), String> {
+    if !super::is_user_configurable() {
+        return Err("file associations are managed by snapd".to_owned());
+    }
     let exe = association_executable_from(exe.to_path_buf());
     let paths = IntegrationPaths::current()?;
     let desktop_file = paths.applications.join(HANDLER_DESKTOP_FILE);
@@ -74,6 +80,9 @@ pub fn unregister_for_executable(
 }
 
 pub fn is_registered() -> bool {
+    if !super::is_user_configurable() {
+        return false;
+    }
     let Ok(exe) = std::env::current_exe() else {
         return false;
     };
