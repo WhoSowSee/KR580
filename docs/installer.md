@@ -210,7 +210,8 @@ The packaging scripts produce:
 
 The macOS builder runs only on macOS. Before returning it validates the plist,
 Mach-O architecture, disk image, mounted app layout, icons, bundle identity,
-and Applications link. The app and DMG are intentionally unsigned and not
+document UTIs, and Applications link through `verify_macos_dmg.sh`. The app and
+DMG are intentionally unsigned and not
 notarized, so Gatekeeper may require the normal explicit first-open approval.
 
 `KR580_CARGO=cross` makes the Unix script invoke `cross build` for Linux target

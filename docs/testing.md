@@ -36,6 +36,20 @@ scanner because `crates/ui/build.rs` consumes it behind a target `cfg`.
 Linux metadata changes must validate the canonical files under
 `crates/ui/assets/linux`; runtime and package outputs are rendered from those
 same inputs and must not add independent copies.
+
+Native metadata smoke checks use disposable roots and never change the current
+user's desktop or association databases:
+
+```sh
+bash scripts/verify_linux_metadata.sh
+bash scripts/verify_macos_dmg.sh --dmg <image> --architecture <arm64|x86_64> --version <version>
+```
+
+The Linux script requires `desktop-file-utils` and `shared-mime-info`. The
+macOS script requires the built-in `hdiutil`, `plutil`, and `lipo`; it attaches
+the image read-only and always detaches it. Release CI runs the Linux ownership
+tests and metadata script natively, while each macOS image build invokes the
+DMG verifier before upload.
 Feature audits inspect the effective all-target graph and invert any dependency
 whose defaults are expected to stay off:
 

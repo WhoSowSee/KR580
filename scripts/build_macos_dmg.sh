@@ -111,20 +111,10 @@ if [[ -z "$version" ]]; then
 fi
 
 staging_dir="$(mktemp -d "${TMPDIR:-/tmp}/kr580-dmg.XXXXXX")"
-mount_dir=""
-mounted=false
 cleanup() {
-  if [[ "$mounted" == true ]]; then
-    if hdiutil detach "$mount_dir" >/dev/null 2>&1; then
-      mounted=false
-    fi
-  fi
-  if [[ "$mounted" == false && -n "$mount_dir" && -d "$mount_dir" ]]; then
-    rmdir -- "$mount_dir" 2>/dev/null || true
-  fi
-  if [[ -n "$staging_dir" && -d "$staging_dir" ]]; then
-    rm -rf -- "$staging_dir"
-  fi
+  case "$staging_dir" in
+    "${TMPDIR:-/tmp}"/kr580-dmg.*) rm -rf -- "$staging_dir" ;;
+  esac
 }
 trap cleanup EXIT
 
@@ -146,22 +136,8 @@ lipo -verify_arch "$architecture" "$macos/KR580"
 
 dmg="$dist_dir/KR580-$version-$platform.dmg"
 hdiutil create -ov -format UDZO -volname KR580 -srcfolder "$staging_dir" "$dmg"
-hdiutil verify "$dmg"
-
-mount_dir="$(mktemp -d "${TMPDIR:-/tmp}/kr580-mount.XXXXXX")"
-hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg" >/dev/null
-mounted=true
-
-test -x "$mount_dir/KR580.app/Contents/MacOS/KR580"
-test -f "$mount_dir/KR580.app/Contents/Resources/KR580.icns"
-test -f "$mount_dir/KR580.app/Contents/Resources/KR580Document.icns"
-test -L "$mount_dir/Applications"
-test "$(readlink "$mount_dir/Applications")" = "/Applications"
-plutil -lint "$mount_dir/KR580.app/Contents/Info.plist"
-test "$(plutil -extract CFBundleExecutable raw -o - "$mount_dir/KR580.app/Contents/Info.plist")" = "KR580"
-test "$(plutil -extract CFBundleIdentifier raw -o - "$mount_dir/KR580.app/Contents/Info.plist")" = "dev.kr580.emulator"
-test "$(plutil -extract CFBundleShortVersionString raw -o - "$mount_dir/KR580.app/Contents/Info.plist")" = "$version"
-
-hdiutil detach "$mount_dir" >/dev/null
-mounted=false
+bash "$script_dir/verify_macos_dmg.sh" \
+  --dmg "$dmg" \
+  --architecture "$architecture" \
+  --version "$version"
 printf 'Built application image: %s\n' "$dmg"

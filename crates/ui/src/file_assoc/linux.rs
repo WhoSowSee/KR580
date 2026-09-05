@@ -19,6 +19,12 @@ pub fn register_for_executable(
     let exe = association_executable_from(exe.to_path_buf());
     let paths = IntegrationPaths::current()?;
 
+    write_registration(&paths, &exe)?;
+    update_databases(&paths)?;
+    set_default_handler()
+}
+
+fn write_registration(paths: &IntegrationPaths, exe: &Path) -> Result<(), String> {
     std::fs::create_dir_all(&paths.mime_packages).map_err(|e| format!("create mime dir: {e}"))?;
     std::fs::create_dir_all(&paths.applications).map_err(|e| format!("create apps dir: {e}"))?;
     std::fs::create_dir_all(&paths.application_icons)
@@ -42,8 +48,7 @@ pub fn register_for_executable(
     )
     .map_err(|e| format!("write file icon: {e}"))?;
 
-    update_databases(&paths)?;
-    set_default_handler()
+    Ok(())
 }
 
 pub fn unregister() -> Result<(), String> {
@@ -51,15 +56,23 @@ pub fn unregister() -> Result<(), String> {
     unregister_for_executable(&exe, crate::install_mode::InstallScope::User)
 }
 
-fn remove_registration(paths: &IntegrationPaths) -> Result<(), String> {
+fn remove_registration_files(paths: &IntegrationPaths) {
     let _ = std::fs::remove_file(paths.mime_packages.join("application-x-kr580.xml"));
     let _ = std::fs::remove_file(paths.applications.join(HANDLER_DESKTOP_FILE));
     if !paths.applications.join("kr580.desktop").is_file() {
         let _ = std::fs::remove_file(paths.application_icons.join("kr580.png"));
     }
     let _ = std::fs::remove_file(paths.file_type_icons.join("application-x-kr580.png"));
-    update_databases(&paths)?;
-    Ok(())
+}
+
+fn remove_registration_owned_by(paths: &IntegrationPaths, exe: &Path) -> bool {
+    let desktop_file = paths.applications.join(HANDLER_DESKTOP_FILE);
+    let current = std::fs::read_to_string(desktop_file).unwrap_or_default();
+    if !desktop_entry_owned_by(&current, exe) {
+        return false;
+    }
+    remove_registration_files(paths);
+    true
 }
 
 pub fn unregister_for_executable(
@@ -71,10 +84,8 @@ pub fn unregister_for_executable(
     }
     let exe = association_executable_from(exe.to_path_buf());
     let paths = IntegrationPaths::current()?;
-    let desktop_file = paths.applications.join(HANDLER_DESKTOP_FILE);
-    let current = std::fs::read_to_string(&desktop_file).unwrap_or_default();
-    if desktop_entry_owned_by(&current, &exe) {
-        remove_registration(&paths)?;
+    if remove_registration_owned_by(&paths, &exe) {
+        update_databases(&paths)?;
     }
     Ok(())
 }
@@ -132,13 +143,17 @@ impl IntegrationPaths {
     fn current() -> Result<Self, String> {
         let data_home =
             data_home_from(std::env::var_os("XDG_DATA_HOME"), std::env::var_os("HOME"))?;
-        Ok(Self {
+        Ok(Self::from_data_home(data_home))
+    }
+
+    fn from_data_home(data_home: PathBuf) -> Self {
+        Self {
             mime_packages: data_home.join("mime/packages"),
             applications: data_home.join("applications"),
             application_icons: data_home.join("icons/hicolor/256x256/apps"),
             file_type_icons: data_home.join("icons/hicolor/256x256/mimetypes"),
             data_home,
-        })
+        }
     }
 }
 
@@ -185,8 +200,9 @@ fn set_default_handler() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        association_executable_from, data_home_from, desktop_entry_owned_by,
-        mime_registration_is_current,
+        HANDLER_DESKTOP_FILE, IntegrationPaths, association_executable_from, data_home_from,
+        desktop_entry_owned_by, mime_registration_is_current, remove_registration_owned_by,
+        write_registration,
     };
     use std::ffi::OsString;
     use std::path::PathBuf;
@@ -207,15 +223,28 @@ mod tests {
     }
 
     #[test]
-    fn ownership_requires_the_exact_executable() {
+    fn temporary_registration_preserves_foreign_owners() {
+        let data_home = unique_temp_dir();
+        std::fs::create_dir(&data_home).unwrap();
+        let paths = IntegrationPaths::from_data_home(data_home.clone());
         let executable = PathBuf::from("/opt/kr580/app/k580");
-        let entry = crate::desktop_entry::file_handler(&executable).unwrap();
+        write_registration(&paths, &executable).unwrap();
 
+        let desktop_file = paths.applications.join(HANDLER_DESKTOP_FILE);
+        let mime_file = paths.mime_packages.join("application-x-kr580.xml");
+        let entry = std::fs::read_to_string(&desktop_file).unwrap();
         assert!(desktop_entry_owned_by(&entry, &executable));
-        assert!(!desktop_entry_owned_by(
-            &entry,
+        assert!(!remove_registration_owned_by(
+            &paths,
             PathBuf::from("/opt/kr580/app/k58").as_path()
         ));
+        assert!(desktop_file.is_file());
+        assert!(mime_file.is_file());
+        assert!(remove_registration_owned_by(&paths, &executable));
+        assert!(!desktop_file.exists());
+        assert!(!mime_file.exists());
+
+        std::fs::remove_dir_all(data_home).unwrap();
     }
 
     #[test]
@@ -241,5 +270,16 @@ mod tests {
             PathBuf::from("/home/user/.local/share")
         );
         assert!(data_home_from(None, None).is_err());
+    }
+
+    fn unique_temp_dir() -> PathBuf {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "kr580-linux-association-{}-{nonce}",
+            std::process::id()
+        ))
     }
 }
