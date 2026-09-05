@@ -115,9 +115,9 @@ fn association_executable_from(exe: PathBuf) -> PathBuf {
                 .is_some_and(|name| name.eq_ignore_ascii_case("bin"))
             && let Some(root) = directory.parent()
         {
-            return root.join("app").join("k580.exe");
+            return root.join("app").join("kr580.exe");
         }
-        return exe.with_file_name("k580.exe");
+        return exe.with_file_name("kr580.exe");
     }
     exe
 }
@@ -315,7 +315,7 @@ mod tests {
     fn file_association_registered_from_launcher_points_to_gui_binary() {
         assert_eq!(
             association_executable_from(PathBuf::from(r"D:\kr-580\target\release\kr.exe")),
-            PathBuf::from(r"D:\kr-580\target\release\k580.exe")
+            PathBuf::from(r"D:\kr-580\target\release\kr580.exe")
         );
     }
 
@@ -323,7 +323,7 @@ mod tests {
     fn installed_launcher_points_to_app_gui_binary() {
         assert_eq!(
             association_executable_from(PathBuf::from(r"C:\Programs\KR580\bin\kr.exe")),
-            PathBuf::from(r"C:\Programs\KR580\app\k580.exe")
+            PathBuf::from(r"C:\Programs\KR580\app\kr580.exe")
         );
     }
 
@@ -332,7 +332,7 @@ mod tests {
         let exe = association_executable_from(PathBuf::from(r"D:\kr-580\target\release\kr.exe"));
         assert_eq!(
             open_command_for(&exe).unwrap(),
-            r#""D:\kr-580\target\release\k580.exe" "%1""#
+            r#""D:\kr-580\target\release\kr580.exe" "%1""#
         );
     }
 }

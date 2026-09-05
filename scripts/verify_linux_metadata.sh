@@ -27,7 +27,7 @@ render_desktop() {
   local source="$1"
   local target="$2"
   grep -Fq '@EXEC@' "$source"
-  sed 's|@EXEC@|/opt/kr580/k580|g' "$source" > "$target"
+  sed 's|@EXEC@|/opt/kr580/kr580|g' "$source" > "$target"
   ! grep -Fq '@EXEC@' "$target"
   desktop-file-validate "$target"
 }

@@ -245,7 +245,7 @@ impl Installer {
                     async move {
                         match report.mode {
                             InstallMode::Portable => platform::open_folder(&report.install_dir),
-                            InstallMode::System => platform::launch_app(&report.k580_path),
+                            InstallMode::System => platform::launch_app(&report.kr580_path),
                         }
                     },
                     Message::PostInstallActionFinished,

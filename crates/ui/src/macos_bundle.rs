@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 pub const APP_BUNDLE_NAME: &str = "KR580.app";
 pub const BUNDLE_ID: &str = "dev.kr580.emulator";
-pub const BUNDLE_EXECUTABLE: &str = "KR580";
+pub const BUNDLE_EXECUTABLE: &str = "kr580";
 pub const SNAPSHOT_UTI: &str = "dev.kr580.snapshot";
 pub const SUBPROGRAM_UTI: &str = "dev.kr580.subprogram";
 
@@ -26,14 +26,11 @@ pub fn write_launcher_bundle(bundle: &Path, executable: &Path) -> Result<(), Str
         .map_err(|error| format!("create app resources: {error}"))?;
     std::fs::write(contents.join("Info.plist"), info_plist())
         .map_err(|error| format!("write Info.plist: {error}"))?;
-    let launcher = macos.join(BUNDLE_EXECUTABLE);
-    std::fs::write(&launcher, launcher_script(executable))
-        .map_err(|error| format!("write app launcher: {error}"))?;
     std::fs::write(resources.join("KR580.icns"), APPLICATION_ICON)
         .map_err(|error| format!("write app icon: {error}"))?;
     std::fs::write(resources.join("KR580Document.icns"), DOCUMENT_ICON)
         .map_err(|error| format!("write document icon: {error}"))?;
-    make_executable(&launcher)
+    replace_launcher(&macos, executable)
 }
 
 pub fn bundle_owned_by(bundle: &Path, executable: &Path) -> bool {
@@ -101,6 +98,31 @@ fn make_executable(path: &Path) -> Result<(), String> {
     std::fs::set_permissions(path, permissions).map_err(|error| format!("set permissions: {error}"))
 }
 
+fn replace_launcher(macos: &Path, executable: &Path) -> Result<(), String> {
+    let staged = macos.join(".kr580-launcher");
+    std::fs::write(&staged, launcher_script(executable))
+        .map_err(|error| format!("write app launcher: {error}"))?;
+    make_executable(&staged)?;
+    let result = remove_file_if_exists(&macos.join("KR580"))
+        .and_then(|()| remove_file_if_exists(&macos.join(BUNDLE_EXECUTABLE)))
+        .and_then(|()| {
+            std::fs::rename(&staged, macos.join(BUNDLE_EXECUTABLE))
+                .map_err(|error| format!("install app launcher: {error}"))
+        });
+    if result.is_err() {
+        let _ = std::fs::remove_file(staged);
+    }
+    result
+}
+
+fn remove_file_if_exists(path: &Path) -> Result<(), String> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("remove {}: {error}", path.display())),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -122,8 +144,8 @@ mod tests {
         assert!(plist.contains("<string>krs</string>"));
         assert!(!plist.contains("@VERSION@"));
         assert_eq!(
-            launcher_script(Path::new("/Applications/Jack's KR580/k580")),
-            "#!/bin/sh\nexec '/Applications/Jack'\\''s KR580/k580' \"$@\"\n"
+            launcher_script(Path::new("/Applications/Jack's KR580/kr580")),
+            "#!/bin/sh\nexec '/Applications/Jack'\\''s KR580/kr580' \"$@\"\n"
         );
     }
 
@@ -131,10 +153,10 @@ mod tests {
     fn containing_bundle_is_resolved_from_macos_executable_path() {
         assert_eq!(
             containing_application_bundle(Path::new(
-                "/Applications/KR580.app/Contents/MacOS/KR580"
+                "/Applications/KR580.app/Contents/MacOS/kr580"
             )),
             Some(Path::new("/Applications/KR580.app").to_path_buf())
         );
-        assert_eq!(containing_application_bundle(Path::new("/opt/k580")), None);
+        assert_eq!(containing_application_bundle(Path::new("/opt/kr580")), None);
     }
 }

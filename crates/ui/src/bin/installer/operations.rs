@@ -19,7 +19,7 @@ pub(super) struct InstallRequest {
 pub(super) struct InstallReport {
     pub(super) mode: InstallMode,
     pub(super) install_dir: PathBuf,
-    pub(super) k580_path: PathBuf,
+    pub(super) kr580_path: PathBuf,
     pub(super) path_changed: bool,
     pub(super) system_integrated: bool,
     pub(super) desktop_shortcut_created: bool,
@@ -44,13 +44,14 @@ pub(super) fn install(request: InstallRequest) -> Result<InstallReport, String> 
             .map_err(|e| format!("create data dir: {e}"))?;
     }
 
-    let k580_path = app_dir.join(binary_name("k580"));
+    let kr580_path = app_dir.join(binary_name("kr580"));
     let kr_path = bin_dir.join(binary_name("kr"));
     let uninstaller_path = app_dir.join(binary_name("uninstaller"));
 
-    copy_executable(&source.k580, &k580_path)?;
+    copy_executable(&source.kr580, &kr580_path)?;
     copy_executable(&source.kr, &kr_path)?;
     copy_executable(&source.uninstaller, &uninstaller_path)?;
+    remove_legacy_gui_binary(&request.install_dir)?;
     let mut manifest = InstallManifest::new(request.mode, request.scope);
     write_manifest(&request.install_dir, &manifest)?;
 
@@ -64,7 +65,7 @@ pub(super) fn install(request: InstallRequest) -> Result<InstallReport, String> 
             platform::install_system_integration(&platform::SystemIntegrationRequest {
                 scope: request.scope,
                 install_dir: &request.install_dir,
-                k580_path: &k580_path,
+                kr580_path: &kr580_path,
                 uninstaller_path: &uninstaller_path,
                 create_desktop_shortcut: request.create_desktop_shortcut,
             })?;
@@ -73,7 +74,7 @@ pub(super) fn install(request: InstallRequest) -> Result<InstallReport, String> 
         None
     };
     let file_association_created = if request.associate_program_files {
-        k580_ui::file_assoc::register_for_executable(&k580_path, request.scope)?;
+        k580_ui::file_assoc::register_for_executable(&kr580_path, request.scope)?;
         true
     } else {
         false
@@ -84,7 +85,7 @@ pub(super) fn install(request: InstallRequest) -> Result<InstallReport, String> 
     Ok(InstallReport {
         mode: request.mode,
         install_dir: request.install_dir,
-        k580_path,
+        kr580_path,
         path_changed,
         system_integrated: integration.is_some(),
         desktop_shortcut_created: integration
@@ -107,8 +108,8 @@ pub(super) fn remove_system_entries(install_dir: PathBuf) -> Result<UninstallPla
 
 pub(super) fn remove_links(plan: UninstallPlan) -> Result<(), String> {
     if plan.manifest.file_association {
-        let k580_path = plan.install_dir.join("app").join(binary_name("k580"));
-        k580_ui::file_assoc::unregister_for_executable(&k580_path, plan.manifest.scope)?;
+        let kr580_path = plan.install_dir.join("app").join(binary_name("kr580"));
+        k580_ui::file_assoc::unregister_for_executable(&kr580_path, plan.manifest.scope)?;
     }
     let _ = platform::remove_from_path(&plan.install_dir.join("bin"), plan.manifest.scope)?;
     Ok(())
@@ -134,7 +135,7 @@ fn default_portable_install_dir() -> PathBuf {
 
 struct SourceBundle {
     kr: SourceBinary,
-    k580: SourceBinary,
+    kr580: SourceBinary,
     uninstaller: SourceBinary,
 }
 
@@ -150,7 +151,7 @@ impl SourceBundle {
         }
         Ok(Self {
             kr: SourceBinary::File(find_source_binary("kr")?),
-            k580: SourceBinary::File(find_source_binary("k580")?),
+            kr580: SourceBinary::File(find_source_binary("kr580")?),
             uninstaller: SourceBinary::File(find_uninstaller_source()?),
         })
     }
@@ -158,12 +159,12 @@ impl SourceBundle {
     fn embedded() -> Result<Option<Self>, String> {
         match (
             payload::EMBEDDED_KR,
-            payload::EMBEDDED_K580,
+            payload::EMBEDDED_KR580,
             payload::EMBEDDED_UNINSTALLER,
         ) {
-            (Some(kr), Some(k580), Some(uninstaller)) => Ok(Some(Self {
+            (Some(kr), Some(kr580), Some(uninstaller)) => Ok(Some(Self {
                 kr: SourceBinary::Embedded(kr),
-                k580: SourceBinary::Embedded(k580),
+                kr580: SourceBinary::Embedded(kr580),
                 uninstaller: SourceBinary::Embedded(uninstaller),
             })),
             (None, None, None) => Ok(None),
@@ -225,6 +226,20 @@ fn copy_executable(source: &SourceBinary, destination: &Path) -> Result<(), Stri
     platform::make_executable(destination)
 }
 
+fn remove_legacy_gui_binary(install_dir: &Path) -> Result<(), String> {
+    let legacy = install_dir.join("app").join(binary_name("k580"));
+    if !legacy.is_file() {
+        return Ok(());
+    }
+    let manifest_path = install_dir.join(k580_ui::install_mode::MANIFEST_FILENAME);
+    if !manifest_path.is_file() {
+        return Ok(());
+    }
+    let manifest = read_manifest(install_dir)?;
+    k580_ui::file_assoc::unregister_for_executable(&legacy, manifest.scope)?;
+    std::fs::remove_file(&legacy).map_err(|e| format!("remove {}: {e}", legacy.display()))
+}
+
 fn read_manifest(root: &Path) -> Result<InstallManifest, String> {
     let json = std::fs::read_to_string(root.join(k580_ui::install_mode::MANIFEST_FILENAME))
         .map_err(|e| format!("read install manifest: {e}"))?;
@@ -258,8 +273,26 @@ mod tests {
     #[test]
     fn binary_names_match_platform_suffix() {
         #[cfg(windows)]
-        assert_eq!(binary_name("kr"), "kr.exe");
+        assert_eq!(binary_name("kr580"), "kr580.exe");
         #[cfg(not(windows))]
-        assert_eq!(binary_name("kr"), "kr");
+        assert_eq!(binary_name("kr580"), "kr580");
+    }
+
+    #[test]
+    fn unmanaged_legacy_binary_is_preserved() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root =
+            std::env::temp_dir().join(format!("kr580-unmanaged-{}-{nonce}", std::process::id()));
+        let legacy = root.join("app").join(binary_name("k580"));
+        std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        std::fs::write(&legacy, b"unmanaged").unwrap();
+
+        remove_legacy_gui_binary(&root).unwrap();
+
+        assert!(legacy.is_file());
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

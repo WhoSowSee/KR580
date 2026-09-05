@@ -62,7 +62,7 @@ if [[ -z "$dist_dir" ]]; then
 fi
 
 KR580_WINDOWS_ICON_KIND= \
-  "$cargo_bin" build "${profile_args[@]}" "${target_args[@]}" -p kr580 --bin k580 --bin kr --manifest-path "$manifest_path"
+  "$cargo_bin" build "${profile_args[@]}" "${target_args[@]}" -p kr580 --bin kr580 --bin kr --manifest-path "$manifest_path"
 
 host_target_root="${CARGO_TARGET_DIR:-$repo_root/target}"
 container_target_root="$host_target_root"

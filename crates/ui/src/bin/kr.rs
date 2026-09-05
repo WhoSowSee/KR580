@@ -42,7 +42,7 @@ fn main() {
             }
         }
         CliAction::OpenFile(path) => {
-            if let Err(error) = spawn_k580(path.as_deref()) {
+            if let Err(error) = spawn_kr580(path.as_deref()) {
                 eprintln!("error: {error}");
                 std::process::exit(1);
             }
@@ -102,16 +102,16 @@ fn run_assoc(action: fn() -> Result<(), String>, success: &str) {
     }
 }
 
-fn spawn_k580(file: Option<&Path>) -> std::io::Result<()> {
-    let k580 = match k580_executable() {
+fn spawn_kr580(file: Option<&Path>) -> std::io::Result<()> {
+    let kr580 = match kr580_executable() {
         Ok(path) => path,
         Err(error) => {
             #[cfg(debug_assertions)]
-            build_k580()?;
-            k580_executable().map_err(|_| error)?
+            build_kr580()?;
+            kr580_executable().map_err(|_| error)?
         }
     };
-    let mut cmd = Command::new(&k580);
+    let mut cmd = Command::new(&kr580);
     cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
@@ -137,10 +137,10 @@ fn spawn_installer() -> std::io::Result<()> {
 }
 
 #[cfg(debug_assertions)]
-fn build_k580() -> std::io::Result<()> {
+fn build_kr580() -> std::io::Result<()> {
     let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
     let status = std::process::Command::new(cargo)
-        .args(["build", "-p", "kr580", "--bin", "k580"])
+        .args(["build", "-p", "kr580", "--bin", "kr580"])
         .status()
         .map_err(|e| {
             std::io::Error::new(
@@ -152,13 +152,13 @@ fn build_k580() -> std::io::Result<()> {
         Ok(())
     } else {
         Err(std::io::Error::other(
-            "cargo build -p kr580 --bin k580 failed",
+            "cargo build -p kr580 --bin kr580 failed",
         ))
     }
 }
 
-fn k580_executable() -> std::io::Result<PathBuf> {
-    find_executable(k580_binary_name(), &[], "k580")
+fn kr580_executable() -> std::io::Result<PathBuf> {
+    find_executable(kr580_binary_name(), &[], "kr580")
 }
 
 fn installer_executable() -> std::io::Result<PathBuf> {
@@ -235,13 +235,13 @@ fn is_uninstaller_binary(path: &Path) -> bool {
 }
 
 #[cfg(target_os = "windows")]
-fn k580_binary_name() -> &'static str {
-    "k580.exe"
+fn kr580_binary_name() -> &'static str {
+    "kr580.exe"
 }
 
 #[cfg(not(target_os = "windows"))]
-fn k580_binary_name() -> &'static str {
-    "k580"
+fn kr580_binary_name() -> &'static str {
+    "kr580"
 }
 
 #[cfg(target_os = "windows")]
@@ -322,8 +322,8 @@ mod tests {
         let root = PathBuf::from("kr580-root");
         let launcher = root.join("bin").join("kr");
         assert_eq!(
-            installed_app_binary_from_launcher(&launcher, "k580"),
-            Some(root.join("app").join("k580"))
+            installed_app_binary_from_launcher(&launcher, "kr580"),
+            Some(root.join("app").join("kr580"))
         );
     }
 }

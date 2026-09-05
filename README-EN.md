@@ -92,7 +92,7 @@ nix run github:WhoSowSee/KR580
 nix profile install github:WhoSowSee/KR580
 ```
 
-The NixOS package installs ready-to-run `k580` and `kr` binaries, the desktop entry, icons, and the `.580` / `.krs` MIME types directly through the Nix store. The standalone setup wizard is not used for this path.
+The NixOS package installs ready-to-run `kr580` and `kr` binaries, the desktop entry, icons, and the `.580` / `.krs` MIME types directly through the Nix store. The standalone setup wizard is not used for this path.
 
 ### Run from source
 
@@ -105,10 +105,10 @@ cargo run -p kr580
 ### Build the GUI and launcher
 
 ```bash
-cargo build --release -p kr580 --bin k580 --bin kr
+cargo build --release -p kr580 --bin kr580 --bin kr
 ```
 
-The built binaries are placed under `target/release/` as `k580` / `kr` or `k580.exe` / `kr.exe`.
+The built binaries are placed under `target/release/` as `kr580` / `kr` or `kr580.exe` / `kr.exe`.
 
 ### Build packages
 

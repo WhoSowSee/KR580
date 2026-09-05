@@ -118,9 +118,9 @@ fn association_executable_from(exe: PathBuf) -> PathBuf {
             && let Some(root) = directory.parent()
             && root.join(crate::install_mode::MANIFEST_FILENAME).is_file()
         {
-            return root.join("app").join("k580");
+            return root.join("app").join("kr580");
         }
-        return exe.with_file_name("k580");
+        return exe.with_file_name("kr580");
     }
     exe
 }
@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn file_handler_is_hidden_from_application_menus() {
-        let executable = PathBuf::from("/opt/kr580/k580");
+        let executable = PathBuf::from("/opt/kr580/kr580");
         let entry = crate::desktop_entry::file_handler(&executable).unwrap();
 
         assert!(entry.lines().any(|line| line == "Name=KR580"));
@@ -228,7 +228,7 @@ mod tests {
         let data_home = unique_temp_dir();
         std::fs::create_dir(&data_home).unwrap();
         let paths = IntegrationPaths::from_data_home(data_home.clone());
-        let executable = PathBuf::from("/opt/kr580/app/k580");
+        let executable = PathBuf::from("/opt/kr580/app/kr580");
         write_registration(&paths, &executable).unwrap();
 
         let desktop_file = paths.applications.join(HANDLER_DESKTOP_FILE);
@@ -237,7 +237,7 @@ mod tests {
         assert!(desktop_entry_owned_by(&entry, &executable));
         assert!(!remove_registration_owned_by(
             &paths,
-            PathBuf::from("/opt/kr580/app/k58").as_path()
+            PathBuf::from("/opt/kr580/app/kr58").as_path()
         ));
         assert!(desktop_file.is_file());
         assert!(mime_file.is_file());
@@ -252,7 +252,7 @@ mod tests {
     fn adjacent_launcher_resolves_to_gui() {
         assert_eq!(
             association_executable_from(PathBuf::from("/opt/kr580/kr")),
-            PathBuf::from("/opt/kr580/k580")
+            PathBuf::from("/opt/kr580/kr580")
         );
     }
 

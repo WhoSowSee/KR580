@@ -72,24 +72,24 @@ mod tests {
     #[test]
     fn executable_quoting_covers_desktop_entry_metacharacters() {
         let quoted = quote_executable(Path::new(
-            "/opt/KR 580/$money/`tick`/back\\slash/\"quote\"/100%/k580",
+            "/opt/KR 580/$money/`tick`/back\\slash/\"quote\"/100%/kr580",
         ))
         .unwrap();
 
         assert_eq!(
             quoted,
-            r#""/opt/KR 580/\\$money/\\`tick\\`/back\\\\slash/\\\"quote\\\"/100%%/k580""#
+            r#""/opt/KR 580/\\$money/\\`tick\\`/back\\\\slash/\\\"quote\\\"/100%%/kr580""#
         );
-        assert!(quote_executable(Path::new("/opt/KR=580/k580")).is_err());
-        assert!(quote_executable(Path::new("/opt/KR\n580/k580")).is_err());
+        assert!(quote_executable(Path::new("/opt/KR=580/kr580")).is_err());
+        assert!(quote_executable(Path::new("/opt/KR\n580/kr580")).is_err());
     }
 
     #[test]
     fn canonical_launcher_renders_its_executable() {
-        let executable = Path::new("/opt/kr580/k580");
+        let executable = Path::new("/opt/kr580/kr580");
         let launcher = launcher(executable).unwrap();
 
-        assert!(launcher.contains("Exec=\"/opt/kr580/k580\"\n"));
+        assert!(launcher.contains("Exec=\"/opt/kr580/kr580\"\n"));
         assert!(!launcher.contains("@EXEC@"));
     }
 }

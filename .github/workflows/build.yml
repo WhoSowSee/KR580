@@ -220,11 +220,11 @@ jobs:
           check_root=$(mktemp -d)
           check_dir="$check_root/root"
           unsquashfs -d "$check_dir" "$snap_name" >/dev/null
-          test -x "$check_dir/bin/k580"
+          test -x "$check_dir/bin/kr580"
           test ! -e "$check_dir/bin/k580-installer"
           test ! -e "$check_dir/bin/k580-uninstaller"
           desktop-file-validate "$check_dir/meta/gui/kr580.desktop"
-          grep -Fq 'command: bin/k580' "$check_dir/meta/snap.yaml"
+          grep -Fq 'command: bin/kr580' "$check_dir/meta/snap.yaml"
           grep -Fq 'MimeType=application/x-kr580;' "$check_dir/meta/gui/kr580.desktop"
           version=$(awk -F'"' '/^version[[:space:]]*=/ { print $2; exit }' Cargo.toml)
           test -n "$version"

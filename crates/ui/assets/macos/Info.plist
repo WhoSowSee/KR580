@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>KR580</string>
+    <string>kr580</string>
     <key>CFBundleIdentifier</key>
     <string>dev.kr580.emulator</string>
     <key>CFBundleName</key>

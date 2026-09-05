@@ -89,7 +89,7 @@ mod tests {
         std::fs::write(root.join(MANIFEST_FILENAME), "{}").unwrap();
 
         assert_eq!(
-            install_root_from_executable(&root.join("app").join(binary_name("k580"))),
+            install_root_from_executable(&root.join("app").join(binary_name("kr580"))),
             Some(root.clone())
         );
 

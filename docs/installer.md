@@ -2,7 +2,7 @@
 
 `kr580` builds four desktop-facing binaries:
 
-- `k580` - the GUI emulator.
+- `kr580` - the GUI emulator.
 - `kr` - the terminal launcher and file-association helper.
 - `k580-installer` - the graphical installer.
 - `k580-uninstaller` - the graphical uninstaller payload installed as
@@ -10,13 +10,13 @@
 
 The user-facing setup artifact is built by `scripts/build_installer.ps1`
 on Windows or `scripts/build_installer.sh` on Linux/Unix. The scripts first
-build `k580` and `kr`, then build `k580-uninstaller` with the uninstall icon,
+build `kr580` and `kr`, then build `k580-uninstaller` with the uninstall icon,
 then rebuild `k580-installer` with the setup icon and those binaries embedded.
 The resulting file under `dist/` is the installer a new user runs before `kr`
 exists.
 
 macOS releases use `scripts/build_macos_dmg.sh` instead. It packages the native
-`k580` executable directly as `KR580.app`, copies the canonical plist and both
+`kr580` executable directly as `KR580.app`, copies the canonical plist and both
 ICNS resources, and creates an unsigned compressed DMG with an `/Applications`
 link. The user drags the complete app into Applications; no setup executable or
 uninstaller is nested in the image.
@@ -125,7 +125,7 @@ folder for the current user.
 Installed-state messages use user-facing wording and do not expose the internal
 `app/`, `bin/`, or portable data folders.
 macOS integration uses one `KR580.app` contract: bundle identifier
-`dev.kr580.emulator`, executable name `KR580`, and the canonical
+`dev.kr580.emulator`, executable name `kr580`, and the canonical
 `crates/ui/assets/macos/Info.plist` template. The installer and association
 layer no longer generate different bundle names or metadata.
 The bundle exports `dev.kr580.snapshot` for `.580` and
@@ -228,7 +228,7 @@ names, stages the dynamically loaded X11/Wayland/font/dialog libraries, and
 uses the GPU extension for driver-compatible graphics. Build dependencies stay
 minimal because the graphics crates load those libraries at runtime.
 The Rust plugin uses the workspace's tested Rust 1.88.0 MSRV and builds only
-`crates/ui`'s `k580` binary. Its override calls the
+`crates/ui`'s `kr580` binary. Its override calls the
 plugin's default build before installing the application icon and rendering the
 canonical package Desktop Entry. There are no setup/uninstall commands or
 nested installation directories: snapd owns installation, refresh, removal,
@@ -251,10 +251,12 @@ release build has already completed.
 ## NixOS Package
 
 `flake.nix` exposes a Nix package for `x86_64-linux` and `aarch64-linux`.
-That package installs the ready-to-run `k580` and `kr` binaries, desktop entry,
+That package installs the ready-to-run `kr580` and `kr` binaries, desktop entry,
 icons, and `.580` / `.krs` MIME metadata into the Nix store. It does not run the
 graphical setup flow because NixOS owns PATH, desktop integration, and package
 activation declaratively.
+Its desktop entry launches `kr580` directly; `kr` remains available as the
+optional terminal launcher.
 
 The release workflow runs `nix flake check --no-build` and builds
 `.#packages.x86_64-linux.default`; tagged releases wait for that job before the
@@ -279,7 +281,7 @@ The setup writes a split layout under the selected root:
 <install root>/
   install.json
   app/
-    k580
+    kr580
     uninstaller
   bin/
     kr
@@ -287,6 +289,10 @@ The setup writes a split layout under the selected root:
 ```
 
 On Windows the file names include `.exe`.
+When setup reuses an older manifest-owned install root, it unregisters an
+association owned by the legacy `app/k580` executable in the scope recorded by
+that manifest and removes the old file after copying `app/kr580`. A selected
+folder without a valid `install.json` never authorizes legacy-file cleanup.
 
 ## Modes
 
@@ -335,7 +341,7 @@ Temporary floppy-buffer and image files still use `std::env::temp_dir()`, so
 throwaway files stay in the OS temp area instead of the portable data folder.
 Portable mode does not create Start Menu/search entries, desktop shortcuts,
 or uninstall registry/application entries. If its file-association checkbox is selected,
-the `.580` and `.krs` associations point directly to that portable `app/k580` binary.
+the `.580` and `.krs` associations point directly to that portable `app/kr580` binary.
 Running the portable `app/uninstaller` removes the recorded associations,
 removes the exact `<install root>/bin` PATH entry if it exists, and then removes
 the portable folder after the final Close/`Закрыть` action. Manual folder
@@ -366,4 +372,4 @@ Linux and macOS installs are user-scoped. Their PATH checkbox writes a managed
 KR580 block to `~/.profile` on Linux/Unix and `~/.zprofile` on macOS.
 
 The PATH checkbox adds only `<install root>/bin`, which contains `kr`. The GUI
-binary lives under `<install root>/app`, so PATH does not expose `k580`.
+binary lives under `<install root>/app`, so PATH does not expose `kr580`.

@@ -171,10 +171,10 @@ worth eyeballing after touching `crates/ui`:
   mux/status column retain their original wide separation; maximize the window
   and confirm the two columns remain centred as a compact group with a 72 px gap;
 
-- launch the `k580` binary and confirm there is no white flash on
+- launch the `kr580` binary and confirm there is no white flash on
   Windows (cloak/uncloak via DWM, see `docs/ui_app.md`);
 - run `cargo build --release -p kr580` and double-click
-  `target/release/k580.exe`: no console window should pop up;
+  `target/release/kr580.exe`: no console window should pop up;
 - run `cargo run -p kr580 --bin kr -- <path/to/file.580>` and confirm
   the GUI loads the snapshot and the terminal prompt returns immediately;
 - drag a `.580` file over the main emulator and confirm the surface darkens
@@ -216,8 +216,11 @@ worth eyeballing after touching `crates/ui`:
 - after a System-mode smoke install on Windows, confirm `KR580.lnk` exists in
   the selected Start Menu scope, the optional desktop shortcut follows the
   checkbox, no terminal window flashes while shortcuts are created, the `.580`
-  and `.krs` associations follow their checkbox, the install root contains `app/k580.exe`,
+  and `.krs` associations follow their checkbox, the install root contains `app/kr580.exe`,
   `app/uninstaller.exe`, and `bin/kr.exe`, no installed `app/k580-installer.exe`,
+  and upgrading a manifest-owned legacy root removes `app/k580.exe` plus any
+  association owned by that exact executable, while the same path in a folder
+  without `install.json` is preserved;
   the setup file shows the setup icon, the installed `app/uninstaller.exe`
   shows the uninstall icon, and Apps & Features receives a `KR580` uninstall
   entry whose command points at `uninstaller.exe --uninstall <install root>`;
@@ -244,8 +247,8 @@ worth eyeballing after touching `crates/ui`:
   Debian control metadata contains `desktop-file-utils`, `libdbus-1-3`,
   `shared-mime-info`, `xdg-utils`, and `zenity`, and open a file dialog in the
   Debian, Snap, and Nix artifacts;
-- inspect the built Snap and confirm `bin/k580` and `meta/gui/kr580.desktop`
-  exist, the app command is `bin/k580`, and neither `k580-installer` nor
+- inspect the built Snap and confirm `bin/kr580` and `meta/gui/kr580.desktop`
+  exist, the app command is `bin/kr580`, and neither `k580-installer` nor
   `k580-uninstaller` is present; launch it, persist a setting across refresh,
   open `.580`/`.krs` through the app, and verify the association action is
   absent under confinement;
@@ -261,7 +264,7 @@ worth eyeballing after touching `crates/ui`:
   `kr580-file-handler.desktop`;
 - on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/Applications/KR580.app` uses bundle identifier `dev.kr580.emulator`,
-  executable name `KR580`, the generated version from the canonical plist,
+  executable name `kr580`, the generated version from the canonical plist,
   separate snapshot/subprogram UTIs, valid application/document ICNS files,
   and successful registration through `LSRegisterURL`; double-click one file
   of each type in Finder and confirm the existing app receives the document,

@@ -23,28 +23,28 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 
 ## Installation Layout
 
-`kr580` builds `k580`, `kr`, `k580-installer`, and `k580-uninstaller`. The
-setup builder first builds `k580` and `kr`, then builds `k580-uninstaller` with
+`kr580` builds `kr580`, `kr`, `k580-installer`, and `k580-uninstaller`. The
+setup builder first builds `kr580` and `kr`, then builds `k580-uninstaller` with
 the uninstall icon, then rebuilds `k580-installer` with the setup icon and
 those binaries embedded so a new user can run the setup before any KR580 files
 exist on the machine. The installer writes `install.json` at the install root,
-keeps `k580` under `app/`, keeps the installed maintenance binary as
+keeps `kr580` under `app/`, keeps the installed maintenance binary as
 `app/uninstaller`, keeps `kr` under `bin/`, and only adds `bin/` to PATH when
 requested.
 macOS releases instead contain the GUI executable directly in
-`KR580.app/Contents/MacOS/KR580`; the surrounding DMG supplies an Applications
+`KR580.app/Contents/MacOS/kr580`; the surrounding DMG supplies an Applications
 link and relies on normal drag-and-drop installation rather than the setup
 state machine.
 Portable installs default to the user's `KR580` folder and store settings under
 `<install root>/data`; both install modes can optionally associate `.580`
-snapshots and `.krs` subprograms with `app/k580`. System installs use the platform config directory and
+snapshots and `.krs` subprograms with `app/kr580`. System installs use the platform config directory and
 add OS integration: Start Menu/search launchers, optional desktop launchers,
 and uninstall cleanup where the platform supports them. See
 `docs/installer.md`.
 Executables inside a macOS application bundle use Application Support even
 without an installer manifest. Strict Snap executions use the writable,
 revision-independent `SNAP_USER_COMMON` directory.
-The Snap exposes `k580` itself as its only app command; snapd owns its lifecycle
+The Snap exposes `kr580` itself as its only app command; snapd owns its lifecycle
 and exported desktop entry, so no nested installer, uninstaller, PATH writer,
 or private desktop database is involved.
 

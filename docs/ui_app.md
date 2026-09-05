@@ -49,11 +49,11 @@ RAM-range dialog. Detached device windows do not accept program drops.
   app-level theme/style. `app/windows.rs` opens and configures the native
   windows. The binary also pins the Windows subsystem to GUI on release builds (see
   "Console window suppression").
-- `bin/kr.rs` is the terminal launcher. It opens `k580`, registers or removes
+- `bin/kr.rs` is the terminal launcher. It opens `kr580`, registers or removes
   `.580` / `.krs` file associations, and opens the setup UI through `--install` for
   developer layouts. New users get the standalone setup artifact produced by
   `scripts/build_installer.*`; they do not need `kr` first. Installed layouts
-  resolve `bin/kr` to `app/k580`, and `--install` launches `app/uninstaller`
+  resolve `bin/kr` to `app/kr580`, and `--install` launches `app/uninstaller`
   with `--setup`, so PATH only exposes the launcher directory.
 - `system_locale.rs` resolves the default UI language from the operating
   system. A Russian system UI maps to `Language::Ru`; English and every other
@@ -68,7 +68,7 @@ RAM-range dialog. Detached device windows do not accept program drops.
   desktop/search integration, and uninstall cleanup. On Windows, System mode
   writes Start Menu/Desktop shortcuts and an Apps & Features uninstall entry
   that calls `uninstaller --uninstall <root>`. Both System and Portable mode
-  can optionally associate `.580` and `.krs` files with the installed `app/k580` binary;
+  can optionally associate `.580` and `.krs` files with the installed `app/kr580` binary;
   Portable mode writes no Start Menu, desktop, or uninstall entry. On Windows,
   the standalone setup binary uses the setup PE icon, while the installed
   `app/uninstaller.exe` is a separate payload binary with the uninstall PE
@@ -2698,23 +2698,23 @@ Cross-platform fall-backs:
 
 ## Console window suppression
 
-The `k580` GUI binary sets `windows_subsystem = "windows"` (via a top-of-file
-`#![cfg_attr(...)]`) so launching `k580.exe` from Explorer does not spawn
+The `kr580` GUI binary sets `windows_subsystem = "windows"` (via a top-of-file
+`#![cfg_attr(...)]`) so launching `kr580.exe` from Explorer does not spawn
 a stray console window. Debug builds keep the default console subsystem
 so `tracing` output stays visible during `cargo run`.
 
 The `kr` launcher is a separate console binary: it prints help/version
-messages and file-association status to the terminal, then spawns `k580`
+messages and file-association status to the terminal, then spawns `kr580`
 and exits, leaving the terminal prompt free.
 
 ## CLI arguments
 
 The UI ships two binaries:
 
-- `k580` – the GUI process. It is meant to be launched by `kr` or by
+- `kr580` – the GUI process. It is meant to be launched by `kr` or by
   the OS shell (Explorer double-click). It accepts a single optional
   positional argument: a `.580` snapshot or `.krs` subprogram to open.
-- `kr` – the terminal launcher. It parses CLI options, spawns `k580`
+- `kr` – the terminal launcher. It parses CLI options, spawns `kr580`
   in the background, and exits immediately, like `zed` or `code`.
 
 ```sh
@@ -2723,8 +2723,8 @@ kr [OPTION] [FILE]
 
 When building from source, `cargo run -p kr580` starts the `kr` CLI
 launcher by default. In debug builds `kr` automatically builds the
-`k580` GUI binary if it is missing, so `cargo run -p kr580` works
-without a manual `cargo build` step. Use `cargo run -p kr580 --bin k580`
+`kr580` GUI binary if it is missing, so `cargo run -p kr580` works
+without a manual `cargo build` step. Use `cargo run -p kr580 --bin kr580`
 to start the GUI binary directly.
 
 - `kr` – launch the GUI with an empty snapshot.
@@ -2732,7 +2732,7 @@ to start the GUI binary directly.
 - `kr --help` / `kr -h` – print usage to stdout and exit.
 - `kr --version` / `kr -V` – print the version and exit.
 - `kr --register-file-type` / `kr -r` – register the `.580` and `.krs` file
-  handlers. The open command points directly to the neighboring `k580` GUI
+  handlers. The open command points directly to the neighboring `kr580` GUI
   binary, so launching an associated file does not show a transient console
   window.
 - `kr --unregister-file-type` / `kr -u` – remove the `.580` and `.krs` file
@@ -2770,15 +2770,15 @@ handler. All user-level MIME, desktop, and icon paths are rooted at the absolute
 The visible launcher and hidden handler both use `KR580` as their display name,
 so file-manager Open With lists do not expose an `Emulator` suffix.
 
-`kr` looks for the `k580` executable in the same directory as itself
-(`k580.exe` on Windows, `k580` elsewhere), redirects its stdio to `/dev/null`,
+`kr` looks for the `kr580` executable in the same directory as itself
+(`kr580.exe` on Windows, `kr580` elsewhere), redirects its stdio to `/dev/null`,
 spawns it, and returns without waiting.
 
-On Windows, registering from either `kr.exe` or `k580.exe` maps both `.580`
+On Windows, registering from either `kr.exe` or `kr580.exe` maps both `.580`
 and `.krs` to the same `K580.Snapshot` ProgID and `OpenWithProgids` entry.
 The ProgID display value and GUI executable file description are both `KR580`,
 which is the label presented for the handler.
-Both use the Explorer open command `"k580.exe" "%1"` in the registering
+Both use the Explorer open command `"kr580.exe" "%1"` in the registering
 binary's installation. Existing registry entries that still point at
 `kr.exe` are treated as stale by the settings toggle and are overwritten on
 the next register action.

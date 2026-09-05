@@ -28,7 +28,7 @@ if ([string]::IsNullOrWhiteSpace($DistDir)) {
 
 Remove-Item Env:\KR580_WINDOWS_ICON_KIND -ErrorAction SilentlyContinue
 
-& cargo build @ProfileArgs @TargetArgs -p kr580 --bin k580 --bin kr --manifest-path $ManifestPath
+& cargo build @ProfileArgs @TargetArgs -p kr580 --bin kr580 --bin kr --manifest-path $ManifestPath
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }

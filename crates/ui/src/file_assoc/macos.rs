@@ -34,9 +34,9 @@ fn association_executable_from(executable: PathBuf) -> PathBuf {
             && let Some(root) = directory.parent()
             && root.join(crate::install_mode::MANIFEST_FILENAME).is_file()
         {
-            return root.join("app/k580");
+            return root.join("app/kr580");
         }
-        return executable.with_file_name("k580");
+        return executable.with_file_name("kr580");
     }
     executable
 }
@@ -50,7 +50,7 @@ mod tests {
     fn adjacent_launcher_resolves_to_gui() {
         assert_eq!(
             association_executable_from(PathBuf::from("/opt/kr580/kr")),
-            PathBuf::from("/opt/kr580/k580")
+            PathBuf::from("/opt/kr580/kr580")
         );
     }
 }

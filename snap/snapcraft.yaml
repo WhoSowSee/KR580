@@ -18,7 +18,7 @@ platforms:
 
 apps:
   kr580:
-    command: bin/k580
+    command: bin/kr580
     desktop: usr/share/applications/kr580.desktop
     extensions: [gpu]
     plugs:
@@ -38,7 +38,7 @@ parts:
     source: .
     rust-channel: "1.88.0"
     rust-path: [crates/ui]
-    rust-cargo-parameters: [--bin, k580]
+    rust-cargo-parameters: [--bin, kr580]
     build-packages:
       - desktop-file-utils
     stage-packages:

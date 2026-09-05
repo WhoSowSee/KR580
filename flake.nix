@@ -59,7 +59,7 @@
               "-p"
               "kr580"
               "--bin"
-              "k580"
+              "kr580"
               "--bin"
               "kr"
             ];
@@ -68,7 +68,7 @@
               runHook preInstall
               install_target_dir="target/${pkgs.stdenv.targetPlatform.rust.cargoShortTarget}/$cargoBuildType"
 
-              install -Dm755 "$install_target_dir/k580" "$out/bin/k580"
+              install -Dm755 "$install_target_dir/kr580" "$out/bin/kr580"
               install -Dm755 "$install_target_dir/kr" "$out/bin/kr"
               install -Dm644 crates/ui/assets/icons/icon-256.png "$out/share/icons/hicolor/256x256/apps/kr580.png"
               install -Dm644 crates/ui/assets/icons/file-580.png "$out/share/icons/hicolor/256x256/mimetypes/application-x-kr580.png"
@@ -76,14 +76,14 @@
               mkdir -p "$out/share/applications"
               substitute crates/ui/assets/linux/kr580-package.desktop \
                 "$out/share/applications/kr580.desktop" \
-                --replace-fail '@EXEC@' 'kr'
+                --replace-fail '@EXEC@' 'kr580'
               install -Dm644 crates/ui/assets/linux/application-x-kr580.xml \
                 "$out/share/mime/packages/application-x-kr580.xml"
 
               runHook postInstall
             '';
             postFixup = ''
-              wrapProgram "$out/bin/k580" \
+              wrapProgram "$out/bin/kr580" \
                 --prefix PATH : ${lib.makeBinPath [ pkgs.zenity ]} \
                 --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
               wrapProgram "$out/bin/kr" --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
@@ -92,7 +92,7 @@
               description = "Desktop KR580VM80 / Intel 8080 emulator";
               homepage = "https://github.com/WhoSowSee/KR580";
               license = lib.licenses.mit;
-              mainProgram = "k580";
+              mainProgram = "kr580";
               platforms = systems;
             };
           };
@@ -109,7 +109,7 @@
         {
           default = {
             type = "app";
-            program = "${package}/bin/k580";
+            program = "${package}/bin/kr580";
           };
           kr = {
             type = "app";

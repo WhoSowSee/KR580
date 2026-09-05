@@ -17,30 +17,30 @@ fn write_installer_payload_module() {
     let code = match payload_dir {
         Some(dir) => {
             let kr = dir.join(binary_name("kr"));
-            let k580 = dir.join(binary_name("k580"));
+            let kr580 = dir.join(binary_name("kr580"));
             let uninstaller = dir.join(binary_name("k580-uninstaller"));
-            if !kr.is_file() || !k580.is_file() || !uninstaller.is_file() {
+            if !kr.is_file() || !kr580.is_file() || !uninstaller.is_file() {
                 panic!(
                     "installer payload missing: {}, {}, or {}",
                     kr.display(),
-                    k580.display(),
+                    kr580.display(),
                     uninstaller.display()
                 );
             }
             println!("cargo:rerun-if-changed={}", kr.display());
-            println!("cargo:rerun-if-changed={}", k580.display());
+            println!("cargo:rerun-if-changed={}", kr580.display());
             println!("cargo:rerun-if-changed={}", uninstaller.display());
             format!(
                 "pub const EMBEDDED_KR: Option<&'static [u8]> = Some(include_bytes!(r#\"{}\"#));\n\
-                 pub const EMBEDDED_K580: Option<&'static [u8]> = Some(include_bytes!(r#\"{}\"#));\n\
+                 pub const EMBEDDED_KR580: Option<&'static [u8]> = Some(include_bytes!(r#\"{}\"#));\n\
                  pub const EMBEDDED_UNINSTALLER: Option<&'static [u8]> = Some(include_bytes!(r#\"{}\"#));\n",
                 kr.display(),
-                k580.display(),
+                kr580.display(),
                 uninstaller.display()
             )
         }
         None => "pub const EMBEDDED_KR: Option<&'static [u8]> = None;\n\
-             pub const EMBEDDED_K580: Option<&'static [u8]> = None;\n\
+             pub const EMBEDDED_KR580: Option<&'static [u8]> = None;\n\
              pub const EMBEDDED_UNINSTALLER: Option<&'static [u8]> = None;\n"
             .to_owned(),
     };

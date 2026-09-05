@@ -92,7 +92,7 @@ nix run github:WhoSowSee/KR580
 nix profile install github:WhoSowSee/KR580
 ```
 
-NixOS-пакет ставит готовые `k580` и `kr`, desktop entry, иконки и MIME-типы `.580` / `.krs` напрямую через Nix store. Standalone-установщик для этого сценария не используется.
+NixOS-пакет ставит готовые `kr580` и `kr`, desktop entry, иконки и MIME-типы `.580` / `.krs` напрямую через Nix store. Standalone-установщик для этого сценария не используется.
 
 ### Запуск из исходников
 
@@ -105,10 +105,10 @@ cargo run -p kr580
 ### Сборка GUI и launcher
 
 ```bash
-cargo build --release -p kr580 --bin k580 --bin kr
+cargo build --release -p kr580 --bin kr580 --bin kr
 ```
 
-Готовые бинарники появятся в `target/release/` как `k580` / `kr` или `k580.exe` / `kr.exe`.
+Готовые бинарники появятся в `target/release/` как `kr580` / `kr` или `kr580.exe` / `kr.exe`.
 
 ### Сборка пакетов
 

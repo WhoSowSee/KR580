@@ -71,7 +71,7 @@ fn install_freedesktop_integration(
     let applications = applications_dir();
     std::fs::create_dir_all(&applications).map_err(|e| format!("create applications dir: {e}"))?;
     let desktop_file = applications.join("kr580.desktop");
-    let desktop_entry = k580_ui::desktop_entry::launcher(request.k580_path)?;
+    let desktop_entry = k580_ui::desktop_entry::launcher(request.kr580_path)?;
     std::fs::write(&desktop_file, &desktop_entry)
         .map_err(|e| format!("write desktop entry: {e}"))?;
     make_executable(&desktop_file)?;
@@ -100,11 +100,11 @@ fn install_macos_integration(
 ) -> Result<super::SystemIntegrationReport, String> {
     let app_root =
         k580_ui::macos_bundle::applications_dir()?.join(k580_ui::macos_bundle::APP_BUNDLE_NAME);
-    k580_ui::macos_bundle::write_launcher_bundle(&app_root, request.k580_path)?;
+    k580_ui::macos_bundle::write_launcher_bundle(&app_root, request.kr580_path)?;
 
     let desktop_shortcut_created = if request.create_desktop_shortcut {
         let shortcut = desktop_dir().join("KR580.command");
-        std::fs::write(&shortcut, launcher_script(request.k580_path))
+        std::fs::write(&shortcut, launcher_script(request.kr580_path))
             .map_err(|e| format!("write desktop launcher: {e}"))?;
         make_executable(&shortcut)?;
         true
@@ -222,10 +222,10 @@ fn shell_single_quote(value: &str) -> String {
 }
 
 #[cfg(target_os = "macos")]
-fn launcher_script(k580_path: &Path) -> String {
+fn launcher_script(kr580_path: &Path) -> String {
     format!(
         "#!/bin/sh\nexec {} \"$@\"\n",
-        shell_single_quote(&k580_path.display().to_string())
+        shell_single_quote(&kr580_path.display().to_string())
     )
 }
 

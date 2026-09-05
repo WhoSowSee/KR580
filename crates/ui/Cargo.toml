@@ -80,7 +80,7 @@ name = "k580_ui"
 path = "src/lib.rs"
 
 [[bin]]
-name = "k580"
+name = "kr580"
 path = "src/main.rs"
 
 [[bin]]

@@ -9,7 +9,7 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 pub struct IntegrationRequest<'a> {
     pub scope: InstallScope,
     pub install_dir: &'a Path,
-    pub k580_path: &'a Path,
+    pub kr580_path: &'a Path,
     pub uninstaller_path: &'a Path,
     pub create_desktop_shortcut: bool,
 }
@@ -24,7 +24,7 @@ pub fn install(request: &IntegrationRequest<'_>) -> Result<IntegrationReport, St
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("create start menu shortcut directory: {e}"))?;
     }
-    create_shortcut(&start_menu, request.k580_path, "KR580 Emulator")?;
+    create_shortcut(&start_menu, request.kr580_path, "KR580 Emulator")?;
 
     let desktop_shortcut_created = if request.create_desktop_shortcut {
         let desktop = desktop_shortcut_path(request.scope);
@@ -32,7 +32,7 @@ pub fn install(request: &IntegrationRequest<'_>) -> Result<IntegrationReport, St
             std::fs::create_dir_all(parent)
                 .map_err(|e| format!("create desktop shortcut directory: {e}"))?;
         }
-        create_shortcut(&desktop, request.k580_path, "KR580 Emulator")?;
+        create_shortcut(&desktop, request.kr580_path, "KR580 Emulator")?;
         true
     } else {
         false

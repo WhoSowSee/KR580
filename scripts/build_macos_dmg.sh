@@ -84,7 +84,7 @@ if [[ -z "$dist_dir" ]]; then
 fi
 
 "$cargo_bin" build "${profile_args[@]}" "${target_args[@]}" \
-  --locked -p kr580 --bin k580 --manifest-path "$manifest_path"
+  --locked -p kr580 --bin kr580 --manifest-path "$manifest_path"
 
 if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
   case "$CARGO_TARGET_DIR" in
@@ -95,9 +95,9 @@ else
   target_root="$repo_root/target"
 fi
 if [[ -n "$target" ]]; then
-  binary="$target_root/$target/$profile/k580"
+  binary="$target_root/$target/$profile/kr580"
 else
-  binary="$target_root/$profile/k580"
+  binary="$target_root/$profile/kr580"
 fi
 if [[ ! -x "$binary" ]]; then
   echo "built application not found: $binary" >&2
@@ -124,7 +124,7 @@ macos="$contents/MacOS"
 resources="$contents/Resources"
 mkdir -p "$macos" "$resources" "$dist_dir"
 
-install -m 755 "$binary" "$macos/KR580"
+install -m 755 "$binary" "$macos/kr580"
 install -m 644 "$repo_root/crates/ui/assets/icons/KR580.icns" "$resources/KR580.icns"
 install -m 644 "$repo_root/crates/ui/assets/icons/KR580Document.icns" "$resources/KR580Document.icns"
 sed "s/@VERSION@/$version/g" \
@@ -132,7 +132,7 @@ sed "s/@VERSION@/$version/g" \
 ln -s /Applications "$staging_dir/Applications"
 
 plutil -lint "$contents/Info.plist"
-lipo -verify_arch "$architecture" "$macos/KR580"
+lipo -verify_arch "$architecture" "$macos/kr580"
 
 dmg="$dist_dir/KR580-$version-$platform.dmg"
 hdiutil create -ov -format UDZO -volname KR580 -srcfolder "$staging_dir" "$dmg"

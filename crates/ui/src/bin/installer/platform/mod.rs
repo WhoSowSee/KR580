@@ -5,7 +5,7 @@ use std::process::Command;
 pub struct SystemIntegrationRequest<'a> {
     pub scope: InstallScope,
     pub install_dir: &'a Path,
-    pub k580_path: &'a Path,
+    pub kr580_path: &'a Path,
     pub uninstaller_path: &'a Path,
     pub create_desktop_shortcut: bool,
 }
@@ -129,7 +129,7 @@ fn platform_install_system_integration(
     let report = windows::install_system_integration(&windows::IntegrationRequest {
         scope: request.scope,
         install_dir: request.install_dir,
-        k580_path: request.k580_path,
+        kr580_path: request.kr580_path,
         uninstaller_path: request.uninstaller_path,
         create_desktop_shortcut: request.create_desktop_shortcut,
     })?;
