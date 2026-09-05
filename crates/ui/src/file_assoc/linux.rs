@@ -37,7 +37,7 @@ pub fn register_for_executable(
     )
     .map_err(|e| format!("write file icon: {e}"))?;
 
-    update_databases(&paths);
+    update_databases(&paths)?;
     Ok(())
 }
 
@@ -53,7 +53,7 @@ fn remove_registration(paths: &IntegrationPaths) -> Result<(), String> {
         let _ = std::fs::remove_file(paths.application_icons.join("kr580.png"));
     }
     let _ = std::fs::remove_file(paths.file_type_icons.join("application-x-kr580.png"));
-    update_databases(&paths);
+    update_databases(&paths)?;
     Ok(())
 }
 
@@ -182,13 +182,9 @@ fn desktop_entry(executable: &Path) -> Result<String, String> {
     ))
 }
 
-fn update_databases(paths: &IntegrationPaths) {
-    let _ = std::process::Command::new("update-mime-database")
-        .arg(paths.data_home.join("mime"))
-        .status();
-    let _ = std::process::Command::new("update-desktop-database")
-        .arg(&paths.applications)
-        .status();
+fn update_databases(paths: &IntegrationPaths) -> Result<(), String> {
+    crate::desktop_entry::update_mime_database(&paths.data_home.join("mime"))?;
+    crate::desktop_entry::update_desktop_database(&paths.applications)
 }
 
 #[cfg(test)]

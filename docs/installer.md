@@ -101,6 +101,9 @@ KR580 uses `$HOME/.local/share`. Registration fails instead of writing into the
 working directory when no absolute home location is available.
 Generated Desktop Entry commands quote paths according to the freedesktop
 rules, including reserved characters and literal percent signs.
+Linux integration returns an error when `update-mime-database` or
+`update-desktop-database` is missing or exits unsuccessfully, so the installer
+and Settings cannot report a cache update as completed when it failed.
 Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
 Installed-state messages use user-facing wording and do not expose the internal

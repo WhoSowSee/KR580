@@ -87,7 +87,7 @@ fn install_freedesktop_integration(
         false
     };
 
-    update_desktop_database();
+    k580_ui::desktop_entry::update_desktop_database(&applications)?;
     Ok(super::SystemIntegrationReport {
         desktop_shortcut_created,
     })
@@ -134,8 +134,7 @@ pub fn remove_system_integration(_install_dir: &Path, _scope: InstallScope) -> R
     {
         let _ = std::fs::remove_file(applications_dir().join("kr580.desktop"));
         let _ = std::fs::remove_file(desktop_dir().join("KR580.desktop"));
-        update_desktop_database();
-        Ok(())
+        k580_ui::desktop_entry::update_desktop_database(&applications_dir())
     }
 }
 
@@ -263,12 +262,6 @@ fn macos_info_plist() -> &'static str {
 </dict>
 </plist>
 "#
-}
-
-fn update_desktop_database() {
-    let _ = Command::new("update-desktop-database")
-        .arg(applications_dir())
-        .status();
 }
 
 #[cfg(test)]

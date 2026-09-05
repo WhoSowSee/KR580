@@ -24,6 +24,29 @@ pub fn quote_executable(executable: &Path) -> Result<String, String> {
     Ok(quoted)
 }
 
+pub fn update_desktop_database(directory: &Path) -> Result<(), String> {
+    run_database_command("update-desktop-database", directory)
+}
+
+pub fn update_mime_database(directory: &Path) -> Result<(), String> {
+    run_database_command("update-mime-database", directory)
+}
+
+fn run_database_command(command: &str, directory: &Path) -> Result<(), String> {
+    let status = std::process::Command::new(command)
+        .arg(directory)
+        .status()
+        .map_err(|error| format!("{command} {}: {error}", directory.display()))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "{command} {} exited with {status}",
+            directory.display()
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::quote_executable;
