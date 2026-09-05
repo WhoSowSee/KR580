@@ -98,8 +98,9 @@ impl DesktopApp {
             | Message::SettingsResetCancelled
             | Message::SettingsSectionCycle { .. }
             | Message::SettingsFileAssociationRegister
-            | Message::SettingsFileAssociationUnregister
             | Message::PrinterSessionSetupFinished(_) => None,
+            #[cfg(target_os = "windows")]
+            Message::SettingsFileAssociationUnregister => None,
             Message::EscPressed => {
                 if dialog.recording_shortcut.is_some() {
                     Some(Task::done(Message::SettingsShortcutCaptureCancelled))
@@ -216,12 +217,19 @@ impl DesktopApp {
             ),
             ContentFocus::NetworkDefaults => Task::none(),
             ContentFocus::FileAssociation => {
-                let registered = k580_ui::file_assoc::is_registered();
-                Task::done(if registered {
-                    Message::SettingsFileAssociationUnregister
-                } else {
-                    Message::SettingsFileAssociationRegister
-                })
+                #[cfg(target_os = "windows")]
+                {
+                    let registered = k580_ui::file_assoc::is_registered();
+                    Task::done(if registered {
+                        Message::SettingsFileAssociationUnregister
+                    } else {
+                        Message::SettingsFileAssociationRegister
+                    })
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    Task::done(Message::SettingsFileAssociationRegister)
+                }
             }
             ContentFocus::Theme => Task::none(),
             ContentFocus::Shortcut(action) => {

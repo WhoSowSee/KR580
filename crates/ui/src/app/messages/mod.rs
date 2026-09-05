@@ -373,5 +373,6 @@ pub(crate) enum Message {
         backward: bool,
     },
     SettingsFileAssociationRegister,
+    #[cfg(target_os = "windows")]
     SettingsFileAssociationUnregister,
 }

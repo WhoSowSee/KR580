@@ -43,8 +43,20 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::SettingsMonitorLayoutUnified => "Unified",
         Key::SettingsMonitorLayoutSplit => "Split",
         Key::SettingsFileAssociationLabel => ".580 and .krs file associations",
-        Key::SettingsFileAssociationHint => "Register KR580 as a handler for .580 and .krs files",
-        Key::SettingsFileAssociationAdd => "Add",
+        Key::SettingsFileAssociationHint => {
+            if cfg!(any(target_os = "linux", target_os = "macos")) {
+                "Use KR580 by default for .580 and .krs files"
+            } else {
+                "Register KR580 as a handler for .580 and .krs files"
+            }
+        }
+        Key::SettingsFileAssociationAdd => {
+            if cfg!(any(target_os = "linux", target_os = "macos")) {
+                "Set as default"
+            } else {
+                "Add"
+            }
+        }
         Key::SettingsFileAssociationRemove => "Remove",
         Key::ErrHddDirectoryNotWritable => "Cannot use this directory – no write permission",
         Key::SettingsToggleOn => "On",

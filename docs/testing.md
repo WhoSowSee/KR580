@@ -222,8 +222,8 @@ worth eyeballing after touching `crates/ui`:
   a standalone `KR580-Setup-*` artifact appears under `dist/`; for release
   packaging, also smoke-check `--target` builds and `scripts/package_installer_deb.sh` for one Linux target, confirm the
   Debian control metadata contains `desktop-file-utils`, `libdbus-1-3`,
-  `shared-mime-info`, and `zenity`, and open a file dialog in the Debian, Snap,
-  and Nix artifacts;
+  `shared-mime-info`, `xdg-utils`, and `zenity`, and open a file dialog in the
+  Debian, Snap, and Nix artifacts;
 - run `cargo run -p kr580 --bin kr -- nonexistent.580` and confirm
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm
@@ -231,7 +231,9 @@ worth eyeballing after touching `crates/ui`:
   `$XDG_DATA_HOME/applications/kr580-file-handler.desktop` were created (using
   `$HOME/.local/share` when `XDG_DATA_HOME` is unset), the
   handler does not appear as a second application-menu entry, and `.580` and
-  `.krs` files open with `kr` from the file manager;
+  `.krs` files open with `kr` from the file manager; confirm
+  `xdg-mime query default application/x-kr580` returns
+  `kr580-file-handler.desktop`;
 - on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/Applications/KR580.app` uses bundle identifier `dev.kr580.emulator`,
   executable name `KR580`, the generated version from the canonical plist,

@@ -104,6 +104,8 @@ rules, including reserved characters and literal percent signs.
 Linux integration returns an error when `update-mime-database` or
 `update-desktop-database` is missing or exits unsuccessfully, so the installer
 and Settings cannot report a cache update as completed when it failed.
+After updating those databases, Linux assigns `application/x-kr580` to the
+hidden KR580 handler through `xdg-mime`.
 Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
 Installed-state messages use user-facing wording and do not expose the internal
@@ -121,6 +123,8 @@ The in-app association action locates the `KR580.app` containing the running
 executable, or the installer-owned bundle in `~/Applications`. It registers
 that existing bundle without copying binaries, rewriting metadata, or deleting
 the application when association state changes.
+The same action makes `dev.kr580.snapshot` and `dev.kr580.subprogram` default to
+the stable KR580 bundle identifier through the public Launch Services role API.
 The default window is `720x600` logical pixels with a `680x560` minimum. The
 fixed command bar uses the same canvas as the setup body and keeps the compact
 `176x40` primary action visible at the minimum size and at high DPI. Hover uses
@@ -199,9 +203,10 @@ multi-binary installer. The Snapcraft Rust plugin provisions its toolchain in
 the pull phase, which runs before any part's build and cannot cooperate with a
 custom `override-build`, so the part manages the toolchain directly.
 On Linux, rfd 0.17 loads `libdbus` for XDG dialogs and falls back to `zenity`.
-The Debian setup package provides both plus `shared-mime-info` and
-`desktop-file-utils`, which supply the cache update commands used by file-type
-registration. The desktop supplies its portal backend.
+The Debian setup package provides both plus `shared-mime-info`,
+`desktop-file-utils`, and `xdg-utils`, which supply the cache update and
+default-handler commands used by file-type registration. The desktop supplies
+its portal backend.
 If the Windows target artifact is locked by a running installer, the PowerShell
 script writes the same setup under a numbered suffix such as
 `KR580-Setup-<version>-windows-<arch>-1.exe` instead of failing after the

@@ -10,7 +10,8 @@ pub fn register() -> Result<(), String> {
 pub fn register_for_executable(executable: &Path, _scope: InstallScope) -> Result<(), String> {
     let executable = association_executable_from(executable.to_path_buf());
     let bundle = find_for_executable(&executable)?;
-    crate::macos_launch_services::register_bundle(&bundle)
+    crate::macos_launch_services::register_bundle(&bundle)?;
+    crate::macos_launch_services::set_default_handlers()
 }
 
 pub fn unregister() -> Result<(), String> {
@@ -23,9 +24,7 @@ pub fn unregister_for_executable(_executable: &Path, _scope: InstallScope) -> Re
 }
 
 pub fn is_registered() -> bool {
-    std::env::current_exe()
-        .map(association_executable_from)
-        .is_ok_and(|executable| find_for_executable(&executable).is_ok())
+    crate::macos_launch_services::is_default_handler()
 }
 
 fn association_executable_from(executable: PathBuf) -> PathBuf {

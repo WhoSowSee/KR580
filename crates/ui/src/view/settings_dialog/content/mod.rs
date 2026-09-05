@@ -14,7 +14,9 @@ use crate::app::{Message, SETTINGS_CONTENT_SCROLL_ID, SettingsCategory, Settings
 use crate::i18n::{Key, Lang, NetworkKey};
 use crate::view::icons;
 
+mod association;
 mod rows;
+use association::file_association_row;
 use rows::*;
 
 const SCROLL_HINT_HEIGHT: f32 = 24.0;

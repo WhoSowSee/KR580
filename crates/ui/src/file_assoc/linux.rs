@@ -2,6 +2,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 const HANDLER_DESKTOP_FILE: &str = "kr580-file-handler.desktop";
+const MIME_TYPE: &str = "application/x-kr580";
 
 pub fn register() -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
@@ -38,7 +39,7 @@ pub fn register_for_executable(
     .map_err(|e| format!("write file icon: {e}"))?;
 
     update_databases(&paths)?;
-    Ok(())
+    set_default_handler()
 }
 
 pub fn unregister() -> Result<(), String> {
@@ -185,6 +186,18 @@ fn desktop_entry(executable: &Path) -> Result<String, String> {
 fn update_databases(paths: &IntegrationPaths) -> Result<(), String> {
     crate::desktop_entry::update_mime_database(&paths.data_home.join("mime"))?;
     crate::desktop_entry::update_desktop_database(&paths.applications)
+}
+
+fn set_default_handler() -> Result<(), String> {
+    let status = std::process::Command::new("xdg-mime")
+        .args(["default", HANDLER_DESKTOP_FILE, MIME_TYPE])
+        .status()
+        .map_err(|error| format!("xdg-mime default: {error}"))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("xdg-mime default exited with {status}"))
+    }
 }
 
 #[cfg(test)]

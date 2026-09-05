@@ -2596,7 +2596,7 @@ each file under the 400-line ceiling:
   overlay messages.
 - `app/status.rs` – `StatusKind` and its `render(lang)` so language
   changes re-render the status bar.
-- `view/settings_dialog/{mod,consts,header,sidebar,content,language,
+- `view/settings_dialog/{mod,consts,header,sidebar,content/{mod,association,rows},language,
   network,speed,theme_row,shortcuts_row,footer,setting_row,reset_confirm,
   styles}.rs` – the view layer split per zone. `mod.rs` composes the
   four-zone modal and stacks the reset-confirm overlay on top when armed.
@@ -2732,12 +2732,17 @@ to start the GUI binary directly.
 - `kr --unregister-file-type` / `kr -u` – remove the `.580` and `.krs` file
   associations.
 
-The same toggle is available in the in-app Settings dialog under
-General → `.580 and .krs file associations`. The button reads `Add` when either
-association is missing and `Remove` when both are present. While the dialog
-is open the UI polls the OS state on every frame tick, so changes made
-from the terminal (e.g. `kr -r`) or any other source are reflected in
-the button label without closing and reopening the dialog.
+The same control is available in the in-app Settings dialog under
+General → `.580 and .krs file associations`. On Windows, the button reads
+`Add` when either handler registration is missing and `Remove` when both are
+present. While the dialog is open the UI polls the OS state on every frame tick,
+so changes made from the terminal (e.g. `kr -r`) or any other source are
+reflected in the button label without closing and reopening the dialog.
+
+On Linux and macOS the row instead has one `Set as default` action. Linux
+registers the handler metadata and runs `xdg-mime default` for
+`application/x-kr580`; macOS registers the containing `KR580.app` and assigns
+both exported UTIs to its stable bundle identifier.
 
 On Linux, `kr580.desktop` remains the visible application launcher and the
 association layer owns a separate hidden `kr580-file-handler.desktop`. Both

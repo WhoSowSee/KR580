@@ -289,6 +289,7 @@ impl DesktopApp {
             Message::SettingsFileAssociationRegister => {
                 Some(self.update_file_association(k580_ui::file_assoc::register))
             }
+            #[cfg(target_os = "windows")]
             Message::SettingsFileAssociationUnregister => {
                 Some(self.update_file_association(k580_ui::file_assoc::unregister))
             }

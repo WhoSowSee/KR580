@@ -42,9 +42,19 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::SettingsMonitorLayoutSplit => "Разделённый",
         Key::SettingsFileAssociationLabel => "Ассоциации .580 и .krs",
         Key::SettingsFileAssociationHint => {
-            "Зарегистрировать KR580 как обработчик файлов .580 и .krs"
+            if cfg!(any(target_os = "linux", target_os = "macos")) {
+                "Использовать KR580 по умолчанию для файлов .580 и .krs"
+            } else {
+                "Зарегистрировать KR580 как обработчик файлов .580 и .krs"
+            }
         }
-        Key::SettingsFileAssociationAdd => "Добавить",
+        Key::SettingsFileAssociationAdd => {
+            if cfg!(any(target_os = "linux", target_os = "macos")) {
+                "По умолчанию"
+            } else {
+                "Добавить"
+            }
+        }
         Key::SettingsFileAssociationRemove => "Удалить",
         Key::ErrHddDirectoryNotWritable => {
             "Невозможно использовать этот каталог – нет прав на запись"

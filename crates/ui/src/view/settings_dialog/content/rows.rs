@@ -230,34 +230,6 @@ pub(super) fn monitor_layout_row(dialog: &SettingsDialog, lang: Lang) -> Element
     )
 }
 
-pub(super) fn file_association_row<'a>(
-    dialog: &'a SettingsDialog,
-    lang: Lang,
-) -> Element<'a, Message> {
-    let kb_focused = dialog.content_focus_is_visible(ContentFocus::FileAssociation);
-
-    let registered = k580_ui::file_assoc::is_registered();
-    let label = if registered {
-        Key::SettingsFileAssociationRemove
-    } else {
-        Key::SettingsFileAssociationAdd
-    };
-    let message = if registered {
-        Message::SettingsFileAssociationUnregister
-    } else {
-        Message::SettingsFileAssociationRegister
-    };
-
-    let btn = settings_browse_button(lang.t(label), message, kb_focused);
-    let control = row![Space::new().width(Length::Fill), btn].align_y(alignment::Vertical::Center);
-
-    setting_row(
-        lang.t(Key::SettingsFileAssociationLabel),
-        lang.t(Key::SettingsFileAssociationHint),
-        control.into(),
-    )
-}
-
 pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
     let kb_focused = dialog.content_focus_is_visible(ContentFocus::FloppyImage);
 
@@ -315,7 +287,7 @@ pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
     )
 }
 
-fn settings_browse_button<'a>(
+pub(super) fn settings_browse_button<'a>(
     label: &'static str,
     message: Message,
     kb_focused: bool,
