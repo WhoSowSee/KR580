@@ -1,5 +1,13 @@
 //! Platform helpers for native window presentation and pointer tracking.
 
+#[cfg(target_os = "macos")]
+mod macos_open_documents;
+
+#[cfg(target_os = "macos")]
+pub(crate) use macos_open_documents::{
+    install as install_open_document_handler, take_pending_path,
+};
+
 #[cfg(windows)]
 pub(crate) fn cloak_window(window: &dyn iced::window::Window, cloaked: bool) {
     use iced::window::raw_window_handle::RawWindowHandle;

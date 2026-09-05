@@ -14,6 +14,10 @@ use super::state::DesktopApp;
 
 impl DesktopApp {
     pub(crate) fn handle_tick(&mut self) -> Task<Message> {
+        #[cfg(target_os = "macos")]
+        if let Some(path) = crate::platform::take_pending_path() {
+            self.open_associated_file(path);
+        }
         self.pull_events();
         self.refresh_open_image_contents();
         let now = Instant::now();

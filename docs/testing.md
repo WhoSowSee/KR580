@@ -238,7 +238,9 @@ worth eyeballing after touching `crates/ui`:
   `~/Applications/KR580.app` uses bundle identifier `dev.kr580.emulator`,
   executable name `KR580`, the generated version from the canonical plist,
   separate snapshot/subprogram UTIs, valid application/document ICNS files,
-  and successful registration through `LSRegisterURL`;
+  and successful registration through `LSRegisterURL`; double-click one file
+  of each type in Finder and confirm the existing app receives the document,
+  including the load-address dialog for `.krs`;
 - open each top-menu dropdown and verify Up/Down wraps through enabled rows
   without moving the selected RAM address, paints the current row with the
   pointer-hover fill and no blue border; verify Left/Right cyclically opens the

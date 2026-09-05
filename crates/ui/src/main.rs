@@ -18,6 +18,9 @@ fn main() -> iced::Result {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
+    #[cfg(target_os = "macos")]
+    platform::install_open_document_handler();
+
     let initial_path = match parse_cli_args(&mut std::env::args().skip(1)) {
         Ok(path) => path,
         Err(message) => {

@@ -13,6 +13,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `crates/ui/`: public `kr580` package with private app, device, persistence, UI, launcher, and installer modules. Its hidden `desktop_entry` helper centralizes freedesktop command quoting for runtime registration and installer-generated launchers.
 - `crates/ui/assets/macos/Info.plist`: canonical macOS application metadata used by runtime integration and release packaging.
 - `macos_launch_services`: narrow Core Services bridge for registering the installed application bundle and managing its document handlers.
+- `platform/macos_open_documents`: Foundation event bridge that forwards Finder document activation into the normal application file-loading path.
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
 - `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.

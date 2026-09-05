@@ -123,8 +123,12 @@ pub(super) fn discard_modal_overlay(
 
 fn discard_modal_keys(action: &PendingAction) -> (Key, Option<Key>, Key) {
     match action {
-        PendingAction::OpenSnapshot => (Key::DiscardTitleOpen, None, Key::DiscardBody),
-        PendingAction::OpenDroppedFile(_) => (Key::DiscardTitleDrop, None, Key::DiscardBodyDrop),
+        PendingAction::OpenSnapshot | PendingAction::OpenExternalFile { dropped: false, .. } => {
+            (Key::DiscardTitleOpen, None, Key::DiscardBody)
+        }
+        PendingAction::OpenExternalFile { dropped: true, .. } => {
+            (Key::DiscardTitleDrop, None, Key::DiscardBodyDrop)
+        }
         PendingAction::NewFile => (Key::DiscardTitleNew, None, Key::DiscardBody),
         PendingAction::Import => (Key::DiscardTitleImport, None, Key::DiscardBody),
         PendingAction::CloseWindow => (Key::DiscardTitleClose, None, Key::DiscardBody),
@@ -134,7 +138,9 @@ fn discard_modal_keys(action: &PendingAction) -> (Key, Option<Key>, Key) {
 
 fn discard_confirm_label_key(action: &PendingAction) -> Key {
     match action {
-        PendingAction::OpenSnapshot | PendingAction::OpenDroppedFile(_) => Key::DiscardConfirmOpen,
+        PendingAction::OpenSnapshot | PendingAction::OpenExternalFile { .. } => {
+            Key::DiscardConfirmOpen
+        }
         PendingAction::NewFile => Key::DiscardConfirmNew,
         PendingAction::Import => Key::DiscardConfirmImport,
         PendingAction::CloseWindow => Key::DiscardConfirmClose,
@@ -210,7 +216,10 @@ mod tests {
             discard_confirm_label_key(&PendingAction::CloseWindow),
             Key::DiscardConfirmClose
         );
-        let dropped = PendingAction::OpenDroppedFile("program.580".into());
+        let dropped = PendingAction::OpenExternalFile {
+            path: "program.580".into(),
+            dropped: true,
+        };
         assert_eq!(discard_confirm_label_key(&dropped), Key::DiscardConfirmOpen);
         assert_eq!(
             discard_modal_keys(&dropped),

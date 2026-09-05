@@ -6,7 +6,7 @@ use super::{DesktopApp, Message};
 #[derive(Clone, Debug)]
 pub(crate) enum PendingAction {
     OpenSnapshot,
-    OpenDroppedFile(PathBuf),
+    OpenExternalFile { path: PathBuf, dropped: bool },
     NewFile,
     Import,
     CloseWindow,
@@ -101,7 +101,7 @@ impl DesktopApp {
         self.discard_modal_keyboard_focus_visible = false;
         match action {
             PendingAction::OpenSnapshot => self.open_program(),
-            PendingAction::OpenDroppedFile(path) => {
+            PendingAction::OpenExternalFile { path, .. } => {
                 self.load_program_from_path(path);
                 Task::none()
             }

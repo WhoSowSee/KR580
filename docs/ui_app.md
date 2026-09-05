@@ -1608,11 +1608,11 @@ or the import modal keeps the discard gate active for the next attempt.
 `New` marks the reset state clean immediately; confirmed window close is
 routed directly to the window subsystem.
 
-A supported dropped path is stored in `PendingAction::OpenDroppedFile` while
-the dirty modal is visible. Its title and body explicitly say that the
-dropped file will replace unsaved changes; confirming replays that exact path
-without opening a second native picker. Unsupported extensions are rejected
-before the dirty gate, so they never ask the user to discard valid work.
+A supported dropped path is stored in `PendingAction::OpenExternalFile` while
+the dirty modal is visible. Its source flag selects the drag-specific title and
+body, and confirming replays that exact path without opening a second native
+picker. Unsupported extensions are rejected before the dirty gate, so they
+never ask the user to discard valid work.
 
 The opcode/mnemonic picker uses `opcode_dropdown_style` with a 7 px
 radius on all four corners. The popup floats over the memory rows, so
@@ -2743,6 +2743,12 @@ On Linux and macOS the row instead has one `Set as default` action. Linux
 registers the handler metadata and runs `xdg-mime default` for
 `application/x-kr580`; macOS registers the containing `KR580.app` and assigns
 both exported UTIs to its stable bundle identifier.
+
+Finder launches deliver document paths through the `kAEOpenDocuments` Apple
+event rather than process arguments. The macOS platform bridge queues a
+received path, and the regular app tick routes it through the same external-file
+validation and unsaved-change gate as drag-and-drop. A valid `.krs` then opens
+the normal load-address dialog.
 
 On Linux, `kr580.desktop` remains the visible application launcher and the
 association layer owns a separate hidden `kr580-file-handler.desktop`. Both

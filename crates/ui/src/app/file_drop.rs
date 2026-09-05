@@ -50,7 +50,16 @@ impl DesktopApp {
         }
     }
 
+    #[cfg(target_os = "macos")]
+    pub(crate) fn open_associated_file(&mut self, path: PathBuf) {
+        self.open_external_file(path, false);
+    }
+
     fn open_dropped_file(&mut self, path: PathBuf) {
+        self.open_external_file(path, true);
+    }
+
+    fn open_external_file(&mut self, path: PathBuf, dropped: bool) {
         if !supports_dropped_program(&path) {
             self.show_error_notice(format!(
                 "{}: {}",
@@ -61,7 +70,7 @@ impl DesktopApp {
         }
         self.clear_error_notice();
         if self.dirty {
-            self.open_discard_modal(PendingAction::OpenDroppedFile(path));
+            self.open_discard_modal(PendingAction::OpenExternalFile { path, dropped });
         } else {
             self.load_program_from_path(path);
         }
@@ -146,7 +155,10 @@ mod tests {
 
         assert!(matches!(
             app.pending_action.as_ref(),
-            Some(PendingAction::OpenDroppedFile(pending)) if pending == &path
+            Some(PendingAction::OpenExternalFile {
+                path: pending,
+                dropped: true,
+            }) if pending == &path
         ));
 
         let _task = app.confirm_discard();
