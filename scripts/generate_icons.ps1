@@ -12,6 +12,7 @@
 # Outputs in `crates/ui/assets/icons/`, keeping the published crates.io
 # package self-contained:
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
+#   - `file-580-256.png`               — Linux/macOS document icon source.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
 #   - `installer-setup.ico`            — multi-resolution setup `.exe` icon.
@@ -170,12 +171,12 @@ Build-IconSet `
     -IcoSizes      $appIcoSizes `
     -ExtraPngSizes $pngSizes
 
-# `.580` file-type icon: only the multi-resolution ICO is needed (it goes
-# into the PE resource section as resource id 2 via `crates/ui/build.rs`).
+# `.580` / `.krs` file-type icon: standalone PNG plus the Windows ICO.
 Build-IconSet `
-    -SourcePng (Join-Path $outDir 'file-580.png') `
-    -IcoPath   (Join-Path $outDir 'file-580.ico') `
-    -IcoSizes  $fileIcoSizes
+    -SourcePng     (Join-Path $outDir 'file-580.png') `
+    -IcoPath       (Join-Path $outDir 'file-580.ico') `
+    -IcoSizes      $fileIcoSizes `
+    -ExtraPngSizes 256
 
 Build-IconSet `
     -SourcePng (Join-Path $outDir 'installer-setup.png') `

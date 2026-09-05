@@ -100,6 +100,12 @@ to keep the PNG/ICO files small.
 
 ## Where the assets are consumed
 
+Linux integration embeds `icon-256.png` and `file-580-256.png` through
+`integration_assets`. Registration writes these bytes into the XDG hicolor
+`256x256/apps/kr580.png` and `256x256/mimetypes/application-x-kr580.png` paths.
+The icon generator produces the document PNG from the existing master; no
+external artwork is needed alongside the installer or executable.
+
 - `crates/ui/src/app/windows.rs` embeds `crates/ui/assets/icons/icon-64.png` via
   `include_bytes!`, decodes that PNG through the restricted `image` codec set,
   and hands its RGBA buffer to `iced::window::icon::from_rgba`. This drives the title-bar /

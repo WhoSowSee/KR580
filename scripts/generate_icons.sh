@@ -13,6 +13,7 @@
 # Outputs in `crates/ui/assets/icons/`, keeping the published crates.io
 # package self-contained:
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
+#   - `file-580-256.png`               — Linux/macOS document icon source.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
 #   - `installer-setup.ico`            — multi-resolution setup `.exe` icon.
@@ -107,9 +108,11 @@ if [ ! -f "$file_source" ]; then
     exit 1
 fi
 
-# The `.580` icon is only consumed as a Windows PE resource (id 2) via
-# `crates/ui/build.rs`, so only the multi-resolution ICO is needed. The
-# 128 size is included because Explorer's "Extra large icons" view uses it.
+# The standalone layer is used for Linux MIME integration and macOS packaging.
+render_layer "$file_source" 256 "$out_dir/file-580-256.png"
+echo "Wrote $out_dir/file-580-256.png"
+
+# The 128 size is included because Explorer's "Extra large icons" view uses it.
 file_ico_sizes=(256 128 96 64 48 40 32 24 20 16)
 build_ico "$file_source" "$file_ico" "${file_ico_sizes[@]}"
 

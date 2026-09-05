@@ -19,6 +19,8 @@ pub fn register_for_executable(
     std::fs::create_dir_all(&paths.applications).map_err(|e| format!("create apps dir: {e}"))?;
     std::fs::create_dir_all(&paths.application_icons)
         .map_err(|e| format!("create icons dir: {e}"))?;
+    std::fs::create_dir_all(&paths.file_type_icons)
+        .map_err(|e| format!("create file icons dir: {e}"))?;
 
     let mime_file = paths.mime_packages.join("application-x-kr580.xml");
     let desktop_file = paths.applications.join(HANDLER_DESKTOP_FILE);
@@ -27,9 +29,13 @@ pub fn register_for_executable(
     std::fs::write(&mime_file, mime_xml()).map_err(|e| format!("write mime file: {e}"))?;
     std::fs::write(&desktop_file, desktop_entry(&exe)?)
         .map_err(|e| format!("write desktop file: {e}"))?;
-    if let Some(icon) = super::find_icon() {
-        std::fs::copy(&icon, &dest_icon).map_err(|e| format!("copy icon: {e}"))?;
-    }
+    std::fs::write(dest_icon, crate::integration_assets::APPLICATION_ICON_PNG)
+        .map_err(|e| format!("write app icon: {e}"))?;
+    std::fs::write(
+        paths.file_type_icons.join("application-x-kr580.png"),
+        crate::integration_assets::FILE_TYPE_ICON_PNG,
+    )
+    .map_err(|e| format!("write file icon: {e}"))?;
 
     update_databases(&paths);
     Ok(())
@@ -43,7 +49,10 @@ pub fn unregister() -> Result<(), String> {
 fn remove_registration(paths: &IntegrationPaths) -> Result<(), String> {
     let _ = std::fs::remove_file(paths.mime_packages.join("application-x-kr580.xml"));
     let _ = std::fs::remove_file(paths.applications.join(HANDLER_DESKTOP_FILE));
-    let _ = std::fs::remove_file(paths.application_icons.join("kr580.png"));
+    if !paths.applications.join("kr580.desktop").is_file() {
+        let _ = std::fs::remove_file(paths.application_icons.join("kr580.png"));
+    }
+    let _ = std::fs::remove_file(paths.file_type_icons.join("application-x-kr580.png"));
     update_databases(&paths);
     Ok(())
 }
@@ -105,6 +114,7 @@ struct IntegrationPaths {
     mime_packages: PathBuf,
     applications: PathBuf,
     application_icons: PathBuf,
+    file_type_icons: PathBuf,
 }
 
 impl IntegrationPaths {
@@ -114,7 +124,8 @@ impl IntegrationPaths {
         Ok(Self {
             mime_packages: data_home.join("mime/packages"),
             applications: data_home.join("applications"),
-            application_icons: data_home.join("icons/hicolor/64x64/apps"),
+            application_icons: data_home.join("icons/hicolor/256x256/apps"),
+            file_type_icons: data_home.join("icons/hicolor/256x256/mimetypes"),
             data_home,
         })
     }

@@ -9,4 +9,6 @@ pub mod persistence;
 
 pub mod file_assoc;
 pub mod install_mode;
+#[doc(hidden)]
+pub mod integration_assets;
 pub mod system_locale;
