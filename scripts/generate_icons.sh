@@ -14,6 +14,7 @@
 # package self-contained:
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
 #   - `file-580-256.png`               — Linux/macOS document icon source.
+#   - `KR580.icns`, `KR580Document.icns` — macOS application/document icons.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
 #   - `installer-setup.ico`            — multi-resolution setup `.exe` icon.
@@ -76,6 +77,29 @@ build_ico() {
     echo "Wrote $ico_path"
 }
 
+build_icns() {
+    local source="$1"
+    local target="$2"
+    local iconset="$tmp_dir/$(basename "$target" .icns).iconset"
+    mkdir -p "$iconset"
+    render_layer "$source" 16 "$iconset/icon_16x16.png"
+    render_layer "$source" 32 "$iconset/icon_16x16@2x.png"
+    render_layer "$source" 32 "$iconset/icon_32x32.png"
+    render_layer "$source" 64 "$iconset/icon_32x32@2x.png"
+    render_layer "$source" 128 "$iconset/icon_128x128.png"
+    render_layer "$source" 256 "$iconset/icon_128x128@2x.png"
+    render_layer "$source" 256 "$iconset/icon_256x256.png"
+    render_layer "$source" 512 "$iconset/icon_256x256@2x.png"
+    render_layer "$source" 512 "$iconset/icon_512x512.png"
+    render_layer "$source" 1024 "$iconset/icon_512x512@2x.png"
+    if command -v iconutil >/dev/null 2>&1; then
+        iconutil --convert icns --output "$target" "$iconset"
+    else
+        "${convert_cmd[@]}" "$iconset"/*.png "$target"
+    fi
+    echo "Wrote $target"
+}
+
 # ---- Application icon -------------------------------------------------------
 app_source="$out_dir/icon.png"
 app_ico="$out_dir/icon.ico"
@@ -115,6 +139,8 @@ echo "Wrote $out_dir/file-580-256.png"
 # The 128 size is included because Explorer's "Extra large icons" view uses it.
 file_ico_sizes=(256 128 96 64 48 40 32 24 20 16)
 build_ico "$file_source" "$file_ico" "${file_ico_sizes[@]}"
+build_icns "$app_source" "$out_dir/KR580.icns"
+build_icns "$file_source" "$out_dir/KR580Document.icns"
 
 # ---- Setup / uninstaller icons --------------------------------------------
 installer_ico_sizes=(256 128 96 64 48 40 32 24 20 16)

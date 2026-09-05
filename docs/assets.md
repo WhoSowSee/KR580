@@ -48,8 +48,10 @@ These files are documentation screenshots. They are not embedded into the applic
 | `icon.png` | Application icon master. Treated as the source of truth; every `icon-*.png` and `icon.ico` is regenerated from it. |
 | `icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-64.png`, `icon-128.png`, `icon-256.png` | Standalone PNGs used at runtime (currently `icon-64.png` is embedded as the iced window icon) and reserved for future installer/desktop-entry packaging. |
 | `icon.ico` | Multi-resolution Windows application icon containing `256, 96, 64, 48, 40, 32, 24, 20, 16` frames in that order so default Windows previewers (Photos, Paint, IconViewer) display the 256×256 layer when the file is opened directly. Embedded into the `.exe` PE resource via `winresource`. |
-| `file-580.png` | `.580` / `.krs` file-type icon master. Treated as the source of truth; `file-580.ico` is regenerated from it. |
+| `file-580.png` | `.580` / `.krs` file-type icon master. Treated as the source of truth for the derived PNG, ICO, and ICNS files. |
+| `file-580-256.png` | 256×256 Linux MIME icon generated from `file-580.png`. |
 | `file-580.ico` | Multi-resolution Windows `.580` / `.krs` file-type icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded into the `.exe` PE resource as resource id `2` via `winresource`, so Explorer can show it for files associated with the application. |
+| `KR580.icns`, `KR580Document.icns` | Multi-resolution macOS application and document icons generated from the two master PNGs. |
 | `installer-setup.png` | Standalone setup icon master. Treated as the source of truth for `installer-setup.ico`. |
 | `installer-setup.ico` | Multi-resolution Windows setup icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded as the main PE icon when `KR580_WINDOWS_ICON_KIND=setup`. |
 | `installer-uninstall.png` | Installed uninstaller icon master. Treated as the source of truth for `installer-uninstall.ico`. |
@@ -105,6 +107,11 @@ Linux integration embeds `icon-256.png` and `file-580-256.png` through
 `256x256/apps/kr580.png` and `256x256/mimetypes/application-x-kr580.png` paths.
 The icon generator produces the document PNG from the existing master; no
 external artwork is needed alongside the installer or executable.
+
+The same generator produces `KR580.icns` from `icon.png` and
+`KR580Document.icns` from `file-580.png`. The macOS bundle embeds both under
+`Contents/Resources`; its plist uses the first as the application icon and the
+second for `.580` and `.krs` documents.
 
 - `crates/ui/src/app/windows.rs` embeds `crates/ui/assets/icons/icon-64.png` via
   `include_bytes!`, decodes that PNG through the restricted `image` codec set,

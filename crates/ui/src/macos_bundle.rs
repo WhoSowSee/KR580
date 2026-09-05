@@ -3,6 +3,11 @@ use std::path::{Path, PathBuf};
 pub const APP_BUNDLE_NAME: &str = "KR580.app";
 pub const BUNDLE_ID: &str = "dev.kr580.emulator";
 pub const BUNDLE_EXECUTABLE: &str = "KR580";
+pub const SNAPSHOT_UTI: &str = "dev.kr580.snapshot";
+pub const SUBPROGRAM_UTI: &str = "dev.kr580.subprogram";
+
+const APPLICATION_ICON: &[u8] = include_bytes!("../assets/icons/KR580.icns");
+const DOCUMENT_ICON: &[u8] = include_bytes!("../assets/icons/KR580Document.icns");
 
 pub fn applications_dir() -> Result<PathBuf, String> {
     let home = std::env::var_os("HOME")
@@ -15,12 +20,19 @@ pub fn applications_dir() -> Result<PathBuf, String> {
 pub fn write_launcher_bundle(bundle: &Path, executable: &Path) -> Result<(), String> {
     let contents = bundle.join("Contents");
     let macos = contents.join("MacOS");
+    let resources = contents.join("Resources");
     std::fs::create_dir_all(&macos).map_err(|error| format!("create app bundle: {error}"))?;
+    std::fs::create_dir_all(&resources)
+        .map_err(|error| format!("create app resources: {error}"))?;
     std::fs::write(contents.join("Info.plist"), info_plist())
         .map_err(|error| format!("write Info.plist: {error}"))?;
     let launcher = macos.join(BUNDLE_EXECUTABLE);
     std::fs::write(&launcher, launcher_script(executable))
         .map_err(|error| format!("write app launcher: {error}"))?;
+    std::fs::write(resources.join("KR580.icns"), APPLICATION_ICON)
+        .map_err(|error| format!("write app icon: {error}"))?;
+    std::fs::write(resources.join("KR580Document.icns"), DOCUMENT_ICON)
+        .map_err(|error| format!("write document icon: {error}"))?;
     make_executable(&launcher)
 }
 
@@ -55,7 +67,9 @@ fn make_executable(path: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BUNDLE_EXECUTABLE, BUNDLE_ID, info_plist, launcher_script};
+    use super::{
+        BUNDLE_EXECUTABLE, BUNDLE_ID, SNAPSHOT_UTI, SUBPROGRAM_UTI, info_plist, launcher_script,
+    };
     use std::path::Path;
 
     #[test]
@@ -63,6 +77,12 @@ mod tests {
         let plist = info_plist();
         assert!(plist.contains(&format!("<string>{BUNDLE_ID}</string>")));
         assert!(plist.contains(&format!("<string>{BUNDLE_EXECUTABLE}</string>")));
+        assert!(plist.contains(&format!("<string>{SNAPSHOT_UTI}</string>")));
+        assert!(plist.contains(&format!("<string>{SUBPROGRAM_UTI}</string>")));
+        assert!(plist.contains("<string>KR580.icns</string>"));
+        assert!(plist.contains("<string>KR580Document.icns</string>"));
+        assert!(plist.contains("<string>580</string>"));
+        assert!(plist.contains("<string>krs</string>"));
         assert!(!plist.contains("@VERSION@"));
         assert_eq!(
             launcher_script(Path::new("/Applications/Jack's KR580/k580")),

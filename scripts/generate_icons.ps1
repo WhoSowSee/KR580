@@ -13,6 +13,7 @@
 # package self-contained:
 #   - `icon-{16,32,48,64,128,256}.png` — standalone cross-platform PNGs.
 #   - `file-580-256.png`               — Linux/macOS document icon source.
+#   - `KR580.icns`, `KR580Document.icns` — macOS application/document icons.
 #   - `icon.ico`                       — multi-resolution Windows app icon.
 #   - `file-580.ico`                   — multi-resolution `.580` file-type icon.
 #   - `installer-setup.ico`            — multi-resolution setup `.exe` icon.
@@ -123,6 +124,67 @@ function Write-IcoFile {
     Write-Host "Wrote $IcoPath"
 }
 
+function Write-BigEndianUInt32 {
+    param([System.IO.BinaryWriter]$Writer, [uint32]$Value)
+
+    $bytes = [System.BitConverter]::GetBytes($Value)
+    if ([System.BitConverter]::IsLittleEndian) {
+        [System.Array]::Reverse($bytes)
+    }
+    $Writer.Write($bytes)
+}
+
+function Build-IcnsFile {
+    param([string]$SourcePng, [string]$IcnsPath)
+
+    $entries = @(
+        @{ Type = 'icp4'; Size = 16 },
+        @{ Type = 'icp5'; Size = 32 },
+        @{ Type = 'icp6'; Size = 64 },
+        @{ Type = 'ic07'; Size = 128 },
+        @{ Type = 'ic08'; Size = 256 },
+        @{ Type = 'ic09'; Size = 512 },
+        @{ Type = 'ic10'; Size = 1024 }
+    )
+    $original = [System.Drawing.Image]::FromFile($SourcePng)
+    $payloads = @()
+    try {
+        foreach ($entry in $entries) {
+            $bitmap = Resize-Bitmap $original $entry.Size
+            try {
+                $payloads += ,(ConvertTo-PngBytes $bitmap)
+            } finally {
+                $bitmap.Dispose()
+            }
+        }
+    } finally {
+        $original.Dispose()
+    }
+
+    $totalSize = 8
+    foreach ($payload in $payloads) {
+        $totalSize += 8 + $payload.Length
+    }
+
+    $memory = New-Object System.IO.MemoryStream
+    $writer = New-Object System.IO.BinaryWriter $memory
+    try {
+        $writer.Write([System.Text.Encoding]::ASCII.GetBytes('icns'))
+        Write-BigEndianUInt32 $writer $totalSize
+        for ($index = 0; $index -lt $entries.Count; $index++) {
+            $writer.Write([System.Text.Encoding]::ASCII.GetBytes($entries[$index].Type))
+            Write-BigEndianUInt32 $writer (8 + $payloads[$index].Length)
+            $memory.Write($payloads[$index], 0, $payloads[$index].Length)
+        }
+        $writer.Flush()
+        [System.IO.File]::WriteAllBytes($IcnsPath, $memory.ToArray())
+    } finally {
+        $writer.Dispose()
+        $memory.Dispose()
+    }
+    Write-Host "Wrote $IcnsPath"
+}
+
 function Build-IconSet {
     param(
         [string]$SourcePng,
@@ -177,6 +239,14 @@ Build-IconSet `
     -IcoPath       (Join-Path $outDir 'file-580.ico') `
     -IcoSizes      $fileIcoSizes `
     -ExtraPngSizes 256
+
+Build-IcnsFile `
+    -SourcePng (Join-Path $outDir 'icon.png') `
+    -IcnsPath  (Join-Path $outDir 'KR580.icns')
+
+Build-IcnsFile `
+    -SourcePng (Join-Path $outDir 'file-580.png') `
+    -IcnsPath  (Join-Path $outDir 'KR580Document.icns')
 
 Build-IconSet `
     -SourcePng (Join-Path $outDir 'installer-setup.png') `
