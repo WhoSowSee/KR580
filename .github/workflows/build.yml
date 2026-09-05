@@ -1,4 +1,4 @@
-name: Build installer packages
+name: Build release packages
 
 on:
   push:
@@ -80,7 +80,7 @@ jobs:
           path: artifacts/*
 
   macos:
-    name: macOS installer ${{ matrix.target }}
+    name: macOS application image ${{ matrix.target }}
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -102,20 +102,15 @@ jobs:
       - name: Cache cargo build artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Build installer
-        run: bash scripts/build_installer.sh release --target ${{ matrix.target }} --dist-dir dist
-
-      - name: Package installer zip
-        run: |
-          mkdir -p artifacts
-          installer=$(ls dist/KR580-Setup-*-${{ matrix.target }})
-          zip -j "artifacts/${PROJECT_NAME}-${{ matrix.target }}.zip" "$installer"
+      - name: Build and validate application image
+        run: bash scripts/build_macos_dmg.sh release --target ${{ matrix.target }} --dist-dir artifacts
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: kr580-macos-${{ matrix.target }}
-          path: artifacts/*
+          path: artifacts/*.dmg
+          if-no-files-found: error
 
   windows:
     name: Windows installer ${{ matrix.target }}

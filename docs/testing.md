@@ -218,8 +218,11 @@ worth eyeballing after touching `crates/ui`:
   `app/uninstaller` and confirm it removes the portable file associations and
   the `<install root>/bin` PATH entry when those checkboxes were selected;
 - run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1`
-  on Windows or `bash scripts/build_installer.sh` on Unix/macOS and confirm
-  a standalone `KR580-Setup-*` artifact appears under `dist/`; for release
+  on Windows or `bash scripts/build_installer.sh` on Linux/Unix and confirm
+  a standalone `KR580-Setup-*` artifact appears under `dist/`; on macOS run
+  `bash scripts/build_macos_dmg.sh` and confirm its self-validation mounts a DMG
+  containing the executable `KR580.app`, both ICNS resources, the canonical
+  bundle identifier, and an `/Applications` link; for release
   packaging, also smoke-check `--target` builds and `scripts/package_installer_deb.sh` for one Linux target, confirm the
   Debian control metadata contains `desktop-file-utils`, `libdbus-1-3`,
   `shared-mime-info`, `xdg-utils`, and `zenity`, and open a file dialog in the

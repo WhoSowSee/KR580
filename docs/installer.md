@@ -9,11 +9,17 @@
   `app/uninstaller`.
 
 The user-facing setup artifact is built by `scripts/build_installer.ps1`
-on Windows or `scripts/build_installer.sh` on Unix/macOS. The scripts first
+on Windows or `scripts/build_installer.sh` on Linux/Unix. The scripts first
 build `k580` and `kr`, then build `k580-uninstaller` with the uninstall icon,
 then rebuild `k580-installer` with the setup icon and those binaries embedded.
 The resulting file under `dist/` is the installer a new user runs before `kr`
 exists.
+
+macOS releases use `scripts/build_macos_dmg.sh` instead. It packages the native
+`k580` executable directly as `KR580.app`, copies the canonical plist and both
+ICNS resources, and creates an unsigned compressed DMG with an `/Applications`
+link. The user drags the complete app into Applications; no setup executable or
+uninstaller is nested in the image.
 
 `kr --install` remains a maintenance entry point for developer builds. In an
 installed layout it launches the installed uninstaller binary with `--setup`,
@@ -165,7 +171,7 @@ localized Close/`Закрыть` action become available, and it merely exits th
 already-completed workflow. A failed stage stops the animation at its current
 value and stays visible in red with its error text.
 
-## Build The Setup
+## Build Distribution Packages
 
 Windows:
 
@@ -174,19 +180,33 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1 -Target x86_64-pc-windows-msvc
 ```
 
-Unix/macOS:
+Linux/Unix:
 
 ```sh
 bash scripts/build_installer.sh
 bash scripts/build_installer.sh release --target x86_64-unknown-linux-gnu
 ```
 
-The scripts produce standalone setup executables:
+macOS:
+
+```sh
+bash scripts/build_macos_dmg.sh
+bash scripts/build_macos_dmg.sh release --target aarch64-apple-darwin
+```
+
+The packaging scripts produce:
 
 - Windows host builds: `dist/KR580-Setup-<version>-windows-<arch>.exe`
 - Targeted Windows builds: `dist/KR580-Setup-<version>-<target>.exe`
-- Unix/macOS host builds: `dist/KR580-Setup-<version>-<os>-<arch>`
-- Targeted Unix/macOS builds: `dist/KR580-Setup-<version>-<target>`
+- Linux/Unix host builds: `dist/KR580-Setup-<version>-<os>-<arch>`
+- Targeted Linux/Unix builds: `dist/KR580-Setup-<version>-<target>`
+- macOS host images: `dist/KR580-<version>-macos-<arch>.dmg`
+- Targeted macOS images: `dist/KR580-<version>-<target>.dmg`
+
+The macOS builder runs only on macOS. Before returning it validates the plist,
+Mach-O architecture, disk image, mounted app layout, icons, bundle identity,
+and Applications link. The app and DMG are intentionally unsigned and not
+notarized, so Gatekeeper may require the normal explicit first-open approval.
 
 `KR580_CARGO=cross` makes the Unix script invoke `cross build` for Linux target
 matrices. `scripts/package_installer_deb.sh` wraps a built Linux setup

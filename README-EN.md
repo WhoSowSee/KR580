@@ -110,7 +110,7 @@ cargo build --release -p kr580 --bin k580 --bin kr
 
 The built binaries are placed under `target/release/` as `k580` / `kr` or `k580.exe` / `kr.exe`.
 
-### Build the standalone setup artifact
+### Build packages
 
 Windows:
 
@@ -118,13 +118,19 @@ Windows:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1
 ```
 
-Unix/macOS:
+Linux/Unix:
 
 ```bash
 bash scripts/build_installer.sh
 ```
 
-The setup artifact is written to `dist/`.
+macOS (ready-to-drag application in a DMG):
+
+```bash
+bash scripts/build_macos_dmg.sh
+```
+
+The package is written to `dist/`.
 
 ## Usage
 

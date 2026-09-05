@@ -110,7 +110,7 @@ cargo build --release -p kr580 --bin k580 --bin kr
 
 Готовые бинарники появятся в `target/release/` как `k580` / `kr` или `k580.exe` / `kr.exe`.
 
-### Сборка standalone-установщика
+### Сборка пакетов
 
 Windows:
 
@@ -118,13 +118,19 @@ Windows:
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1
 ```
 
-Unix/macOS:
+Linux/Unix:
 
 ```bash
 bash scripts/build_installer.sh
 ```
 
-Готовый установщик будет записан в `dist/`.
+macOS (готовое приложение в DMG):
+
+```bash
+bash scripts/build_macos_dmg.sh
+```
+
+Готовый пакет будет записан в `dist/`.
 
 ## Использование
 

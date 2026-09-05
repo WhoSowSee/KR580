@@ -17,7 +17,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
 - `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
-- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts under `dist/`.
+- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts, while `build_macos_dmg.sh` packages the native GUI as a drag-and-drop application image under `dist/`.
 - `target/`: cargo build artefacts (gitignored).
 
 ## Installation Layout
@@ -30,6 +30,10 @@ exist on the machine. The installer writes `install.json` at the install root,
 keeps `k580` under `app/`, keeps the installed maintenance binary as
 `app/uninstaller`, keeps `kr` under `bin/`, and only adds `bin/` to PATH when
 requested.
+macOS releases instead contain the GUI executable directly in
+`KR580.app/Contents/MacOS/KR580`; the surrounding DMG supplies an Applications
+link and relies on normal drag-and-drop installation rather than the setup
+state machine.
 Portable installs default to the user's `KR580` folder and store settings under
 `<install root>/data`; both install modes can optionally associate `.580`
 snapshots and `.krs` subprograms with `app/k580`. System installs use the platform config directory and
