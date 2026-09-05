@@ -2739,6 +2739,12 @@ is open the UI polls the OS state on every frame tick, so changes made
 from the terminal (e.g. `kr -r`) or any other source are reflected in
 the button label without closing and reopening the dialog.
 
+On Linux, `kr580.desktop` remains the visible application launcher and the
+association layer owns a separate hidden `kr580-file-handler.desktop`. Both
+launch the same executable, but only the latter advertises
+`application/x-kr580`, so removing file associations does not remove KR580
+from the desktop application menu.
+
 `kr` looks for the `k580` executable in the same directory as itself
 (`k580.exe` on Windows, `k580` elsewhere), redirects its stdio to `/dev/null`,
 spawns it, and returns without waiting.

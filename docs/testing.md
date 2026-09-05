@@ -225,8 +225,9 @@ worth eyeballing after touching `crates/ui`:
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/.local/share/mime/packages/application-x-kr580.xml` and
-  `~/.local/share/applications/kr580.desktop` were created and `.580` and `.krs`
-  files open with `kr` from the file manager;
+  `~/.local/share/applications/kr580-file-handler.desktop` were created, the
+  handler does not appear as a second application-menu entry, and `.580` and
+  `.krs` files open with `kr` from the file manager;
 - on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/Applications/kr580.app` exists and `lsregister` reports it;
 - open each top-menu dropdown and verify Up/Down wraps through enabled rows

@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+const HANDLER_DESKTOP_FILE: &str = "kr580-file-handler.desktop";
+
 pub fn register() -> Result<(), String> {
     let kr = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
     register_for_executable(&kr, crate::install_mode::InstallScope::User)
@@ -21,7 +23,7 @@ pub fn register_for_executable(
     std::fs::create_dir_all(&hicolor_dir).map_err(|e| format!("create icons dir: {e}"))?;
 
     let mime_file = mime_dir.join("application-x-kr580.xml");
-    let desktop_file = apps_dir.join("kr580.desktop");
+    let desktop_file = apps_dir.join(HANDLER_DESKTOP_FILE);
     let dest_icon = hicolor_dir.join("kr580.png");
 
     std::fs::write(&mime_file, mime_xml()).map_err(|e| format!("write mime file: {e}"))?;
@@ -37,7 +39,7 @@ pub fn register_for_executable(
 
 pub fn unregister() -> Result<(), String> {
     let _ = std::fs::remove_file(mime_dir().join("application-x-kr580.xml"));
-    let _ = std::fs::remove_file(apps_dir().join("kr580.desktop"));
+    let _ = std::fs::remove_file(apps_dir().join(HANDLER_DESKTOP_FILE));
     let _ = std::fs::remove_file(hicolor_icon_dir().join("kr580.png"));
     update_databases();
     Ok(())
@@ -50,7 +52,7 @@ pub fn unregister_for_executable(
     let exe_str = exe
         .to_str()
         .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
-    let desktop_file = apps_dir().join("kr580.desktop");
+    let desktop_file = apps_dir().join(HANDLER_DESKTOP_FILE);
     let current = std::fs::read_to_string(&desktop_file).unwrap_or_default();
     if current.contains(&format!("Exec={exe_str} %f")) {
         unregister()?;
@@ -62,7 +64,7 @@ pub fn is_registered() -> bool {
     let Ok(mime) = std::fs::read_to_string(mime_dir().join("application-x-kr580.xml")) else {
         return false;
     };
-    apps_dir().join("kr580.desktop").is_file() && mime_registration_is_current(&mime)
+    apps_dir().join(HANDLER_DESKTOP_FILE).is_file() && mime_registration_is_current(&mime)
 }
 
 fn home_dir() -> PathBuf {
@@ -107,6 +109,7 @@ fn desktop_entry(exec: &str) -> String {
          Exec={} %f\n\
          Icon=kr580\n\
          Type=Application\n\
+         NoDisplay=true\n\
          Terminal=false\n\
          MimeType=application/x-kr580;\n\
          Categories=Development;\n",
@@ -125,11 +128,19 @@ fn update_databases() {
 
 #[cfg(test)]
 mod tests {
-    use super::{mime_registration_is_current, mime_xml};
+    use super::{desktop_entry, mime_registration_is_current, mime_xml};
 
     #[test]
     fn mime_registration_covers_snapshots_and_subprograms() {
         assert!(mime_registration_is_current(mime_xml()));
         assert!(!mime_registration_is_current(r#"<glob pattern="*.580"/>"#));
+    }
+
+    #[test]
+    fn file_handler_is_hidden_from_application_menus() {
+        let entry = desktop_entry("/opt/kr580/k580");
+
+        assert!(entry.contains("NoDisplay=true\n"));
+        assert!(entry.contains("MimeType=application/x-kr580;\n"));
     }
 }

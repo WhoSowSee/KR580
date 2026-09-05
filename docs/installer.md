@@ -91,6 +91,9 @@ desktop shortcut. Both modes show the first two; System mode adds the desktop
 shortcut as the final option.
 On Windows, the association option maps both `.580` and `.krs` through the
 same KR580 ProgID, icon, and open command.
+On Linux, system integration owns the visible `kr580.desktop` launcher, while
+file associations use a separate `NoDisplay` `kr580-file-handler.desktop`.
+Toggling associations therefore cannot remove KR580 from the application menu.
 Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
 Installed-state messages use user-facing wording and do not expose the internal
