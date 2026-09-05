@@ -93,6 +93,7 @@ pub(crate) enum Message {
     SaveSnapshotToPath(PathBuf),
     SubprogramStartChanged(String),
     SubprogramEndChanged(String),
+    SubprogramFocusResolved(Option<iced::widget::Id>),
     ConfirmSubprogram,
     CancelSubprogram,
     NewFile,

@@ -142,7 +142,20 @@ RAM-range dialog. Detached device windows do not accept program drops.
   - `app/import_modal.rs` and `app/import_modal_state.rs` – import
     modal routing, source format detection, and sheet/section selection.
   - `app/subprogram_modal.rs` – `.krs` raw-byte loading and saving,
-    address-range validation, and modal focus routing.
+    address-range validation, and modal focus routing. Open and Save dialogs start
+    with Cancel highlighted by a light fill and its normal border, using the
+    confirmation dialogs' shared button style. Enter on Cancel closes the dialog.
+    Tab/Shift+Tab switch the focus indicator to a light border without the fill and
+    wrap through the address fields and footer actions. Open computes the inclusive end address as
+    start + file size in bytes - 1; Save asks for both ends of the RAM range.
+    Both address fields accept at most four hexadecimal digits (`0–9`, `A–F`)
+    and normalize lowercase letters to uppercase, using the same bounded input
+    validation as the RAM editor. Invalid or overlong edits and pastes preserve
+    the previous value; clearing a field shows the `0000` placeholder without
+    inserting a value into the empty field.
+    Traversal transfers actual input focus and removes the caret on buttons.
+    `SubprogramFocusResolved` synchronizes mouse clicks with the focus ring
+    without repositioning the clicked input's caret.
   - `app/printer.rs` and `app/printer/` – printer setup/dispatch helpers,
     asynchronous driver calls, capability loading, and session override state.
   - `app/register_inline.rs` – inline register-cell editor (Tab/Shift+Tab

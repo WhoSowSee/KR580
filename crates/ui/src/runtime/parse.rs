@@ -36,7 +36,7 @@ fn hex_digits(input: &str) -> &str {
         .trim_start_matches("0X")
 }
 
-pub(super) fn bounded_hex_input(input: &str, max_len: usize) -> Option<String> {
+pub(crate) fn bounded_hex_input(input: &str, max_len: usize) -> Option<String> {
     let input = hex_digits(input);
     if input.len() > max_len || !input.chars().all(|char| char.is_ascii_hexdigit()) {
         return None;

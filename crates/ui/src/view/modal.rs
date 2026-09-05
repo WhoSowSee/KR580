@@ -148,7 +148,7 @@ fn discard_confirm_label_key(action: &PendingAction) -> Key {
     }
 }
 
-fn modal_button_style(
+pub(super) fn modal_button_style(
     status: iced::widget::button::Status,
     focused: bool,
     keyboard_focus_visible: bool,

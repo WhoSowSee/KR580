@@ -116,9 +116,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SubprogramTitleSave => "Сохранить подпрограмму",
         Key::SubprogramStartAddress => "Начальный адрес",
         Key::SubprogramEndAddress => "Конечный адрес",
-        Key::SubprogramAddressHint => {
-            "Файл .krs содержит сырые байты. Укажите диапазон адресов ОЗУ."
-        }
         Key::ExportFormatXlsx => "Microsoft Excel",
         Key::ExportFormatText => "Текстовый файл",
         Key::ExportPageLabel => "На странице",

@@ -42,7 +42,7 @@ scalar_keys! {
     ChangelogTitle, ChangelogAllVersions,
     FileNew, FileOpen, FileSave, FileSaveAs, FileImport, FileExport,
     SubprogramTitleOpen, SubprogramTitleSave, SubprogramStartAddress,
-    SubprogramEndAddress, SubprogramAddressHint,
+    SubprogramEndAddress,
     ExportFormatXlsx, ExportFormatText, ExportPageLabel, ExportPageDefault,
     ExportPageNameBase, ExportSectionLabel, ExportSectionDefault, ExportSectionNameBase,
     ExportAddPageTooltip, ExportAddSectionTooltip, ExportDeletePageTooltip,

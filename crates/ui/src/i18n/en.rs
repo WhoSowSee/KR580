@@ -115,9 +115,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::SubprogramTitleSave => "Save subprogram",
         Key::SubprogramStartAddress => "Start address",
         Key::SubprogramEndAddress => "End address",
-        Key::SubprogramAddressHint => {
-            "A .krs file contains raw bytes. Specify the RAM address range."
-        }
         Key::ExportFormatXlsx => "Microsoft Excel",
         Key::ExportFormatText => "Text file",
         Key::ExportPageLabel => "On page",

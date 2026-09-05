@@ -226,6 +226,17 @@ worth eyeballing after touching `crates/ui`:
   while a localized pink-border format error appears; with unsaved changes,
   drop a supported file and confirm the modal names the dropped-file action,
   Cancel preserves the current state, and Open uses the same dropped path;
+- open a `.krs` file and confirm Cancel has a light fill and its normal border,
+  matching the confirmation dialogs; a white focus border appears only after Tab/Shift+Tab;
+  Enter must cancel. Reopen and traverse Tab/Shift+Tab in both directions:
+  Cancel, Open, and Start address must each show a light border. The address
+  field must accept typing only while focused; moving to a button must remove
+  its caret. Repeat after clicking inside the address field, including without
+  editing it, and in Save as with both Start and End address fields;
+- in the `.krs` address fields, enter `1a2f` and confirm `1A2F`; try a fifth
+  digit, `G`, Cyrillic letters, punctuation, and an overlong paste, and confirm
+  the previous value remains intact. Verify Backspace can clear the field and
+  both Start and End use the same validation;
 - open a `.krs` file from File → Open, enter a start address, and confirm its
   bytes appear at that RAM address; use Save as with `.krs` to verify the
   selected inclusive RAM range is written without a header;

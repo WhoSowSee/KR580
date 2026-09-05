@@ -1,9 +1,9 @@
-use iced::widget::{Space, column, container, mouse_area, opaque, row, stack, text};
+use iced::widget::{Space, column, container, mouse_area, opaque, row, stack, text, text_input};
 use iced::{Element, Length, alignment};
 
 use super::styles::{modal_backdrop_style, panel_style as modal_dialog_style};
-use super::theme::{tokyo_muted, tokyo_red, tokyo_text, ui_text};
-use super::widgets::{modal_footer_button_focused, shorten_middle, text_input_shell};
+use super::theme::{tokyo_red, tokyo_text, ui_text};
+use super::widgets::{modal_footer_button, shorten_middle};
 use crate::app::{Message, SubprogramDialogFocus, SubprogramDialogMode};
 use crate::i18n::{Key, Lang};
 
@@ -31,10 +31,8 @@ pub(super) fn subprogram_modal_overlay<'a>(
     };
     let start_focused = state.keyboard_focus_visible && state.focus == SubprogramDialogFocus::Start;
     let end_focused = state.keyboard_focus_visible && state.focus == SubprogramDialogFocus::End;
-    let cancel_focused =
-        state.keyboard_focus_visible && state.focus == SubprogramDialogFocus::Cancel;
-    let confirm_focused =
-        state.keyboard_focus_visible && state.focus == SubprogramDialogFocus::Confirm;
+    let cancel_focused = state.focus == SubprogramDialogFocus::Cancel;
+    let confirm_focused = state.focus == SubprogramDialogFocus::Confirm;
 
     let mut fields = column![
         path_row(state.path, state.lang),
@@ -42,6 +40,7 @@ pub(super) fn subprogram_modal_overlay<'a>(
             state.lang.t(Key::SubprogramStartAddress),
             state.start,
             Message::SubprogramStartChanged,
+            SubprogramDialogFocus::Start,
             start_focused,
         ),
     ]
@@ -51,6 +50,7 @@ pub(super) fn subprogram_modal_overlay<'a>(
             state.lang.t(Key::SubprogramEndAddress),
             state.end,
             Message::SubprogramEndChanged,
+            SubprogramDialogFocus::End,
             end_focused,
         ));
     }
@@ -60,30 +60,27 @@ pub(super) fn subprogram_modal_overlay<'a>(
 
     let footer = row![
         Space::new().width(Length::Fill),
-        modal_footer_button_focused(
+        modal_footer_button(
             state.lang.t(Key::DiscardCancel),
             Message::CancelSubprogram,
-            super::styles::modal_field_button_style,
-            cancel_focused,
+            move |status| {
+                super::modal::modal_button_style(
+                    status,
+                    cancel_focused,
+                    state.keyboard_focus_visible,
+                )
+            },
         ),
-        modal_footer_button_focused(
-            confirm_label,
-            Message::ConfirmSubprogram,
-            super::styles::modal_field_button_style,
-            confirm_focused,
-        ),
+        modal_footer_button(confirm_label, Message::ConfirmSubprogram, move |status| {
+            super::modal::modal_button_style(status, confirm_focused, state.keyboard_focus_visible)
+        },),
     ]
     .spacing(10);
 
     let dialog = container(
-        column![
-            ui_text(title, 16, tokyo_text()),
-            ui_text(state.lang.t(Key::SubprogramAddressHint), 12, tokyo_muted(),),
-            fields,
-            footer,
-        ]
-        .spacing(12)
-        .width(Length::Fixed(500.0)),
+        column![ui_text(title, 16, tokyo_text()), fields, footer,]
+            .spacing(12)
+            .width(Length::Fixed(500.0)),
     )
     .padding(18)
     .style(modal_dialog_style);
@@ -137,15 +134,23 @@ fn field_row<'a>(
     label: &'static str,
     value: &'a str,
     on_input: fn(String) -> Message,
+    focus: SubprogramDialogFocus,
     focused: bool,
 ) -> Element<'a, Message> {
-    let input = text_input_shell("", value, on_input, Length::Fill);
+    let input = text_input("0000", value)
+        .id(focus.input_id().expect("address field has an input id"))
+        .on_input(on_input)
+        .font(super::theme::MONO_FONT)
+        .size(16)
+        .padding([6, 9])
+        .width(Length::Fill)
+        .style(super::styles::input_borderless_style);
     row![
         container(ui_text(label, 13, tokyo_text()))
             .width(Length::Fixed(132.0))
             .align_y(alignment::Vertical::Center),
         container(input).width(Length::Fill).style(move |_theme| {
-            let mut style = super::styles::inset_style(_theme);
+            let mut style = super::styles::input_shell_style(_theme, false);
             if focused {
                 style.border.color = tokyo_text();
             }

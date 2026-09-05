@@ -294,7 +294,7 @@ pub(super) fn modal_icon_button_focused_with_color(
 pub(super) fn modal_footer_button(
     label_text: &'static str,
     message: Message,
-    style: fn(button::Status) -> button::Style,
+    style: impl Fn(button::Status) -> button::Style + 'static,
 ) -> Element<'static, Message> {
     modal_footer_button_focused(label_text, message, style, false)
 }
@@ -302,7 +302,7 @@ pub(super) fn modal_footer_button(
 pub(super) fn modal_footer_button_focused(
     label_text: &'static str,
     message: Message,
-    style: fn(button::Status) -> button::Style,
+    style: impl Fn(button::Status) -> button::Style + 'static,
     focused: bool,
 ) -> Element<'static, Message> {
     button(
