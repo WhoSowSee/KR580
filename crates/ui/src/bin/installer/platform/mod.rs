@@ -3,9 +3,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub struct SystemIntegrationRequest<'a> {
+    #[cfg(windows)]
     pub scope: InstallScope,
+    #[cfg(windows)]
     pub install_dir: &'a Path,
     pub kr580_path: &'a Path,
+    #[cfg(windows)]
     pub uninstaller_path: &'a Path,
     pub create_desktop_shortcut: bool,
 }
@@ -198,6 +201,7 @@ fn spawn_os_opener(path: &Path) -> Result<(), String> {
         .map_err(|e| format!("open folder {}: {e}", path.display()))
 }
 
+#[cfg(any(windows, test))]
 pub fn normalize_path_entry(path: &Path) -> String {
     path.to_string_lossy()
         .trim_matches('"')
@@ -205,6 +209,7 @@ pub fn normalize_path_entry(path: &Path) -> String {
         .to_owned()
 }
 
+#[cfg(any(windows, test))]
 pub fn contains_path_entry(path_value: &str, path: &Path) -> bool {
     let wanted = normalize_path_entry(path);
     path_value
@@ -214,6 +219,7 @@ pub fn contains_path_entry(path_value: &str, path: &Path) -> bool {
         .any(|entry| entries_match(entry, &wanted))
 }
 
+#[cfg(any(windows, test))]
 fn entries_match(left: &str, right: &str) -> bool {
     let left = left.trim_matches('"').trim_end_matches(&['/', '\\'][..]);
     if cfg!(windows) {

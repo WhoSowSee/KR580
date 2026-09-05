@@ -293,17 +293,37 @@ impl DesktopApp {
             Message::SettingsFileAssociationUnregister => {
                 Some(self.update_file_association(k580_ui::file_assoc::unregister))
             }
+            Message::SettingsFileAssociationFinished(result) => {
+                self.file_association_pending = false;
+                #[cfg(target_os = "windows")]
+                if let Some(dialog) = self.settings_dialog.as_mut() {
+                    dialog.file_association_registered = k580_ui::file_assoc::is_registered();
+                }
+                if let Err(error) = result {
+                    self.show_error_notice(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
+                }
+                Some(Task::none())
+            }
             _ => None,
         }
     }
 
     fn update_file_association(&mut self, operation: fn() -> Result<(), String>) -> Task<Message> {
-        if let Err(error) = operation() {
-            self.show_error_notice(format!("{}: {}", self.lang.t(Key::ErrorPrefix), error));
+        if self.file_association_pending
+            || self.settings_dialog.is_none()
+            || !k580_ui::file_assoc::is_user_configurable()
+        {
+            return Task::none();
         }
-        self.file_association_toggle_revision =
-            self.file_association_toggle_revision.wrapping_add(1);
-        Task::none()
+        self.file_association_pending = true;
+        Task::perform(
+            async move {
+                tokio::task::spawn_blocking(operation)
+                    .await
+                    .map_err(|error| format!("file association task failed: {error}"))?
+            },
+            Message::SettingsFileAssociationFinished,
+        )
     }
 
     pub(super) fn commit_settings_dialog_state(&mut self) {

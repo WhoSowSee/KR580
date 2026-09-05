@@ -58,7 +58,12 @@ fn parse_cli_args(args: &mut impl Iterator<Item = String>) -> Result<CliAction, 
         "--help" | "-h" => Ok(CliAction::Help),
         "--version" | "-V" => Ok(CliAction::Version),
         "--register-file-type" | "-r" => Ok(CliAction::RegisterFileType),
-        "--unregister-file-type" | "-u" => Ok(CliAction::UnregisterFileType),
+        "--unregister-file-type" | "-u" if k580_ui::file_assoc::can_unregister() => {
+            Ok(CliAction::UnregisterFileType)
+        }
+        "--unregister-file-type" | "-u" => {
+            Err("removing the default file handler is not supported on this platform".to_owned())
+        }
         "--install" | "-i" => Ok(CliAction::Install),
         path => {
             if path.starts_with('-') {
@@ -73,6 +78,11 @@ fn parse_cli_args(args: &mut impl Iterator<Item = String>) -> Result<CliAction, 
 }
 
 fn print_usage() {
+    let unregister = if k580_ui::file_assoc::can_unregister() {
+        "\n  -u, --unregister-file-type  Удалить ассоциации .580 и .krs"
+    } else {
+        ""
+    };
     println!(
         "kr [ПАРАМЕТР] [ФАЙЛ]
 
@@ -82,8 +92,7 @@ fn print_usage() {
 Параметры:
   -h, --help                  Показать справку
   -V, --version               Показать версию
-  -r, --register-file-type    Зарегистрировать ассоциации .580 и .krs
-  -u, --unregister-file-type  Удалить ассоциации .580 и .krs
+  -r, --register-file-type    Зарегистрировать ассоциации .580 и .krs{unregister}
   -i, --install               Открыть установщик KR580"
     );
 }
@@ -184,7 +193,8 @@ fn find_executable(
     }
     for candidate_name in std::iter::once(binary_name).chain(installed_alternatives.iter().copied())
     {
-        if let Some(candidate) = installed_app_binary_from_launcher(&kr, candidate_name)
+        if let Some(candidate) =
+            k580_ui::install_mode::installed_binary_from_launcher(&kr, candidate_name)
             && candidate.is_file()
         {
             return Ok(candidate);
@@ -214,18 +224,6 @@ fn find_executable(
             adjacent.display()
         ),
     ))
-}
-
-fn installed_app_binary_from_launcher(launcher: &Path, binary_name: &str) -> Option<PathBuf> {
-    let dir = launcher.parent()?;
-    if !dir
-        .file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.eq_ignore_ascii_case("bin"))
-    {
-        return None;
-    }
-    Some(dir.parent()?.join("app").join(binary_name))
 }
 
 fn is_uninstaller_binary(path: &Path) -> bool {
@@ -266,7 +264,7 @@ fn uninstaller_binary_name() -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{CliAction, installed_app_binary_from_launcher, parse_cli_args};
+    use super::{CliAction, parse_cli_args};
     use std::path::PathBuf;
 
     #[test]
@@ -295,8 +293,6 @@ mod tests {
             "-V",
             "--register-file-type",
             "-r",
-            "--unregister-file-type",
-            "-u",
             "--install",
             "-i",
         ] {
@@ -318,12 +314,12 @@ mod tests {
     }
 
     #[test]
-    fn installed_bin_launcher_resolves_gui_under_app() {
-        let root = PathBuf::from("kr580-root");
-        let launcher = root.join("bin").join("kr");
-        assert_eq!(
-            installed_app_binary_from_launcher(&launcher, "kr580"),
-            Some(root.join("app").join("kr580"))
-        );
+    fn unregister_flags_follow_platform_support() {
+        for flag in ["--unregister-file-type", "-u"] {
+            assert_eq!(
+                parse_cli_args(&mut [flag.to_owned()].into_iter()).is_ok(),
+                k580_ui::file_assoc::can_unregister()
+            );
+        }
     }
 }

@@ -36,6 +36,11 @@ else
     exit 1
 fi
 
+if ! command -v iconutil >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+    echo "iconutil or python3 is required to create ICNS files" >&2
+    exit 1
+fi
+
 mkdir -p "$out_dir"
 
 tmp_dir="$(mktemp -d)"
@@ -79,7 +84,8 @@ build_ico() {
 
 build_icns() {
     local source="$1"
-    local target="$2"
+    local destination="$2"
+    local target="$tmp_dir/$(basename "$destination")"
     local iconset="$tmp_dir/$(basename "$target" .icns).iconset"
     mkdir -p "$iconset"
     render_layer "$source" 16 "$iconset/icon_16x16.png"
@@ -95,9 +101,47 @@ build_icns() {
     if command -v iconutil >/dev/null 2>&1; then
         iconutil --convert icns --output "$target" "$iconset"
     else
-        "${convert_cmd[@]}" "$iconset"/*.png "$target"
+        python3 - "$iconset" "$target" <<'PY'
+import struct
+import sys
+from pathlib import Path
+
+iconset = Path(sys.argv[1])
+target = Path(sys.argv[2])
+entries = [
+    (b"icp4", "icon_16x16.png"),
+    (b"icp5", "icon_32x32.png"),
+    (b"icp6", "icon_32x32@2x.png"),
+    (b"ic07", "icon_128x128.png"),
+    (b"ic08", "icon_256x256.png"),
+    (b"ic09", "icon_512x512.png"),
+    (b"ic10", "icon_512x512@2x.png"),
+]
+payload = bytearray()
+for kind, filename in entries:
+    image = (iconset / filename).read_bytes()
+    payload.extend(kind)
+    payload.extend(struct.pack(">I", len(image) + 8))
+    payload.extend(image)
+target.write_bytes(b"icns" + struct.pack(">I", len(payload) + 8) + payload)
+PY
     fi
-    echo "Wrote $target"
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$target" <<'PY'
+import struct
+import sys
+from pathlib import Path
+
+data = Path(sys.argv[1]).read_bytes()
+if len(data) < 8 or data[:4] != b"icns" or struct.unpack(">I", data[4:8])[0] != len(data):
+    raise SystemExit(f"invalid ICNS container: {sys.argv[1]}")
+PY
+    elif [[ "$(od -An -tx1 -N4 "$target" | tr -d '[:space:]')" != "69636e73" ]]; then
+        echo "invalid ICNS container: $target" >&2
+        exit 1
+    fi
+    mv "$target" "$destination"
+    echo "Wrote $destination"
 }
 
 # ---- Application icon -------------------------------------------------------

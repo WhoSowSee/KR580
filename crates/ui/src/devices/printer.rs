@@ -228,6 +228,7 @@ impl PrinterDevice {
                     self.state.status = DeviceStatus::Ready;
                     self.state.last_error = None;
                 }
+                #[cfg(windows)]
                 Err(native::PrintFailure::Cancelled) => {
                     self.state.status = DeviceStatus::Ready;
                     self.state.last_error = None;
@@ -286,12 +287,13 @@ pub fn apply_native_printer_property(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        PrintCompletion, PrinterConfiguration, PrinterDevice, PrinterPaper, PrinterSettings,
-        PrinterSource, native,
-    };
+    #[cfg(windows)]
+    use super::{PrintCompletion, PrinterDevice, native};
+    use super::{PrinterConfiguration, PrinterPaper, PrinterSettings, PrinterSource};
+    #[cfg(windows)]
     use crate::devices::DeviceStatus;
 
+    #[cfg(windows)]
     #[test]
     fn cancelled_native_print_returns_to_ready_without_an_error() {
         let mut printer = PrinterDevice::default();

@@ -30,10 +30,13 @@ pub fn add_to_path(bin_dir: &Path, _scope: InstallScope) -> Result<bool, String>
     Ok(true)
 }
 
-pub fn remove_from_path(_bin_dir: &Path, _scope: InstallScope) -> Result<bool, String> {
+pub fn remove_from_path(bin_dir: &Path, _scope: InstallScope) -> Result<bool, String> {
     let profile = profile_path();
     let existing = std::fs::read_to_string(&profile).unwrap_or_default();
-    if !existing.contains(BEGIN_MARKER) {
+    let target = bin_dir
+        .to_str()
+        .ok_or_else(|| "PATH target is not valid UTF-8".to_owned())?;
+    if !existing.contains(&managed_path_block(target)) {
         return Ok(false);
     }
     let updated = remove_managed_block(&existing);
@@ -68,7 +71,7 @@ pub fn install_system_integration(
 fn install_freedesktop_integration(
     request: &super::SystemIntegrationRequest<'_>,
 ) -> Result<super::SystemIntegrationReport, String> {
-    let applications = applications_dir();
+    let applications = applications_dir()?;
     std::fs::create_dir_all(&applications).map_err(|e| format!("create applications dir: {e}"))?;
     let desktop_file = applications.join("kr580.desktop");
     let desktop_entry = k580_ui::desktop_entry::launcher(request.kr580_path)?;
@@ -122,15 +125,43 @@ pub fn remove_system_integration(_install_dir: &Path, _scope: InstallScope) -> R
     {
         let app =
             k580_ui::macos_bundle::applications_dir()?.join(k580_ui::macos_bundle::APP_BUNDLE_NAME);
-        let _ = std::fs::remove_dir_all(app);
-        let _ = std::fs::remove_file(desktop_dir().join("KR580.command"));
-        return Ok(());
+        let executable = _install_dir.join("app").join("kr580");
+        k580_ui::macos_bundle::remove_launcher_bundle(&app, &executable)?;
+        let shortcut = desktop_dir().join("KR580.command");
+        if std::fs::read_to_string(&shortcut).is_ok_and(|content| {
+            content == launcher_script(&executable)
+                || content == launcher_script(&executable.with_file_name("k580"))
+        }) {
+            remove_file_if_exists(&shortcut)?;
+        }
+        Ok(())
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = std::fs::remove_file(applications_dir().join("kr580.desktop"));
-        let _ = std::fs::remove_file(desktop_dir().join("KR580.desktop"));
-        k580_ui::desktop_entry::update_desktop_database(&applications_dir())
+        let applications = applications_dir()?;
+        let executable = _install_dir.join("app/kr580");
+        let mut removed = false;
+        for path in [
+            applications.join("kr580.desktop"),
+            desktop_dir().join("KR580.desktop"),
+        ] {
+            if std::fs::read_to_string(&path).is_ok_and(|entry| {
+                [executable.clone(), executable.with_file_name("k580")]
+                    .iter()
+                    .any(|exe| {
+                        k580_ui::desktop_entry::executable_command(exe).is_ok_and(|quoted| {
+                            entry.lines().any(|line| line == format!("Exec={quoted}"))
+                        })
+                    })
+            }) {
+                remove_file_if_exists(&path)?;
+                removed = true;
+            }
+        }
+        if removed {
+            k580_ui::desktop_entry::update_desktop_database(&applications)?;
+        }
+        Ok(())
     }
 }
 
@@ -138,7 +169,7 @@ pub fn schedule_remove_install_dir(install_dir: &Path) -> Result<(), String> {
     let script = format!(
         "while kill -0 {} 2>/dev/null; do sleep 0.1; done; rm -rf -- {}",
         std::process::id(),
-        shell_single_quote(&install_dir.display().to_string())
+        k580_ui::shell_quote::single(&install_dir.display().to_string())
     );
     Command::new("sh")
         .args(["-c", &script])
@@ -168,15 +199,8 @@ fn home_dir() -> PathBuf {
 }
 
 #[cfg(not(target_os = "macos"))]
-fn applications_dir() -> PathBuf {
-    #[cfg(target_os = "macos")]
-    {
-        home_dir().join("Applications")
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        home_dir().join(".local/share/applications")
-    }
+fn applications_dir() -> Result<PathBuf, String> {
+    Ok(k580_ui::desktop_entry::data_home()?.join("applications"))
 }
 
 fn desktop_dir() -> PathBuf {
@@ -184,7 +208,7 @@ fn desktop_dir() -> PathBuf {
 }
 
 fn managed_path_block(target: &str) -> String {
-    let target = shell_single_quote(target);
+    let target = k580_ui::shell_quote::single(target);
     format!(
         "{BEGIN_MARKER}\nKR580_BIN={target}\ncase \":$PATH:\" in\n  *\":$KR580_BIN:\"*) ;;\n  *) export PATH=\"$PATH:$KR580_BIN\" ;;\nesac\n{END_MARKER}\n"
     )
@@ -217,16 +241,15 @@ fn remove_managed_block(existing: &str) -> String {
     format!("{}{}", &existing[..begin], &existing[end..])
 }
 
-fn shell_single_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
-
 #[cfg(target_os = "macos")]
-fn launcher_script(kr580_path: &Path) -> String {
-    format!(
-        "#!/bin/sh\nexec {} \"$@\"\n",
-        shell_single_quote(&kr580_path.display().to_string())
-    )
+use k580_ui::macos_bundle::launcher_script;
+
+fn remove_file_if_exists(path: &Path) -> Result<(), String> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("remove {}: {error}", path.display())),
+    }
 }
 
 #[cfg(test)]
@@ -240,11 +263,6 @@ mod tests {
 
         assert!(updated.contains("/new/bin"));
         assert!(!updated.contains("/old/bin"));
-    }
-
-    #[test]
-    fn single_quote_escapes_shell_quote() {
-        assert_eq!(shell_single_quote("/tmp/o'clock"), "'/tmp/o'\\''clock'");
     }
 
     #[test]

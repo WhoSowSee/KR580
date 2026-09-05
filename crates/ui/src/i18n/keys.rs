@@ -78,7 +78,7 @@ scalar_keys! {
     SettingsMonitorLayoutLabel, SettingsMonitorLayoutHint,
     SettingsMonitorLayoutUnified, SettingsMonitorLayoutSplit,
     SettingsFileAssociationLabel, SettingsFileAssociationHint, SettingsFileAssociationAdd,
-    SettingsFileAssociationRemove, ErrHddDirectoryNotWritable, SettingsToggleOn,
+    SettingsFileAssociationRemove, SettingsFileAssociationWorking, ErrHddDirectoryNotWritable, SettingsToggleOn,
     SettingsToggleOff, SettingsThemeLabel, SettingsThemeHint, SettingsShortcutsLabel,
     SettingsShortcutsHint, SettingsNoMatches, SettingsReset, SettingsResetConfirmTitle,
     SettingsResetConfirmBody,

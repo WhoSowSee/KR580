@@ -110,6 +110,12 @@ KR580 uses `$HOME/.local/share`. Registration fails instead of writing into the
 working directory when no absolute home location is available.
 Generated Desktop Entry commands quote paths according to the freedesktop
 rules, including reserved characters and literal percent signs.
+Executable paths containing control characters are rejected before metadata
+is written. Launcher resolution is shared with the CLI: a valid version-1
+install manifest identifies `bin/kr` → `app/kr580`; an ordinary Cargo `bin`
+directory uses the adjacent GUI binary.
+Paths containing `%` use `/usr/bin/env --` before the quoted executable so
+GLib can validate the command before expanding literal percent escapes.
 Runtime registration, the Unix installer, and declarative packages render the
 tracked templates under `crates/ui/assets/linux` instead of maintaining
 independent Desktop Entry or shared-MIME copies.
@@ -118,6 +124,14 @@ Linux integration returns an error when `update-mime-database` or
 and Settings cannot report a cache update as completed when it failed.
 After updating those databases, Linux assigns `application/x-kr580` to the
 hidden KR580 handler through `xdg-mime`.
+Linux saves the previous default and owning executable under
+`$XDG_DATA_HOME/kr580/file-association.json`. An advisory lock serializes KR580
+registration changes across processes. Failures restore the previous metadata,
+MIME preference files and saved state; rollback failures are reported too.
+Unregister removes only the matching executable's registration, removes stale
+KR580 IDs from user MIME preferences, and restores the previous default only
+if KR580 was still selected. A later user choice is preserved. File-removal
+errors are returned instead of silently reporting success.
 Strict Snap confinement suppresses this in-app action because it cannot mutate
 the host shared-MIME database; snapd owns the package's exported handler.
 Portable mode hides Windows scope because it always installs to the selected
@@ -134,11 +148,20 @@ document icon. `KR580.icns` supplies the application icon.
 Registration calls the public Core Services `LSRegisterURL` API and reports its
 `OSStatus`; it does not invoke the private `lsregister` executable.
 The in-app association action locates the `KR580.app` containing the running
-executable, or the installer-owned bundle in `~/Applications`. It registers
-that existing bundle without copying binaries, rewriting metadata, or deleting
-the application when association state changes.
+executable. For an unpackaged developer build or System installation it can
+create an owned launcher bundle in `~/Applications`; Portable installations
+keep their launcher bundle at `<install root>/KR580.app`. Existing bundles are
+only rewritten when their plist executable and launcher belong to the same
+installation (including its former `app/k580` path). Foreign wrappers and
+standalone bundles are preserved. Setup checks bundle ownership before copying
+its payload, and uninstall only removes its own System launcher bundle.
 The same action makes `dev.kr580.snapshot` and `dev.kr580.subprogram` default to
 the stable KR580 bundle identifier through the public Launch Services role API.
+The public macOS unregister functions return an unsupported-operation error;
+`file_assoc::is_registered` is Windows-only, where Settings consumes it.
+`kr -u` is omitted from macOS help and returns an error instead of claiming
+that a default handler was removed. macOS uninstall removes owned launcher
+files, leaving selection of a replacement default to Finder/Launch Services.
 The default window is `720x600` logical pixels with a `680x560` minimum. The
 fixed command bar uses the same canvas as the setup body and keeps the compact
 `176x40` primary action visible at the minimum size and at high DPI. Hover uses
@@ -257,6 +280,11 @@ graphical setup flow because NixOS owns PATH, desktop integration, and package
 activation declaratively.
 Its desktop entry launches `kr580` directly; `kr` remains available as the
 optional terminal launcher.
+Both wrappers include `desktop-file-utils`, `shared-mime-info`, and `xdg-utils`
+in PATH. `KR580_GUI_EXECUTABLE` identifies the absolute GUI wrapper used by
+associations, preserving its library and configuration environment. The GUI
+sets `KR580_PACKAGE_KIND=nix` so settings use the writable XDG config directory
+instead of the Nix store.
 
 The release workflow runs `nix flake check --no-build` and builds
 `.#packages.x86_64-linux.default`; tagged releases wait for that job before the
@@ -265,6 +293,12 @@ target-specific output directory because the nixpkgs Cargo hook passes
 `--target` even for native Linux builds.
 
 ## GitHub Release Notes
+
+`scripts/version_release_artifacts.sh` adds the tag version only to setup
+ZIP/DEB names that still need it. Already-versioned DMG and Snap names remain
+unchanged and their package version must match the tag. A repeated invocation
+is harmless; an existing destination is rejected. The mixed-artifact test
+`scripts/verify_release_artifact_names.sh` runs before publication.
 
 Tagged builds publish a GitHub release after every platform packaging job
 completes. The release job extracts the matching version section from the
@@ -308,7 +342,7 @@ registers the app with the desktop environment:
   the machine uninstall registry key. These writes require the normal Windows
   rights for those locations.
 - Linux/Unix installs create a user `.desktop` launcher under
-  `~/.local/share/applications`, optionally create a desktop launcher, and
+  `$XDG_DATA_HOME/applications` (default `~/.local/share/applications`), optionally create a desktop launcher, and
   remove those entries during uninstall.
 - macOS installs are user-scoped, use `~/Applications/KR580` as their default
   root, and create a small `~/Applications/KR580.app` launcher wrapper for
@@ -334,6 +368,8 @@ A standalone macOS application bundle follows the same Application Support
 path even though it has no `install.json`. A confined Snap stores settings in
 `$SNAP_USER_COMMON/settings.json`, so refreshes share one writable settings
 file instead of attempting to modify the read-only mounted package.
+The Nix GUI wrapper uses `$XDG_CONFIG_HOME/kr580/settings.json`, falling back
+to `~/.config/kr580/settings.json` for unset, empty, or relative XDG paths.
 
 Portable mode defaults to `%USERPROFILE%\KR580` on Windows and `$HOME/KR580`
 on Unix/macOS. It stores settings in `<install root>/data/settings.json`.
@@ -341,12 +377,15 @@ Temporary floppy-buffer and image files still use `std::env::temp_dir()`, so
 throwaway files stay in the OS temp area instead of the portable data folder.
 Portable mode does not create Start Menu/search entries, desktop shortcuts,
 or uninstall registry/application entries. If its file-association checkbox is selected,
-the `.580` and `.krs` associations point directly to that portable `app/kr580` binary.
-Running the portable `app/uninstaller` removes the recorded associations,
+the `.580` and `.krs` associations point to that portable `app/kr580` binary
+(through `<install root>/KR580.app` on macOS).
+On Windows/Linux, running the portable `app/uninstaller` removes the recorded associations,
 removes the exact `<install root>/bin` PATH entry if it exists, and then removes
 the portable folder after the final Close/`Закрыть` action. Manual folder
 deletion removes only the files; use `uninstaller` or `kr --unregister-file-type`
 first if portable file associations were created and must be removed.
+On macOS the owned portable bundle is removed with the portable folder;
+choose a replacement default through Finder when needed.
 
 Uninstall is integrated into System mode. Windows registers `KR580` in Apps &
 Features with an uninstall command that runs the installed `uninstaller

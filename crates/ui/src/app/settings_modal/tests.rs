@@ -330,3 +330,29 @@ fn language_change_re_renders_canonical_status_string() {
     app.refresh_localized_status();
     assert_eq!(app.status, "entity not found");
 }
+
+#[test]
+fn file_association_task_tracks_pending_state_until_completion() {
+    let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.settings_dialog = Some(SettingsDialog::new(
+        app.lang,
+        app.default_speed,
+        true,
+        true,
+        None,
+        None,
+        NetworkSettings::default(),
+    ));
+
+    let task = app.update(Message::SettingsFileAssociationRegister);
+    drop(task);
+
+    assert!(app.file_association_pending);
+    let _ = app.update(Message::CloseSettings);
+    let _ = app.update(Message::OpenSettings);
+    assert!(app.file_association_pending);
+    assert!(app.update(Message::SettingsFileAssociationRegister).units() == 0);
+
+    let _ = app.update(Message::SettingsFileAssociationFinished(Ok(())));
+    assert!(!app.file_association_pending);
+}

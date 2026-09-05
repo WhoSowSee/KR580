@@ -2551,7 +2551,8 @@ Settings path resolution checks an installer manifest first. Without one, a
 macOS executable inside an `.app` uses
 `~/Library/Application Support/KR580/settings.json`, while a confined Snap uses
 `$SNAP_USER_COMMON/settings.json`. Only unpackaged developer binaries retain
-the adjacent-file fallback.
+the adjacent-file fallback. Nix wrappers set `KR580_PACKAGE_KIND=nix` and use
+the platform XDG configuration path even without an installer manifest.
 
 `StatusKind` (in `app/status.rs`) tags every canonical status string
 with its provenance (`Ready`, `Stopped`, `SavedTo { display, legacy }`,
@@ -2736,7 +2737,8 @@ to start the GUI binary directly.
   binary, so launching an associated file does not show a transient console
   window.
 - `kr --unregister-file-type` / `kr -u` – remove the `.580` and `.krs` file
-  associations.
+  associations on Windows/Linux. macOS omits this option from help and reports
+  an unsupported-operation error if it is requested.
 
 The same control is available in the in-app Settings dialog under
 General → `.580 and .krs file associations`. On Windows, the button reads
@@ -2744,11 +2746,27 @@ General → `.580 and .krs file associations`. On Windows, the button reads
 present. While the dialog is open the UI polls the OS state on every frame tick,
 so changes made from the terminal (e.g. `kr -r`) or any other source are
 reflected in the button label without closing and reopening the dialog.
+Polling is Windows-only and pauses while a registration change is pending.
+Both mouse and keyboard actions start `Task::perform` with `spawn_blocking`,
+disable the association button, and display `Applying…` / `Применение…`.
+`SettingsFileAssociationFinished(Result<(), String>)` clears the global pending
+state even after the dialog closes or another modal opens. Reopening Settings
+while work is pending preserves the disabled state; repeated requests cannot
+start a second operation. The pending flag is passed to the view directly;
+it is not mirrored in the dialog. Windows keeps its last observed registration
+status in the open dialog for both the button and keyboard action. Status
+changes update the existing widgets without remounting Settings or resetting
+its scroll position. Unix does not query registration status.
 
 On Linux and macOS the row instead has one `Set as default` action. Linux
 registers the handler metadata and runs `xdg-mime default` for
-`application/x-kr580`; macOS registers the containing `KR580.app` and assigns
-both exported UTIs to its stable bundle identifier.
+`application/x-kr580`, saving the previous handler for ownership-aware removal.
+Failed changes restore previous registration metadata and MIME preferences.
+macOS registers the containing `KR580.app`, or creates an owned launcher bundle
+for an unpackaged executable, and assigns both exported UTIs to its stable
+bundle identifier. Portable bundles live inside the install root; other
+launcher bundles live under `~/Applications`. Existing foreign bundles are
+never overwritten by this operation.
 Inside strict Snap confinement the row and its keyboard focus stop are omitted:
 snapd owns the exported desktop handler, while writes to the snap's private XDG
 directories cannot change the host MIME database.
@@ -2773,6 +2791,10 @@ so file-manager Open With lists do not expose an `Emulator` suffix.
 `kr` looks for the `kr580` executable in the same directory as itself
 (`kr580.exe` on Windows, `kr580` elsewhere), redirects its stdio to `/dev/null`,
 spawns it, and returns without waiting.
+File-association code shares the manifest-aware companion resolver with the
+launcher, so a Cargo installation in `.cargo/bin` points to its adjacent GUI.
+Nix provides `KR580_GUI_EXECUTABLE` so associations launch the GUI wrapper
+with its runtime library paths and configuration settings intact.
 
 On Windows, registering from either `kr.exe` or `kr580.exe` maps both `.580`
 and `.krs` to the same `K580.Snapshot` ProgID and `OpenWithProgids` entry.

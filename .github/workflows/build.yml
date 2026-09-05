@@ -24,6 +24,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.88.0
+          components: clippy
 
       - name: Cache cargo build artifacts
         uses: Swatinem/rust-cache@v2
@@ -31,13 +32,26 @@ jobs:
       - name: Install metadata tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y desktop-file-utils shared-mime-info
+          sudo apt-get install -y desktop-file-utils libglib2.0-bin shared-mime-info
 
       - name: Test isolated association ownership
-        run: cargo test --locked -p kr580 --lib file_assoc::linux::tests
+        run: |
+          cargo clippy --locked --workspace --all-targets -- -D warnings
+          cargo test --locked -p kr580 --lib file_assoc::
+          cargo test --locked -p kr580 --lib macos_bundle::tests
+          cargo test --locked -p kr580 --test linux_associations
+
+      - name: Test rendered Desktop Entry launch
+        run: >-
+          cargo test --locked -p kr580 --lib
+          file_assoc::linux::tests::desktop_entry_consumer_preserves_executable_and_file_arguments
+          -- --ignored --exact
 
       - name: Validate desktop metadata caches
         run: bash scripts/verify_linux_metadata.sh
+
+      - name: Validate release artifact naming
+        run: bash scripts/verify_release_artifact_names.sh
 
   linux:
     name: Linux installer ${{ matrix.target }}
@@ -128,6 +142,12 @@ jobs:
       - name: Cache cargo build artifacts
         uses: Swatinem/rust-cache@v2
 
+      - name: Check macOS integration
+        run: |
+          rustup component add clippy
+          cargo clippy --locked -p kr580 --all-targets --target ${{ matrix.target }} -- -D warnings
+          cargo test --locked -p kr580 --lib macos_bundle::tests
+
       - name: Build and validate application image
         run: bash scripts/build_macos_dmg.sh release --target ${{ matrix.target }} --dist-dir artifacts
 
@@ -164,6 +184,10 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1 -Profile release -Target ${{ matrix.target }} -DistDir dist
+
+      - name: Test isolated Windows associations
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: cargo test --locked -p kr580 --lib file_assoc::windows::tests
 
       - name: Package installer zip
         shell: pwsh
@@ -350,13 +374,7 @@ jobs:
           printf 'body<<EOF\n%s\nEOF\n' "$body" >> "$GITHUB_OUTPUT"
 
       - name: Rename artifacts with version
-        run: |
-          shopt -s nullglob
-          for file in dist/*; do
-            base=$(basename "$file")
-            new_base=${base/${PROJECT_NAME}/${PROJECT_NAME}-${VERSION}}
-            mv "$file" "dist/${new_base}"
-          done
+        run: bash scripts/version_release_artifacts.sh dist "$VERSION"
 
       - name: Compose release body
         run: |

@@ -47,25 +47,6 @@ pub fn set_default_handlers() -> Result<(), String> {
     Ok(())
 }
 
-pub fn is_default_handler() -> bool {
-    [SNAPSHOT_UTI, SUBPROGRAM_UTI]
-        .iter()
-        .all(|content_type| default_handler(content_type).as_deref() == Some(BUNDLE_ID))
-}
-
-fn default_handler(content_type: &str) -> Option<String> {
-    let content_type = CFString::new(content_type);
-    // SAFETY: `content_type` remains alive during the call and a non-null result follows Create Rule.
-    let handler = unsafe {
-        LSCopyDefaultRoleHandlerForContentType(content_type.as_concrete_TypeRef(), ALL_ROLES)
-    };
-    if handler.is_null() {
-        None
-    } else {
-        Some(unsafe { CFString::wrap_under_create_rule(handler) }.to_string())
-    }
-}
-
 #[link(name = "CoreServices", kind = "framework")]
 unsafe extern "C" {
     fn LSRegisterURL(url: CFURLRef, update: u8) -> i32;
@@ -74,5 +55,4 @@ unsafe extern "C" {
         role: u32,
         handler: CFStringRef,
     ) -> i32;
-    fn LSCopyDefaultRoleHandlerForContentType(content_type: CFStringRef, role: u32) -> CFStringRef;
 }

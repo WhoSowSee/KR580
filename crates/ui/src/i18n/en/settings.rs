@@ -58,6 +58,7 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
             }
         }
         Key::SettingsFileAssociationRemove => "Remove",
+        Key::SettingsFileAssociationWorking => "Applying…",
         Key::ErrHddDirectoryNotWritable => "Cannot use this directory – no write permission",
         Key::SettingsToggleOn => "On",
         Key::SettingsToggleOff => "Off",

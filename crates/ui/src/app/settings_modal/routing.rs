@@ -219,11 +219,11 @@ impl DesktopApp {
             ContentFocus::FileAssociation if !k580_ui::file_assoc::is_user_configurable() => {
                 Task::none()
             }
+            ContentFocus::FileAssociation if self.file_association_pending => Task::none(),
             ContentFocus::FileAssociation => {
                 #[cfg(target_os = "windows")]
                 {
-                    let registered = k580_ui::file_assoc::is_registered();
-                    Task::done(if registered {
+                    Task::done(if dialog.file_association_registered {
                         Message::SettingsFileAssociationUnregister
                     } else {
                         Message::SettingsFileAssociationRegister

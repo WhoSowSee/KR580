@@ -13,15 +13,25 @@ const EXTENSION_KEYS: [&str; 2] = ["Software\\Classes\\.580", "Software\\Classes
 const OPEN_COMMAND_KEY: &str = "Software\\Classes\\K580.Snapshot\\shell\\open\\command";
 
 pub fn register() -> Result<(), String> {
-    let exe = association_executable()?;
+    let exe = crate::install_mode::current_integration_executable()?;
     register_for_executable(&exe, InstallScope::User)
 }
 
 pub fn register_for_executable(exe: &Path, scope: InstallScope) -> Result<(), String> {
-    let exe = association_executable_from(exe.to_path_buf());
-    let icon_resource = icon_resource_for(&exe)?;
-    let open_command = open_command_for(&exe)?;
+    let exe = crate::install_mode::companion_executable_from_launcher(
+        exe.to_path_buf(),
+        "kr.exe",
+        "kr580.exe",
+    );
     let root = class_root(scope);
+    write_association(root, &exe)?;
+    notify_shell();
+    Ok(())
+}
+
+fn write_association(root: HKEY, exe: &Path) -> Result<(), String> {
+    let icon_resource = icon_resource_for(exe)?;
+    let open_command = open_command_for(exe)?;
 
     for extension_key in EXTENSION_KEYS {
         write_string(root, extension_key, "", PROG_ID)?;
@@ -41,24 +51,32 @@ pub fn register_for_executable(exe: &Path, scope: InstallScope) -> Result<(), St
     )?;
     write_string(root, OPEN_COMMAND_KEY, "", &open_command)?;
 
-    notify_shell();
     Ok(())
 }
 
 pub fn unregister() -> Result<(), String> {
-    let exe = association_executable()?;
+    let exe = crate::install_mode::current_integration_executable()?;
     unregister_for_executable(&exe, InstallScope::User)
 }
 
 pub fn unregister_for_executable(exe: &Path, scope: InstallScope) -> Result<(), String> {
-    let exe = association_executable_from(exe.to_path_buf());
-    let Ok(open_command) = open_command_for(&exe) else {
-        return Ok(());
-    };
-    if command_matches(class_root(scope), &open_command) {
-        delete_association(class_root(scope))?;
+    let exe = crate::install_mode::companion_executable_from_launcher(
+        exe.to_path_buf(),
+        "kr.exe",
+        "kr580.exe",
+    );
+    if remove_owned_association(class_root(scope), &exe)? {
+        notify_shell();
     }
     Ok(())
+}
+
+fn remove_owned_association(root: HKEY, exe: &Path) -> Result<bool, String> {
+    if !command_matches(root, &open_command_for(exe)?) {
+        return Ok(false);
+    }
+    delete_association(root)?;
+    Ok(true)
 }
 
 fn delete_association(root: HKEY) -> Result<(), String> {
@@ -69,7 +87,6 @@ fn delete_association(root: HKEY) -> Result<(), String> {
         delete_value(root, &format!("{extension_key}\\OpenWithProgids"), PROG_ID)?;
     }
     delete_tree(root, PROG_ID_KEY)?;
-    notify_shell();
     Ok(())
 }
 
@@ -98,28 +115,12 @@ fn command_matches(root: HKEY, open_command: &str) -> bool {
 }
 
 fn association_executable() -> Result<PathBuf, String> {
-    let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
-    Ok(association_executable_from(exe))
-}
-
-fn association_executable_from(exe: PathBuf) -> PathBuf {
-    if exe
-        .file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.eq_ignore_ascii_case("kr.exe"))
-    {
-        if let Some(directory) = exe.parent()
-            && directory
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name.eq_ignore_ascii_case("bin"))
-            && let Some(root) = directory.parent()
-        {
-            return root.join("app").join("kr580.exe");
-        }
-        return exe.with_file_name("kr580.exe");
-    }
-    exe
+    let exe = crate::install_mode::current_integration_executable()?;
+    Ok(crate::install_mode::companion_executable_from_launcher(
+        exe,
+        "kr.exe",
+        "kr580.exe",
+    ))
 }
 
 fn open_command_for(exe: &Path) -> Result<String, String> {
@@ -307,32 +308,4 @@ fn notify_shell() {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    #[test]
-    fn file_association_registered_from_launcher_points_to_gui_binary() {
-        assert_eq!(
-            association_executable_from(PathBuf::from(r"D:\kr-580\target\release\kr.exe")),
-            PathBuf::from(r"D:\kr-580\target\release\kr580.exe")
-        );
-    }
-
-    #[test]
-    fn installed_launcher_points_to_app_gui_binary() {
-        assert_eq!(
-            association_executable_from(PathBuf::from(r"C:\Programs\KR580\bin\kr.exe")),
-            PathBuf::from(r"C:\Programs\KR580\app\kr580.exe")
-        );
-    }
-
-    #[test]
-    fn open_command_registered_from_launcher_uses_gui_binary() {
-        let exe = association_executable_from(PathBuf::from(r"D:\kr-580\target\release\kr.exe"));
-        assert_eq!(
-            open_command_for(&exe).unwrap(),
-            r#""D:\kr-580\target\release\kr580.exe" "%1""#
-        );
-    }
-}
+mod tests;

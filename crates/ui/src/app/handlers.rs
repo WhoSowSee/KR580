@@ -22,11 +22,11 @@ impl DesktopApp {
         self.refresh_open_image_contents();
         let now = Instant::now();
         let help_search_task = self.due_help_search_task(now);
-        let registered = k580_ui::file_assoc::is_registered();
-        if registered != self.file_association_last_registered {
-            self.file_association_last_registered = registered;
-            self.file_association_toggle_revision =
-                self.file_association_toggle_revision.wrapping_add(1);
+        #[cfg(target_os = "windows")]
+        if !self.file_association_pending
+            && let Some(dialog) = self.settings_dialog.as_mut()
+        {
+            dialog.file_association_registered = k580_ui::file_assoc::is_registered();
         }
         self.memory_scroll_visible_ticks = self.memory_scroll_visible_ticks.saturating_sub(1);
         self.opcode_scroll_visible_ticks = self.opcode_scroll_visible_ticks.saturating_sub(1);

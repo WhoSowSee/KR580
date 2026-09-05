@@ -101,7 +101,7 @@ pub(super) fn hdd_directory_row<'a>(
 
     let browse_btn = settings_browse_button(
         lang.t(Key::SettingsHddDirectoryBrowse),
-        Message::SettingsHddDirectoryBrowse,
+        Some(Message::SettingsHddDirectoryBrowse),
         kb_focused,
     );
 
@@ -135,7 +135,7 @@ pub(super) fn printer_default_row<'a>(
 
     let setup_btn = settings_browse_button(
         lang.t(Key::SettingsPrinterSetup),
-        Message::SettingsPrinterSetup,
+        Some(Message::SettingsPrinterSetup),
         kb_focused,
     );
 
@@ -243,7 +243,7 @@ pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
 
     let browse_btn = settings_browse_button(
         lang.t(Key::SettingsFloppyImageBrowse),
-        Message::SettingsFloppyImageBrowse,
+        Some(Message::SettingsFloppyImageBrowse),
         kb_focused,
     );
 
@@ -289,11 +289,11 @@ pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
 
 pub(super) fn settings_browse_button<'a>(
     label: &'static str,
-    message: Message,
+    message: Option<Message>,
     kb_focused: bool,
 ) -> Element<'a, Message> {
     button(container(ui_text(label, 12, tokyo_text())).padding([2, 8]))
-        .on_press(message)
+        .on_press_maybe(message)
         .style(move |_theme, status| settings_button_style(status, kb_focused))
         .into()
 }

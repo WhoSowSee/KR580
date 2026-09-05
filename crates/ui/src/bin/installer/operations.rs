@@ -34,6 +34,20 @@ pub(super) struct UninstallPlan {
 
 pub(super) fn install(request: InstallRequest) -> Result<InstallReport, String> {
     let source = SourceBundle::discover()?;
+    #[cfg(target_os = "macos")]
+    if request.mode == InstallMode::System || request.associate_program_files {
+        let bundle = if request.mode == InstallMode::Portable {
+            request
+                .install_dir
+                .join(k580_ui::macos_bundle::APP_BUNDLE_NAME)
+        } else {
+            k580_ui::macos_bundle::applications_dir()?.join(k580_ui::macos_bundle::APP_BUNDLE_NAME)
+        };
+        k580_ui::macos_bundle::validate_launcher_bundle(
+            &bundle,
+            &request.install_dir.join("app/kr580"),
+        )?;
+    }
     let app_dir = request.install_dir.join("app");
     let bin_dir = request.install_dir.join("bin");
 
@@ -63,9 +77,12 @@ pub(super) fn install(request: InstallRequest) -> Result<InstallReport, String> 
     let integration = if request.mode == InstallMode::System {
         let integration =
             platform::install_system_integration(&platform::SystemIntegrationRequest {
+                #[cfg(windows)]
                 scope: request.scope,
+                #[cfg(windows)]
                 install_dir: &request.install_dir,
                 kr580_path: &kr580_path,
+                #[cfg(windows)]
                 uninstaller_path: &uninstaller_path,
                 create_desktop_shortcut: request.create_desktop_shortcut,
             })?;
@@ -107,6 +124,7 @@ pub(super) fn remove_system_entries(install_dir: PathBuf) -> Result<UninstallPla
 }
 
 pub(super) fn remove_links(plan: UninstallPlan) -> Result<(), String> {
+    #[cfg(not(target_os = "macos"))]
     if plan.manifest.file_association {
         let kr580_path = plan.install_dir.join("app").join(binary_name("kr580"));
         k580_ui::file_assoc::unregister_for_executable(&kr580_path, plan.manifest.scope)?;
@@ -236,7 +254,10 @@ fn remove_legacy_gui_binary(install_dir: &Path) -> Result<(), String> {
         return Ok(());
     }
     let manifest = read_manifest(install_dir)?;
+    #[cfg(not(target_os = "macos"))]
     k580_ui::file_assoc::unregister_for_executable(&legacy, manifest.scope)?;
+    #[cfg(target_os = "macos")]
+    let _ = manifest;
     std::fs::remove_file(&legacy).map_err(|e| format!("remove {}: {e}", legacy.display()))
 }
 
@@ -280,12 +301,7 @@ mod tests {
 
     #[test]
     fn unmanaged_legacy_binary_is_preserved() {
-        let nonce = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root =
-            std::env::temp_dir().join(format!("kr580-unmanaged-{}-{nonce}", std::process::id()));
+        let root = unique_temp_dir("unmanaged");
         let legacy = root.join("app").join(binary_name("k580"));
         std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
         std::fs::write(&legacy, b"unmanaged").unwrap();
@@ -294,5 +310,31 @@ mod tests {
 
         assert!(legacy.is_file());
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn managed_legacy_binary_without_association_is_removed() {
+        let root = unique_temp_dir("managed-legacy");
+        let legacy = root.join("app").join(binary_name("k580"));
+        std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        std::fs::write(&legacy, b"managed").unwrap();
+        write_manifest(
+            &root,
+            &InstallManifest::new(InstallMode::Portable, InstallScope::User),
+        )
+        .unwrap();
+
+        remove_legacy_gui_binary(&root).unwrap();
+
+        assert!(!legacy.exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    fn unique_temp_dir(name: &str) -> PathBuf {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("kr580-{name}-{}-{nonce}", std::process::id()))
     }
 }

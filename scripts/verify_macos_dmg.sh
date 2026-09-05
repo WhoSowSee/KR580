@@ -49,6 +49,12 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "macOS is required to inspect a DMG" >&2
   exit 1
 fi
+for command in hdiutil iconutil lipo plutil; do
+  if ! command -v "$command" >/dev/null; then
+    echo "required command not found: $command" >&2
+    exit 1
+  fi
+done
 if [[ ! -f "$dmg" || -z "$version" ]]; then
   usage
   exit 2
@@ -62,6 +68,7 @@ case "$architecture" in
 esac
 
 mount_dir="$(mktemp -d "${TMPDIR:-/tmp}/kr580-mount.XXXXXX")"
+icon_check_dir="$(mktemp -d "${TMPDIR:-/tmp}/kr580-icons.XXXXXX")"
 mounted=false
 cleanup() {
   if [[ "$mounted" == true ]]; then
@@ -72,6 +79,9 @@ cleanup() {
   if [[ "$mounted" == false ]]; then
     rmdir -- "$mount_dir" 2>/dev/null || true
   fi
+  case "$icon_check_dir" in
+    "${TMPDIR:-/tmp}"/kr580-icons.*) rm -rf -- "$icon_check_dir" ;;
+  esac
 }
 trap cleanup EXIT
 
@@ -85,6 +95,16 @@ binary="$app/Contents/MacOS/kr580"
 test -x "$binary"
 test -f "$app/Contents/Resources/KR580.icns"
 test -f "$app/Contents/Resources/KR580Document.icns"
+iconutil --convert iconset \
+  --output "$icon_check_dir/KR580.iconset" \
+  "$app/Contents/Resources/KR580.icns"
+iconutil --convert iconset \
+  --output "$icon_check_dir/KR580Document.iconset" \
+  "$app/Contents/Resources/KR580Document.icns"
+test -f "$icon_check_dir/KR580.iconset/icon_16x16.png"
+test -f "$icon_check_dir/KR580.iconset/icon_512x512@2x.png"
+test -f "$icon_check_dir/KR580Document.iconset/icon_16x16.png"
+test -f "$icon_check_dir/KR580Document.iconset/icon_512x512@2x.png"
 test -L "$mount_dir/Applications"
 test "$(readlink "$mount_dir/Applications")" = "/Applications"
 plutil -lint "$plist"

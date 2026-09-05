@@ -33,6 +33,11 @@
             pkgs.xorg.libXrandr
             pkgs.xorg.libxcb
           ];
+          desktopIntegrationTools = [
+            pkgs.desktop-file-utils
+            pkgs.shared-mime-info
+            pkgs.xdg-utils
+          ];
           kr580 = pkgs.rustPlatform.buildRustPackage {
             pname = "kr580";
             version = cargoToml.workspace.package.version;
@@ -84,9 +89,14 @@
             '';
             postFixup = ''
               wrapProgram "$out/bin/kr580" \
-                --prefix PATH : ${lib.makeBinPath [ pkgs.zenity ]} \
+                --set KR580_PACKAGE_KIND nix \
+                --set KR580_GUI_EXECUTABLE "$out/bin/kr580" \
+                --prefix PATH : ${lib.makeBinPath ([ pkgs.zenity ] ++ desktopIntegrationTools)} \
                 --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
-              wrapProgram "$out/bin/kr" --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
+              wrapProgram "$out/bin/kr" \
+                --set KR580_GUI_EXECUTABLE "$out/bin/kr580" \
+                --prefix PATH : ${lib.makeBinPath desktopIntegrationTools} \
+                --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath runtimeLibs}
             '';
             meta = {
               description = "Desktop KR580VM80 / Intel 8080 emulator";

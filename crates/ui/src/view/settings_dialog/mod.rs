@@ -19,7 +19,7 @@ mod speed;
 mod styles;
 mod theme_row;
 
-use iced::widget::{Space, column, container, keyed_column, mouse_area, opaque, row, stack};
+use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
 use iced::{Element, Length};
 
 use consts::{DIALOG_HEIGHT, DIALOG_WIDTH};
@@ -37,7 +37,7 @@ use crate::i18n::Lang;
 pub(super) fn settings_modal_overlay<'a>(
     dialog: &'a SettingsDialog,
     lang: Lang,
-    file_association_toggle_revision: u64,
+    file_association_pending: bool,
 ) -> Element<'a, Message> {
     let backdrop = mouse_area(
         container(Space::new())
@@ -54,7 +54,7 @@ pub(super) fn settings_modal_overlay<'a>(
             row![
                 settings_sidebar(dialog, lang),
                 separator_vertical(),
-                settings_content(dialog, lang),
+                settings_content(dialog, lang, file_association_pending),
             ]
             .height(Length::Fill),
             separator_horizontal(),
@@ -64,9 +64,6 @@ pub(super) fn settings_modal_overlay<'a>(
         .height(Length::Fixed(DIALOG_HEIGHT)),
     )
     .style(modal_dialog_style);
-
-    let body: Element<'a, Message> =
-        keyed_column(vec![(file_association_toggle_revision, body.into())]).into();
 
     let centred = column![
         Space::new().height(Length::Fill),
@@ -224,7 +221,7 @@ mod tests {
     #[test]
     fn settings_content_captures_wheel_without_native_double_scroll() {
         let dialog = test_dialog();
-        let mut root = settings_content(&dialog, Lang::Ru);
+        let mut root = settings_content(&dialog, Lang::Ru, false);
         let renderer = test_renderer();
         let mut tree = widget::Tree::new(&root);
         let node = root.as_widget_mut().layout(
@@ -277,7 +274,7 @@ mod tests {
             let mut dialog = test_dialog();
             dialog.content_can_scroll_up = up;
             dialog.content_can_scroll_down = down;
-            let mut root = super::settings_modal_overlay(&dialog, Lang::Ru, 0);
+            let mut root = super::settings_modal_overlay(&dialog, Lang::Ru, false);
             let mut tree = widget::Tree::new(&root);
             let node = root.as_widget_mut().layout(
                 &mut tree,
@@ -329,7 +326,7 @@ mod tests {
     }
 
     fn scrollable_tag_path(dialog: &SettingsDialog) -> Vec<widget::tree::Tag> {
-        let root = settings_content(dialog, Lang::Ru);
+        let root = settings_content(dialog, Lang::Ru, false);
         let tree = widget::Tree::new(&root);
         let scrollable: Element<'_, Message> = iced::widget::scrollable(Space::new()).into();
         tag_path(&tree, scrollable.as_widget().tag()).expect("settings scrollable")

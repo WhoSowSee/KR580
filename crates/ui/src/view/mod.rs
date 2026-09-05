@@ -260,7 +260,7 @@ impl DesktopApp {
         } else if let Some(dialog) = self.settings_dialog.as_ref() {
             stack![
                 scrimmed,
-                settings_modal_overlay(dialog, self.lang, self.file_association_toggle_revision)
+                settings_modal_overlay(dialog, self.lang, self.file_association_pending)
             ]
             .width(Length::Fill)
             .height(Length::Fill)

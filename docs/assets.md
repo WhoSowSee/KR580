@@ -73,7 +73,7 @@ The scripts read `crates/ui/assets/icons/icon.png`,
 `crates/ui/assets/icons/file-580.png`,
 `crates/ui/assets/icons/installer-setup.png`, and
 `crates/ui/assets/icons/installer-uninstall.png`, then rewrite every derived
-PNG/ICO in one go.
+PNG/ICO/ICNS in one go.
 
 ### PowerShell (Windows)
 
@@ -91,14 +91,21 @@ dependency required.
 ```
 
 Uses ImageMagick: prefers `magick` (v7+), falls back to `convert` (v6).
+ICNS conversion uses Apple's `iconutil` when available, or Python 3's standard
+library to assemble the PNG layers into an ICNS container on Linux/WSL.
+The required encoder is checked before regenerating assets. ICNS output is
+staged, checked for its signature and declared length, and only then installed.
+ImageMagick is never asked to encode an unsupported ICNS format.
 Install via your package manager:
 
 - macOS: `brew install imagemagick`
 - Debian/Ubuntu: `sudo apt install imagemagick`
 - Arch: `sudo pacman -S imagemagick`
 
-Both scripts run a Lanczos resample for every layer and strip metadata
-to keep the PNG/ICO files small.
+The Bash script uses Lanczos resampling and strips metadata. The PowerShell
+script uses System.Drawing's high-quality bicubic resampling.
+The native DMG verifier also decodes both ICNS resources with `iconutil`
+and checks the smallest and largest image representations.
 
 ## Where the assets are consumed
 

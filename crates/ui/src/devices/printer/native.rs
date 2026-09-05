@@ -29,6 +29,7 @@ fn last_os_error(api: &str) -> String {
 
 #[derive(Debug)]
 pub(super) enum PrintFailure {
+    #[cfg(windows)]
     Cancelled,
     Failed(String),
 }

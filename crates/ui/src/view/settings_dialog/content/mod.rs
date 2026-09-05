@@ -23,7 +23,11 @@ const SCROLL_HINT_HEIGHT: f32 = 24.0;
 const SCROLL_HINT_ICON_SIZE: f32 = 12.0;
 const SETTINGS_SCROLL_LINE_STEP: f32 = 40.0;
 
-pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
+pub(super) fn settings_content<'a>(
+    dialog: &'a SettingsDialog,
+    lang: Lang,
+    file_association_pending: bool,
+) -> Element<'a, Message> {
     let lower_query = dialog.search_query().to_lowercase();
     let searching = !lower_query.is_empty();
 
@@ -38,9 +42,17 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
             } else {
                 &lower_query
             };
-            collect_category_rows(*cat, dialog, lang, category_query, &mut group, &mut |idx| {
-                language_row_index = Some(rows.len() + 1 + idx);
-            });
+            collect_category_rows(
+                *cat,
+                dialog,
+                lang,
+                file_association_pending,
+                category_query,
+                &mut group,
+                &mut |idx| {
+                    language_row_index = Some(rows.len() + 1 + idx);
+                },
+            );
             if group.is_empty() {
                 continue;
             }
@@ -55,6 +67,7 @@ pub(super) fn settings_content<'a>(dialog: &'a SettingsDialog, lang: Lang) -> El
             dialog.category,
             dialog,
             lang,
+            file_association_pending,
             &lower_query,
             &mut rows,
             &mut |idx| {
@@ -203,6 +216,7 @@ fn collect_category_rows<'a>(
     category: SettingsCategory,
     dialog: &'a SettingsDialog,
     lang: Lang,
+    file_association_pending: bool,
     lower_query: &str,
     out: &mut Vec<Element<'a, Message>>,
     mut on_language_row: impl FnMut(usize),
@@ -264,7 +278,7 @@ fn collect_category_rows<'a>(
                     lower_query,
                 )
             {
-                out.push(file_association_row(dialog, lang));
+                out.push(file_association_row(dialog, lang, file_association_pending));
             }
         }
         SettingsCategory::ExternalDevices => {

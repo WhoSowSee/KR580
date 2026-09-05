@@ -1,7 +1,10 @@
+#[cfg(any(windows, test))]
 use crate::devices::decode_oem_text;
 
+#[cfg(any(windows, test))]
 const COLUMNS_PER_LINE: usize = 80;
 
+#[cfg(any(windows, test))]
 pub(super) fn printer_lines(spool: &[u8]) -> Vec<String> {
     let text = decode_oem_text(spool).replace('\t', "    ");
     let mut lines = Vec::new();

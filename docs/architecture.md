@@ -10,7 +10,8 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 ## Repository layout
 
 - `crates/core/`: public `k580-core` library crate.
-- `crates/ui/`: public `kr580` package with private app, device, persistence, UI, launcher, and installer modules. Its hidden `desktop_entry` helper centralizes freedesktop command quoting for runtime registration and installer-generated launchers.
+- `crates/ui/`: public `kr580` package with private app, device, persistence, UI, launcher, and installer modules. Its hidden `desktop_entry` helper centralizes freedesktop command quoting and XDG data-home resolution, `install_mode` resolves adjacent versus manifest-owned binaries, and `shell_quote` supplies the shared Unix single-argument encoder.
+- `crates/ui/src/file_assoc/linux_default.rs`: owns the saved Linux default-handler state, `mimeapps.list` cleanup, and restoration of the handler that preceded KR580. `linux_files.rs` supplies process locking, atomic writes, and file backups used for rollback.
 - `crates/ui/assets/linux/`: canonical freedesktop launcher, file-handler, package, and shared-MIME templates consumed by runtime registration and native packages.
 - `crates/ui/assets/macos/Info.plist`: canonical macOS application metadata used by runtime integration and release packaging.
 - `macos_launch_services`: narrow Core Services bridge for registering the installed application bundle and managing its document handlers.
@@ -18,7 +19,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
 - `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
-- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts, while `build_macos_dmg.sh` packages the native GUI as a drag-and-drop application image under `dist/`. `verify_linux_metadata.sh` builds disposable desktop/MIME caches, and `verify_macos_dmg.sh` mounts and inspects a release image without registering it.
+- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts, while `build_macos_dmg.sh` packages the native GUI as a drag-and-drop application image under `dist/`. The verification scripts exercise Linux metadata, macOS images, and release artifact names; `version_release_artifacts.sh` adds the release tag only to unversioned setup packages.
 - `target/`: cargo build artefacts (gitignored).
 
 ## Installation Layout
@@ -44,6 +45,8 @@ and uninstall cleanup where the platform supports them. See
 Executables inside a macOS application bundle use Application Support even
 without an installer manifest. Strict Snap executions use the writable,
 revision-independent `SNAP_USER_COMMON` directory.
+Nix wrappers mark the packaged GUI so it also uses the writable XDG config
+directory and expose the wrapped GUI path to file-association code.
 The Snap exposes `kr580` itself as its only app command; snapd owns its lifecycle
 and exported desktop entry, so no nested installer, uninstaller, PATH writer,
 or private desktop database is involved.
@@ -71,6 +74,14 @@ UI messages become `AppCommand` values. The internal backend actor owns `Cpu8080
 - `.krs` remains a raw byte slice with caller-provided base address; no secondary subprogram format is introduced.
 
 ## Runtime shape
+
+File-association changes use an iced task backed by Tokio's blocking pool.
+`DesktopApp.file_association_pending` survives closing Settings and prevents
+overlapping operations; completion messages bypass modal routing. Only Windows
+polls handler registration, while Settings is open and no operation is pending.
+The dialog keeps that Windows status for both rendering and keyboard actions;
+the pending flag has a single owner in `DesktopApp`. Unix has no unused
+registration-status query or Launch Services default-handler lookup.
 
 `kr580` sends commands through a crossbeam channel to its internal backend emulator actor. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage, network, and native printer workers, so file, TCP, GDI printing, and printer-driver calls stay outside the UI thread. The printer settings layer keeps the Windows PrintTicket provider lifecycle inside one blocking MTA task, while the iced state stores only parsed capabilities and the validated `DEVMODEW`. The actor polls network state and printer completion every 50 ms and publishes a snapshot only when either state differs from the last published one, allowing received bytes, connection changes, and completed print jobs to reach an idle UI without causing continuous redraws. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
 

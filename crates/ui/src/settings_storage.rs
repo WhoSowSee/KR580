@@ -56,7 +56,10 @@ fn packaged_settings_path(exe: &Path) -> Option<PathBuf> {
 
 #[cfg(all(unix, not(target_os = "macos")))]
 fn packaged_settings_path(_exe: &Path) -> Option<PathBuf> {
-    snap_settings_path(std::env::var_os("SNAP_USER_COMMON"))
+    snap_settings_path(std::env::var_os("SNAP_USER_COMMON")).or_else(|| {
+        (std::env::var_os("KR580_PACKAGE_KIND").as_deref() == Some(std::ffi::OsStr::new("nix")))
+            .then(system_settings_path)
+    })
 }
 
 #[cfg(any(test, all(unix, not(target_os = "macos"))))]
@@ -95,7 +98,9 @@ fn system_settings_path() -> PathBuf {
 #[cfg(all(unix, not(target_os = "macos")))]
 fn system_settings_path() -> PathBuf {
     std::env::var_os("XDG_CONFIG_HOME")
+        .filter(|value| !value.is_empty())
         .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
         .unwrap_or_else(|| home_dir().join(".config"))
         .join("kr580")
         .join(SETTINGS_FILENAME)

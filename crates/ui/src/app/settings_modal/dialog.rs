@@ -37,6 +37,8 @@ pub(crate) struct SettingsDialog {
     pub(crate) original_shortcuts: ShortcutSettings,
     pub(crate) recording_shortcut: Option<ShortcutAction>,
     pub(crate) network_error: Option<String>,
+    #[cfg(target_os = "windows")]
+    pub(crate) file_association_registered: bool,
     pub(crate) language_dropdown_open: bool,
     /// Keyboard highlight inside the open language dropdown. `None`
     /// when the dropdown is closed; while open, ArrowUp / ArrowDown
@@ -157,6 +159,8 @@ impl SettingsDialog {
             original_shortcuts: shortcuts,
             recording_shortcut: None,
             network_error: None,
+            #[cfg(target_os = "windows")]
+            file_association_registered: k580_ui::file_assoc::is_registered(),
             language_dropdown_open: false,
             dropdown_highlight: None,
             original_lang: lang,

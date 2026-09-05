@@ -375,4 +375,5 @@ pub(crate) enum Message {
     SettingsFileAssociationRegister,
     #[cfg(target_os = "windows")]
     SettingsFileAssociationUnregister,
+    SettingsFileAssociationFinished(Result<(), String>),
 }

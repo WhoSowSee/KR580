@@ -42,14 +42,53 @@ user's desktop or association databases:
 
 ```sh
 bash scripts/verify_linux_metadata.sh
+bash scripts/verify_release_artifact_names.sh
 bash scripts/verify_macos_dmg.sh --dmg <image> --architecture <arm64|x86_64> --version <version>
 ```
 
 The Linux script requires `desktop-file-utils` and `shared-mime-info`. The
-macOS script requires the built-in `hdiutil`, `plutil`, and `lipo`; it attaches
+macOS script requires the built-in `hdiutil`, `plutil`, `iconutil`, and `lipo`; it attaches
 the image read-only and always detaches it. Release CI runs the Linux ownership
 tests and metadata script natively, while each macOS image build invokes the
 DMG verifier before upload.
+The DMG check expands both ICNS files with `iconutil`. The release-name test
+covers a mixed ZIP/DEB/DMG/Snap set, repeated execution, and mismatched versions.
+Linux association lifecycle tests launch the real CLI in isolated child
+environments with deterministic desktop-tool fixtures. They cover foreign
+ownership, changed external defaults, repeated registration, errors before
+and after default changes, and rollback of new/existing metadata:
+
+```sh
+cargo test --locked -p kr580 --test linux_associations
+cargo test --locked -p kr580 --lib file_assoc::linux::tests::desktop_entry_consumer_preserves_executable_and_file_arguments -- --ignored --exact
+```
+
+The second command requires `gio` (`libglib2.0-bin` on Ubuntu) and launches a
+temporary script through the rendered Desktop Entry to check paths containing
+spaces, dollars, backticks and percent signs. Windows registry regression tests
+use a private temporary HKCU subtree as their root and never modify the real
+`Software/Classes` association tree. macOS bundle tests verify foreign-bundle
+preservation, legacy launcher upgrades, and owned portable bundle creation
+using temporary directories.
+The association button test sends mouse events through the same iced widget
+tree across registered/pending changes. CLI lifecycle tests cover Linux file
+creation, ownership and rollback; duplicate unit tests of those operations are
+not maintained separately. Unix registration-status queries were removed with
+their unused tests. The Windows open-command assertion runs inside the actual
+isolated registry roundtrip.
+Run Clippy natively on Linux/macOS as well as Windows; `--all-targets` alone
+does not enable another operating system's `cfg` branches.
+Release CI runs strict Linux/macOS Clippy, native macOS bundle tests, and the
+isolated registry tests on the x86_64 Windows row. Running the entire workspace
+on Linux also encounters the existing `core/tests/bug_regression.rs` fixture
+path `D:\kr\Examples\bug-tests`. The UI package can be tested independently
+with `cargo test --locked -p kr580`, but its existing tests also have platform
+assumptions: eight export/import tests expect Russian messages regardless of
+the host locale, and three window attach tests expect a retained window ID
+although the non-Windows implementation closes that window. These 11 tests
+fail on the English WSL environment used for the audit fixes. Use the focused
+association commands above to verify those fixes; they do not substitute for
+a passing full Linux test suite.
 Feature audits inspect the effective all-target graph and invert any dependency
 whose defaults are expected to stay off:
 
@@ -154,7 +193,8 @@ before rebuilding so the embedded artefacts stay in sync with the source
 artwork:
 
 - Windows: `powershell -File scripts/generate_icons.ps1`
-- Unix/macOS: `./scripts/generate_icons.sh` (requires ImageMagick)
+- Unix/macOS: `./scripts/generate_icons.sh` (requires ImageMagick and either
+  Apple `iconutil` or Python 3 for ICNS encoding)
 
 The Windows build script does not regenerate `icon.ico` automatically –
 it only embeds it. A stale `icon.ico` will be silently shipped if you
@@ -262,6 +302,8 @@ worth eyeballing after touching `crates/ui`:
   `.krs` files open with `kr` from the file manager; confirm
   `xdg-mime query default application/x-kr580` returns
   `kr580-file-handler.desktop`;
+  register twice, remove the association and confirm the preceding default is
+  restored; choose another default externally and confirm removal preserves it;
 - on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
   `~/Applications/KR580.app` uses bundle identifier `dev.kr580.emulator`,
   executable name `kr580`, the generated version from the canonical plist,
@@ -270,6 +312,10 @@ worth eyeballing after touching `crates/ui`:
   of each type in Finder and confirm the existing app receives the document,
   including the load-address dialog for `.krs`; change one setting and confirm
   it is written under `~/Library/Application Support/KR580`, not inside the app;
+  in a Portable installation verify `<install root>/KR580.app` is created and
+  settings remain under `<install root>/data`; with a foreign
+  `~/Applications/KR580.app`, System setup must stop before copying its payload;
+  `kr -u` must report unsupported instead of claiming success;
 - open each top-menu dropdown and verify Up/Down wraps through enabled rows
   without moving the selected RAM address, paints the current row with the
   pointer-hover fill and no blue border; verify Left/Right cyclically opens the

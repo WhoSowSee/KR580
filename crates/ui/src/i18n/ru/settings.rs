@@ -56,6 +56,7 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
             }
         }
         Key::SettingsFileAssociationRemove => "Удалить",
+        Key::SettingsFileAssociationWorking => "Применение…",
         Key::ErrHddDirectoryNotWritable => {
             "Невозможно использовать этот каталог – нет прав на запись"
         }

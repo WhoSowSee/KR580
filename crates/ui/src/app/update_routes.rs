@@ -4,6 +4,9 @@ use super::{DesktopApp, Message};
 
 impl DesktopApp {
     pub(crate) fn route_blocking_ui_message(&mut self, message: &Message) -> Option<Task<Message>> {
+        if matches!(message, Message::SettingsFileAssociationFinished(_)) {
+            return None;
+        }
         if let Some(task) = self.dispatch_window_message(message) {
             return Some(task);
         }
