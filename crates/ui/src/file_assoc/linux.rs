@@ -13,9 +13,6 @@ pub fn register_for_executable(
     _scope: crate::install_mode::InstallScope,
 ) -> Result<(), String> {
     let exe = association_executable_from(exe.to_path_buf());
-    let exe_str = exe
-        .to_str()
-        .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
     let paths = IntegrationPaths::current()?;
 
     std::fs::create_dir_all(&paths.mime_packages).map_err(|e| format!("create mime dir: {e}"))?;
@@ -28,7 +25,7 @@ pub fn register_for_executable(
     let dest_icon = paths.application_icons.join("kr580.png");
 
     std::fs::write(&mime_file, mime_xml()).map_err(|e| format!("write mime file: {e}"))?;
-    std::fs::write(&desktop_file, desktop_entry(exe_str))
+    std::fs::write(&desktop_file, desktop_entry(&exe)?)
         .map_err(|e| format!("write desktop file: {e}"))?;
     if let Some(icon) = super::find_icon() {
         std::fs::copy(&icon, &dest_icon).map_err(|e| format!("copy icon: {e}"))?;
@@ -56,13 +53,10 @@ pub fn unregister_for_executable(
     _scope: crate::install_mode::InstallScope,
 ) -> Result<(), String> {
     let exe = association_executable_from(exe.to_path_buf());
-    let exe_str = exe
-        .to_str()
-        .ok_or_else(|| "executable path is not valid UTF-8".to_owned())?;
     let paths = IntegrationPaths::current()?;
     let desktop_file = paths.applications.join(HANDLER_DESKTOP_FILE);
     let current = std::fs::read_to_string(&desktop_file).unwrap_or_default();
-    if desktop_entry_owned_by(&current, exe_str) {
+    if desktop_entry_owned_by(&current, &exe) {
         remove_registration(&paths)?;
     }
     Ok(())
@@ -73,9 +67,6 @@ pub fn is_registered() -> bool {
         return false;
     };
     let exe = association_executable_from(exe);
-    let Some(exe_str) = exe.to_str() else {
-        return false;
-    };
     let Ok(paths) = IntegrationPaths::current() else {
         return false;
     };
@@ -86,7 +77,7 @@ pub fn is_registered() -> bool {
     let Ok(desktop) = std::fs::read_to_string(paths.applications.join(HANDLER_DESKTOP_FILE)) else {
         return false;
     };
-    mime_registration_is_current(&mime) && desktop_entry_owned_by(&desktop, exe_str)
+    mime_registration_is_current(&mime) && desktop_entry_owned_by(&desktop, &exe)
 }
 
 fn association_executable_from(exe: PathBuf) -> PathBuf {
@@ -103,9 +94,10 @@ fn association_executable_from(exe: PathBuf) -> PathBuf {
     exe
 }
 
-fn desktop_entry_owned_by(entry: &str, exe: &str) -> bool {
-    let expected = format!("Exec={exe} %f");
-    entry.lines().any(|line| line == expected)
+fn desktop_entry_owned_by(entry: &str, exe: &Path) -> bool {
+    crate::desktop_entry::quote_executable(exe)
+        .map(|exe| entry.lines().any(|line| line == format!("Exec={exe} %f")))
+        .unwrap_or(false)
 }
 
 struct IntegrationPaths {
@@ -163,8 +155,8 @@ fn mime_registration_is_current(mime: &str) -> bool {
     mime.contains(r#"<glob pattern="*.580"/>"#) && mime.contains(r#"<glob pattern="*.krs"/>"#)
 }
 
-fn desktop_entry(exec: &str) -> String {
-    format!(
+fn desktop_entry(executable: &Path) -> Result<String, String> {
+    Ok(format!(
         "[Desktop Entry]\n\
          Name=KR580 Emulator\n\
          Comment=KR580 emulator\n\
@@ -175,8 +167,8 @@ fn desktop_entry(exec: &str) -> String {
          Terminal=false\n\
          MimeType=application/x-kr580;\n\
          Categories=Development;\n",
-        exec
-    )
+        crate::desktop_entry::quote_executable(executable)?
+    ))
 }
 
 fn update_databases(paths: &IntegrationPaths) {
@@ -205,7 +197,8 @@ mod tests {
 
     #[test]
     fn file_handler_is_hidden_from_application_menus() {
-        let entry = desktop_entry("/opt/kr580/k580");
+        let executable = PathBuf::from("/opt/kr580/k580");
+        let entry = desktop_entry(&executable).unwrap();
 
         assert!(entry.contains("NoDisplay=true\n"));
         assert!(entry.contains("MimeType=application/x-kr580;\n"));
@@ -213,10 +206,14 @@ mod tests {
 
     #[test]
     fn ownership_requires_the_exact_executable() {
-        let entry = desktop_entry("/opt/kr580/app/k580");
+        let executable = PathBuf::from("/opt/kr580/app/k580");
+        let entry = desktop_entry(&executable).unwrap();
 
-        assert!(desktop_entry_owned_by(&entry, "/opt/kr580/app/k580"));
-        assert!(!desktop_entry_owned_by(&entry, "/opt/kr580/app/k58"));
+        assert!(desktop_entry_owned_by(&entry, &executable));
+        assert!(!desktop_entry_owned_by(
+            &entry,
+            PathBuf::from("/opt/kr580/app/k58").as_path()
+        ));
     }
 
     #[test]

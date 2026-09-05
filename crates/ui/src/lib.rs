@@ -1,6 +1,8 @@
 #[doc(hidden)]
 pub mod backend;
 #[doc(hidden)]
+pub mod desktop_entry;
+#[doc(hidden)]
 pub mod devices;
 #[doc(hidden)]
 pub mod persistence;

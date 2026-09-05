@@ -71,7 +71,7 @@ fn install_freedesktop_integration(
     let applications = applications_dir();
     std::fs::create_dir_all(&applications).map_err(|e| format!("create applications dir: {e}"))?;
     let desktop_file = applications.join("kr580.desktop");
-    std::fs::write(&desktop_file, desktop_entry(request.k580_path))
+    std::fs::write(&desktop_file, desktop_entry(request.k580_path)?)
         .map_err(|e| format!("write desktop entry: {e}"))?;
     make_executable(&desktop_file)?;
 
@@ -79,7 +79,7 @@ fn install_freedesktop_integration(
         let desktop = desktop_dir();
         std::fs::create_dir_all(&desktop).map_err(|e| format!("create desktop dir: {e}"))?;
         let shortcut = desktop.join("KR580.desktop");
-        std::fs::write(&shortcut, desktop_entry(request.k580_path))
+        std::fs::write(&shortcut, desktop_entry(request.k580_path)?)
             .map_err(|e| format!("write desktop shortcut: {e}"))?;
         make_executable(&shortcut)?;
         true
@@ -225,8 +225,8 @@ fn shell_single_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
-fn desktop_entry(k580_path: &Path) -> String {
-    format!(
+fn desktop_entry(k580_path: &Path) -> Result<String, String> {
+    Ok(format!(
         "[Desktop Entry]\n\
          Name=KR580\n\
          Comment=KR580 emulator\n\
@@ -234,12 +234,8 @@ fn desktop_entry(k580_path: &Path) -> String {
          Type=Application\n\
          Terminal=false\n\
          Categories=Development;\n",
-        desktop_exec_quote(&k580_path.display().to_string())
-    )
-}
-
-fn desktop_exec_quote(value: &str) -> String {
-    format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
+        k580_ui::desktop_entry::quote_executable(k580_path)?
+    ))
 }
 
 #[cfg(target_os = "macos")]

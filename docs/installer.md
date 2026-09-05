@@ -99,6 +99,8 @@ or older installation cannot remove a handler owned by another path.
 User-level integration follows `XDG_DATA_HOME`; when it is unset or relative,
 KR580 uses `$HOME/.local/share`. Registration fails instead of writing into the
 working directory when no absolute home location is available.
+Generated Desktop Entry commands quote paths according to the freedesktop
+rules, including reserved characters and literal percent signs.
 Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
 Installed-state messages use user-facing wording and do not expose the internal

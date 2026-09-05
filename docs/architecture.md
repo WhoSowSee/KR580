@@ -10,7 +10,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 ## Repository layout
 
 - `crates/core/`: public `k580-core` library crate.
-- `crates/ui/`: public `kr580` package with private app, device, persistence, UI, launcher, and installer modules.
+- `crates/ui/`: public `kr580` package with private app, device, persistence, UI, launcher, and installer modules. Its hidden `desktop_entry` helper centralizes freedesktop command quoting for runtime registration and installer-generated launchers.
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
 - `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
