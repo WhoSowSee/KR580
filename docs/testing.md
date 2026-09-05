@@ -142,6 +142,8 @@ artwork:
 The Windows build script does not regenerate `icon.ico` automatically –
 it only embeds it. A stale `icon.ico` will be silently shipped if you
 forget to rerun the generator.
+When a Windows host cross-checks Linux or macOS, the build script skips PE
+resource compilation for the non-Windows target.
 
 ## Manual smoke checks for the UI
 

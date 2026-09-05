@@ -59,6 +59,9 @@ fn binary_name(name: &str) -> String {
 
 #[cfg(windows)]
 fn embed_windows_resources() {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
     let manifest_dir = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let icons_dir = manifest_dir.join("assets").join("icons");
     let icon_path = windows_main_icon(&icons_dir);
