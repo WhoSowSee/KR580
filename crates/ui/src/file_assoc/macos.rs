@@ -13,7 +13,7 @@ pub fn register_for_executable(executable: &Path, _scope: InstallScope) -> Resul
     let executable = association_executable_from(executable.to_path_buf());
     let bundle = applications_dir()?.join(APP_BUNDLE_NAME);
     write_launcher_bundle(&bundle, &executable)?;
-    register_bundle(&bundle)
+    crate::macos_launch_services::register_bundle(&bundle)
 }
 
 pub fn unregister() -> Result<(), String> {
@@ -52,19 +52,6 @@ fn association_executable_from(executable: PathBuf) -> PathBuf {
         return executable.with_file_name("k580");
     }
     executable
-}
-
-fn register_bundle(bundle: &Path) -> Result<(), String> {
-    let lsregister = "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister";
-    let status = std::process::Command::new(lsregister)
-        .args(["-f", &bundle.to_string_lossy()])
-        .status()
-        .map_err(|error| format!("lsregister: {error}"))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(format!("lsregister exited with {status}"))
-    }
 }
 
 #[cfg(test)]

@@ -1452,6 +1452,7 @@ name = "kr580"
 version = "2.3.0"
 dependencies = [
  "calamine",
+ "core-foundation 0.10.1",
  "crossbeam-channel",
  "iced",
  "image",

@@ -115,6 +115,8 @@ layer no longer generate different bundle names or metadata.
 The bundle exports `dev.kr580.snapshot` for `.580` and
 `dev.kr580.subprogram` for `.krs`, with distinct Finder type names and a shared
 document icon. `KR580.icns` supplies the application icon.
+Registration calls the public Core Services `LSRegisterURL` API and reports its
+`OSStatus`; it does not invoke the private `lsregister` executable.
 The default window is `720x600` logical pixels with a `680x560` minimum. The
 fixed command bar uses the same canvas as the setup body and keeps the compact
 `176x40` primary action visible at the minimum size and at high DPI. Hover uses
