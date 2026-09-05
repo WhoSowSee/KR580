@@ -78,7 +78,14 @@ fn embed_windows_resources() {
 
     let mut resource = winresource::WindowsResource::new();
     resource.set("ProductName", "KR580");
-    resource.set("FileDescription", "KR580");
+    resource.set(
+        "FileDescription",
+        match std::env::var("KR580_WINDOWS_ICON_KIND").as_deref() {
+            Ok("setup") => "KR580 Setup",
+            Ok("uninstaller") => "KR580 Uninstaller",
+            _ => "KR580",
+        },
+    );
     resource.set_icon(
         icon_path
             .to_str()

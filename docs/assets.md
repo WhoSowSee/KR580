@@ -111,7 +111,8 @@ to keep the PNG/ICO files small.
 - `crates/ui/build.rs` switches the main PE icon when
   `KR580_WINDOWS_ICON_KIND` is set: `setup` embeds
   `crates/ui/assets/icons/installer-setup.ico`, and `uninstaller` embeds
-  `crates/ui/assets/icons/installer-uninstall.ico`.
+  `crates/ui/assets/icons/installer-uninstall.ico`; the same selector assigns
+  their `KR580 Setup` and `KR580 Uninstaller` file descriptions.
 - `crates/ui/build.rs` (Windows only) also embeds
   `crates/ui/assets/icons/file-580.ico` as PE resource id `2`. This drives the
   Explorer icon shown for `.580` and `.krs` files once the file associations point at the
