@@ -117,6 +117,10 @@ The bundle exports `dev.kr580.snapshot` for `.580` and
 document icon. `KR580.icns` supplies the application icon.
 Registration calls the public Core Services `LSRegisterURL` API and reports its
 `OSStatus`; it does not invoke the private `lsregister` executable.
+The in-app association action locates the `KR580.app` containing the running
+executable, or the installer-owned bundle in `~/Applications`. It registers
+that existing bundle without copying binaries, rewriting metadata, or deleting
+the application when association state changes.
 The default window is `720x600` logical pixels with a `680x560` minimum. The
 fixed command bar uses the same canvas as the setup body and keeps the compact
 `176x40` primary action visible at the minimum size and at high DPI. Hover uses

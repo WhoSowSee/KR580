@@ -1,7 +1,5 @@
 use crate::install_mode::InstallScope;
-use crate::macos_bundle::{
-    APP_BUNDLE_NAME, applications_dir, bundle_owned_by, write_launcher_bundle,
-};
+use crate::macos_bundle::find_for_executable;
 use std::path::{Path, PathBuf};
 
 pub fn register() -> Result<(), String> {
@@ -11,8 +9,7 @@ pub fn register() -> Result<(), String> {
 
 pub fn register_for_executable(executable: &Path, _scope: InstallScope) -> Result<(), String> {
     let executable = association_executable_from(executable.to_path_buf());
-    let bundle = applications_dir()?.join(APP_BUNDLE_NAME);
-    write_launcher_bundle(&bundle, &executable)?;
+    let bundle = find_for_executable(&executable)?;
     crate::macos_launch_services::register_bundle(&bundle)
 }
 
@@ -21,23 +18,14 @@ pub fn unregister() -> Result<(), String> {
     unregister_for_executable(&executable, InstallScope::User)
 }
 
-pub fn unregister_for_executable(executable: &Path, _scope: InstallScope) -> Result<(), String> {
-    let executable = association_executable_from(executable.to_path_buf());
-    let bundle = applications_dir()?.join(APP_BUNDLE_NAME);
-    if bundle_owned_by(&bundle, &executable) {
-        std::fs::remove_dir_all(bundle).map_err(|error| format!("remove app bundle: {error}"))?;
-    }
+pub fn unregister_for_executable(_executable: &Path, _scope: InstallScope) -> Result<(), String> {
     Ok(())
 }
 
 pub fn is_registered() -> bool {
-    let Ok(executable) = std::env::current_exe() else {
-        return false;
-    };
-    let executable = association_executable_from(executable);
-    applications_dir()
-        .map(|directory| directory.join(APP_BUNDLE_NAME))
-        .is_ok_and(|bundle| bundle_owned_by(&bundle, &executable))
+    std::env::current_exe()
+        .map(association_executable_from)
+        .is_ok_and(|executable| find_for_executable(&executable).is_ok())
 }
 
 fn association_executable_from(executable: PathBuf) -> PathBuf {

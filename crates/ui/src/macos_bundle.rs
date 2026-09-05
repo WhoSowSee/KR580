@@ -41,6 +41,42 @@ pub fn bundle_owned_by(bundle: &Path, executable: &Path) -> bool {
     std::fs::read_to_string(launcher).is_ok_and(|content| content == launcher_script(executable))
 }
 
+pub fn find_for_executable(executable: &Path) -> Result<PathBuf, String> {
+    if let Some(bundle) = containing_application_bundle(executable)
+        && bundle_has_identity(&bundle)
+    {
+        return Ok(bundle);
+    }
+
+    let bundle = applications_dir()?.join(APP_BUNDLE_NAME);
+    if bundle_owned_by(&bundle, executable) && bundle_has_identity(&bundle) {
+        return Ok(bundle);
+    }
+
+    Err(format!(
+        "KR580.app containing {} was not found",
+        executable.display()
+    ))
+}
+
+fn containing_application_bundle(executable: &Path) -> Option<PathBuf> {
+    executable
+        .ancestors()
+        .find(|ancestor| {
+            ancestor
+                .extension()
+                .is_some_and(|extension| extension == "app")
+        })
+        .map(Path::to_path_buf)
+}
+
+fn bundle_has_identity(bundle: &Path) -> bool {
+    std::fs::read_to_string(bundle.join("Contents/Info.plist")).is_ok_and(|plist| {
+        plist.contains(&format!("<string>{BUNDLE_ID}</string>"))
+            && plist.contains(&format!("<string>{BUNDLE_EXECUTABLE}</string>"))
+    })
+}
+
 pub fn info_plist() -> String {
     include_str!("../assets/macos/Info.plist").replace("@VERSION@", env!("CARGO_PKG_VERSION"))
 }
@@ -68,7 +104,8 @@ fn make_executable(path: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        BUNDLE_EXECUTABLE, BUNDLE_ID, SNAPSHOT_UTI, SUBPROGRAM_UTI, info_plist, launcher_script,
+        BUNDLE_EXECUTABLE, BUNDLE_ID, SNAPSHOT_UTI, SUBPROGRAM_UTI, containing_application_bundle,
+        info_plist, launcher_script,
     };
     use std::path::Path;
 
@@ -88,5 +125,16 @@ mod tests {
             launcher_script(Path::new("/Applications/Jack's KR580/k580")),
             "#!/bin/sh\nexec '/Applications/Jack'\\''s KR580/k580' \"$@\"\n"
         );
+    }
+
+    #[test]
+    fn containing_bundle_is_resolved_from_macos_executable_path() {
+        assert_eq!(
+            containing_application_bundle(Path::new(
+                "/Applications/KR580.app/Contents/MacOS/KR580"
+            )),
+            Some(Path::new("/Applications/KR580.app").to_path_buf())
+        );
+        assert_eq!(containing_application_bundle(Path::new("/opt/k580")), None);
     }
 }
