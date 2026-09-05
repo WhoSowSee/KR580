@@ -48,23 +48,3 @@ pub fn unregister_for_executable(
 ) -> Result<(), String> {
     Err("file-type association is not supported on this platform".to_owned())
 }
-
-#[cfg(target_os = "macos")]
-pub(crate) fn find_icon() -> Option<std::path::PathBuf> {
-    let kr = std::env::current_exe().ok()?;
-    let dir = kr.parent()?;
-
-    let candidates = [
-        dir.join("assets/icons/icon-64.png"),
-        dir.join("../assets/icons/icon-64.png"),
-        dir.join("../../crates/ui/assets/icons/icon-64.png"),
-        dir.join("../../../crates/ui/assets/icons/icon-64.png"),
-    ];
-    for path in candidates {
-        if path.is_file() {
-            return Some(path);
-        }
-    }
-
-    None
-}

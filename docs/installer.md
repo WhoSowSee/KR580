@@ -108,6 +108,10 @@ Portable mode hides Windows scope because it always installs to the selected
 folder for the current user.
 Installed-state messages use user-facing wording and do not expose the internal
 `app/`, `bin/`, or portable data folders.
+macOS integration uses one `KR580.app` contract: bundle identifier
+`dev.kr580.emulator`, executable name `KR580`, and the canonical
+`crates/ui/assets/macos/Info.plist` template. The installer and association
+layer no longer generate different bundle names or metadata.
 The default window is `720x600` logical pixels with a `680x560` minimum. The
 fixed command bar uses the same canvas as the setup body and keeps the compact
 `176x40` primary action visible at the minimum size and at high DPI. Hover uses

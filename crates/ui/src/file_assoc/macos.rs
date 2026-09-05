@@ -1,174 +1,57 @@
+use crate::install_mode::InstallScope;
+use crate::macos_bundle::{
+    APP_BUNDLE_NAME, applications_dir, bundle_owned_by, write_launcher_bundle,
+};
 use std::path::{Path, PathBuf};
 
 pub fn register() -> Result<(), String> {
-    let kr = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
-    let k580 = kr.with_file_name("k580");
-    let bundle_dir = applications_dir().join("kr580.app");
-    let contents = bundle_dir.join("Contents");
-    let macos = contents.join("MacOS");
-    let resources = contents.join("Resources");
-
-    std::fs::create_dir_all(&macos).map_err(|e| format!("create MacOS: {e}"))?;
-    std::fs::create_dir_all(&resources).map_err(|e| format!("create Resources: {e}"))?;
-
-    std::fs::copy(&kr, macos.join("kr")).map_err(|e| format!("copy kr: {e}"))?;
-    std::fs::copy(&k580, macos.join("k580")).map_err(|e| format!("copy k580: {e}"))?;
-
-    let launcher = macos.join("kr580");
-    std::fs::write(&launcher, launcher_script()).map_err(|e| format!("write launcher: {e}"))?;
-    make_executable(&launcher)?;
-
-    std::fs::write(contents.join("Info.plist"), info_plist())
-        .map_err(|e| format!("write Info.plist: {e}"))?;
-
-    if let Some(icon) = super::find_icon() {
-        let _ = std::fs::copy(icon, resources.join("icon.png"));
-    }
-
-    register_bundle(&bundle_dir)
+    let executable = std::env::current_exe().map_err(|error| format!("current_exe: {error}"))?;
+    register_for_executable(&executable, InstallScope::User)
 }
 
-pub fn register_for_executable(
-    exe: &Path,
-    _scope: crate::install_mode::InstallScope,
-) -> Result<(), String> {
-    let bundle_dir = applications_dir().join("kr580.app");
-    let contents = bundle_dir.join("Contents");
-    let macos = contents.join("MacOS");
-    let resources = contents.join("Resources");
-
-    std::fs::create_dir_all(&macos).map_err(|e| format!("create MacOS: {e}"))?;
-    std::fs::create_dir_all(&resources).map_err(|e| format!("create Resources: {e}"))?;
-
-    let launcher = macos.join("kr580");
-    std::fs::write(&launcher, target_launcher_script(exe))
-        .map_err(|e| format!("write launcher: {e}"))?;
-    make_executable(&launcher)?;
-
-    std::fs::write(contents.join("Info.plist"), info_plist())
-        .map_err(|e| format!("write Info.plist: {e}"))?;
-
-    if let Some(icon) = super::find_icon() {
-        let _ = std::fs::copy(icon, resources.join("icon.png"));
-    }
-
-    register_bundle(&bundle_dir)
+pub fn register_for_executable(executable: &Path, _scope: InstallScope) -> Result<(), String> {
+    let executable = association_executable_from(executable.to_path_buf());
+    let bundle = applications_dir()?.join(APP_BUNDLE_NAME);
+    write_launcher_bundle(&bundle, &executable)?;
+    register_bundle(&bundle)
 }
 
 pub fn unregister() -> Result<(), String> {
-    let _ = std::fs::remove_dir_all(applications_dir().join("kr580.app"));
-    Ok(())
+    let executable = std::env::current_exe().map_err(|error| format!("current_exe: {error}"))?;
+    unregister_for_executable(&executable, InstallScope::User)
 }
 
-pub fn unregister_for_executable(
-    exe: &Path,
-    _scope: crate::install_mode::InstallScope,
-) -> Result<(), String> {
-    let launcher = applications_dir()
-        .join("kr580.app")
-        .join("Contents")
-        .join("MacOS")
-        .join("kr580");
-    let current = std::fs::read_to_string(&launcher).unwrap_or_default();
-    if current == target_launcher_script(exe) {
-        unregister()?;
+pub fn unregister_for_executable(executable: &Path, _scope: InstallScope) -> Result<(), String> {
+    let executable = association_executable_from(executable.to_path_buf());
+    let bundle = applications_dir()?.join(APP_BUNDLE_NAME);
+    if bundle_owned_by(&bundle, &executable) {
+        std::fs::remove_dir_all(bundle).map_err(|error| format!("remove app bundle: {error}"))?;
     }
     Ok(())
 }
 
 pub fn is_registered() -> bool {
-    let plist = applications_dir()
-        .join("kr580.app")
-        .join("Contents")
-        .join("Info.plist");
-    std::fs::read_to_string(plist).is_ok_and(|plist| plist_registration_is_current(&plist))
+    let Ok(executable) = std::env::current_exe() else {
+        return false;
+    };
+    let executable = association_executable_from(executable);
+    applications_dir()
+        .map(|directory| directory.join(APP_BUNDLE_NAME))
+        .is_ok_and(|bundle| bundle_owned_by(&bundle, &executable))
 }
 
-fn applications_dir() -> PathBuf {
-    std::env::var("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join("Applications")
-}
-
-fn launcher_script() -> &'static str {
-    "#!/bin/bash\nDIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nexec \"$DIR/kr\" \"$@\"\n"
-}
-
-fn target_launcher_script(exe: &Path) -> String {
-    format!(
-        "#!/bin/bash\nexec {} \"$@\"\n",
-        shell_single_quote(&exe.display().to_string())
-    )
-}
-
-fn shell_single_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "'\\''"))
-}
-
-fn make_executable(path: &Path) -> Result<(), String> {
-    use std::os::unix::fs::PermissionsExt;
-    let mut perms = std::fs::metadata(path)
-        .map_err(|e| format!("metadata: {e}"))?
-        .permissions();
-    perms.set_mode(0o755);
-    std::fs::set_permissions(path, perms).map_err(|e| format!("set permissions: {e}"))
-}
-
-fn info_plist() -> &'static str {
-    r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleExecutable</key>
-    <string>kr580</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.kr580.emulator</string>
-    <key>CFBundleName</key>
-    <string>KR580</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleDocumentTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleTypeName</key>
-            <string>KR580 Program File</string>
-            <key>CFBundleTypeRole</key>
-            <string>Editor</string>
-            <key>LSItemContentTypes</key>
-            <array>
-                <string>com.kr580.snapshot</string>
-            </array>
-        </dict>
-    </array>
-    <key>UTExportedTypeDeclarations</key>
-    <array>
-        <dict>
-            <key>UTTypeIdentifier</key>
-            <string>com.kr580.snapshot</string>
-            <key>UTTypeDescription</key>
-            <string>KR580 Program File</string>
-            <key>UTTypeConformsTo</key>
-            <array>
-                <string>public.data</string>
-            </array>
-            <key>UTTypeTagSpecification</key>
-            <dict>
-                <key>public.filename-extension</key>
-                <array>
-                    <string>580</string>
-                    <string>krs</string>
-                </array>
-            </dict>
-        </dict>
-    </array>
-</dict>
-</plist>
-"#
-}
-
-fn plist_registration_is_current(plist: &str) -> bool {
-    plist.contains("<string>580</string>") && plist.contains("<string>krs</string>")
+fn association_executable_from(executable: PathBuf) -> PathBuf {
+    if executable.file_name().is_some_and(|name| name == "kr") {
+        if let Some(directory) = executable.parent()
+            && directory.file_name().is_some_and(|name| name == "bin")
+            && let Some(root) = directory.parent()
+            && root.join(crate::install_mode::MANIFEST_FILENAME).is_file()
+        {
+            return root.join("app/k580");
+        }
+        return executable.with_file_name("k580");
+    }
+    executable
 }
 
 fn register_bundle(bundle: &Path) -> Result<(), String> {
@@ -176,21 +59,24 @@ fn register_bundle(bundle: &Path) -> Result<(), String> {
     let status = std::process::Command::new(lsregister)
         .args(["-f", &bundle.to_string_lossy()])
         .status()
-        .map_err(|e| format!("lsregister failed: {e}"))?;
+        .map_err(|error| format!("lsregister: {error}"))?;
     if status.success() {
         Ok(())
     } else {
-        Err("lsregister returned non-zero".to_owned())
+        Err(format!("lsregister exited with {status}"))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{info_plist, plist_registration_is_current};
+    use super::association_executable_from;
+    use std::path::PathBuf;
 
     #[test]
-    fn document_registration_covers_snapshots_and_subprograms() {
-        assert!(plist_registration_is_current(info_plist()));
-        assert!(!plist_registration_is_current("<string>580</string>"));
+    fn adjacent_launcher_resolves_to_gui() {
+        assert_eq!(
+            association_executable_from(PathBuf::from("/opt/kr580/kr")),
+            PathBuf::from("/opt/kr580/k580")
+        );
     }
 }

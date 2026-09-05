@@ -97,16 +97,9 @@ fn install_freedesktop_integration(
 fn install_macos_integration(
     request: &super::SystemIntegrationRequest<'_>,
 ) -> Result<super::SystemIntegrationReport, String> {
-    let app_root = applications_dir().join("KR580.app");
-    let contents = app_root.join("Contents");
-    let macos = contents.join("MacOS");
-    std::fs::create_dir_all(&macos).map_err(|e| format!("create app bundle: {e}"))?;
-    std::fs::write(contents.join("Info.plist"), macos_info_plist())
-        .map_err(|e| format!("write Info.plist: {e}"))?;
-    let launcher = macos.join("kr580-launcher");
-    std::fs::write(&launcher, launcher_script(request.k580_path))
-        .map_err(|e| format!("write app launcher: {e}"))?;
-    make_executable(&launcher)?;
+    let app_root =
+        k580_ui::macos_bundle::applications_dir()?.join(k580_ui::macos_bundle::APP_BUNDLE_NAME);
+    k580_ui::macos_bundle::write_launcher_bundle(&app_root, request.k580_path)?;
 
     let desktop_shortcut_created = if request.create_desktop_shortcut {
         let shortcut = desktop_dir().join("KR580.command");
@@ -126,7 +119,9 @@ fn install_macos_integration(
 pub fn remove_system_integration(_install_dir: &Path, _scope: InstallScope) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        let _ = std::fs::remove_dir_all(applications_dir().join("KR580.app"));
+        let app =
+            k580_ui::macos_bundle::applications_dir()?.join(k580_ui::macos_bundle::APP_BUNDLE_NAME);
+        let _ = std::fs::remove_dir_all(app);
         let _ = std::fs::remove_file(desktop_dir().join("KR580.command"));
         return Ok(());
     }
@@ -171,6 +166,7 @@ fn home_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+#[cfg(not(target_os = "macos"))]
 fn applications_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
@@ -224,6 +220,7 @@ fn shell_single_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+#[cfg(not(target_os = "macos"))]
 fn desktop_entry(k580_path: &Path) -> Result<String, String> {
     Ok(format!(
         "[Desktop Entry]\n\
@@ -243,25 +240,6 @@ fn launcher_script(k580_path: &Path) -> String {
         "#!/bin/sh\nexec {} \"$@\"\n",
         shell_single_quote(&k580_path.display().to_string())
     )
-}
-
-#[cfg(target_os = "macos")]
-fn macos_info_plist() -> &'static str {
-    r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key>
-  <string>kr580-launcher</string>
-  <key>CFBundleIdentifier</key>
-  <string>dev.kr580.emulator</string>
-  <key>CFBundleName</key>
-  <string>KR580</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-</dict>
-</plist>
-"#
 }
 
 #[cfg(test)]

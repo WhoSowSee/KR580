@@ -231,7 +231,8 @@ worth eyeballing after touching `crates/ui`:
   handler does not appear as a second application-menu entry, and `.580` and
   `.krs` files open with `kr` from the file manager;
 - on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
-  `~/Applications/kr580.app` exists and `lsregister` reports it;
+  `~/Applications/KR580.app` uses bundle identifier `dev.kr580.emulator`,
+  executable name `KR580`, and the generated version from the canonical plist;
 - open each top-menu dropdown and verify Up/Down wraps through enabled rows
   without moving the selected RAM address, paints the current row with the
   pointer-hover fill and no blue border; verify Left/Right cyclically opens the
