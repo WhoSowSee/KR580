@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=KR580
+Comment=KR580VM80 / Intel 8080 emulator
+Exec=@EXEC@ %f
+Icon=kr580
+Terminal=false
+Categories=System;Emulator;
+MimeType=application/x-kr580;

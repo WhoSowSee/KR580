@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=KR580
+Comment=KR580 emulator
+Exec=@EXEC@
+Type=Application
+Terminal=false
+Categories=Development;

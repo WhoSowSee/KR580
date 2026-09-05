@@ -33,6 +33,9 @@ version-bump commit is excluded.
 Dependency audits use `cargo machete --with-metadata --skip-target-dir .`.
 The Windows-only `winresource` build dependency is explicitly ignored by that
 scanner because `crates/ui/build.rs` consumes it behind a target `cfg`.
+Linux metadata changes must validate the canonical files under
+`crates/ui/assets/linux`; runtime and package outputs are rendered from those
+same inputs and must not add independent copies.
 Feature audits inspect the effective all-target graph and invert any dependency
 whose defaults are expected to stay off:
 

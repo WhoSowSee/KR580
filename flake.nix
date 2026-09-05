@@ -73,28 +73,12 @@
               install -Dm644 crates/ui/assets/icons/icon-256.png "$out/share/icons/hicolor/256x256/apps/kr580.png"
               install -Dm644 crates/ui/assets/icons/file-580.png "$out/share/icons/hicolor/256x256/mimetypes/application-x-kr580.png"
 
-              install -Dm644 /dev/stdin "$out/share/applications/kr580.desktop" <<'DESKTOP'
-              [Desktop Entry]
-              Type=Application
-              Name=KR580
-              Comment=KR580VM80 / Intel 8080 emulator
-              Exec=kr %f
-              Icon=kr580
-              Terminal=false
-              Categories=Development;Emulator;
-              MimeType=application/x-kr580;
-              DESKTOP
-
-              install -Dm644 /dev/stdin "$out/share/mime/packages/application-x-kr580.xml" <<'MIME'
-              <?xml version="1.0" encoding="UTF-8"?>
-              <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
-                <mime-type type="application/x-kr580">
-                  <comment>KR580 program file</comment>
-                  <glob pattern="*.580"/>
-                  <glob pattern="*.krs"/>
-                </mime-type>
-              </mime-info>
-              MIME
+              mkdir -p "$out/share/applications"
+              substitute crates/ui/assets/linux/kr580-package.desktop \
+                "$out/share/applications/kr580.desktop" \
+                --replace-fail '@EXEC@' 'kr'
+              install -Dm644 crates/ui/assets/linux/application-x-kr580.xml \
+                "$out/share/mime/packages/application-x-kr580.xml"
 
               runHook postInstall
             '';

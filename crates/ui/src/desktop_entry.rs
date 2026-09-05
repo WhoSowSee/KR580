@@ -1,5 +1,22 @@
 use std::path::Path;
 
+pub const MIME_XML: &str = include_str!("../assets/linux/application-x-kr580.xml");
+
+pub fn launcher(executable: &Path) -> Result<String, String> {
+    render(include_str!("../assets/linux/kr580.desktop"), executable)
+}
+
+pub fn file_handler(executable: &Path) -> Result<String, String> {
+    render(
+        include_str!("../assets/linux/kr580-file-handler.desktop"),
+        executable,
+    )
+}
+
+fn render(template: &str, executable: &Path) -> Result<String, String> {
+    Ok(template.replace("@EXEC@", &quote_executable(executable)?))
+}
+
 pub fn quote_executable(executable: &Path) -> Result<String, String> {
     let value = executable
         .to_str()
@@ -49,7 +66,7 @@ fn run_database_command(command: &str, directory: &Path) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::quote_executable;
+    use super::{launcher, quote_executable};
     use std::path::Path;
 
     #[test]
@@ -65,5 +82,14 @@ mod tests {
         );
         assert!(quote_executable(Path::new("/opt/KR=580/k580")).is_err());
         assert!(quote_executable(Path::new("/opt/KR\n580/k580")).is_err());
+    }
+
+    #[test]
+    fn canonical_launcher_renders_its_executable() {
+        let executable = Path::new("/opt/kr580/k580");
+        let launcher = launcher(executable).unwrap();
+
+        assert!(launcher.contains("Exec=\"/opt/kr580/k580\"\n"));
+        assert!(!launcher.contains("@EXEC@"));
     }
 }

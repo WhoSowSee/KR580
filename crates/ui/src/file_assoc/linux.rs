@@ -27,8 +27,9 @@ pub fn register_for_executable(
     let desktop_file = paths.applications.join(HANDLER_DESKTOP_FILE);
     let dest_icon = paths.application_icons.join("kr580.png");
 
-    std::fs::write(&mime_file, mime_xml()).map_err(|e| format!("write mime file: {e}"))?;
-    std::fs::write(&desktop_file, desktop_entry(&exe)?)
+    std::fs::write(&mime_file, crate::desktop_entry::MIME_XML)
+        .map_err(|e| format!("write mime file: {e}"))?;
+    std::fs::write(&desktop_file, crate::desktop_entry::file_handler(&exe)?)
         .map_err(|e| format!("write desktop file: {e}"))?;
     std::fs::write(dest_icon, crate::integration_assets::APPLICATION_ICON_PNG)
         .map_err(|e| format!("write app icon: {e}"))?;
@@ -151,36 +152,8 @@ fn data_home_from(
     Ok(home.join(".local/share"))
 }
 
-fn mime_xml() -> &'static str {
-    r#"<?xml version="1.0" encoding="UTF-8"?>
-<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
-  <mime-type type="application/x-kr580">
-    <comment>KR580 program file</comment>
-    <glob pattern="*.580"/>
-    <glob pattern="*.krs"/>
-  </mime-type>
-</mime-info>
-"#
-}
-
 fn mime_registration_is_current(mime: &str) -> bool {
     mime.contains(r#"<glob pattern="*.580"/>"#) && mime.contains(r#"<glob pattern="*.krs"/>"#)
-}
-
-fn desktop_entry(executable: &Path) -> Result<String, String> {
-    Ok(format!(
-        "[Desktop Entry]\n\
-         Name=KR580 Emulator\n\
-         Comment=KR580 emulator\n\
-         Exec={} %f\n\
-         Icon=kr580\n\
-         Type=Application\n\
-         NoDisplay=true\n\
-         Terminal=false\n\
-         MimeType=application/x-kr580;\n\
-         Categories=Development;\n",
-        crate::desktop_entry::quote_executable(executable)?
-    ))
 }
 
 fn update_databases(paths: &IntegrationPaths) -> Result<(), String> {
@@ -203,22 +176,22 @@ fn set_default_handler() -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        association_executable_from, data_home_from, desktop_entry, desktop_entry_owned_by,
-        mime_registration_is_current, mime_xml,
+        association_executable_from, data_home_from, desktop_entry_owned_by,
+        mime_registration_is_current,
     };
     use std::ffi::OsString;
     use std::path::PathBuf;
 
     #[test]
     fn mime_registration_covers_snapshots_and_subprograms() {
-        assert!(mime_registration_is_current(mime_xml()));
+        assert!(mime_registration_is_current(crate::desktop_entry::MIME_XML));
         assert!(!mime_registration_is_current(r#"<glob pattern="*.580"/>"#));
     }
 
     #[test]
     fn file_handler_is_hidden_from_application_menus() {
         let executable = PathBuf::from("/opt/kr580/k580");
-        let entry = desktop_entry(&executable).unwrap();
+        let entry = crate::desktop_entry::file_handler(&executable).unwrap();
 
         assert!(entry.contains("NoDisplay=true\n"));
         assert!(entry.contains("MimeType=application/x-kr580;\n"));
@@ -227,7 +200,7 @@ mod tests {
     #[test]
     fn ownership_requires_the_exact_executable() {
         let executable = PathBuf::from("/opt/kr580/app/k580");
-        let entry = desktop_entry(&executable).unwrap();
+        let entry = crate::desktop_entry::file_handler(&executable).unwrap();
 
         assert!(desktop_entry_owned_by(&entry, &executable));
         assert!(!desktop_entry_owned_by(
