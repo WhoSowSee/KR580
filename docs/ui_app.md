@@ -2547,6 +2547,12 @@ silently uses defaults for that expected `NotFound` case, including the system
 default language; permission, JSON, and version errors still emit a warning
 before falling back.
 
+Settings path resolution checks an installer manifest first. Without one, a
+macOS executable inside an `.app` uses
+`~/Library/Application Support/KR580/settings.json`, while a confined Snap uses
+`$SNAP_USER_COMMON/settings.json`. Only unpackaged developer binaries retain
+the adjacent-file fallback.
+
 `StatusKind` (in `app/status.rs`) tags every canonical status string
 with its provenance (`Ready`, `Stopped`, `SavedTo { display, legacy }`,
 …) so a language switch can re-render the cached `self.status` from

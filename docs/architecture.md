@@ -36,6 +36,9 @@ snapshots and `.krs` subprograms with `app/k580`. System installs use the platfo
 add OS integration: Start Menu/search launchers, optional desktop launchers,
 and uninstall cleanup where the platform supports them. See
 `docs/installer.md`.
+Executables inside a macOS application bundle use Application Support even
+without an installer manifest. Strict Snap executions use the writable,
+revision-independent `SNAP_USER_COMMON` directory.
 
 The graphical uninstaller drives cleanup as three explicit tasks instead of a
 timer-simulated monolith: system integration removal returns an uninstall plan,

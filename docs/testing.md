@@ -240,7 +240,8 @@ worth eyeballing after touching `crates/ui`:
   separate snapshot/subprogram UTIs, valid application/document ICNS files,
   and successful registration through `LSRegisterURL`; double-click one file
   of each type in Finder and confirm the existing app receives the document,
-  including the load-address dialog for `.krs`;
+  including the load-address dialog for `.krs`; change one setting and confirm
+  it is written under `~/Library/Application Support/KR580`, not inside the app;
 - open each top-menu dropdown and verify Up/Down wraps through enabled rows
   without moving the selected RAM address, paints the current row with the
   pointer-hover fill and no blue border; verify Left/Right cyclically opens the

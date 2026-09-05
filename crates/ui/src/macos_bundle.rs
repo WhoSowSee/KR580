@@ -59,7 +59,7 @@ pub fn find_for_executable(executable: &Path) -> Result<PathBuf, String> {
     ))
 }
 
-fn containing_application_bundle(executable: &Path) -> Option<PathBuf> {
+pub fn containing_application_bundle(executable: &Path) -> Option<PathBuf> {
     executable
         .ancestors()
         .find(|ancestor| {

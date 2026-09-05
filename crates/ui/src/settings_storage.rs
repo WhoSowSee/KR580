@@ -38,7 +38,32 @@ fn settings_path_for_executable(exe: &Path) -> Option<PathBuf> {
         Ok(None) => {}
         Err(error) => tracing::warn!(%error, "install manifest ignored"),
     }
+    if let Some(path) = packaged_settings_path(exe) {
+        return Some(path);
+    }
     exe.parent().map(|parent| parent.join(SETTINGS_FILENAME))
+}
+
+#[cfg(windows)]
+fn packaged_settings_path(_exe: &Path) -> Option<PathBuf> {
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn packaged_settings_path(exe: &Path) -> Option<PathBuf> {
+    k580_ui::macos_bundle::containing_application_bundle(exe).map(|_| system_settings_path())
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn packaged_settings_path(_exe: &Path) -> Option<PathBuf> {
+    snap_settings_path(std::env::var_os("SNAP_USER_COMMON"))
+}
+
+#[cfg(any(test, all(unix, not(target_os = "macos"))))]
+fn snap_settings_path(root: Option<std::ffi::OsString>) -> Option<PathBuf> {
+    root.map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .map(|path| path.join(SETTINGS_FILENAME))
 }
 
 fn settings_path_for_install(root: &Path, mode: InstallMode) -> PathBuf {
@@ -155,7 +180,8 @@ pub(crate) fn default_settings() -> Settings {
 mod tests {
     use super::{
         default_settings, lang_from_language, language_from_lang, preset_from_speed_tier,
-        settings_path_for_install, should_log_settings_load_error, speed_tier_from_preset,
+        settings_path_for_install, should_log_settings_load_error, snap_settings_path,
+        speed_tier_from_preset,
     };
     use crate::app::messages::SpeedTier;
     use crate::i18n::Lang;
@@ -220,5 +246,15 @@ mod tests {
             settings_path_for_install(Path::new("/opt/kr580"), InstallMode::Portable),
             Path::new("/opt/kr580").join("data").join("settings.json")
         );
+    }
+
+    #[test]
+    fn snap_settings_use_the_revision_independent_user_directory() {
+        let root = std::env::temp_dir().join("kr580-snap-common");
+        assert_eq!(
+            snap_settings_path(Some(root.clone().into_os_string())),
+            Some(root.join("settings.json"))
+        );
+        assert_eq!(snap_settings_path(Some("relative".into())), None);
     }
 }

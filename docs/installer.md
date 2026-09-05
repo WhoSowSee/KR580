@@ -288,6 +288,11 @@ System mode stores application settings in the platform config directory:
 - macOS: `~/Library/Application Support/KR580/settings.json`.
 - Linux/Unix: `$XDG_CONFIG_HOME/kr580/settings.json`, falling back to `~/.config/kr580`.
 
+A standalone macOS application bundle follows the same Application Support
+path even though it has no `install.json`. A confined Snap stores settings in
+`$SNAP_USER_COMMON/settings.json`, so refreshes share one writable settings
+file instead of attempting to modify the read-only mounted package.
+
 Portable mode defaults to `%USERPROFILE%\KR580` on Windows and `$HOME/KR580`
 on Unix/macOS. It stores settings in `<install root>/data/settings.json`.
 Temporary floppy-buffer and image files still use `std::env::temp_dir()`, so
@@ -312,7 +317,8 @@ user launcher entries and the managed PATH block through the same GUI flow
 before deleting the install root.
 
 Unpacked developer builds without `install.json` keep the legacy behavior and
-write `settings.json` beside the executable.
+write `settings.json` beside the executable unless they run inside a macOS app
+bundle or Snap confinement.
 
 ## Scope And PATH
 
