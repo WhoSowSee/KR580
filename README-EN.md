@@ -130,7 +130,14 @@ macOS (ready-to-drag application in a DMG):
 bash scripts/build_macos_dmg.sh
 ```
 
-The package is written to `dist/`.
+Snap (from the repository root on Linux):
+
+```bash
+snapcraft pack --use-lxd
+```
+
+The scripts write packages to `dist/`; Snapcraft creates the `.snap` in the
+repository root.
 
 ## Usage
 

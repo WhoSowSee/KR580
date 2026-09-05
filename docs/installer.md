@@ -215,18 +215,25 @@ notarized, so Gatekeeper may require the normal explicit first-open approval.
 
 `KR580_CARGO=cross` makes the Unix script invoke `cross build` for Linux target
 matrices. `scripts/package_installer_deb.sh` wraps a built Linux setup
-executable in a Debian package. `snap/snapcraft.yaml` builds the Snap setup
-package used by CI on native `ubuntu-24.04` and `ubuntu-24.04-arm` runners;
+executable in a Debian package. `snap/snapcraft.yaml` builds the ready-to-run
+GUI package used by CI on native `ubuntu-24.04` and `ubuntu-24.04-arm` runners;
 the workflow installs Snapcraft from `9.x/stable`, filters the core24
 `platforms` build plan with `snapcraft pack --build-for`, and builds through
 LXD instead of destructive mode. The core24 build uses Ubuntu Noble package
-names, including `libfreetype-dev`; the snap still stages the runtime
-`libfreetype6` package.
-The `kr580-setup` snap part uses `plugin: nil` and installs the stable Rust
-toolchain itself via rustup inside its `override-build`, which assembles the
-multi-binary installer. The Snapcraft Rust plugin provisions its toolchain in
-the pull phase, which runs before any part's build and cannot cooperate with a
-custom `override-build`, so the part manages the toolchain directly.
+names, stages the dynamically loaded X11/Wayland/font/dialog libraries, and
+uses the GPU extension for driver-compatible graphics. Build dependencies stay
+minimal because the graphics crates load those libraries at runtime.
+The Rust plugin uses the workspace's tested Rust 1.88.0 MSRV and builds only
+`crates/ui`'s `k580` binary. Its override calls the
+plugin's default build before installing the application icon and rendering the
+canonical package Desktop Entry. There are no setup/uninstall commands or
+nested installation directories: snapd owns installation, refresh, removal,
+command wrapping, interfaces, and desktop export.
+The exported Desktop Entry advertises `application/x-kr580`, but strict Snap
+cannot add the new `.580`/`.krs` glob definition to the host shared-MIME
+database. File-manager association therefore works where that MIME type is
+already known (for example from a native package); otherwise the user may still
+select KR580 through Open With, while opening from KR580's own dialog works.
 On Linux, rfd 0.17 loads `libdbus` for XDG dialogs and falls back to `zenity`.
 The Debian setup package provides both plus `shared-mime-info`,
 `desktop-file-utils`, and `xdg-utils`, which supply the cache update and

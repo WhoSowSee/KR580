@@ -230,6 +230,11 @@ worth eyeballing after touching `crates/ui`:
   Debian control metadata contains `desktop-file-utils`, `libdbus-1-3`,
   `shared-mime-info`, `xdg-utils`, and `zenity`, and open a file dialog in the
   Debian, Snap, and Nix artifacts;
+- inspect the built Snap and confirm `bin/k580` and `meta/gui/kr580.desktop`
+  exist, the app command is `bin/k580`, and neither `k580-installer` nor
+  `k580-uninstaller` is present; launch it, persist a setting across refresh,
+  open `.580`/`.krs` through the app, and verify the association action is
+  absent under confinement;
 - run `cargo run -p kr580 --bin kr -- nonexistent.580` and confirm
   the GUI launches with a localized "Файл не найден" error notice;
 - on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm

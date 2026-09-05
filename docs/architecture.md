@@ -44,6 +44,9 @@ and uninstall cleanup where the platform supports them. See
 Executables inside a macOS application bundle use Application Support even
 without an installer manifest. Strict Snap executions use the writable,
 revision-independent `SNAP_USER_COMMON` directory.
+The Snap exposes `k580` itself as its only app command; snapd owns its lifecycle
+and exported desktop entry, so no nested installer, uninstaller, PATH writer,
+or private desktop database is involved.
 
 The graphical uninstaller drives cleanup as three explicit tasks instead of a
 timer-simulated monolith: system integration removal returns an uninstall plan,

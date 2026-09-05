@@ -130,7 +130,14 @@ macOS (готовое приложение в DMG):
 bash scripts/build_macos_dmg.sh
 ```
 
-Готовый пакет будет записан в `dist/`.
+Snap (из корня репозитория на Linux):
+
+```bash
+snapcraft pack --use-lxd
+```
+
+Скрипты записывают пакеты в `dist/`, а Snapcraft создаёт `.snap` в корне
+репозитория.
 
 ## Использование
 

@@ -154,7 +154,7 @@ jobs:
           path: artifacts/*
 
   snap:
-    name: Snap installer ${{ matrix.arch }}
+    name: Snap application ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -170,6 +170,8 @@ jobs:
 
       - name: Install LXD and Snapcraft
         run: |
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils squashfs-tools
           sudo groupadd --force --system lxd
           sudo usermod --append --groups lxd runner
           sudo snap install lxd
@@ -180,18 +182,35 @@ jobs:
       - name: Build snap
         run: sudo -u runner -E snapcraft pack --use-lxd --build-for=${{ matrix.arch }}
 
-      - name: Collect snaps
+      - name: Validate and collect snap
         run: |
           set -euo pipefail
+          mapfile -t snaps < <(compgen -G "*_${{ matrix.arch }}.snap")
+          if [ "${#snaps[@]}" -ne 1 ]; then
+            printf 'expected one snap, found %s\n' "${#snaps[@]}" >&2
+            exit 1
+          fi
+          snap_name=${snaps[0]}
+          check_root=$(mktemp -d)
+          check_dir="$check_root/root"
+          unsquashfs -d "$check_dir" "$snap_name" >/dev/null
+          test -x "$check_dir/bin/k580"
+          test ! -e "$check_dir/bin/k580-installer"
+          test ! -e "$check_dir/bin/k580-uninstaller"
+          desktop-file-validate "$check_dir/meta/gui/kr580.desktop"
+          grep -Fq 'command: bin/k580' "$check_dir/meta/snap.yaml"
+          grep -Fq 'MimeType=application/x-kr580;' "$check_dir/meta/gui/kr580.desktop"
+          version=$(awk -F'"' '/^version[[:space:]]*=/ { print $2; exit }' Cargo.toml)
+          test -n "$version"
           mkdir -p artifacts
-          snap_name=$(ls *_${{ matrix.arch }}.snap)
-          mv "$snap_name" "artifacts/${PROJECT_NAME}-${{ matrix.arch }}.snap"
+          mv "$snap_name" "artifacts/KR580-${version}-${{ matrix.arch }}.snap"
 
       - name: Upload snaps
         uses: actions/upload-artifact@v7
         with:
           name: kr580-snap-${{ matrix.arch }}
-          path: artifacts/*
+          path: artifacts/*.snap
+          if-no-files-found: error
 
   nix:
     name: Nix package

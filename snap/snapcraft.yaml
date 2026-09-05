@@ -1,10 +1,10 @@
 name: kr580
 base: core24
 version: git
-summary: KR580 desktop emulator installer
+summary: KR580 desktop emulator
 description: |
   KR580 is a desktop emulator for a KR580VM80 / Intel 8080-style system.
-  This snap ships the graphical KR580 setup program.
+  It opens .580 snapshots and .krs subprograms directly from the desktop.
 grade: stable
 confinement: strict
 
@@ -17,62 +17,55 @@ platforms:
     build-for: [arm64]
 
 apps:
-  kr580-setup:
-    command: bin/k580-installer
-    desktop: usr/share/applications/kr580-setup.desktop
+  kr580:
+    command: bin/k580
+    desktop: usr/share/applications/kr580.desktop
+    extensions: [gpu]
     plugs:
       - desktop
       - desktop-legacy
       - home
       - network
+      - network-bind
       - opengl
+      - removable-media
       - wayland
       - x11
 
 parts:
-  kr580-setup:
-    plugin: nil
+  kr580:
+    plugin: rust
     source: .
+    rust-channel: "1.88.0"
+    rust-path: [crates/ui]
+    rust-cargo-parameters: [--bin, k580]
     build-packages:
-      - curl
-      - gcc
-      - git
-      - pkg-config
-      - findutils
-      - libxkbcommon-dev
-      - libwayland-dev
-      - libgl1-mesa-dev
-      - libegl1-mesa-dev
-      - libfontconfig1-dev
-      - libfreetype-dev
+      - desktop-file-utils
     stage-packages:
       - libdbus-1-3
-      - libxkbcommon0
+      - libfontconfig1
+      - libfreetype6
       - libwayland-client0
       - libwayland-cursor0
       - libwayland-egl1
-      - libfontconfig1
-      - libfreetype6
-      - libgl1
-      - libegl1
+      - libx11-6
+      - libx11-xcb1
+      - libxcb1
+      - libxcursor1
+      - libxi6
+      - libxkbcommon0
+      - libxkbcommon-x11-0
+      - libxrandr2
       - zenity
     override-build: |
-      set -eu
-      cd "$CRAFT_PART_SRC"
-      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
-      . "$HOME/.cargo/env"
-      cargo build --release -p kr580 --bin k580 --bin kr
-      KR580_WINDOWS_ICON_KIND=uninstaller cargo build --release -p kr580 --bin k580-uninstaller
-      KR580_INSTALLER_PAYLOAD_DIR="$CRAFT_PART_SRC/target/release" KR580_WINDOWS_ICON_KIND=setup cargo build --release -p kr580 --bin k580-installer
-      install -Dm755 target/release/k580-installer "$CRAFT_PART_INSTALL/bin/k580-installer"
-      install -Dm644 crates/ui/assets/icons/icon-256.png "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/kr580.png"
-      install -Dm644 /dev/stdin "$CRAFT_PART_INSTALL/usr/share/applications/kr580-setup.desktop" <<'DESKTOP'
-      [Desktop Entry]
-      Type=Application
-      Name=KR580 Setup
-      Comment=Install KR580 emulator
-      Exec=kr580-setup
-      Icon=kr580
-      Terminal=false
-      Categories=Development;Emulator;
-      DESKTOP
+      craftctl default
+      install -Dm644 "$CRAFT_PART_SRC/crates/ui/assets/icons/icon-256.png" \
+        "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/256x256/apps/kr580.png"
+      desktop="$CRAFT_PART_INSTALL/usr/share/applications/kr580.desktop"
+      mkdir -p "$(dirname "$desktop")"
+      grep -Fq 'Exec=@EXEC@ %f' \
+        "$CRAFT_PART_SRC/crates/ui/assets/linux/kr580-package.desktop"
+      sed 's/@EXEC@/kr580/g' \
+        "$CRAFT_PART_SRC/crates/ui/assets/linux/kr580-package.desktop" > "$desktop"
+      ! grep -Fq '@EXEC@' "$desktop"
+      desktop-file-validate "$desktop"
