@@ -96,10 +96,13 @@ Integration options are ordered as PATH, file associations, then the optional
 desktop shortcut. Both modes show the first two; System mode adds the desktop
 shortcut as the final option.
 On Windows, the association option maps both `.580` and `.krs` through the
-same KR580 ProgID, icon, and open command.
+same KR580 ProgID, icon, and open command. Its user-facing ProgID name is
+`KR580`, matching the executable's Windows file description.
 On Linux, system integration owns the visible `kr580.desktop` launcher, while
 file associations use a separate `NoDisplay` `kr580-file-handler.desktop`.
 Toggling associations therefore cannot remove KR580 from the application menu.
+Both entries expose the user-facing name `KR580`, including file-manager
+Open With lists.
 The hidden handler records its exact executable; a target build, portable copy,
 or older installation cannot remove a handler owned by another path.
 User-level integration follows `XDG_DATA_HOME`; when it is unset or relative,

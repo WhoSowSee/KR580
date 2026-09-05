@@ -1,5 +1,5 @@
 [Desktop Entry]
-Name=KR580 Emulator
+Name=KR580
 Comment=KR580VM80 / Intel 8080 emulator
 Exec=@EXEC@ %f
 Icon=kr580

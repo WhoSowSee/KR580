@@ -32,7 +32,7 @@ pub fn register_for_executable(exe: &Path, scope: InstallScope) -> Result<(), St
             "",
         )?;
     }
-    write_string(root, PROG_ID_KEY, "", "Файл KR580 (.580, .krs)")?;
+    write_string(root, PROG_ID_KEY, "", "KR580")?;
     write_string(
         root,
         "Software\\Classes\\K580.Snapshot\\DefaultIcon",

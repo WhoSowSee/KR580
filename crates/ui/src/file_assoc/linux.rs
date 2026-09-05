@@ -218,6 +218,7 @@ mod tests {
         let executable = PathBuf::from("/opt/kr580/k580");
         let entry = crate::desktop_entry::file_handler(&executable).unwrap();
 
+        assert!(entry.lines().any(|line| line == "Name=KR580"));
         assert!(entry.contains("NoDisplay=true\n"));
         assert!(entry.contains("MimeType=application/x-kr580;\n"));
     }

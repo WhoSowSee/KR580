@@ -2767,6 +2767,8 @@ from the desktop application menu. Removal first matches the exact `Exec`
 target, preventing one build or installation from deleting another one's
 handler. All user-level MIME, desktop, and icon paths are rooted at the absolute
 `XDG_DATA_HOME`, with `$HOME/.local/share` as the standards-defined fallback.
+The visible launcher and hidden handler both use `KR580` as their display name,
+so file-manager Open With lists do not expose an `Emulator` suffix.
 
 `kr` looks for the `k580` executable in the same directory as itself
 (`k580.exe` on Windows, `k580` elsewhere), redirects its stdio to `/dev/null`,
@@ -2774,6 +2776,8 @@ spawns it, and returns without waiting.
 
 On Windows, registering from either `kr.exe` or `k580.exe` maps both `.580`
 and `.krs` to the same `K580.Snapshot` ProgID and `OpenWithProgids` entry.
+The ProgID display value and GUI executable file description are both `KR580`,
+which is the label presented for the handler.
 Both use the Explorer open command `"k580.exe" "%1"` in the registering
 binary's installation. Existing registry entries that still point at
 `kr.exe` are treated as stale by the settings toggle and are overwritten on
