@@ -1595,6 +1595,11 @@ snap the caret to the end of the field.
 
 ### Unsaved-changes modal
 
+Saving `.krs`, through either the range dialog or ordinary Save, updates the
+saved baseline only for the inclusive RAM range written to that file. Register
+changes and memory changes outside that range keep the session dirty and retain
+the discard warning. A failed save does not update the baseline.
+
 Discard paths (`Open`, drag-and-drop open, legacy open, `New`, `Import`,
 and window close)
 route through `DesktopApp::pending_action` when `dirty` is set. While

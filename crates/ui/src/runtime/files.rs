@@ -100,7 +100,7 @@ impl DesktopApp {
                     end,
                 });
                 if self.error_notice.is_none() {
-                    self.mark_saved();
+                    self.mark_subprogram_saved(start, end);
                     self.set_status(StatusKind::SavedTo {
                         display: path.display().to_string(),
                     });

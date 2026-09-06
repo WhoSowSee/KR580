@@ -93,6 +93,13 @@ impl DesktopApp {
         self.dirty = self.snapshot.cpu != self.saved_cpu;
     }
 
+    pub(crate) fn mark_subprogram_saved(&mut self, start: u16, end: u16) {
+        let range = usize::from(start)..=usize::from(end);
+        self.saved_cpu.memory.as_mut_slice()[range.clone()]
+            .copy_from_slice(&self.snapshot.cpu.memory.as_slice()[range]);
+        self.recompute_dirty();
+    }
+
     pub(crate) fn apply_speed_tier(&mut self, tier: SpeedTier) {
         self.speed_tier = tier;
         let hz = super::tier_hz(tier);

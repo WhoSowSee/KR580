@@ -221,7 +221,10 @@ impl DesktopApp {
         self.current_snapshot_path = Some(path);
         self.current_subprogram_range = Some((start, end));
         self.undo_stack.clear();
-        self.mark_saved();
+        match dialog.mode {
+            SubprogramDialogMode::Open => self.mark_saved(),
+            SubprogramDialogMode::Save => self.mark_subprogram_saved(start, end),
+        }
         self.set_memory_address(start);
         self.set_status(match dialog.mode {
             SubprogramDialogMode::Open => StatusKind::Opened { display },
@@ -243,6 +246,58 @@ impl DesktopApp {
 mod tests {
     use super::{SubprogramDialogFocus, SubprogramDialogMode};
     use crate::app::{DesktopApp, Message};
+
+    #[test]
+    fn subprogram_saves_preserve_unsaved_memory_and_registers() {
+        use crate::backend::AppCommand;
+        use k580_core::RegisterName;
+
+        let dir = std::env::temp_dir().join(format!("kr580-partial-save-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("partial.krs");
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        app.dispatch_sync(AppCommand::ApplyCpuState(Box::default()));
+        app.mark_saved();
+        app.dispatch_with_undo(AppCommand::SetMemory(0x0100, 0x76));
+        app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0x42));
+        app.dispatch_with_undo(AppCommand::SetRegister(RegisterName::A, 0x12));
+        app.open_subprogram_dialog(path.clone(), SubprogramDialogMode::Save);
+        let dialog = app.subprogram_dialog.as_mut().unwrap();
+        dialog.start_input = "0100".into();
+        dialog.end_input = "0100".into();
+        app.confirm_subprogram();
+        assert!(app.error_notice.is_none());
+        assert!(app.subprogram_dialog.is_none());
+        assert_eq!(std::fs::read(&path).unwrap(), [0x76]);
+        assert!(app.dirty);
+        assert_eq!(app.saved_cpu.memory.read(0x0100), 0x76);
+        assert_eq!(app.saved_cpu.memory.read(0x2000), 0);
+        assert_eq!(app.saved_cpu.registers.a, 0);
+
+        app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0));
+        assert!(app.dirty);
+        app.dispatch_with_undo(AppCommand::SetRegister(RegisterName::A, 0));
+        app.dispatch_with_undo(AppCommand::SetPc(0));
+        assert!(!app.dirty);
+        app.dispatch_with_undo(AppCommand::SetMemory(0x0100, 0xC9));
+        app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0x33));
+        app.memory_inline_value_input.clear();
+        let _ = app.save_program();
+        assert_eq!(std::fs::read(&path).unwrap(), [0xC9]);
+        assert!(app.dirty);
+        app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0));
+        assert!(!app.dirty);
+
+        app.dispatch_with_undo(AppCommand::SetMemory(0x0100, 0xFF));
+        let saved = app.saved_cpu.clone();
+        app.current_snapshot_path = Some(dir.join("missing/partial.krs"));
+        let _ = app.save_program();
+        assert!(app.error_notice.is_some());
+        assert!(app.dirty);
+        assert_eq!(app.saved_cpu, saved);
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(dir).unwrap();
+    }
 
     #[test]
     fn address_edits_accept_only_up_to_four_hex_digits() {

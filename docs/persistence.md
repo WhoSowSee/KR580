@@ -34,6 +34,8 @@ file routing.
 
 ## `.krs`
 
+For partial-save tracking, see [Unsaved-changes modal](ui_app.md#unsaved-changes-modal).
+
 Subprograms are raw byte slices. The base address is supplied by the caller and is not hidden in the file.
 
 The UI's Open and Save dialogs expose a start address and, when saving, an
