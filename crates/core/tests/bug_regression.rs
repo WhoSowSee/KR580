@@ -46,8 +46,7 @@ fn run_bug_test(filename: &str, expected_a: u8) {
     let actual = cpu.get_register(RegisterName::A);
     assert_eq!(
         actual, expected_a,
-        "{filename}: expected A={:#04X}, got A={:#04X}",
-        expected_a, actual
+        "{filename}: expected A={expected_a:#04X}, got A={actual:#04X}"
     );
 }
 

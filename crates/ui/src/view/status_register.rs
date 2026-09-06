@@ -194,8 +194,7 @@ mod tests {
             assert_eq!(
                 derive_status_kind(&cpu),
                 MachineCycleKind::M1Fetch,
-                "opcode {:#04X} phase 0 must be M1Fetch",
-                op,
+                "opcode {op:#04X} phase 0 must be M1Fetch",
             );
         }
     }

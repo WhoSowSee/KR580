@@ -155,7 +155,7 @@ pub fn decode_opcode(opcode: u8) -> Result<InstructionInfo, DecodeError> {
         let n = (opcode >> 3) & 7;
         return Ok(info(
             opcode,
-            format!("RST {}", n),
+            format!("RST {n}"),
             1,
             InstructionTiming::fixed(11),
         ));

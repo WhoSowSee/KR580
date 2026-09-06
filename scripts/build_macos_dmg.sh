@@ -132,7 +132,7 @@ sed "s/@VERSION@/$version/g" \
 ln -s /Applications "$staging_dir/Applications"
 
 plutil -lint "$contents/Info.plist"
-lipo -verify_arch "$architecture" "$macos/kr580"
+lipo "$macos/kr580" -verify_arch "$architecture"
 
 dmg="$dist_dir/KR580-$version-$platform.dmg"
 hdiutil create -ov -format UDZO -volname KR580 -srcfolder "$staging_dir" "$dmg"

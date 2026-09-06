@@ -52,7 +52,7 @@ impl Cpu8080State {
         self.pc = u16::from(rst) * 8;
         Ok(InstructionOutcome {
             opcode: Some(vector),
-            mnemonic: format!("RST {}", rst),
+            mnemonic: format!("RST {rst}"),
             pc_before,
             pc_after: self.pc,
             t_states: 11,

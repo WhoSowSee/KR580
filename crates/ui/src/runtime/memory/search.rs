@@ -290,7 +290,7 @@ mod tests {
             let (mut app, _) = DesktopApp::with_initial_path(None);
             load_out_port(&mut app, start, port);
             let operand = start.wrapping_add(1);
-            app.memory_address_input = format!("{:04X}", operand);
+            app.memory_address_input = format!("{operand:04X}");
             app.refresh_memory_value(operand);
             app.keyboard_modifiers = keyboard::Modifiers::ALT;
 

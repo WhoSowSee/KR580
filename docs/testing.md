@@ -12,6 +12,7 @@ The workspace MSRV is Rust 1.88.0. Verify it against the locked dependency set:
 
 ```sh
 cargo +1.88.0 check --workspace --all-targets --locked
+cargo +1.88.0 clippy --workspace --all-targets --locked -- -D warnings
 ```
 
 The root `CHANGELOG.md` and `CHANGELOG-EN.md` files feed release automation.
@@ -51,6 +52,9 @@ macOS script requires the built-in `hdiutil`, `plutil`, `iconutil`, and `lipo`; 
 the image read-only and always detaches it. Release CI runs the Linux ownership
 tests and metadata script natively, while each macOS image build invokes the
 DMG verifier before upload.
+Both DMG staging and mounted-image checks put the binary before `-verify_arch`:
+`lipo "$binary" -verify_arch "$architecture"`. All arguments after the flag
+are architecture names. Validate both `arm64` and `x86_64` on macOS.
 The DMG check expands both ICNS files with `iconutil`. The release-name test
 covers a mixed ZIP/DEB/DMG/Snap set, repeated execution, and mismatched versions.
 Linux association lifecycle tests launch the real CLI in isolated child
