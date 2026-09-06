@@ -1,5 +1,47 @@
 # Changelog
 
+## [3.0.0] - 2026-09-06
+
+### Breaking Changes
+
+- Changed: renamed the GUI executable from `k580` to `kr580`; updated the installer, launcher, associations, and packages
+- Changed: the public `file_assoc::is_registered` function is now Windows-only, and `kr -u` on macOS returns an unsupported-operation error; corrected release artifact names, desktop integration ownership, Linux association rollback, and Settings responsiveness while applying associations
+
+### Features
+
+- Added: macOS application and document icons, `.580` and `.krs` file type declarations, and application bundle metadata
+- Added: setting KR580 as the default application for `.580` and `.krs` from Settings on Linux and macOS
+
+### Bug Fixes
+
+- Fixed: the monitor uses a complete CP866 bitmap font for Cyrillic, box drawing, and other byte glyphs
+- Fixed: Windows file association handling and registration of both `.580` and `.krs` extensions
+- Fixed: removing Linux associations preserves handlers owned by other application installations
+- Fixed: Linux file registration respects user XDG data directories
+- Fixed: executable paths in Linux desktop entries are correctly quoted and escaped
+- Fixed: Linux application and file type icons are embedded and available during association registration
+- Fixed: Linux MIME and desktop database update failures are reported to the user
+- Fixed: macOS association registration uses the existing application bundle
+- Fixed: documents opened from Finder are handled through macOS events with unsaved-change checks
+- Fixed: packaged applications use writable user settings directories
+- Fixed: Snap hides the unavailable system file association action
+- Fixed: file handlers use the consistent KR580 display name on Windows and Linux
+- Fixed: focus, Tab navigation, and hexadecimal address input in subprogram Open and Save dialogs; the initial Enter action matches the Cancel button
+
+### Build and Packaging
+
+- Updated: Windows executable descriptions distinguish the application, installer, and uninstaller
+- Updated: the visible Linux launcher is separate from the hidden file handler, so disabling associations keeps the application in the menu
+- Updated: the Debian package includes desktop integration dependencies
+- Updated: the macOS installer and file associations share one `KR580.app` bundle contract
+- Fixed: Windows resources are skipped when building for other target platforms
+- Updated: macOS application registration uses the public Launch Services API
+- Added: macOS distribution as a DMG with drag-and-drop installation of `KR580.app` into Applications
+- Updated: Linux metadata is centralized in shared templates for the application, installer, and packages
+- Updated: Snap packages the ready-to-run GUI application instead of a nested installer
+- Added: automated checks for Linux desktop integration and macOS DMG contents
+- Fixed: Clippy errors on Rust 1.88 and the `lipo` argument order when building and verifying macOS DMGs
+
 ## [2.3.0] - 2026-09-04
 
 ### Features

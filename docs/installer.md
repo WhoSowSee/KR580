@@ -26,6 +26,16 @@ installed layout it launches the installed uninstaller binary with `--setup`,
 so the setup UI is explicit and the installed file still reads as an
 uninstaller.
 
+## Upgrading to 3.0.0
+
+The GUI executable is now `kr580` (`kr580.exe` on Windows), replacing `k580`.
+Update scripts and manually created shortcuts that use the old name, including
+`cargo run --bin k580`; use `cargo run --bin kr580` instead. The `kr` launcher
+keeps its name. Rust consumers on Linux and macOS must stop calling
+`file_assoc::is_registered`, which is now exported only on Windows. On macOS,
+`kr -u` returns an unsupported-operation error; choose a replacement default
+application through Finder instead.
+
 ## Installer Window
 
 The graphical setup uses an undecorated iced window with its own Tokyo Night
