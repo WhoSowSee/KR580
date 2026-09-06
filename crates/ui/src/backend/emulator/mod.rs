@@ -93,7 +93,13 @@ impl Emulator {
             Ok(events) => events,
             Err(error) => vec![AppEvent::ErrorRaised(error)],
         };
+        let completion = if matches!(events.last(), Some(AppEvent::SubprogramLoaded { .. })) {
+            events.pop()
+        } else {
+            None
+        };
         events.push(AppEvent::StateChanged(Box::new(self.snapshot())));
+        events.extend(completion);
         events
     }
 
@@ -224,12 +230,13 @@ impl Emulator {
             }
             AppCommand::LoadSubprogram { path, start } => {
                 let was_running = self.running;
-                SubprogramSerializer::load_into_state(path, start, &mut self.cpu)?;
+                let end = SubprogramSerializer::load_into_state(&path, start, &mut self.cpu)?;
                 self.running = false;
                 self.instructions_since_run = 0;
                 if was_running {
                     events.push(AppEvent::Stopped);
                 }
+                events.push(AppEvent::SubprogramLoaded { path, start, end });
             }
             AppCommand::SaveSubprogram { path, start, end } => {
                 SubprogramSerializer::save_file(path, &self.cpu, start, end)?;

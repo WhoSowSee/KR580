@@ -8,7 +8,6 @@ use super::StatusKind;
 use super::messages::Message;
 use super::state::DesktopApp;
 use crate::i18n::Key;
-use crate::persistence::SubprogramSerializer;
 use crate::runtime::parse::{bounded_hex_input, parse_hex_u16};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -178,41 +177,30 @@ impl DesktopApp {
             Some(start) => start,
             None => return self.restore_subprogram_error(dialog, Key::StatusInvalidAddressHex),
         };
-        let end = match dialog.mode {
-            SubprogramDialogMode::Open => match SubprogramSerializer::file_end(&dialog.path, start)
-            {
-                Ok(end) => end,
-                Err(error) => {
-                    return self.restore_subprogram_error_text(
-                        dialog,
-                        crate::runtime::humanize_error::humanize(&error.to_string(), self.lang),
-                    );
-                }
-            },
-            SubprogramDialogMode::Save => match parse_hex_u16(&dialog.end_input) {
-                Some(end) if start <= end => end,
-                Some(_) => {
-                    return self.restore_subprogram_error(dialog, Key::SubprogramRangeInvalid);
-                }
-                None => return self.restore_subprogram_error(dialog, Key::StatusInvalidAddressHex),
-            },
-        };
-
         self.clear_error_notice();
+        if dialog.mode == SubprogramDialogMode::Open {
+            self.dispatch_sync(crate::backend::AppCommand::LoadSubprogram {
+                path: dialog.path.clone(),
+                start,
+            });
+            if let Some(error) = self.error_notice.take() {
+                self.error_notice_dismiss_at = None;
+                self.restore_subprogram_error_text(dialog, error);
+            }
+            return;
+        }
+        let end = match parse_hex_u16(&dialog.end_input) {
+            Some(end) if start <= end => end,
+            Some(_) => return self.restore_subprogram_error(dialog, Key::SubprogramRangeInvalid),
+            None => return self.restore_subprogram_error(dialog, Key::StatusInvalidAddressHex),
+        };
         let path = dialog.path.clone();
         let display = path.display().to_string();
-        let command = match dialog.mode {
-            SubprogramDialogMode::Open => crate::backend::AppCommand::LoadSubprogram {
-                path: path.clone(),
-                start,
-            },
-            SubprogramDialogMode::Save => crate::backend::AppCommand::SaveSubprogram {
-                path: path.clone(),
-                start,
-                end,
-            },
-        };
-        self.dispatch_sync(command);
+        self.dispatch_sync(crate::backend::AppCommand::SaveSubprogram {
+            path: path.clone(),
+            start,
+            end,
+        });
         if let Some(error) = self.error_notice.take() {
             self.error_notice_dismiss_at = None;
             return self.restore_subprogram_error_text(dialog, error);
@@ -221,15 +209,19 @@ impl DesktopApp {
         self.current_snapshot_path = Some(path);
         self.current_subprogram_range = Some((start, end));
         self.undo_stack.clear();
-        match dialog.mode {
-            SubprogramDialogMode::Open => self.mark_saved(),
-            SubprogramDialogMode::Save => self.mark_subprogram_saved(start, end),
-        }
+        self.mark_subprogram_saved(start, end);
         self.set_memory_address(start);
-        self.set_status(match dialog.mode {
-            SubprogramDialogMode::Open => StatusKind::Opened { display },
-            SubprogramDialogMode::Save => StatusKind::SavedTo { display },
-        });
+        self.set_status(StatusKind::SavedTo { display });
+    }
+
+    pub(crate) fn finish_subprogram_load(&mut self, path: PathBuf, start: u16, end: u16) {
+        let display = path.display().to_string();
+        self.current_snapshot_path = Some(path);
+        self.current_subprogram_range = Some((start, end));
+        self.undo_stack.clear();
+        self.mark_saved();
+        self.set_memory_address(start);
+        self.set_status(StatusKind::Opened { display });
     }
 
     fn restore_subprogram_error(&mut self, dialog: SubprogramDialog, key: Key) {
@@ -246,6 +238,43 @@ impl DesktopApp {
 mod tests {
     use super::{SubprogramDialogFocus, SubprogramDialogMode};
     use crate::app::{DesktopApp, Message};
+
+    #[test]
+    fn loaded_range_and_next_save_follow_the_bytes_read() {
+        use crate::backend::{AppCommand, Emulator};
+
+        let dir = std::env::temp_dir().join(format!("kr580-load-range-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("changing.krs");
+        let (mut app, _) = DesktopApp::with_initial_path(None);
+        let mut emulator = Emulator::default();
+        for loaded in [4, 2] {
+            let expected = vec![0x42; loaded];
+            std::fs::write(&path, &expected).unwrap();
+            let events = emulator.handle_command(AppCommand::LoadSubprogram {
+                path: path.clone(),
+                start: 0x1000,
+            });
+            std::fs::write(&path, [0xFF]).unwrap();
+            app.dispatch_sync(AppCommand::ApplyCpuState(Box::new(emulator.snapshot().cpu)));
+            for event in events {
+                app.consume_event(event);
+            }
+            assert_eq!(
+                app.current_subprogram_range,
+                Some((0x1000, 0x1000 + loaded as u16 - 1))
+            );
+            assert_eq!(
+                &app.snapshot.cpu.memory.as_slice()[0x1000..0x1000 + loaded],
+                &expected
+            );
+            app.memory_inline_value_input.clear();
+            let _ = app.save_program();
+            assert_eq!(std::fs::read(&path).unwrap(), expected);
+        }
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(dir).unwrap();
+    }
 
     #[test]
     fn subprogram_saves_preserve_unsaved_memory_and_registers() {

@@ -17,6 +17,9 @@ impl DesktopApp {
 
     pub(crate) fn consume_event(&mut self, event: AppEvent) {
         match event {
+            AppEvent::SubprogramLoaded { path, start, end } => {
+                self.finish_subprogram_load(path, start, end);
+            }
             AppEvent::StateChanged(snapshot) => self.apply_snapshot(*snapshot),
             AppEvent::InstructionBoundaryReached(outcome) => {
                 self.set_status(StatusKind::InstructionAt {

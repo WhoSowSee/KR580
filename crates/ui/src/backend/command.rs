@@ -82,6 +82,7 @@ pub struct AppSnapshot {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AppEvent {
+    SubprogramLoaded { path: PathBuf, start: u16, end: u16 },
     StateChanged(Box<AppSnapshot>),
     InstructionBoundaryReached(InstructionOutcome),
     TactAdvanced(TactOutcome),

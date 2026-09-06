@@ -1595,6 +1595,11 @@ snap the caret to the end of the field.
 
 ### Unsaved-changes modal
 
+Successful `.krs` loading emits `SubprogramLoaded { path, start, end }` after
+`StateChanged`. The UI completes opening and records the range from that event;
+the dialog does not precompute the range from file metadata. Completion also
+works when loading finishes after the synchronous dispatch wait expires.
+
 Saving `.krs`, through either the range dialog or ordinary Save, updates the
 saved baseline only for the inclusive RAM range written to that file. Register
 changes and memory changes outside that range keep the session dirty and retain

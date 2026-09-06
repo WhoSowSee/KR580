@@ -2,6 +2,11 @@
 
 Run the same checks from the repository root:
 
+The `loaded_range_and_next_save_follow_the_bytes_read` UI regression test covers
+successive loads with different lengths and replaces the file before delivering
+the real backend completion events; ordinary Save must retain exactly the loaded
+range. Event delivery is explicit, without sleeps or timing-dependent file changes.
+
 ```sh
 cargo fmt --all --manifest-path /d/kr-580/Cargo.toml
 cargo clippy --workspace --all-targets --manifest-path /d/kr-580/Cargo.toml -- -D warnings

@@ -34,6 +34,12 @@ file routing.
 
 ## `.krs`
 
+`load_into_state` returns the inclusive end address (`Result<u16, SubprogramError>`)
+calculated from the bytes it actually reads and installs. The obsolete
+metadata-only `file_end` API has been removed; callers should use the load result. Desktop
+loading records the range from the worker's completion event, so a file size
+change cannot leave ordinary Save using a stale range.
+
 Saves stage the complete range in a uniquely created sibling temporary file,
 flush it with `sync_all`, close it, and replace the destination with a rename.
 Write, flush, or replacement failures leave the previous destination intact

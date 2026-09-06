@@ -32,22 +32,17 @@ impl SubprogramSerializer {
         path: impl AsRef<Path>,
         start: u16,
         state: &mut Cpu8080State,
-    ) -> Result<(), SubprogramError> {
+    ) -> Result<u16, SubprogramError> {
         validate_path(path.as_ref())?;
         let bytes = std::fs::read(path)?;
-        checked_load_end(start, bytes.len() as u64)?;
+        let end = checked_load_end(start, bytes.len() as u64)?;
         state
             .set_memory_block(start, &bytes)
             .map_err(|_| SubprogramError::MemoryOverflow {
                 start,
                 length: bytes.len() as u64,
             })?;
-        Ok(())
-    }
-
-    pub fn file_end(path: impl AsRef<Path>, start: u16) -> Result<u16, SubprogramError> {
-        validate_path(path.as_ref())?;
-        checked_load_end(start, std::fs::metadata(path)?.len())
+        Ok(end)
     }
 
     pub fn save_file(
@@ -105,7 +100,8 @@ mod tests {
         fs::write(&path, [0x3E, 0x42, 0x76]).unwrap();
         let mut state = Cpu8080State::default();
 
-        SubprogramSerializer::load_into_state(&path, 0x0100, &mut state).unwrap();
+        let end = SubprogramSerializer::load_into_state(&path, 0x0100, &mut state).unwrap();
+        assert_eq!(end, 0x0102);
 
         assert_eq!(
             &state.memory.as_slice()[0x0100..=0x0102],
@@ -129,18 +125,6 @@ mod tests {
                 length: 2
             }
         ));
-        fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn reports_inclusive_file_end() {
-        let path = temp_path("subprogram-end", "krs");
-        fs::write(&path, [0x00, 0x01, 0x02]).unwrap();
-
-        assert_eq!(
-            SubprogramSerializer::file_end(&path, 0x0100).unwrap(),
-            0x0102
-        );
         fs::remove_file(path).unwrap();
     }
 

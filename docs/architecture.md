@@ -65,6 +65,10 @@ the successful animation reaches 100%.
 
 UI messages become `AppCommand` values. The internal backend actor owns `Cpu8080State` and `IoBus`, applies commands, and publishes typed `AppEvent` values. The UI stores only display/input state and can always re-render from `AppSnapshot`.
 
+After `.krs` loading, the actor publishes `StateChanged` followed by
+`SubprogramLoaded { path, start, end }`. The completion range comes from the
+bytes installed in RAM, and the UI uses it for subsequent subprogram saves.
+
 ## Invariants
 
 - `prompt/` is the source of truth for behavior, file formats, and quality gates.
