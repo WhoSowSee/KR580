@@ -34,6 +34,16 @@ file routing.
 
 ## `.krs`
 
+Saves stage the complete range in a uniquely created sibling temporary file,
+flush it with `sync_all`, close it, and replace the destination with a rename.
+Write, flush, or replacement failures leave the previous destination intact
+and attempt to remove the temporary file. Existing symbolic links are resolved
+before staging; dangling symbolic links are rejected without replacing the link.
+Existing file permissions are copied and read-only targets are
+rejected. Replacement changes file identity (hard links keep the old content).
+This protects against ordinary save failures, not every filesystem or power-loss
+scenario; an abrupt process exit may leave a temporary file behind.
+
 For partial-save tracking, see [Unsaved-changes modal](ui_app.md#unsaved-changes-modal).
 
 Subprograms are raw byte slices. The base address is supplied by the caller and is not hidden in the file.

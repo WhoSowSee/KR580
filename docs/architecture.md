@@ -72,6 +72,7 @@ UI messages become `AppCommand` values. The internal backend actor owns `Cpu8080
 - Device state is owned by the internal `devices` module; `IN`/`OUT` route through `PortBus`.
 - The internal `persistence` module reads from `Cpu8080State` or explicit export view models, never from UI labels or grids.
 - `.krs` remains a raw byte slice with caller-provided base address; no secondary subprogram format is introduced.
+- `persistence/subprogram/atomic_save.rs` stages `.krs` writes beside the destination and replaces it only after the complete file has been flushed and closed.
 
 ## Runtime shape
 

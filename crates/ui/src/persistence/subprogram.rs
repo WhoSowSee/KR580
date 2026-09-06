@@ -2,6 +2,8 @@ use k580_core::Cpu8080State;
 use std::path::Path;
 use thiserror::Error;
 
+mod atomic_save;
+
 #[derive(Debug, Error)]
 pub enum SubprogramError {
     #[error("not a .krs file")]
@@ -59,7 +61,7 @@ impl SubprogramSerializer {
             return Err(SubprogramError::InvalidRange { start, end });
         }
         let bytes = &state.memory.as_slice()[usize::from(start)..=usize::from(end)];
-        std::fs::write(path, bytes)?;
+        atomic_save::write(path.as_ref(), bytes)?;
         Ok(())
     }
 }
