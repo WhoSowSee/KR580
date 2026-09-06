@@ -8,6 +8,9 @@ cargo clippy --workspace --all-targets --manifest-path /d/kr-580/Cargo.toml -- -
 cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
 ```
 
+`cargo test -p kr580 --test persistence_formats` checks desktop `.580`
+save/load byte layout, independent PC/SP fixtures, and invalid file rejection.
+
 The workspace MSRV is Rust 1.88.0. Verify it against the locked dependency set:
 
 ```sh

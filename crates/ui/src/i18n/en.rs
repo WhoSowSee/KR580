@@ -345,7 +345,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ErrUnsupportedImportFile => "File format is not supported – use a .txt or .xlsx file",
         Key::ErrFileEmpty => "File is empty",
         Key::ErrWrong580Size => "Not a valid .580 file (must be exactly 65549 bytes)",
-        Key::ErrLegacyTrailerCorrupt => "File trailer is corrupted – this is not a valid .580 file",
         Key::SubprogramRangeInvalid => "The start address must not exceed the end address",
         Key::ErrSettingsNewerVersion => {
             "Settings file was saved by a newer version – please update the application"

@@ -349,7 +349,6 @@ pub(super) fn translate(key: Key) -> &'static str {
         }
         Key::ErrFileEmpty => "Файл пуст",
         Key::ErrWrong580Size => "Не похоже на .580 файл (должно быть ровно 65549 байт)",
-        Key::ErrLegacyTrailerCorrupt => "Конец файла повреждён – это не .580 файл",
         Key::SubprogramRangeInvalid => "Начальный адрес не может быть больше конечного",
         Key::ErrSettingsNewerVersion => {
             "Настройки сохранены в более новой версии – обновите программу"

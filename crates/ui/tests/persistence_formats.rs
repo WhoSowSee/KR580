@@ -23,6 +23,7 @@ fn program_saves_and_loads_in_legacy_format() {
     cpu.memory.write(0x0101, 0x00);
     cpu.memory.write(0x0102, 0x01);
     cpu.pc = 0x0100;
+    cpu.sp = 0xF012;
 
     let dir = std::env::temp_dir().join(format!("k580-prg-save-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -34,11 +35,9 @@ fn program_saves_and_loads_in_legacy_format() {
     assert_eq!(raw.len(), LEGACY_LENGTH);
     assert_eq!(raw[0x0100], 0xC3);
     assert_eq!(raw[0x0102], 0x01);
-    // trailer: 9 zeros, PC_LO, PC_HI, FF, FF
     assert_eq!(raw[Memory64K::SIZE + 9], 0x00);
     assert_eq!(raw[Memory64K::SIZE + 10], 0x01);
-    assert_eq!(raw[LEGACY_LENGTH - 2], 0xFF);
-    assert_eq!(raw[LEGACY_LENGTH - 1], 0xFF);
+    assert_eq!(&raw[LEGACY_LENGTH - 2..], &[0x12, 0xF0]);
 
     let restored = ProgramSerializer::load_file(&path).unwrap();
     assert_eq!(restored.memory.read(0x0000), 0x3E);
@@ -46,6 +45,7 @@ fn program_saves_and_loads_in_legacy_format() {
     assert_eq!(restored.memory.read(0x0100), 0xC3);
     assert_eq!(restored.memory.read(0x0102), 0x01);
     assert_eq!(restored.pc, 0x0100);
+    assert_eq!(restored.sp, 0xF012);
 
     std::fs::remove_file(&path).ok();
     std::fs::remove_dir(dir).ok();
@@ -61,8 +61,7 @@ fn program_save_empty_state_writes_full_legacy_format() {
     ProgramSerializer::save_file(&path, &cpu).unwrap();
     let raw = std::fs::read(&path).unwrap();
     assert_eq!(raw.len(), LEGACY_LENGTH);
-    assert_eq!(raw[LEGACY_LENGTH - 2], 0xFF);
-    assert_eq!(raw[LEGACY_LENGTH - 1], 0xFF);
+    assert_eq!(&raw[LEGACY_LENGTH - 2..], &cpu.sp.to_le_bytes());
 
     std::fs::remove_file(&path).ok();
     std::fs::remove_dir(dir).ok();
@@ -112,7 +111,7 @@ fn program_load_rejects_oversized_file() {
 }
 
 #[test]
-fn program_loads_legacy_format_with_pc_from_trailer() {
+fn program_loads_legacy_format_with_pc_and_sp() {
     let dir = std::env::temp_dir().join(format!("k580-prg-legacy-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("legacy.580");
@@ -120,33 +119,22 @@ fn program_loads_legacy_format_with_pc_from_trailer() {
     bytes[0x0100] = 0xC3;
     bytes[0x0101] = 0x00;
     bytes[0x0102] = 0x01;
-    // PC = 0x1234 at trailer[9..11]
     bytes[Memory64K::SIZE + 9] = 0x34;
     bytes[Memory64K::SIZE + 10] = 0x12;
-    bytes[LEGACY_LENGTH - 2] = 0xFF;
-    bytes[LEGACY_LENGTH - 1] = 0xFF;
-    std::fs::write(&path, &bytes).unwrap();
-
-    let restored = ProgramSerializer::load_file(&path).unwrap();
-    assert_eq!(restored.memory.read(0x0100), 0xC3);
-    assert_eq!(restored.pc, 0x1234);
-
-    std::fs::remove_file(&path).ok();
-    std::fs::remove_dir(dir).ok();
-}
-
-#[test]
-fn program_load_rejects_legacy_format_with_bad_trailer() {
-    let dir = std::env::temp_dir().join(format!("k580-prg-badtrail-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("badtrail.580");
-    let mut bytes = vec![0u8; LEGACY_LENGTH];
-    bytes[LEGACY_LENGTH - 2] = 0x00;
-    bytes[LEGACY_LENGTH - 1] = 0x00;
-    std::fs::write(&path, &bytes).unwrap();
-
-    let err = ProgramSerializer::load_file(&path).unwrap_err();
-    assert!(matches!(err, ProgramError::InvalidLegacyTrailer));
+    for (sp_bytes, expected_sp) in [
+        ([0x00, 0x00], 0x0000),
+        ([0x12, 0xF0], 0xF012),
+        ([0xFF, 0x00], 0x00FF),
+        ([0x00, 0xFF], 0xFF00),
+        ([0xFF, 0xFF], 0xFFFF),
+    ] {
+        bytes[LEGACY_LENGTH - 2..].copy_from_slice(&sp_bytes);
+        std::fs::write(&path, &bytes).unwrap();
+        let restored = ProgramSerializer::load_file(&path).unwrap();
+        assert_eq!(restored.memory.read(0x0100), 0xC3);
+        assert_eq!(restored.pc, 0x1234);
+        assert_eq!(restored.sp, expected_sp);
+    }
 
     std::fs::remove_file(&path).ok();
     std::fs::remove_dir(dir).ok();

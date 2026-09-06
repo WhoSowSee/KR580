@@ -7,7 +7,6 @@ pub enum ProgramError {
     NotA580File,
     EmptyFile,
     WrongSize { size: usize },
-    InvalidLegacyTrailer,
     Io(std::io::Error),
 }
 
@@ -18,9 +17,6 @@ impl std::fmt::Display for ProgramError {
             ProgramError::EmptyFile => write!(f, "file is empty"),
             ProgramError::WrongSize { size } => {
                 write!(f, "expected {LEGACY_LENGTH} bytes, got {size}")
-            }
-            ProgramError::InvalidLegacyTrailer => {
-                write!(f, "legacy .580 trailer is missing the FF FF end marker")
             }
             ProgramError::Io(err) => write!(f, "I/O error: {err}"),
         }
@@ -60,8 +56,7 @@ impl ProgramSerializer {
         out.extend_from_slice(state.memory.as_slice());
         out.resize(out.len() + 9, 0);
         out.extend_from_slice(&state.pc.to_le_bytes());
-        out.push(0xFF);
-        out.push(0xFF);
+        out.extend_from_slice(&state.sp.to_le_bytes());
         std::fs::write(path, out)?;
         Ok(())
     }
@@ -75,22 +70,20 @@ impl ProgramSerializer {
         if bytes.len() != LEGACY_LENGTH {
             return Err(ProgramError::WrongSize { size: bytes.len() });
         }
-        Self::from_legacy_bytes(&bytes)
+        Ok(Self::from_legacy_bytes(&bytes))
     }
 
-    fn from_legacy_bytes(bytes: &[u8]) -> Result<Cpu8080State, ProgramError> {
+    fn from_legacy_bytes(bytes: &[u8]) -> Cpu8080State {
         let trailer_start = Memory64K::SIZE;
         let trailer = &bytes[trailer_start..];
-        if trailer[11] != 0xFF || trailer[12] != 0xFF {
-            return Err(ProgramError::InvalidLegacyTrailer);
-        }
         let mut state = Cpu8080State::default();
         state
             .memory
             .as_mut_slice()
             .copy_from_slice(&bytes[..trailer_start]);
         state.pc = u16::from_le_bytes([trailer[9], trailer[10]]);
-        Ok(state)
+        state.sp = u16::from_le_bytes([trailer[11], trailer[12]]);
+        state
     }
 }
 

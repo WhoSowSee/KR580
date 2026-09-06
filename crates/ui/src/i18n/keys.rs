@@ -129,7 +129,7 @@ scalar_keys! {
     StatusPatternFound, StatusAtAddress, StatusNoMatchesFor,
     ErrNotA580File, ErrNotAKrsFile, ErrUnsupportedDroppedFile, ErrUnsupportedImportFile,
     ErrFileEmpty, ErrWrong580Size,
-    ErrLegacyTrailerCorrupt, SubprogramRangeInvalid,
+    SubprogramRangeInvalid,
     ErrSettingsNewerVersion, ErrSettingsCorrupt, ErrCannotReadFileFormat, ErrCannotReadFile,
     ErrCannotWriteTable, ErrCannotWriteFile, ErrFileNotFound, ErrPermissionDenied,
     ErrFileAlreadyExists, ErrDiskFull, ErrIoGeneric, ErrAddressOutOfRange, ErrUnknownRegister,

@@ -2,6 +2,18 @@
 
 ## `.580`
 
+The desktop `ProgramSerializer` reads and writes the 65,549-byte original
+format: 65,536 RAM bytes, nine register bytes, little-endian PC at offsets
+65,545–65,546, and little-endian SP at offsets 65,547–65,548. The last two
+bytes are SP, not an `FF FF` signature; every 16-bit SP value is accepted and
+preserved on save. Extension, empty-file, and exact-size checks still apply.
+The nine register bytes are currently ignored on load and zeroed on save;
+this SP compatibility fix does not restore those registers.
+The obsolete `ProgramError::InvalidLegacyTrailer` variant has been removed;
+Rust callers referencing it must remove those references.
+
+## Core snapshot encoding
+
 Snapshots are versioned little-endian binary files:
 
 - magic `K580`;

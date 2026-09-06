@@ -15,9 +15,6 @@ pub(crate) fn humanize(raw: &str, lang: Lang) -> String {
     if lower.contains("expected ") && lower.contains(" bytes, got ") {
         return lang.t(Key::ErrWrong580Size).to_owned();
     }
-    if lower.contains("legacy .580 trailer") {
-        return lang.t(Key::ErrLegacyTrailerCorrupt).to_owned();
-    }
 
     if lower.contains("unsupported settings version") {
         return lang.t(Key::ErrSettingsNewerVersion).to_owned();
