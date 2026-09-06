@@ -7,8 +7,11 @@ format: 65,536 RAM bytes, nine register bytes, little-endian PC at offsets
 65,545–65,546, and little-endian SP at offsets 65,547–65,548. The last two
 bytes are SP, not an `FF FF` signature; every 16-bit SP value is accepted and
 preserved on save. Extension, empty-file, and exact-size checks still apply.
-The nine register bytes are currently ignored on load and zeroed on save;
-this SP compatibility fix does not restore those registers.
+The nine bytes at offsets 65,536–65,544 contain `A, B, C, D, E, H, L, W, Z`
+in that order. Loading restores all nine registers; saving writes their current
+values, including the internal W/Z pair. Flags, interrupt state, halt state,
+and timing are absent from this original format and retain their defaults on
+load; use the core snapshot encoding for complete CPU state serialization.
 The obsolete `ProgramError::InvalidLegacyTrailer` variant has been removed;
 Rust callers referencing it must remove those references.
 

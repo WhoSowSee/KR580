@@ -10,6 +10,8 @@ cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
 
 `cargo test -p kr580 --test persistence_formats` checks desktop `.580`
 save/load byte layout, independent PC/SP fixtures, and invalid file rejection.
+`cargo test -p kr580 --test program_registers` checks all nine register slots
+against an independent byte fixture and byte-for-byte re-saving.
 
 The workspace MSRV is Rust 1.88.0. Verify it against the locked dependency set:
 

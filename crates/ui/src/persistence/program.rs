@@ -1,4 +1,4 @@
-use k580_core::{Cpu8080State, Memory64K};
+use k580_core::{Cpu8080State, Memory64K, Registers};
 
 pub const LEGACY_LENGTH: usize = Memory64K::SIZE + 13;
 
@@ -54,7 +54,18 @@ impl ProgramSerializer {
     ) -> Result<(), ProgramError> {
         let mut out = Vec::with_capacity(LEGACY_LENGTH);
         out.extend_from_slice(state.memory.as_slice());
-        out.resize(out.len() + 9, 0);
+        let registers = &state.registers;
+        out.extend_from_slice(&[
+            registers.a,
+            registers.b,
+            registers.c,
+            registers.d,
+            registers.e,
+            registers.h,
+            registers.l,
+            registers.w,
+            registers.z,
+        ]);
         out.extend_from_slice(&state.pc.to_le_bytes());
         out.extend_from_slice(&state.sp.to_le_bytes());
         std::fs::write(path, out)?;
@@ -77,6 +88,17 @@ impl ProgramSerializer {
         let trailer_start = Memory64K::SIZE;
         let trailer = &bytes[trailer_start..];
         let mut state = Cpu8080State::default();
+        state.registers = Registers {
+            a: trailer[0],
+            b: trailer[1],
+            c: trailer[2],
+            d: trailer[3],
+            e: trailer[4],
+            h: trailer[5],
+            l: trailer[6],
+            w: trailer[7],
+            z: trailer[8],
+        };
         state
             .memory
             .as_mut_slice()
