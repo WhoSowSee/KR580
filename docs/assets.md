@@ -125,8 +125,10 @@ second for `.580` and `.krs` documents.
   and hands its RGBA buffer to `iced::window::icon::from_rgba`. This drives the title-bar /
   Alt-Tab / taskbar icon for the running application.
 - `crates/ui/build.rs` (Windows only) embeds `crates/ui/assets/icons/icon.ico`
-  and the `KR580` product/file description into the PE resource section through
-  the `winresource` crate. These drive the name and `.exe` icon shown by
+  and the product/file description into the PE resource section: `KR` for
+  `kr.exe`, `KR580` for the GUI. `winresource` generates the resources and
+  `embed-resource` compiles and links them to the matching binaries.
+  These drive the name and `.exe` icon shown by
   Explorer, the Start menu, pinned taskbar shortcuts, and the file picker.
 - `crates/ui/build.rs` switches the main PE icon when
   `KR580_WINDOWS_ICON_KIND` is set: `setup` embeds

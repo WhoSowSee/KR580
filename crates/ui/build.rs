@@ -80,15 +80,6 @@ fn embed_windows_resources() {
     }
 
     let mut resource = winresource::WindowsResource::new();
-    resource.set("ProductName", "KR580");
-    resource.set(
-        "FileDescription",
-        match std::env::var("KR580_WINDOWS_ICON_KIND").as_deref() {
-            Ok("setup") => "KR580 Setup",
-            Ok("uninstaller") => "KR580 Uninstaller",
-            _ => "KR580",
-        },
-    );
     resource.set_icon(
         icon_path
             .to_str()
@@ -109,8 +100,32 @@ fn embed_windows_resources() {
         );
     }
 
-    if let Err(error) = resource.compile() {
-        println!("cargo:warning=failed to embed Windows icon resource: {error}");
+    let out_dir = std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
+    let description = match std::env::var("KR580_WINDOWS_ICON_KIND").as_deref() {
+        Ok("setup") => "KR580 Setup",
+        Ok("uninstaller") => "KR580 Uninstaller",
+        _ => "KR580",
+    };
+    for (name, product, description, binaries) in [
+        (
+            "kr580",
+            "KR580",
+            description,
+            &["kr580", "k580-installer", "k580-uninstaller"][..],
+        ),
+        ("kr", "KR", "KR", &["kr"][..]),
+    ] {
+        resource.set("ProductName", product);
+        resource.set("FileDescription", description);
+        let rc = out_dir.join(format!("{name}.rc"));
+        let result = resource.write_resource_file(&rc).and_then(|()| {
+            embed_resource::compile_for(&rc, binaries, embed_resource::NONE)
+                .manifest_required()
+                .map_err(std::io::Error::other)
+        });
+        if let Err(error) = result {
+            println!("cargo:warning=failed to embed {name} Windows resource: {error}");
+        }
     }
 }
 

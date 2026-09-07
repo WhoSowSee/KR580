@@ -47,11 +47,21 @@ independent breaking change and user-facing feature. The `chore(release)`
 version-bump commit is excluded.
 
 Dependency audits use `cargo machete --with-metadata --skip-target-dir .`.
-The Windows-only `winresource` build dependency is explicitly ignored by that
-scanner because `crates/ui/build.rs` consumes it behind a target `cfg`.
+The Windows-only `winresource` and `embed-resource` build dependencies are
+explicitly ignored by that scanner because `crates/ui/build.rs` consumes them
+behind a target `cfg`.
 Linux metadata changes must validate the canonical files under
 `crates/ui/assets/linux`; runtime and package outputs are rendered from those
 same inputs and must not add independent copies.
+
+On Windows, build `cargo build -p kr580 --bin kr --bin kr580` and inspect
+`(Get-Item target/debug/kr.exe).VersionInfo` and the corresponding `kr580.exe`
+property. Both `FileDescription` and `ProductName` must be `KR` for the launcher
+and `KR580` for the GUI. Repeat with `--release` and `target/release` when
+checking release artifacts. The build-script output must contain one
+`cargo:rustc-link-arg-bin` resource per binary, without a shared
+`cargo:rustc-link-arg` resource. The setup/uninstaller stages must retain their
+`KR580 Setup` / `KR580 Uninstaller` descriptions and role-specific icons.
 
 Native metadata smoke checks use disposable roots and never change the current
 user's desktop or association databases:

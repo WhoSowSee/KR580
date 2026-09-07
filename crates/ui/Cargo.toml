@@ -20,7 +20,7 @@ exclude = [
 ]
 
 [package.metadata.cargo-machete]
-ignored = ["winresource"]
+ignored = ["winresource", "embed-resource"]
 
 [dependencies]
 k580-core = { version = "3.0.0", path = "../core" }
@@ -73,6 +73,7 @@ windows = { version = "0.62", features = [
 ] }
 
 [target.'cfg(windows)'.build-dependencies]
+embed-resource = "3"
 winresource = { version = "0.1", default-features = false }
 
 [lib]
