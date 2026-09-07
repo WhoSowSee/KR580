@@ -41,10 +41,11 @@ indexes aligned, and verify the publishable workspace archive:
 cargo package --workspace --locked
 ```
 
-For a release, every non-release commit since the previous tag must be
-represented by a bullet; a mixed commit may use separate bullets for an
-independent breaking change and user-facing feature. The `chore(release)`
-version-bump commit is excluded.
+For a release, every non-release commit since the previous tag must have
+exactly one bullet in each language. Keep all changes from a mixed commit
+in that single bullet. The `chore(release)` version-bump commit is excluded.
+Avoid dash punctuation in the bullet text; retain the Markdown list markers
+and the version/date heading format required by the embedded reader.
 
 Dependency audits use `cargo machete --with-metadata --skip-target-dir .`.
 The Windows-only `winresource` and `embed-resource` build dependencies are

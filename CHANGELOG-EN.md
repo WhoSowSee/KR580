@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.1.0] - 2026-09-07
+
+### Features
+
+- Added: Tab and Shift+Tab navigation through external device buttons, including detached windows and the monitor hexadecimal buffer, with Enter or Space activation and persistent selection after activation
+
+### Bug Fixes
+
+- Fixed: the stack pointer SP is correctly restored from `.580` files and preserved when saving again
+- Fixed: registers A, B, C, D, E, H, L, W, and Z are restored from `.580` files and preserved when saving again
+- Fixed: saving a `.krs` subprogram no longer marks changes to registers or memory outside the selected range as saved
+- Fixed: a failed `.krs` subprogram save no longer damages the existing file
+- Fixed: the `.krs` subprogram range follows the bytes actually loaded and is reused for subsequent saves
+
+### Build and Packaging
+
+- Fixed: Windows displays the terminal launcher `kr.exe` as KR while the GUI application `kr580.exe` retains the name KR580
+
 ## [3.0.0] - 2026-09-06
 
 ### Breaking Changes
