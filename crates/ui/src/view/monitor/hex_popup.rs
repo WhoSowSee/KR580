@@ -10,8 +10,8 @@ use crate::view::icons;
 use crate::view::theme::{mono_text, tokyo_muted, tokyo_text, ui_text};
 use crate::view::widgets::compact_scrollbar;
 
+use super::HexPopupViewState;
 use super::styles::{HEX_GROUP, dialog_style, framebuffer_style, popup_backdrop_style};
-use super::{HexPopupViewState, icon_button};
 
 const HEX_TEXT_SIZE: u32 = 12;
 const HEX_ROW_HEIGHT: f32 = HEX_TEXT_SIZE as f32 * 1.3;
@@ -90,20 +90,22 @@ pub(super) fn hex_popup_overlay<'a>(
         Space::new().width(Length::Fixed(16.0)),
         ui_text(format!("{byte_count} B"), 12, tokyo_muted()),
         Space::new().width(Length::Fill),
-        icon_button(
+        super::icon_button(
             filter_icon,
             Message::CycleMonitorHexFilter,
             lang.t(filter_hint),
             None,
             false,
+            hex.toolbar,
         ),
         Space::new().width(Length::Fixed(6.0)),
-        icon_button(
+        super::icon_button(
             icons::window_close(),
             Message::ToggleMonitorHexPopup,
             lang.t(Key::MonitorClose),
             Some("Esc".to_owned()),
             false,
+            hex.toolbar,
         ),
     ]
     .align_y(iced::alignment::Vertical::Center);

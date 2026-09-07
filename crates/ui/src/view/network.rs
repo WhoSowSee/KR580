@@ -11,13 +11,14 @@ use super::storage::chrome::{
 use super::storage::status_label;
 use super::styles::{panel_style, scrollable_style};
 use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
-use crate::app::{DesktopApp, Message, ToolWindowKind};
+use crate::app::{DesktopApp, DeviceToolbar, Message, ToolWindowKind};
 use crate::i18n::{Key, Lang, NetworkKey, lowercase_initial};
 
 const WINDOW_WIDTH: f32 = 760.0;
 const WINDOW_HEIGHT: f32 = 340.0;
 
 pub(in crate::view) struct NetworkViewState<'a> {
+    toolbar: DeviceToolbar,
     pub(in crate::view) network: &'a NetworkState,
     pub(in crate::view) settings_open: bool,
     pub(in crate::view) text_view: bool,
@@ -31,6 +32,7 @@ pub(in crate::view) struct NetworkViewState<'a> {
 impl DesktopApp {
     pub(in crate::view) fn network_view_state(&self) -> NetworkViewState<'_> {
         NetworkViewState {
+            toolbar: self.device_toolbar(ToolWindowKind::Network),
             network: &self.snapshot.devices.network,
             settings_open: self.network_settings_open,
             text_view: self.network_text_view,
@@ -52,7 +54,7 @@ pub(in crate::view) fn network_window_overlay(view: NetworkViewState<'_>) -> Ele
     )
     .on_press(Message::CloseNetwork)
     .into();
-    let dialog = container(network_content(view, false, false))
+    let dialog = container(network_content(view))
         .padding(16)
         .style(panel_style)
         .width(Length::Fixed(WINDOW_WIDTH))
@@ -65,11 +67,8 @@ pub(in crate::view) fn network_window_overlay(view: NetworkViewState<'_>) -> Ele
         .into()
 }
 
-pub(in crate::view) fn network_window(
-    view: NetworkViewState<'_>,
-    always_on_top: bool,
-) -> Element<'_, Message> {
-    container(network_content(view, true, always_on_top))
+pub(in crate::view) fn network_window(view: NetworkViewState<'_>) -> Element<'_, Message> {
+    container(network_content(view))
         .padding(16)
         .style(panel_style)
         .width(Length::Fill)
@@ -77,11 +76,7 @@ pub(in crate::view) fn network_window(
         .into()
 }
 
-fn network_content(
-    view: NetworkViewState<'_>,
-    detached: bool,
-    always_on_top: bool,
-) -> Element<'_, Message> {
+fn network_content(view: NetworkViewState<'_>) -> Element<'_, Message> {
     let settings_open = view.settings_open;
     let text_view = view.text_view;
     let buffers = row![
@@ -109,7 +104,7 @@ fn network_content(
         .width(Length::Fill)
         .height(Length::Fill);
     let body: Element<'_, Message> = column![
-        header(detached, always_on_top, settings_open, text_view, view.lang),
+        header(settings_open, text_view, view.lang, view.toolbar),
         Space::new().height(Length::Fixed(12.0)),
         device_body,
     ]
@@ -125,14 +120,13 @@ fn network_content(
 }
 
 fn header(
-    detached: bool,
-    always_on_top: bool,
     settings_open: bool,
     text_view: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'static, Message> {
     row![
-        window_controls(ToolWindowKind::Network, detached, always_on_top, lang),
+        window_controls(toolbar, lang),
         icon_button(
             icons::type_icon(),
             Some(Message::ToggleNetworkBufferView),
@@ -143,6 +137,7 @@ fn header(
             })),
             text_view,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -151,6 +146,7 @@ fn header(
             lang.t(Key::Network(NetworkKey::Settings)),
             settings_open,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -159,6 +155,7 @@ fn header(
             lang.t(Key::Network(NetworkKey::ClearBuffers)),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -167,6 +164,7 @@ fn header(
             lang.t(Key::MonitorClose),
             false,
             Some("Esc".to_owned()),
+            Some(toolbar),
         ),
     ]
     .align_y(alignment::Vertical::Center)

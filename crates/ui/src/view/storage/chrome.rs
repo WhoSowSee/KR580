@@ -9,7 +9,7 @@ use super::super::theme::{
     tokyo_selection_blue, tokyo_surface, tokyo_surface_2, tokyo_text,
 };
 use super::super::tooltips::hover_tooltip;
-use crate::app::{Message, ToolWindowKind};
+use crate::app::{DeviceToolbar, Message};
 use crate::i18n::{Key, Lang};
 
 const ICON_BUTTON_SIZE: f32 = 32.0;
@@ -39,11 +39,12 @@ pub(in crate::view) fn device_buffer_style(_theme: &Theme) -> container::Style {
 }
 
 pub(in crate::view) fn window_controls(
-    kind: ToolWindowKind,
-    detached: bool,
-    always_on_top: bool,
+    toolbar: DeviceToolbar,
     lang: Lang,
 ) -> Element<'static, Message> {
+    let kind = toolbar.kind;
+    let detached = toolbar.state.detached;
+    let always_on_top = toolbar.state.always_on_top;
     let title = Space::new().width(Length::Fill);
     let window_toggle = icon_button(
         if detached {
@@ -63,6 +64,7 @@ pub(in crate::view) fn window_controls(
         }),
         false,
         None,
+        Some(toolbar),
     );
     let pin: Element<'_, Message> = if detached {
         row![
@@ -76,6 +78,7 @@ pub(in crate::view) fn window_controls(
                 }),
                 always_on_top,
                 None,
+                Some(toolbar),
             ),
             Space::new().width(Length::Fixed(6.0)),
         ]
@@ -101,6 +104,7 @@ pub(in crate::view) fn icon_button(
     hint: &'static str,
     active: bool,
     shortcut: Option<String>,
+    toolbar: Option<DeviceToolbar>,
 ) -> Element<'static, Message> {
     let is_disabled = on_press.is_none() && !active;
     let glyph_color = if active {
@@ -117,24 +121,22 @@ pub(in crate::view) fn icon_button(
             color: Some(glyph_color),
         });
 
-    let mut button = button(
+    let face = button(
         container(glyph)
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(alignment::Horizontal::Center)
             .align_y(alignment::Vertical::Center),
-    );
-    if let Some(message) = on_press {
-        button = button.on_press(message);
-    }
-    let face = button
-        .padding(0)
-        .width(Length::Fixed(ICON_BUTTON_SIZE))
-        .height(Length::Fixed(ICON_BUTTON_SIZE))
-        .style(move |_theme, status| icon_button_style(status, active));
+    )
+    .padding(0)
+    .width(Length::Fixed(ICON_BUTTON_SIZE))
+    .height(Length::Fixed(ICON_BUTTON_SIZE));
 
     hover_tooltip(
-        face.into(),
+        super::super::device_toolbar::toolbar_button(face, on_press, toolbar, move |status| {
+            icon_button_style(status, active)
+        })
+        .into(),
         hint,
         shortcut,
         iced::widget::tooltip::Position::Bottom,

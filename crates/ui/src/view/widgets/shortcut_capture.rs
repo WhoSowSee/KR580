@@ -11,22 +11,44 @@ pub(in crate::view) fn shortcut_capture<'a>(
     action: ShortcutAction,
     active: bool,
 ) -> Element<'a, Message> {
-    Element::new(ShortcutCapture {
+    Element::new(KeyboardCapture {
         content: content.into(),
-        settings,
-        action,
-        active,
+        mode: CaptureMode::Shortcut {
+            settings,
+            action,
+            active,
+        },
     })
 }
 
-struct ShortcutCapture<'a> {
+pub(in crate::view) fn device_keyboard_capture<'a>(
     content: Element<'a, Message>,
-    settings: &'a ShortcutSettings,
-    action: ShortcutAction,
     active: bool,
+) -> Element<'a, Message> {
+    Element::new(KeyboardCapture {
+        content,
+        mode: CaptureMode::DeviceNavigation { active },
+    })
 }
 
-impl Widget<Message, iced::Theme, iced::Renderer> for ShortcutCapture<'_> {
+#[derive(Clone, Copy)]
+enum CaptureMode<'a> {
+    Shortcut {
+        settings: &'a ShortcutSettings,
+        action: ShortcutAction,
+        active: bool,
+    },
+    DeviceNavigation {
+        active: bool,
+    },
+}
+
+struct KeyboardCapture<'a> {
+    content: Element<'a, Message>,
+    mode: CaptureMode<'a>,
+}
+
+impl Widget<Message, iced::Theme, iced::Renderer> for KeyboardCapture<'_> {
     fn children(&self) -> Vec<widget::Tree> {
         vec![widget::Tree::new(&self.content)]
     }
@@ -65,16 +87,26 @@ impl Widget<Message, iced::Theme, iced::Renderer> for ShortcutCapture<'_> {
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) {
-        if self.active
+        if matches!(self.mode, CaptureMode::DeviceNavigation { active: true })
+            && crate::app::device_navigation_event(event).is_some()
+        {
+            shell.capture_event();
+            return;
+        }
+        if let CaptureMode::Shortcut {
+            settings,
+            action,
+            active: true,
+        } = self.mode
             && let Event::Keyboard(iced::keyboard::Event::KeyPressed {
                 physical_key,
                 modifiers,
                 ..
             }) = event
             && binding_from_event(*physical_key, *modifiers)
-                .is_some_and(|binding| self.settings.matches(self.action, binding))
+                .is_some_and(|binding| settings.matches(action, binding))
         {
-            shell.publish(message_for_action(self.action));
+            shell.publish(message_for_action(action));
             shell.capture_event();
             return;
         }
@@ -236,5 +268,66 @@ mod tests {
                 Some("tiny-skia"),
             ))
             .expect("software renderer")
+    }
+
+    #[test]
+    fn device_navigation_never_reaches_an_underlying_focused_input() {
+        let input = text_input("", "FF")
+            .on_input(Message::MemoryValueChanged)
+            .on_submit(Message::ApplyMemory);
+        let mut root = super::device_keyboard_capture(input.into(), true);
+        let renderer = test_renderer();
+        let mut tree = widget::Tree::new(&root);
+        tree.children[0].state.downcast_mut::<text_input::State<
+            <iced::Renderer as iced::advanced::text::Renderer>::Paragraph,
+        >>().focus();
+        let node = root.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(100.0, 30.0)),
+        );
+        for (key, modifiers, captured) in [
+            (
+                keyboard::key::Named::Tab,
+                keyboard::Modifiers::default(),
+                true,
+            ),
+            (keyboard::key::Named::Tab, keyboard::Modifiers::SHIFT, true),
+            (
+                keyboard::key::Named::Enter,
+                keyboard::Modifiers::default(),
+                true,
+            ),
+            (
+                keyboard::key::Named::Space,
+                keyboard::Modifiers::default(),
+                true,
+            ),
+            (keyboard::key::Named::Tab, keyboard::Modifiers::CTRL, false),
+        ] {
+            let event = Event::Keyboard(keyboard::Event::KeyPressed {
+                key: keyboard::Key::Named(key),
+                modified_key: keyboard::Key::Named(key),
+                physical_key: Physical::Code(Code::Tab),
+                location: keyboard::Location::Standard,
+                modifiers,
+                text: (key == keyboard::key::Named::Space).then(|| " ".into()),
+                repeat: false,
+            });
+            let mut messages = Vec::new();
+            let mut shell = Shell::new(&mut messages);
+            root.as_widget_mut().update(
+                &mut tree,
+                &event,
+                Layout::new(&node),
+                iced::mouse::Cursor::Unavailable,
+                &renderer,
+                &mut clipboard::Null,
+                &mut shell,
+                &node.bounds(),
+            );
+            assert_eq!(shell.is_event_captured(), captured);
+            assert!(messages.is_empty());
+        }
     }
 }

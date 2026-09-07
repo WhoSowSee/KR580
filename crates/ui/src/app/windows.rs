@@ -11,6 +11,7 @@ use crate::platform;
 const ICON_PNG: &[u8] = include_bytes!("../../assets/icons/icon-64.png");
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct ToolWindowState {
+    pub(crate) focus: super::DeviceFocus,
     pub(crate) id: Option<iced::window::Id>,
     pub(crate) ready: bool,
     pub(crate) detached: bool,
@@ -220,6 +221,7 @@ impl DesktopApp {
     fn reset_tool_window_presentation(&mut self, kind: ToolWindowKind) {
         self.set_tool_window_open(kind, false);
         let state = self.tool_window_mut(kind);
+        state.focus = super::DeviceFocus::default();
         state.detached = false;
         state.always_on_top = false;
         if kind == ToolWindowKind::Monitor {

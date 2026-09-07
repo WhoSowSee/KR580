@@ -62,7 +62,7 @@ pub(super) fn storage_window_overlay<'a>(
     image_error: Option<&'a str>,
     lang: Lang,
     close_msg: Message,
-    header_fn: impl FnOnce(&'a StorageState, bool, bool, bool, Lang) -> Element<'a, Message>,
+    header: Element<'a, Message>,
     keys: StorageKeys,
 ) -> Element<'a, Message> {
     let backdrop: Element<'_, Message> = mouse_area(
@@ -79,10 +79,8 @@ pub(super) fn storage_window_overlay<'a>(
         show_image_contents,
         image_contents,
         image_error,
-        false,
-        false,
         lang,
-        header_fn,
+        header,
         keys,
     );
 
@@ -111,15 +109,13 @@ pub(super) fn storage_window_overlay<'a>(
         .into()
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn storage_window<'a>(
     state: &'a StorageState,
     show_image_contents: bool,
     image_contents: &'a [u8],
     image_error: Option<&'a str>,
-    always_on_top: bool,
     lang: Lang,
-    header_fn: impl FnOnce(&'a StorageState, bool, bool, bool, Lang) -> Element<'a, Message>,
+    header: Element<'a, Message>,
     keys: StorageKeys,
 ) -> Element<'a, Message> {
     container(storage_content(
@@ -127,10 +123,8 @@ pub(super) fn storage_window<'a>(
         show_image_contents,
         image_contents,
         image_error,
-        true,
-        always_on_top,
         lang,
-        header_fn,
+        header,
         keys,
     ))
     .padding(16)
@@ -140,20 +134,17 @@ pub(super) fn storage_window<'a>(
     .into()
 }
 
-#[allow(clippy::too_many_arguments)]
 fn storage_content<'a>(
     state: &'a StorageState,
     show_image_contents: bool,
     image_contents: &'a [u8],
     image_error: Option<&'a str>,
-    detached: bool,
-    always_on_top: bool,
     lang: Lang,
-    header_fn: impl FnOnce(&'a StorageState, bool, bool, bool, Lang) -> Element<'a, Message>,
+    header: Element<'a, Message>,
     keys: StorageKeys,
 ) -> Element<'a, Message> {
     column![
-        header_fn(state, show_image_contents, detached, always_on_top, lang),
+        header,
         Space::new().height(Length::Fixed(12.0)),
         dialog_body(
             state,

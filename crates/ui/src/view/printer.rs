@@ -11,7 +11,7 @@ use super::storage::chrome::{
 use super::storage::status_label;
 use super::styles::{panel_style, scrollable_style};
 use super::theme::{MONO_FONT, tokyo_muted, tokyo_text, ui_text};
-use crate::app::{Message, ToolWindowKind};
+use crate::app::{DeviceToolbar, Message};
 use crate::i18n::{Key, Lang, PrinterKey, lowercase_initial};
 
 const WINDOW_WIDTH: f32 = 760.0;
@@ -22,6 +22,7 @@ pub(in crate::view) fn printer_window_overlay(
     text_view: bool,
     printer_target: String,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'_, Message> {
     let backdrop: Element<'_, Message> = mouse_area(
         container(Space::new())
@@ -35,9 +36,8 @@ pub(in crate::view) fn printer_window_overlay(
         state,
         text_view,
         printer_target,
-        false,
-        false,
         lang,
+        toolbar,
     ))
     .padding(16)
     .style(panel_style)
@@ -54,16 +54,15 @@ pub(in crate::view) fn printer_window(
     state: &PrinterState,
     text_view: bool,
     printer_target: String,
-    always_on_top: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'_, Message> {
     container(printer_content(
         state,
         text_view,
         printer_target,
-        true,
-        always_on_top,
         lang,
+        toolbar,
     ))
     .padding(16)
     .style(panel_style)
@@ -76,9 +75,8 @@ fn printer_content(
     state: &PrinterState,
     text_view: bool,
     printer_target: String,
-    detached: bool,
-    always_on_top: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'_, Message> {
     let body = column![
         buffer_panel(state, text_view, lang),
@@ -88,7 +86,7 @@ fn printer_content(
     .width(Length::Fill)
     .height(Length::Fill);
     column![
-        header(state, text_view, detached, always_on_top, lang),
+        header(state, text_view, lang, toolbar),
         Space::new().height(Length::Fixed(12.0)),
         body,
     ]
@@ -100,14 +98,13 @@ fn printer_content(
 fn header(
     state: &PrinterState,
     text_view: bool,
-    detached: bool,
-    always_on_top: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'static, Message> {
     let busy = state.status == DeviceStatus::Busy;
     let (print_enabled, clear_enabled) = printer_actions_enabled(state);
     row![
-        window_controls(ToolWindowKind::Printer, detached, always_on_top, lang),
+        window_controls(toolbar, lang),
         icon_button(
             icons::type_icon(),
             Some(Message::TogglePrinterBufferView),
@@ -118,6 +115,7 @@ fn header(
             })),
             text_view,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -126,6 +124,7 @@ fn header(
             lang.t(Key::Printer(PrinterKey::ConfigureSession)),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -134,6 +133,7 @@ fn header(
             lang.t(Key::Printer(PrinterKey::PrintNative)),
             busy,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -142,6 +142,7 @@ fn header(
             lang.t(Key::Printer(PrinterKey::ClearBuffer)),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -150,6 +151,7 @@ fn header(
             lang.t(Key::MonitorClose),
             false,
             None,
+            Some(toolbar),
         ),
     ]
     .align_y(alignment::Vertical::Center)

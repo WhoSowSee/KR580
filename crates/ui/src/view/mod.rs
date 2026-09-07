@@ -5,6 +5,7 @@ mod changelog;
 mod chips;
 mod current_command;
 mod cycles;
+mod device_toolbar;
 mod editors;
 mod export_modal;
 mod file_drop;
@@ -186,6 +187,7 @@ impl DesktopApp {
                         &self.hdd_image_contents,
                         self.hdd_image_error.as_deref(),
                         self.lang,
+                        self.device_toolbar(crate::app::ToolWindowKind::Hdd),
                     ),
                     modal,
                 ]
@@ -306,6 +308,7 @@ impl DesktopApp {
                     &self.hdd_image_contents,
                     self.hdd_image_error.as_deref(),
                     self.lang,
+                    self.device_toolbar(crate::app::ToolWindowKind::Hdd),
                 )
             ]
             .width(Length::Fill)
@@ -319,7 +322,8 @@ impl DesktopApp {
                     self.floppy_show_image_contents,
                     &self.floppy_image_contents,
                     self.floppy_image_error.as_deref(),
-                    self.lang
+                    self.lang,
+                    self.device_toolbar(crate::app::ToolWindowKind::Floppy),
                 )
             ]
             .width(Length::Fill)
@@ -337,7 +341,8 @@ impl DesktopApp {
                     &self.snapshot.devices.printer,
                     self.printer_text_view,
                     self.printer_target_label(),
-                    self.lang
+                    self.lang,
+                    self.device_toolbar(crate::app::ToolWindowKind::Printer),
                 )
             ]
             .width(Length::Fill)

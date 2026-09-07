@@ -39,6 +39,9 @@ impl DesktopApp {
         if let Some(task) = self.handle_file_drag_event(&event, window) {
             return task;
         }
+        if let Some(task) = self.handle_device_keyboard_event(&event, window) {
+            return task;
+        }
         runtime_event_message(self, event, status, window)
             .map(Task::done)
             .unwrap_or_else(Task::none)

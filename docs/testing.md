@@ -223,6 +223,25 @@ resource compilation for the non-Windows target.
 
 ## Manual smoke checks for the UI
 
+- In each external device (Monitor, Floppy, HDD, Network, Printer), use Tab and
+  Shift+Tab to traverse the toolbar in each direction, including wrapping at both
+  ends. Check the blue outline, first/last entry, and Enter/Space activation. After activation,
+  the selected button must retain the same background fill as the default button
+  in file confirmation dialogs, including after repeated Enter/Space presses.
+  Tab/Shift+Tab must remove that focus fill and outline the next target. Repeat after
+  detaching; Attach and Pin must be included, and Tab in the main window must
+  still use the main editor's navigation. Click a toolbar button and check that
+  the next Tab continues after it. In Monitor's HEX popup, traversal must stay
+  on Filter and Close. Check that disabled HDD Create/Delete and busy-printer
+  Print actions are skipped. Repeat navigation while the emulator is running.
+
+The two tests in `app/device_keyboard/tests.rs` cover repeated activation,
+selection after pointer actions, HEX wrapping, window/modal ownership, and
+disabled HDD/printer commands. They drive the runtime event handler and actual
+actions. `cargo test -p kr580 --bin kr580 device_` also runs the shared capture
+test, which checks that these keys cannot edit a focused input underneath the
+device while Ctrl+Tab remains outside the device ring.
+
 Some UI behavior cannot be unit-tested directly with iced 0.14, so it is
 worth eyeballing after touching `crates/ui`:
 

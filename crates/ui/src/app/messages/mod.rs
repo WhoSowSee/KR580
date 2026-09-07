@@ -79,6 +79,7 @@ impl RegisterInlineTarget {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Message {
+    DeviceButtonPressed(ToolWindowKind, Box<Message>),
     Tick,
     StepInstruction,
     RestartProgram,

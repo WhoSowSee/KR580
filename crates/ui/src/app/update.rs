@@ -13,6 +13,9 @@ use crate::runtime::parse::scroll_memory_to;
 impl DesktopApp {
     pub(crate) fn update(&mut self, message: Message) -> Task<Message> {
         let message = match message {
+            Message::DeviceButtonPressed(kind, action) => {
+                return self.press_device_button(kind, *action);
+            }
             Message::RuntimeEvent {
                 event,
                 status,

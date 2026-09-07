@@ -5,7 +5,7 @@ use iced::{Element, Length, alignment};
 use super::super::icons;
 use super::chrome::{icon_button, window_controls};
 use super::{HDD_KEYS, storage_window, storage_window_overlay};
-use crate::app::{Message, ToolWindowKind};
+use crate::app::{DeviceToolbar, Message};
 use crate::i18n::{Key, Lang};
 
 pub(in crate::view) fn hdd_window_overlay<'a>(
@@ -15,6 +15,7 @@ pub(in crate::view) fn hdd_window_overlay<'a>(
     image_contents: &'a [u8],
     image_error: Option<&'a str>,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
     storage_window_overlay(
         state,
@@ -23,9 +24,7 @@ pub(in crate::view) fn hdd_window_overlay<'a>(
         image_error,
         lang,
         Message::CloseHdd,
-        move |state, show, detached, always_on_top, lang| {
-            hdd_header(state, hdd_file_exists, show, detached, always_on_top, lang)
-        },
+        hdd_header(state, hdd_file_exists, show_image_contents, lang, toolbar),
         HDD_KEYS,
     )
 }
@@ -36,19 +35,16 @@ pub(in crate::view) fn hdd_window<'a>(
     show_image_contents: bool,
     image_contents: &'a [u8],
     image_error: Option<&'a str>,
-    always_on_top: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
     storage_window(
         state,
         show_image_contents,
         image_contents,
         image_error,
-        always_on_top,
         lang,
-        move |state, show, detached, always_on_top, lang| {
-            hdd_header(state, hdd_file_exists, show, detached, always_on_top, lang)
-        },
+        hdd_header(state, hdd_file_exists, show_image_contents, lang, toolbar),
         HDD_KEYS,
     )
 }
@@ -57,18 +53,18 @@ fn hdd_header<'a>(
     state: &'a StorageState,
     hdd_file_exists: bool,
     show_image_contents: bool,
-    detached: bool,
-    always_on_top: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
     row![
-        window_controls(ToolWindowKind::Hdd, detached, always_on_top, lang),
+        window_controls(toolbar, lang),
         icon_button(
             icons::folder_open(),
             Some(Message::ChooseHddDirectory),
             lang.t(Key::HddChooseDirectory),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -77,6 +73,7 @@ fn hdd_header<'a>(
             lang.t(Key::HddShowImageContents),
             show_image_contents,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -85,6 +82,7 @@ fn hdd_header<'a>(
             lang.t(Key::HddDebugBuffer),
             state.debug_buffer,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -93,6 +91,7 @@ fn hdd_header<'a>(
             lang.t(Key::HddClearBuffer),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -105,6 +104,7 @@ fn hdd_header<'a>(
             lang.t(Key::HddDeleteFile),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -117,6 +117,7 @@ fn hdd_header<'a>(
             lang.t(Key::HddCreateFile),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -125,6 +126,7 @@ fn hdd_header<'a>(
             lang.t(Key::HddClose),
             false,
             Some("Esc".to_owned()),
+            Some(toolbar),
         ),
     ]
     .align_y(alignment::Vertical::Center)

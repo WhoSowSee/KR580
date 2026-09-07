@@ -11,7 +11,9 @@ use crate::backend::MonitorState;
 use iced::widget::{Space, button, column, container, mouse_area, opaque, row, stack, svg};
 use iced::{Element, Length};
 
-use crate::app::{DesktopApp, HexStreamFilter, Message, ToolWindowKind};
+use crate::app::{
+    DesktopApp, DeviceFocus, DeviceToolbar, HexStreamFilter, Message, ToolWindowKind,
+};
 use crate::i18n::{Key, Lang};
 use crate::view::icons;
 use crate::view::theme::{tokyo_blue, tokyo_device_accent, tokyo_text};
@@ -25,6 +27,7 @@ use styles::{
 };
 
 pub(in crate::view) struct HexPopupViewState {
+    toolbar: DeviceToolbar,
     open: bool,
     filter: HexStreamFilter,
     scroll_offset: f32,
@@ -34,6 +37,7 @@ pub(in crate::view) struct HexPopupViewState {
 impl DesktopApp {
     pub(in crate::view) fn hex_popup_view_state(&self) -> HexPopupViewState {
         HexPopupViewState {
+            toolbar: self.device_toolbar(ToolWindowKind::Monitor),
             open: self.monitor_hex_popup,
             filter: self.monitor_hex_filter,
             scroll_offset: self.monitor_hex_scroll_offset,
@@ -56,7 +60,7 @@ pub(in crate::view) fn monitor_window_overlay<'a>(
     )
     .on_press(Message::CloseMonitor);
 
-    let body = monitor_content(state, split, false, false, hex.open, lang);
+    let body = monitor_content(state, split, hex.open, lang, hex.toolbar);
 
     let dialog = container(body)
         .padding(16)
@@ -96,21 +100,13 @@ pub(in crate::view) fn monitor_window<'a>(
     state: &'a MonitorState,
     split: bool,
     hex: HexPopupViewState,
-    always_on_top: bool,
     lang: Lang,
 ) -> Element<'a, Message> {
-    let body = container(monitor_content(
-        state,
-        split,
-        true,
-        always_on_top,
-        hex.open,
-        lang,
-    ))
-    .padding(16)
-    .style(dialog_style)
-    .width(Length::Fill)
-    .height(Length::Fill);
+    let body = container(monitor_content(state, split, hex.open, lang, hex.toolbar))
+        .padding(16)
+        .style(dialog_style)
+        .width(Length::Fill)
+        .height(Length::Fill);
     if hex.open {
         stack![body, hex_popup_overlay(state, hex, lang)]
             .width(Length::Fill)
@@ -124,11 +120,13 @@ pub(in crate::view) fn monitor_window<'a>(
 fn monitor_content<'a>(
     state: &'a MonitorState,
     split: bool,
-    detached: bool,
-    always_on_top: bool,
     hex_popup: bool,
     lang: Lang,
+    mut toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
+    if hex_popup {
+        toolbar.state.focus = DeviceFocus::default();
+    }
     let layer_section: Element<'_, Message> = if split {
         column![
             container(pixel_layer_section(state, lang))
@@ -145,7 +143,7 @@ fn monitor_content<'a>(
         unified_screen_section(state, lang)
     };
     column![
-        monitor_header(split, detached, always_on_top, hex_popup, lang),
+        monitor_header(split, hex_popup, lang, toolbar),
         Space::new().height(Length::Fixed(12.0)),
         layer_section,
     ]
@@ -156,11 +154,12 @@ fn monitor_content<'a>(
 
 fn monitor_header<'a>(
     split: bool,
-    detached: bool,
-    always_on_top: bool,
     hex_popup: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
+    let detached = toolbar.state.detached;
+    let always_on_top = toolbar.state.always_on_top;
     let toggle_tooltip = if split {
         Key::MonitorViewUnified
     } else {
@@ -180,6 +179,7 @@ fn monitor_header<'a>(
             lang.t(Key::MonitorAttach),
             None,
             false,
+            toolbar,
         )
     } else {
         icon_button(
@@ -188,6 +188,7 @@ fn monitor_header<'a>(
             lang.t(Key::MonitorDetach),
             None,
             false,
+            toolbar,
         )
     };
     let pin_toggle: Element<'_, Message> = if detached {
@@ -202,6 +203,7 @@ fn monitor_header<'a>(
                 }),
                 None,
                 always_on_top,
+                toolbar,
             ),
             Space::new().width(Length::Fixed(6.0)),
         ]
@@ -221,6 +223,7 @@ fn monitor_header<'a>(
             lang.t(toggle_tooltip),
             None,
             false,
+            toolbar,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -229,6 +232,7 @@ fn monitor_header<'a>(
             lang.t(Key::MonitorHexBuffer),
             None,
             hex_popup,
+            toolbar,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -237,6 +241,7 @@ fn monitor_header<'a>(
             lang.t(Key::MonitorClearBuffer),
             None,
             false,
+            toolbar,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -245,6 +250,7 @@ fn monitor_header<'a>(
             lang.t(Key::MonitorSaveImage),
             None,
             false,
+            toolbar,
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -253,6 +259,7 @@ fn monitor_header<'a>(
             lang.t(Key::MonitorClose),
             Some("Esc".to_owned()),
             false,
+            toolbar,
         ),
     ]
     .align_y(iced::alignment::Vertical::Center)
@@ -266,6 +273,7 @@ fn icon_button(
     hint: &'static str,
     shortcut: Option<String>,
     active: bool,
+    toolbar: DeviceToolbar,
 ) -> Element<'static, Message> {
     let glyph_color = if active {
         tokyo_device_accent(tokyo_blue())
@@ -287,14 +295,18 @@ fn icon_button(
             .align_x(iced::alignment::Horizontal::Center)
             .align_y(iced::alignment::Vertical::Center),
     )
-    .on_press(on_press)
     .padding(0)
     .width(Length::Fixed(ICON_BUTTON_SIZE))
-    .height(Length::Fixed(ICON_BUTTON_SIZE))
-    .style(move |_theme, status| icon_button_style(status, active));
+    .height(Length::Fixed(ICON_BUTTON_SIZE));
 
     hover_tooltip(
-        face.into(),
+        crate::view::device_toolbar::toolbar_button(
+            face,
+            Some(on_press),
+            Some(toolbar),
+            move |status| icon_button_style(status, active),
+        )
+        .into(),
         hint,
         shortcut,
         iced::widget::tooltip::Position::Bottom,

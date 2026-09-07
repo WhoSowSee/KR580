@@ -508,6 +508,43 @@ the neutral frame colour, matching the current action-button feedback.
 are active and dispatch `Message::OpenMonitor`, `Message::OpenFloppy`,
 `Message::OpenHdd`, `Message::OpenNetwork`, or `Message::OpenPrinter`.
 
+### Keyboard navigation in device windows
+
+Monitor, floppy, HDD, network, and printer toolbars support a closed
+`Tab` / `Shift+Tab` ring in visual left-to-right order, including detach/attach,
+the detached window's pin, and Close. The first Tab selects the first enabled
+button; the first Shift+Tab selects the last. Disabled actions (for example,
+Create/Delete for the current HDD file or Print while busy) are skipped.
+The focused button has a blue border, adapted to the active color scheme.
+`Enter` or `Space` invokes its existing action and replaces the keyboard outline
+with a persistent `tokyo_surface()` fill, matching the initially selected button
+in file confirmation dialogs. Repeated activation keeps that fill visible until
+focus moves. The next Tab/Shift+Tab removes the previous button's focus fill and
+outlines the new target. Clicking a button selects the same fill and makes it
+the next traversal's origin. Toggle-state glyphs and borders remain unchanged.
+
+`app/device_keyboard.rs` selects the device from the runtime event's window ID
+before global editor navigation. The main window keeps its own navigation when
+a device is detached, and device navigation remains available during execution.
+The existing keyboard-capture widget consumes these keys before underlying
+text inputs can submit or edit values. It and the runtime subscription use
+`device_navigation_event`, which reuses the menu's `FocusCycle` message;
+activation uses `EnterPressed`. The Monitor HEX popup has a Filter/Close ring,
+while settings and printer setup retain ownership of their keyboard input.
+
+Each `ToolWindowState` stores a `DeviceFocus`: the selected action and whether
+Tab's outline is visible. The device action list skips disabled commands and
+uses `app/focus.rs::cycle_index`, shared with top-menu navigation. Closing a
+device resets its selection; attach/detach keeps the corresponding button
+selected. `DeviceButtonPressed(kind, action)` records pointer selection before
+dispatching the existing command. Opening HEX starts a fresh ring.
+`DeviceToolbar` supplies the view's focus, detached state, and pin state;
+headers read these values directly instead of receiving duplicate flags through
+the content functions. Storage views pass their completed header element to
+the shared layout; no header callback is needed.
+`view/device_toolbar.rs` styles ordinary iced buttons, reusing the confirmation
+dialog's fill. There are no device-specific widget trees or focus operations.
+
 ### Окно монитора (Quick-access → Монитор)
 
 `Message::OpenMonitor` flips `DesktopApp::monitor_open`. In attached mode

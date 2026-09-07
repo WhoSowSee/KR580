@@ -82,6 +82,7 @@ pub(super) fn settings_overlay(view: NetworkViewState<'_>) -> Element<'_, Messag
                     view.lang.t(Key::MonitorClose),
                     false,
                     None,
+                    None,
                 ),
             ]
             .align_y(alignment::Vertical::Center),

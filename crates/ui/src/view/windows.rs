@@ -7,13 +7,21 @@ use super::printer::printer_window;
 use super::printer_setup::{printer_properties_window_view, printer_setup_window_view};
 use super::storage::{floppy_window, hdd_window};
 use super::theme;
-use crate::app::{DesktopApp, Message};
+use crate::app::{DesktopApp, Message, ToolWindowKind};
 
 const TOOL_WINDOW_DRAG_HEIGHT: f32 = 48.0;
 const PRINTER_DIALOG_DRAG_HEIGHT: f32 = 52.0;
 
 impl DesktopApp {
     pub(crate) fn view(&self, window: iced::window::Id) -> Element<'_, Message> {
+        let content = self.window_view(window);
+        super::widgets::device_keyboard_capture(
+            content,
+            self.device_keyboard_owner(window).is_some(),
+        )
+    }
+
+    fn window_view(&self, window: iced::window::Id) -> Element<'_, Message> {
         theme::set_active_color_scheme(self.color_scheme);
         if self.printer_properties_window_id == Some(window) {
             return window_drag_surface(
@@ -38,7 +46,6 @@ impl DesktopApp {
                     &self.snapshot.devices.monitor,
                     self.monitor_split,
                     self.hex_popup_view_state(),
-                    self.monitor_window.always_on_top,
                     self.lang,
                 ),
                 window,
@@ -55,8 +62,8 @@ impl DesktopApp {
                     self.floppy_show_image_contents,
                     &self.floppy_image_contents,
                     self.floppy_image_error.as_deref(),
-                    self.floppy_window.always_on_top,
                     self.lang,
+                    self.device_toolbar(ToolWindowKind::Floppy),
                 ),
                 window,
                 TOOL_WINDOW_DRAG_HEIGHT,
@@ -73,8 +80,8 @@ impl DesktopApp {
                     self.hdd_show_image_contents,
                     &self.hdd_image_contents,
                     self.hdd_image_error.as_deref(),
-                    self.hdd_window.always_on_top,
                     self.lang,
+                    self.device_toolbar(ToolWindowKind::Hdd),
                 ),
                 window,
                 TOOL_WINDOW_DRAG_HEIGHT,
@@ -85,7 +92,7 @@ impl DesktopApp {
                 return Space::new().into();
             }
             return window_drag_surface(
-                network_window(self.network_view_state(), self.network_window.always_on_top),
+                network_window(self.network_view_state()),
                 window,
                 TOOL_WINDOW_DRAG_HEIGHT,
             );
@@ -99,8 +106,8 @@ impl DesktopApp {
                     &self.snapshot.devices.printer,
                     self.printer_text_view,
                     self.printer_target_label(),
-                    self.printer_window.always_on_top,
                     self.lang,
+                    self.device_toolbar(ToolWindowKind::Printer),
                 ),
                 window,
                 TOOL_WINDOW_DRAG_HEIGHT,

@@ -224,11 +224,7 @@ fn adjacent_top_menu(menu: MenuId, backward: bool) -> MenuId {
         .iter()
         .position(|candidate| *candidate == menu)
         .unwrap_or(0);
-    let next = if backward {
-        (index + TOP_MENUS.len() - 1) % TOP_MENUS.len()
-    } else {
-        (index + 1) % TOP_MENUS.len()
-    };
+    let next = super::focus::cycle_index(Some(index), TOP_MENUS.len(), backward);
     TOP_MENUS[next]
 }
 

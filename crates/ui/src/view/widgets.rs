@@ -13,7 +13,7 @@ mod text_fit;
 pub(super) use anchored_overlay::anchored_overlay;
 pub(super) use compact_scrollbar::compact_scrollbar;
 pub(super) use inputs::{compact_text_input_shell, text_input_shell};
-pub(super) use shortcut_capture::shortcut_capture;
+pub(super) use shortcut_capture::{device_keyboard_capture, shortcut_capture};
 pub(super) use text_fit::shorten_middle;
 
 use iced::widget::{Space, button, column, container, row, stack, svg, text_input};

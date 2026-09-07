@@ -1,12 +1,14 @@
 mod changelog;
 mod changelog_routing;
 mod constants;
+mod device_keyboard;
 mod export_modal;
 mod export_modal_state;
 mod export_modal_targets;
 #[cfg(test)]
 mod export_modal_tests;
 mod file_drop;
+mod focus;
 mod handlers;
 #[cfg(test)]
 mod handlers_tests;
@@ -53,6 +55,7 @@ pub(crate) use constants::{
     REGISTER_ORDER, REGISTER_VALUE_INPUT_ID, SETTINGS_CONTENT_SCROLL_ID, SETTINGS_SEARCH_INPUT_ID,
     STACK_VIEW_SIZE, STACK_VIEW_START, parse_register_name, register_name,
 };
+pub(crate) use device_keyboard::{DeviceFocus, DeviceToolbar, device_navigation_event};
 pub(crate) use export_modal_state::{
     ExportFlagSelection, ExportMemoryColumns, ExportModalFocus, ExportRegisterSelection,
     ExportTargetSettings,

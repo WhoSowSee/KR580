@@ -5,7 +5,7 @@ use iced::{Element, Length, alignment};
 use super::super::icons;
 use super::chrome::{icon_button, window_controls};
 use super::{FLOPPY_KEYS, storage_window, storage_window_overlay};
-use crate::app::{Message, ToolWindowKind};
+use crate::app::{DeviceToolbar, Message};
 use crate::i18n::{Key, Lang};
 
 pub(in crate::view) fn floppy_window_overlay<'a>(
@@ -14,6 +14,7 @@ pub(in crate::view) fn floppy_window_overlay<'a>(
     image_contents: &'a [u8],
     image_error: Option<&'a str>,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
     storage_window_overlay(
         state,
@@ -22,9 +23,7 @@ pub(in crate::view) fn floppy_window_overlay<'a>(
         image_error,
         lang,
         Message::CloseFloppy,
-        |state, show, detached, always_on_top, lang| {
-            floppy_header(state, show, detached, always_on_top, lang)
-        },
+        floppy_header(state, show_image_contents, lang, toolbar),
         FLOPPY_KEYS,
     )
 }
@@ -34,19 +33,16 @@ pub(in crate::view) fn floppy_window<'a>(
     show_image_contents: bool,
     image_contents: &'a [u8],
     image_error: Option<&'a str>,
-    always_on_top: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
     storage_window(
         state,
         show_image_contents,
         image_contents,
         image_error,
-        always_on_top,
         lang,
-        |state, show, detached, always_on_top, lang| {
-            floppy_header(state, show, detached, always_on_top, lang)
-        },
+        floppy_header(state, show_image_contents, lang, toolbar),
         FLOPPY_KEYS,
     )
 }
@@ -54,18 +50,18 @@ pub(in crate::view) fn floppy_window<'a>(
 fn floppy_header<'a>(
     state: &'a StorageState,
     show_image_contents: bool,
-    detached: bool,
-    always_on_top: bool,
     lang: Lang,
+    toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
     row![
-        window_controls(ToolWindowKind::Floppy, detached, always_on_top, lang),
+        window_controls(toolbar, lang),
         icon_button(
             icons::hard_drive_download(),
             Some(Message::OpenFloppyImage),
             lang.t(Key::FloppyOpenImage),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -74,6 +70,7 @@ fn floppy_header<'a>(
             lang.t(Key::FloppySaveBuffer),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -82,6 +79,7 @@ fn floppy_header<'a>(
             lang.t(Key::FloppyDetachImage),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -90,6 +88,7 @@ fn floppy_header<'a>(
             lang.t(Key::FloppyShowImageContents),
             show_image_contents,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -98,6 +97,7 @@ fn floppy_header<'a>(
             lang.t(Key::FloppyDebugBuffer),
             state.debug_buffer,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -106,6 +106,7 @@ fn floppy_header<'a>(
             lang.t(Key::FloppyClearBuffer),
             false,
             None,
+            Some(toolbar),
         ),
         Space::new().width(Length::Fixed(6.0)),
         icon_button(
@@ -114,6 +115,7 @@ fn floppy_header<'a>(
             lang.t(Key::MonitorClose),
             false,
             Some("Esc".to_owned()),
+            Some(toolbar),
         ),
     ]
     .align_y(alignment::Vertical::Center)
