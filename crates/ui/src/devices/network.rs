@@ -199,7 +199,7 @@ impl NetworkDevice {
     pub fn state(&self) -> NetworkState {
         let mut state = self.state.clone();
         let worker = self.worker_status.lock().unwrap();
-        if !matches!(worker.status, DeviceStatus::Disconnected) || worker.last_error.is_some() {
+        if self.worker_abort.is_some() {
             state.connection = worker.connection.clone();
             state.status = worker.status.clone();
             state.rx_total = worker.rx_total;
@@ -215,7 +215,7 @@ impl NetworkDevice {
 
     fn apply_worker_status(&mut self) {
         let worker = self.worker_status.lock().unwrap().clone();
-        if !matches!(worker.status, DeviceStatus::Disconnected) || worker.last_error.is_some() {
+        if self.worker_abort.is_some() {
             self.state.connection = worker.connection;
             self.state.status = worker.status;
             self.state.rx_total = worker.rx_total;
