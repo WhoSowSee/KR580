@@ -21,6 +21,7 @@ pub struct Emulator {
     pub(super) instructions_since_run: u64,
     pub(super) step_interval: Duration,
     pub(super) run_mode: RunMode,
+    document_generation: u64,
 }
 
 impl Default for Emulator {
@@ -33,6 +34,7 @@ impl Default for Emulator {
             instructions_since_run: 0,
             step_interval: DEFAULT_STEP_INTERVAL,
             run_mode: RunMode::Paced,
+            document_generation: 0,
         }
     }
 }
@@ -47,6 +49,7 @@ impl Emulator {
             instructions_since_run: 0,
             step_interval: DEFAULT_STEP_INTERVAL,
             run_mode: RunMode::Paced,
+            document_generation: 0,
         }
     }
 
@@ -209,6 +212,7 @@ impl Emulator {
                 self.cpu.set_memory_block(start, &values)?;
             }
             AppCommand::ApplyCpuState(state) => {
+                self.document_generation = self.document_generation.wrapping_add(1);
                 let was_running = self.running;
                 self.cpu = *state;
                 self.running = false;
@@ -265,10 +269,12 @@ impl Emulator {
             }
             AppCommand::LoadProgram(path) => {
                 self.cpu = ProgramSerializer::load_file(path)?;
+                self.document_generation = self.document_generation.wrapping_add(1);
             }
             AppCommand::LoadSubprogram { path, start } => {
                 let was_running = self.running;
                 let end = SubprogramSerializer::load_into_state(&path, start, &mut self.cpu)?;
+                self.document_generation = self.document_generation.wrapping_add(1);
                 self.running = false;
                 self.instructions_since_run = 0;
                 if was_running {

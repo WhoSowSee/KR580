@@ -75,6 +75,20 @@ impl<'a> CpuPatch<'a> {
     }
 }
 
+impl CpuPatch<'static> {
+    pub(crate) fn owned(model: ExportModel) -> Result<Self, ImportError> {
+        let (registers, flags) = {
+            let patch = CpuPatch::parse(&model)?;
+            (patch.registers, patch.flags)
+        };
+        Ok(Self {
+            registers,
+            flags,
+            memory: Cow::Owned(model.memory),
+        })
+    }
+}
+
 impl RegisterChange {
     fn parse(name: &str, value: &str) -> Result<Self, ImportError> {
         let byte = || parse_u8_hex(value).ok_or_else(|| reg_err(name, value));

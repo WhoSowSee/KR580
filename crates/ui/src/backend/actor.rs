@@ -189,7 +189,10 @@ fn run_worker(
                 let Ok(command) = command else { break };
                 let shutdown = matches!(&command, AppCommand::Shutdown);
                 if let AppCommand::Request { id, command } = command {
-                    if emulator.start_io_request(id, &command, io_tx.clone()) {
+                    if let Some(events) = emulator.start_io_request(id, &command, io_tx.clone()) {
+                        for event in events {
+                            publish(&event_tx, &critical_tx, &state_mailbox, event);
+                        }
                         next_run_at = schedule_run_tick(&emulator);
                         continue;
                     }

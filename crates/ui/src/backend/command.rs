@@ -90,6 +90,7 @@ pub struct AppSnapshot {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandResult {
     Completed,
+    Superseded,
     SavedProgram,
     LoadedProgram,
     SavedSubprogram,

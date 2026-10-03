@@ -33,9 +33,7 @@ impl SubprogramSerializer {
         start: u16,
         state: &mut Cpu8080State,
     ) -> Result<u16, SubprogramError> {
-        validate_path(path.as_ref())?;
-        let bytes = std::fs::read(path)?;
-        let end = checked_load_end(start, bytes.len() as u64)?;
+        let (bytes, end) = Self::read_block(path.as_ref(), start)?;
         state
             .set_memory_block(start, &bytes)
             .map_err(|_| SubprogramError::MemoryOverflow {
@@ -43,6 +41,13 @@ impl SubprogramSerializer {
                 length: bytes.len() as u64,
             })?;
         Ok(end)
+    }
+
+    pub(crate) fn read_block(path: &Path, start: u16) -> Result<(Vec<u8>, u16), SubprogramError> {
+        validate_path(path)?;
+        let bytes = std::fs::read(path)?;
+        let end = checked_load_end(start, bytes.len() as u64)?;
+        Ok((bytes, end))
     }
 
     pub fn save_file(

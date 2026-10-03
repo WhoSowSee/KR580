@@ -210,6 +210,12 @@ RAM-range dialog. Detached device windows do not accept program drops.
 
 ## Event handling
 
+`CommandFinished` may report `Superseded` when a newer document operation has
+invalidated the request. The UI removes that pending request without applying
+its old path, saved-state marker or error. Loading pauses active execution when
+the actor accepts the request. An import applies only its validated fields to
+the current document, preserving unrelated edits made while it was being read.
+
 The actor publishes `StateChanged`, `InstructionBoundaryReached`,
 `TactAdvanced`, `PortRead`, `PortWritten`, `HaltStateChanged`,
 `ErrorRaised`, `Stopped`, and request-correlated `CommandFinished` events.

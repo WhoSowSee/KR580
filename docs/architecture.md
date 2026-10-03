@@ -80,6 +80,15 @@ that completion range for subsequent subprogram saves.
 
 ## Runtime shape
 
+Persistence dispatch and execution live in `backend/emulator/io/{dispatch,jobs}.rs`;
+`io/mod.rs` owns completion reconciliation. Every job carries the document
+generation. New CPU documents and subsequent program/subprogram loads supersede
+older completions, which finish as `CommandResult::Superseded` without changing
+paths, notices or CPU state. Imports return validated patches and `.krs` loads
+return their actual byte blocks; the actor applies them to its current CPU so
+unrelated edits made while reading remain intact. Save/export workers retain an
+independent captured state or export model.
+
 File-association changes use an iced task backed by Tokio's blocking pool.
 `DesktopApp.file_association_pending` survives closing Settings and prevents
 overlapping operations; completion messages bypass modal routing. Only Windows
