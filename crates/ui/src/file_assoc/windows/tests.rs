@@ -10,10 +10,8 @@ struct RegistryRoot {
 
 impl RegistryRoot {
     fn new() -> Self {
-        let nonce = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
+        static NEXT_ROOT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let nonce = NEXT_ROOT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path = format!("Software\\KR580\\Tests\\{}-{nonce}", std::process::id());
         let wide: Vec<_> = path.encode_utf16().chain([0]).collect();
         let mut handle = std::ptr::null_mut();

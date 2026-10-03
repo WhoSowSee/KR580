@@ -109,17 +109,18 @@ their unused tests. The Windows open-command assertion runs inside the actual
 isolated registry roundtrip.
 Run Clippy natively on Linux/macOS as well as Windows; `--all-targets` alone
 does not enable another operating system's `cfg` branches.
-Release CI runs strict Linux/macOS Clippy, native macOS bundle tests, and the
-isolated registry tests on the x86_64 Windows row. Running the entire workspace
-on Linux also encounters the existing `core/tests/bug_regression.rs` fixture
-path `D:\kr\Examples\bug-tests`. The UI package can be tested independently
-with `cargo test --locked -p kr580`, but its existing tests also have platform
-assumptions: eight export/import tests expect Russian messages regardless of
-the host locale, and three window attach tests expect a retained window ID
-although the non-Windows implementation closes that window. These 11 tests
-fail on the English WSL environment used for the audit fixes. Use the focused
-association commands above to verify those fixes; they do not substitute for
-a passing full Linux test suite.
+`Workspace quality` runs on branch pushes, pull requests and manual dispatch.
+Its native Windows, Linux and macOS rows check formatting, strict all-target
+workspace Clippy and the complete workspace suite with the checked-in lockfile.
+The toolchain action records the resolved compiler version. Release packaging
+keeps its separate tag/manual workflow and its existing target matrix.
+CPU conditional return/call regressions build short programs in memory from
+`prompt/`; they need no external fixture directory. Export/import UI tests set
+their language explicitly. Attach tests expect Windows to retain a hidden
+window ID and Unix to close it. Parallel Windows association tests reserve
+different private registry roots with a process-local counter.
+Hosted macOS and release packaging remain native CI checks; a Windows or WSL
+run alone does not verify them.
 Feature audits inspect the effective all-target graph and invert any dependency
 whose defaults are expected to stay off:
 

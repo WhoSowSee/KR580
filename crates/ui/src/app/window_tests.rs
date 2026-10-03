@@ -182,7 +182,7 @@ fn detached_storage_pin_and_attach_are_independent() {
     assert!(app.floppy_open);
     assert!(!app.floppy_window.detached);
     assert!(!app.floppy_window.always_on_top);
-    assert_eq!(app.floppy_window.id, Some(floppy));
+    assert_eq!(app.floppy_window.id, cfg!(windows).then_some(floppy));
     assert_eq!(app.hdd_window.id, Some(hdd));
 }
 
@@ -206,7 +206,7 @@ fn detached_network_pin_and_attach_are_independent() {
     assert!(app.network_open);
     assert!(!app.network_window.detached);
     assert!(!app.network_window.always_on_top);
-    assert_eq!(app.network_window.id, Some(network));
+    assert_eq!(app.network_window.id, cfg!(windows).then_some(network));
 }
 
 #[test]
@@ -229,7 +229,7 @@ fn detached_printer_pin_and_attach_are_independent() {
     assert!(app.printer_open);
     assert!(!app.printer_window.detached);
     assert!(!app.printer_window.always_on_top);
-    assert_eq!(app.printer_window.id, Some(printer));
+    assert_eq!(app.printer_window.id, cfg!(windows).then_some(printer));
 }
 
 #[test]

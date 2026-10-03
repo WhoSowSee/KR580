@@ -1,0 +1,41 @@
+name: Workspace quality
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workspace:
+    name: Workspace ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Linux desktop test tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y desktop-file-utils libglib2.0-bin shared-mime-info
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check workspace
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+      - name: Test workspace
+        run: cargo test --locked --workspace

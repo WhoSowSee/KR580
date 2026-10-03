@@ -7,6 +7,7 @@ use std::path::PathBuf;
 #[test]
 fn import_opens_without_picker_and_can_switch_to_export() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let _task = app.update(Message::OpenMonitor);
 
     let _task = app.update(Message::Import);
@@ -31,6 +32,7 @@ fn import_opens_without_picker_and_can_switch_to_export() {
 #[test]
 fn tab_cycles_import_modal_focus_in_both_directions() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     app.open_import_modal();
 
     let _task = app.update(Message::FocusCycle { backward: false });
@@ -47,6 +49,7 @@ fn tab_cycles_import_modal_focus_in_both_directions() {
 #[test]
 fn confirm_focus_is_available_after_a_valid_file_is_loaded() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let path = unique_temp_file("focus-import.txt");
     std::fs::write(&path, Exporters::to_text(&model_at(0x0100))).unwrap();
 
@@ -65,6 +68,7 @@ fn confirm_focus_is_available_after_a_valid_file_is_loaded() {
 #[test]
 fn esc_closes_import_modal_without_focus_clear_step() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
 
     app.open_import_modal();
     app.import_modal_focus = ImportModalFocus::Target;
@@ -78,6 +82,7 @@ fn esc_closes_import_modal_without_focus_clear_step() {
 #[test]
 fn loading_xlsx_import_file_populates_sheet_targets() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let path = unique_temp_file("import-pages.xlsx");
     Exporters::write_xlsx_pages(
         &path,
@@ -114,6 +119,7 @@ fn loading_xlsx_import_file_populates_sheet_targets() {
 #[test]
 fn loading_txt_import_file_populates_section_targets_when_present() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let path = unique_temp_file("import-sections.txt");
     std::fs::write(
         &path,
@@ -139,6 +145,7 @@ fn loading_txt_import_file_populates_section_targets_when_present() {
 #[test]
 fn unsupported_import_file_keeps_the_modal_open_with_local_error() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let path = unique_temp_file("replace-import.txt");
     std::fs::write(&path, Exporters::to_text(&model_at(0x0100))).unwrap();
 
@@ -163,6 +170,7 @@ fn unsupported_import_file_keeps_the_modal_open_with_local_error() {
 #[test]
 fn import_modal_owns_file_drag_hover_and_drop_events() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let main = window::Id::unique();
     let path = unique_temp_file("dropped-import.txt");
     std::fs::write(&path, Exporters::to_text(&model_at(0x0200))).unwrap();
@@ -191,6 +199,7 @@ fn import_modal_owns_file_drag_hover_and_drop_events() {
 #[test]
 fn confirming_xlsx_import_applies_selected_sheet() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let path = unique_temp_file("confirm-pages.xlsx");
     Exporters::write_xlsx_pages(
         &path,
@@ -224,6 +233,7 @@ fn confirming_xlsx_import_applies_selected_sheet() {
 #[test]
 fn confirming_plain_txt_import_applies_whole_file_without_targets() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let path = unique_temp_file("confirm-plain.txt");
     std::fs::write(&path, Exporters::to_text(&model_at(0x0300))).unwrap();
 
@@ -240,6 +250,7 @@ fn confirming_plain_txt_import_applies_whole_file_without_targets() {
 #[test]
 fn confirming_malformed_txt_import_sets_localized_status() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
+    app.lang = crate::i18n::Lang::Ru;
     let path = unique_temp_file("malformed-import.txt");
     std::fs::write(&path, "this is not a KR580 export").unwrap();
 
