@@ -346,7 +346,7 @@ impl SettingsStore {
     }
 
     pub fn save(path: impl AsRef<Path>, settings: &Settings) -> Result<(), SettingsError> {
-        std::fs::write(path, Self::to_json(settings)?)?;
+        super::atomic_save::write(path.as_ref(), Self::to_json(settings)?.as_bytes())?;
         Ok(())
     }
 

@@ -2,7 +2,7 @@ use k580_core::Cpu8080State;
 use std::path::Path;
 use thiserror::Error;
 
-mod atomic_save;
+use super::atomic_save;
 
 #[derive(Debug, Error)]
 pub enum SubprogramError {

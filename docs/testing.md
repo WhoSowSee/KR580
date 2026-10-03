@@ -18,8 +18,9 @@ save/load byte layout, independent PC/SP fixtures, and invalid file rejection.
 `cargo test -p kr580 --test program_registers` checks all nine register slots
 against an independent byte fixture and byte-for-byte re-saving.
 
-`cargo test -p kr580 --lib persistence::subprogram` verifies raw-range saves,
-preservation of the previous file after an injected partial write failure,
+`cargo test -p kr580 --lib persistence::subprogram` verifies raw-range saves.
+`cargo test -p kr580 --lib persistence::atomic_save` checks the shared `.580`,
+`.krs` and settings replacement mechanism: preservation of the previous file after an injected partial write failure,
 temporary-file cleanup, replacement, Windows destination-lock failures, and
 dangling-symbolic-link preservation on Unix.
 

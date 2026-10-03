@@ -68,7 +68,7 @@ impl ProgramSerializer {
         ]);
         out.extend_from_slice(&state.pc.to_le_bytes());
         out.extend_from_slice(&state.sp.to_le_bytes());
-        std::fs::write(path, out)?;
+        super::atomic_save::write(path.as_ref(), &out)?;
         Ok(())
     }
 

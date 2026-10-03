@@ -2,6 +2,10 @@
 
 ## `.580`
 
+Snapshot and settings saves use the same staged replacement as `.krs`. A write,
+flush or replacement failure preserves the previous destination. Existing
+permissions and symbolic links follow the shared `atomic_save` contract below.
+
 The desktop `ProgramSerializer` reads and writes the 65,549-byte original
 format: 65,536 RAM bytes, nine register bytes, little-endian PC at offsets
 65,545–65,546, and little-endian SP at offsets 65,547–65,548. The last two

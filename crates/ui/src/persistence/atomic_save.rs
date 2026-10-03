@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
 
-pub(super) fn write(path: &Path, bytes: &[u8]) -> io::Result<()> {
+pub(crate) fn write(path: &Path, bytes: &[u8]) -> io::Result<()> {
     replace_with(path, |file| file.write_all(bytes))
 }
 
@@ -23,7 +23,7 @@ fn replace_with(path: &Path, write: impl FnOnce(&mut File) -> io::Result<()>) ->
     let permissions = match fs::metadata(&target) {
         Ok(metadata) => {
             if !metadata.is_file() {
-                return Err(io::Error::other("subprogram destination is not a file"));
+                return Err(io::Error::other("save destination is not a file"));
             }
             if metadata.permissions().readonly() {
                 return Err(io::Error::from(io::ErrorKind::PermissionDenied));
