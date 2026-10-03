@@ -29,14 +29,16 @@ impl EmulatorHandle {
         Ok(id)
     }
 
-    pub fn drain_events(&self) -> Vec<AppEvent> {
-        let mut events: Vec<_> = self.event_rx.try_iter().collect();
-        if let Some(snapshot) = self
-            .state_mailbox
+    fn take_snapshot(&self) -> Option<Box<AppSnapshot>> {
+        self.state_mailbox
             .lock()
             .expect("state mailbox poisoned")
             .take()
-        {
+    }
+
+    pub fn drain_events(&self) -> Vec<AppEvent> {
+        let mut events: Vec<_> = self.event_rx.try_iter().collect();
+        if let Some(snapshot) = self.take_snapshot() {
             events.push(AppEvent::StateChanged(snapshot));
         }
         events.extend(self.critical_rx.try_iter());
@@ -55,12 +57,7 @@ impl EmulatorHandle {
                     return events;
                 }
             }
-            if let Some(snapshot) = self
-                .state_mailbox
-                .lock()
-                .expect("state mailbox poisoned")
-                .take()
-            {
+            if let Some(snapshot) = self.take_snapshot() {
                 events.push(AppEvent::StateChanged(snapshot));
                 return events;
             }
@@ -87,23 +84,13 @@ impl EmulatorHandle {
                 );
                 events.push(event);
                 if finished {
-                    if let Some(snapshot) = self
-                        .state_mailbox
-                        .lock()
-                        .expect("state mailbox poisoned")
-                        .take()
-                    {
+                    if let Some(snapshot) = self.take_snapshot() {
                         events.push(AppEvent::StateChanged(snapshot));
                     }
                     return events;
                 }
             }
-            if let Some(snapshot) = self
-                .state_mailbox
-                .lock()
-                .expect("state mailbox poisoned")
-                .take()
-            {
+            if let Some(snapshot) = self.take_snapshot() {
                 events.push(AppEvent::StateChanged(snapshot));
             }
             let remaining = deadline.saturating_duration_since(std::time::Instant::now());
@@ -118,12 +105,7 @@ impl EmulatorHandle {
                     );
                     events.push(event);
                     if finished {
-                        if let Some(snapshot) = self
-                            .state_mailbox
-                            .lock()
-                            .expect("state mailbox poisoned")
-                            .take()
-                        {
+                        if let Some(snapshot) = self.take_snapshot() {
                             events.push(AppEvent::StateChanged(snapshot));
                         }
                         return events;
