@@ -107,8 +107,8 @@ impl NetworkDevice {
         self.state.status = DeviceStatus::Disconnected;
         self.state.last_error = None;
         self.tx = None;
-        self.worker_rx.lock().unwrap().clear();
-        *self.worker_status.lock().unwrap() = NetworkWorkerStatus::default();
+        self.worker_rx = Arc::new(Mutex::new(VecDeque::new()));
+        self.worker_status = Arc::new(Mutex::new(NetworkWorkerStatus::default()));
     }
 
     pub fn clear_buffers(&mut self) {
@@ -120,7 +120,7 @@ impl NetworkDevice {
     pub fn start_worker(&mut self, handle: &tokio::runtime::Handle) {
         self.stop_worker();
         let (tx, rx_out) = mpsc::unbounded_channel();
-        self.worker_rx.lock().unwrap().clear();
+        self.worker_rx = Arc::new(Mutex::new(VecDeque::new()));
         self.worker_status = Arc::new(Mutex::new(NetworkWorkerStatus {
             connection: match self.state.mode {
                 NetworkMode::Client => ConnectionState::Connecting,
@@ -241,93 +241,65 @@ async fn run_worker(
     status: Arc<Mutex<NetworkWorkerStatus>>,
 ) {
     let address = format!("{host}:{port}");
-    let socket = match mode {
-        NetworkMode::Client => match TcpStream::connect(&address).await {
-            Ok(socket) => socket,
-            Err(error) => {
-                set_network_error(&status, error);
-                return;
-            }
+    let connected = match mode {
+        NetworkMode::Client => TcpStream::connect(&address).await,
+        NetworkMode::Server => match TcpListener::bind(&address).await {
+            Ok(listener) => listener.accept().await.map(|(socket, _)| socket),
+            Err(error) => Err(error),
         },
-        NetworkMode::Server => {
-            let listener = match TcpListener::bind(&address).await {
-                Ok(listener) => listener,
-                Err(error) => {
-                    set_network_error(&status, error);
-                    return;
-                }
-            };
-            {
-                let mut worker = status.lock().unwrap();
-                worker.connection = ConnectionState::Listening;
-                worker.status = DeviceStatus::Listening;
-                worker.last_error = None;
-            }
-            match listener.accept().await {
-                Ok((socket, _)) => socket,
-                Err(error) => {
-                    set_network_error(&status, error);
-                    return;
-                }
-            }
+    };
+    let mut socket = match connected {
+        Ok(socket) => socket,
+        Err(error) => {
+            set_network_error(&status, error);
+            return;
         }
     };
-
     {
         let mut worker = status.lock().unwrap();
         worker.connection = ConnectionState::Connected;
         worker.status = DeviceStatus::Connected;
         worker.last_error = None;
     }
-
-    let (mut read_half, mut write_half) = socket.into_split();
-    let read_rx = Arc::clone(&rx_in);
-    let read_status = Arc::clone(&status);
-    let read_task = tokio::spawn(async move {
+    let (mut read_half, mut write_half) = socket.split();
+    let reader = async {
         let mut buf = [0u8; 256];
         loop {
-            match read_half.read(&mut buf).await {
-                Ok(0) => break,
-                Ok(count) => {
-                    {
-                        let mut queue = read_rx.lock().unwrap();
-                        let remaining = RX_BUFFER_CAP.saturating_sub(queue.len());
-                        queue.extend(buf[..count.min(remaining)].iter().copied());
-                    }
-                    let mut worker = read_status.lock().unwrap();
-                    worker.rx_total += count as u64;
-                    worker.status = DeviceStatus::Connected;
-                }
-                Err(error) => {
-                    let mut worker = read_status.lock().unwrap();
-                    worker.connection = ConnectionState::Error(error.to_string());
-                    worker.status = DeviceStatus::Error(error.to_string());
-                    worker.last_error = Some(error.to_string());
-                    break;
-                }
+            let count = read_half.read(&mut buf).await?;
+            if count == 0 {
+                return Ok::<(), std::io::Error>(());
             }
+            {
+                let mut queue = rx_in.lock().unwrap();
+                let remaining = RX_BUFFER_CAP.saturating_sub(queue.len());
+                queue.extend(buf[..count.min(remaining)].iter().copied());
+            }
+            let mut worker = status.lock().unwrap();
+            worker.rx_total += count as u64;
+            worker.status = DeviceStatus::Connected;
         }
-        let mut worker = read_status.lock().unwrap();
-        if worker.last_error.is_none() {
+    };
+    let writer = async {
+        while let Some(byte) = rx_out.recv().await {
+            write_half.write_all(&[byte]).await?;
+            let mut worker = status.lock().unwrap();
+            worker.tx_total += 1;
+            worker.status = DeviceStatus::Connected;
+        }
+        Ok::<(), std::io::Error>(())
+    };
+    let result = tokio::select! {
+        result = reader => result,
+        result = writer => result,
+    };
+    match result {
+        Err(error) => set_network_error(&status, error),
+        Ok(()) => {
+            let mut worker = status.lock().unwrap();
             worker.connection = ConnectionState::Disconnected;
             worker.status = DeviceStatus::Disconnected;
         }
-    });
-
-    while let Some(byte) = rx_out.recv().await {
-        if let Err(error) = write_half.write_all(&[byte]).await {
-            let mut worker = status.lock().unwrap();
-            worker.connection = ConnectionState::Error(error.to_string());
-            worker.status = DeviceStatus::Error(error.to_string());
-            worker.last_error = Some(error.to_string());
-            break;
-        }
-        let mut worker = status.lock().unwrap();
-        worker.tx_total += 1;
-        worker.status = DeviceStatus::Connected;
     }
-
-    let _ = read_task.await;
 }
 
 fn set_network_error(status: &Arc<Mutex<NetworkWorkerStatus>>, error: std::io::Error) {

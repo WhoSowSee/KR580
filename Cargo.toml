@@ -22,7 +22,7 @@ serde_json = "1"
 thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-tokio = { version = "1", features = ["rt-multi-thread", "time", "net", "io-util", "fs", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "time", "net", "io-util", "fs", "sync", "macros"] }
 crossbeam-channel = "0.5"
 iced = { version = "0.14.0", default-features = false, features = ["crisp", "tiny-skia", "tokio", "wayland", "web-colors", "wgpu", "x11"] }
 rfd = { version = "0.17", default-features = false, features = ["wayland", "xdg-portal"] }

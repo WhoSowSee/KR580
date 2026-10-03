@@ -239,23 +239,40 @@ fn clearing_network_buffers_preserves_the_connection_state() {
 
 #[test]
 fn reconfiguring_network_aborts_the_previous_worker() {
+    use std::io::Write;
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let port = runtime.block_on(async {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let port = listener.local_addr().unwrap().port();
-        drop(listener);
-        port
-    });
+    let first = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let second = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let mut network = NetworkDevice::default();
-    network.configure(NetworkMode::Server, "127.0.0.1", port);
+    network.configure(
+        NetworkMode::Client,
+        "127.0.0.1",
+        first.local_addr().unwrap().port(),
+    );
     network.start_worker(runtime.handle());
-    runtime.block_on(async { tokio::time::sleep(Duration::from_millis(50)).await });
-
-    network.configure(NetworkMode::Client, "127.0.0.1", port + 1);
-
-    runtime.block_on(async { tokio::time::sleep(Duration::from_millis(50)).await });
-    let rebound = runtime.block_on(tokio::net::TcpListener::bind(("127.0.0.1", port)));
-    assert!(rebound.is_ok());
+    let (mut old_peer, _) = first.accept().unwrap();
+    old_peer.write_all(&[0x11]).unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while network.state().rx_buffer.is_empty() {
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::yield_now();
+    }
+    assert_eq!(network.input_byte(), 0x11);
+    network.configure(
+        NetworkMode::Client,
+        "127.0.0.1",
+        second.local_addr().unwrap().port(),
+    );
+    network.start_worker(runtime.handle());
+    let (mut new_peer, _) = second.accept().unwrap();
+    let _old_send = old_peer.write_all(&[0xA5]);
+    new_peer.write_all(&[0xB6]).unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    while !network.state().rx_buffer.contains(&0xB6) {
+        assert!(std::time::Instant::now() < deadline);
+        std::thread::yield_now();
+    }
+    assert_eq!(network.state().rx_buffer, [0xB6]);
 }
 
 #[test]

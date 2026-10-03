@@ -23,6 +23,13 @@ Invalid ports return `PortError::InvalidPort`. Device-specific enqueue failures 
 
 ## Network worker
 
+The workspace enables Tokio's `macros` feature for concurrent owner-task dispatch.
+One Tokio owner task holds both borrowed socket halves and selects between its
+read and write futures. Reconfiguration aborts that owner, so no detached reader
+survives it. Each configured worker receives fresh RX and status storage; an old
+generation cannot publish bytes or status into the new device. EOF or a terminal
+failure ends both halves of the connection.
+
 `NetworkDevice::start_worker` spawns a Tokio task for client or server mode. The worker connects or binds explicitly from settings, splits the socket into read/write halves, queues received bytes into the device RX queue, drains outgoing bytes from a channel, and updates visible status/counters. The old manual `queue_received` test hook remains available for deterministic unit tests.
 
 ## Printer spool and printing
