@@ -1,5 +1,5 @@
 use crate::ops::operand::RegPair;
-use crate::{Cpu8080State, InstructionOutcome};
+use crate::{Cpu8080State, InstructionStep};
 
 pub(crate) fn handles(opcode: u8) -> bool {
     (0x40..=0x7F).contains(&opcode)
@@ -18,10 +18,10 @@ impl Cpu8080State {
     pub(crate) fn execute_data_opcode(
         &mut self,
         opcode: u8,
-        mnemonic: String,
+        mnemonic: &'static str,
         pc_before: u16,
         t_states: u8,
-    ) -> InstructionOutcome {
+    ) -> InstructionStep {
         if (0x40..=0x7F).contains(&opcode) {
             if opcode == 0x76 {
                 self.pc = self.pc.wrapping_add(1);

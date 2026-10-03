@@ -1,4 +1,4 @@
-use crate::{CoreError, Cpu8080State, PortBus, TactOutcome, decode_opcode};
+use crate::{CoreError, Cpu8080State, PortBus, TactOutcome, decode_metadata};
 
 struct TactSetup {
     opcode: Option<u8>,
@@ -68,7 +68,7 @@ impl Cpu8080State {
         }
 
         let opcode = self.peek(self.pc);
-        let info = decode_opcode(opcode)?;
+        let info = decode_metadata(opcode)?;
         let branch_taken = self.branch_taken_for_tact(opcode);
         Ok(TactSetup {
             opcode: Some(opcode),

@@ -68,14 +68,30 @@ impl Default for Cpu8080State {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InstructionOutcome {
+pub struct InstructionOutcome<M = String> {
     pub opcode: Option<u8>,
-    pub mnemonic: String,
+    pub mnemonic: M,
     pub pc_before: u16,
     pub pc_after: u16,
     pub t_states: u8,
     pub halted: bool,
     pub interrupt_accepted: bool,
+}
+
+pub type InstructionStep = InstructionOutcome<&'static str>;
+
+impl From<InstructionStep> for InstructionOutcome {
+    fn from(step: InstructionStep) -> Self {
+        Self {
+            opcode: step.opcode,
+            mnemonic: step.mnemonic.to_owned(),
+            pc_before: step.pc_before,
+            pc_after: step.pc_after,
+            t_states: step.t_states,
+            halted: step.halted,
+            interrupt_accepted: step.interrupt_accepted,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -167,6 +183,13 @@ impl Cpu8080State {
         &mut self,
         bus: &mut B,
     ) -> Result<InstructionOutcome, CoreError> {
+        self.step_instruction_metadata(bus).map(Into::into)
+    }
+
+    pub fn step_instruction_metadata<B: PortBus>(
+        &mut self,
+        bus: &mut B,
+    ) -> Result<InstructionStep, CoreError> {
         if self.active_tacts_remaining > 0 {
             let remaining = self.active_tacts_remaining;
             let total = self.active_tacts_total;
@@ -234,7 +257,7 @@ impl Cpu8080State {
     ) -> Result<u64, CoreError> {
         let mut executed = 0;
         while !self.halted && executed < max_instructions {
-            self.step_instruction(bus)?;
+            self.step_instruction_metadata(bus)?;
             executed += 1;
         }
         Ok(executed)

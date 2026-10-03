@@ -1,4 +1,4 @@
-use crate::{Cpu8080State, InstructionOutcome};
+use crate::{Cpu8080State, InstructionStep};
 
 pub(crate) fn handles(opcode: u8) -> bool {
     (0x80..=0xBF).contains(&opcode)
@@ -14,10 +14,10 @@ impl Cpu8080State {
     pub(crate) fn execute_alu_opcode(
         &mut self,
         opcode: u8,
-        mnemonic: String,
+        mnemonic: &'static str,
         pc_before: u16,
         t_states: u8,
-    ) -> InstructionOutcome {
+    ) -> InstructionStep {
         if (0x80..=0xBF).contains(&opcode) {
             let value = self.read_reg_code(opcode & 7);
             match (opcode >> 3) & 7 {

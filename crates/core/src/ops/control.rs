@@ -1,4 +1,4 @@
-use crate::{Cpu8080State, InstructionOutcome};
+use crate::{Cpu8080State, InstructionStep};
 
 pub(crate) fn handles(opcode: u8) -> bool {
     opcode & 0xC7 == 0xC0
@@ -12,10 +12,10 @@ impl Cpu8080State {
     pub(crate) fn execute_control_opcode(
         &mut self,
         opcode: u8,
-        mnemonic: String,
+        mnemonic: &'static str,
         pc_before: u16,
         t_states: u8,
-    ) -> InstructionOutcome {
+    ) -> InstructionStep {
         if opcode & 0xC7 == 0xC0 {
             // Rcond: WZ records the popped target only when taken.
             let taken = self.condition((opcode >> 3) & 7);

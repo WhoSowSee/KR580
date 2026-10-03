@@ -24,6 +24,14 @@ while preserving the stable `StepInstruction` / `Run` execution path.
 
 ## Execution API
 
+`decode_metadata` and `step_instruction_metadata` return static mnemonic references
+through `InstructionMetadata` and `InstructionStep`. Burst execution, tact setup
+and `run_until_halt` use this allocation-free path. The existing `decode_opcode`
+and `step_instruction` contracts retain owned `String` mnemonics; their carrier
+types use a default `String` generic parameter for source compatibility.
+The checked-in `decode/table.rs` contains sizes/timing and static labels aligned
+with `prompt/opcode_dispatch.md`; it adds no runtime or build-time generator.
+
 - `step_instruction(bus)` executes one instruction boundary or accepts one pending `RST n` interrupt vector.
 - `step_tact(bus)` advances exactly one T-state in the debug tact model, keeps `cycle_count` exact, and commits the instruction only on its boundary.
 - `run_for_t_states(bus, n)` calls `step_tact` exactly `n` times, so it never overshoots the requested T-state quantum.

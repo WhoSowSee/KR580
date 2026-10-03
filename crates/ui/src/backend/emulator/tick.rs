@@ -66,7 +66,7 @@ impl Emulator {
                 events.push(AppEvent::Stopped);
                 return;
             }
-            match self.cpu.step_instruction(&mut self.bus) {
+            match self.cpu.step_instruction_metadata(&mut self.bus) {
                 Ok(_outcome) => {
                     self.instructions_since_run += 1;
                     if self.cpu.halted {

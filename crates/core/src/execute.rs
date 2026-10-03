@@ -1,5 +1,5 @@
 use crate::ops::{alu, control, data, misc, stack};
-use crate::{CoreError, Cpu8080State, DecodeError, InstructionOutcome, PortBus, decode_opcode};
+use crate::{CoreError, Cpu8080State, DecodeError, InstructionStep, PortBus, decode_metadata};
 
 impl Cpu8080State {
     pub(crate) fn can_accept_interrupt(&self) -> bool {
@@ -11,7 +11,7 @@ impl Cpu8080State {
     pub(crate) fn execute_instruction_boundary<B: PortBus>(
         &mut self,
         bus: &mut B,
-    ) -> Result<InstructionOutcome, CoreError> {
+    ) -> Result<InstructionStep, CoreError> {
         if self.can_accept_interrupt() {
             return self.accept_interrupt();
         }
@@ -32,7 +32,7 @@ impl Cpu8080State {
         Ok(outcome)
     }
 
-    fn accept_interrupt(&mut self) -> Result<InstructionOutcome, CoreError> {
+    fn accept_interrupt(&mut self) -> Result<InstructionStep, CoreError> {
         let vector = self
             .interrupt_vector_byte
             .take()
@@ -50,9 +50,9 @@ impl Cpu8080State {
         let rst = (vector >> 3) & 7;
         self.push_word(self.pc);
         self.pc = u16::from(rst) * 8;
-        Ok(InstructionOutcome {
+        Ok(InstructionStep {
             opcode: Some(vector),
-            mnemonic: format!("RST {rst}"),
+            mnemonic: decode_metadata(vector)?.mnemonic,
             pc_before,
             pc_after: self.pc,
             t_states: 11,
@@ -65,9 +65,9 @@ impl Cpu8080State {
         &mut self,
         opcode: u8,
         bus: &mut B,
-    ) -> Result<InstructionOutcome, CoreError> {
+    ) -> Result<InstructionStep, CoreError> {
         let pc_before = self.pc;
-        let info = decode_opcode(opcode)?;
+        let info = decode_metadata(opcode)?;
         let mnemonic = info.mnemonic;
         let t_states = info.timing.t_states_taken;
 

@@ -1,4 +1,4 @@
-use crate::{Cpu8080State, Flags, InstructionOutcome};
+use crate::{Cpu8080State, Flags, InstructionStep};
 
 pub(crate) fn handles(opcode: u8) -> bool {
     opcode & 0xCF == 0xC1 || opcode & 0xCF == 0xC5
@@ -8,10 +8,10 @@ impl Cpu8080State {
     pub(crate) fn execute_stack_opcode(
         &mut self,
         opcode: u8,
-        mnemonic: String,
+        mnemonic: &'static str,
         pc_before: u16,
         t_states: u8,
-    ) -> InstructionOutcome {
+    ) -> InstructionStep {
         if opcode & 0xCF == 0xC1 {
             self.pop_stack_pair((opcode >> 4) & 3);
         } else {

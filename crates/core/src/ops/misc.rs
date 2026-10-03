@@ -1,4 +1,4 @@
-use crate::{CoreError, Cpu8080State, InstructionOutcome, PortBus};
+use crate::{CoreError, Cpu8080State, InstructionStep, PortBus};
 
 pub(crate) fn handles(opcode: u8) -> bool {
     matches!(
@@ -13,8 +13,8 @@ impl Cpu8080State {
         opcode: u8,
         bus: &mut B,
         pc_before: u16,
-        mnemonic: String,
-    ) -> Result<InstructionOutcome, CoreError> {
+        mnemonic: &'static str,
+    ) -> Result<InstructionStep, CoreError> {
         match opcode {
             0x00 => self.pc = self.pc.wrapping_add(1),
             0x07 => self.rlc(),
@@ -53,14 +53,14 @@ impl Cpu8080State {
     pub(crate) fn outcome(
         &self,
         opcode: Option<u8>,
-        mnemonic: impl Into<String>,
+        mnemonic: &'static str,
         pc_before: u16,
         t_states: u8,
         interrupt_accepted: bool,
-    ) -> InstructionOutcome {
-        InstructionOutcome {
+    ) -> InstructionStep {
+        InstructionStep {
             opcode,
-            mnemonic: mnemonic.into(),
+            mnemonic,
             pc_before,
             pc_after: self.pc,
             t_states,

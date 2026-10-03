@@ -13,7 +13,9 @@ mod ops;
 mod tact;
 
 pub use bus::{NullBus, PortBus};
-pub use decode::{InstructionInfo, decode_opcode, is_undocumented_opcode};
+pub use decode::{
+    InstructionInfo, InstructionMetadata, decode_metadata, decode_opcode, is_undocumented_opcode,
+};
 pub use error::{CoreError, DecodeError, PortError, ValidationError};
 pub use flags::Flags;
 pub use machine_cycle::{
@@ -22,5 +24,5 @@ pub use machine_cycle::{
 };
 pub use memory::Memory64K;
 pub use registers::{RegisterName, Registers};
-pub use state::{Cpu8080State, InstructionOutcome, TactOutcome};
+pub use state::{Cpu8080State, InstructionOutcome, InstructionStep, TactOutcome};
 pub use timing::InstructionTiming;

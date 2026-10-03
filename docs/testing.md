@@ -146,6 +146,10 @@ current selected option without submitting a physical print job.
 
 ## Current coverage
 
+`k580-core`'s `metadata_execution` regression counts allocations on the executing
+test thread and verifies a 20,000-instruction INR/JMP loop has zero allocations,
+the expected register result and exact T-state total.
+
 Backend persistence regressions check ordered writes through one FIFO worker;
 completion reconciliation tests inject results directly to keep import/document
 generation races deterministic without oversized files or sleeps.
