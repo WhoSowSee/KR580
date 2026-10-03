@@ -7,7 +7,7 @@ use crate::persistence::{
     ColorScheme, NetworkSettings, PrinterDialogMode, ShortcutAction, ShortcutBinding, ShortcutKey,
 };
 use crate::settings_storage::lang_from_language;
-use crate::system_locale::default_language;
+use k580_ui::system_locale::default_language;
 
 mod general;
 mod initialization;

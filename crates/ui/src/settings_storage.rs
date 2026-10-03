@@ -177,7 +177,7 @@ pub(crate) fn language_from_lang(lang: Lang) -> Language {
 
 pub(crate) fn default_settings() -> Settings {
     let mut settings = Settings::default();
-    settings.general.language = crate::system_locale::default_language();
+    settings.general.language = k580_ui::system_locale::default_language();
     settings
 }
 
