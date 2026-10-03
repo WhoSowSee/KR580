@@ -146,6 +146,10 @@ current selected option without submitting a physical print job.
 
 ## Current coverage
 
+Backend persistence regressions check ordered writes through one FIFO worker;
+completion reconciliation tests inject results directly to keep import/document
+generation races deterministic without oversized files or sleeps.
+
 - `k580-core`: opcode classification, documented-opcode smoke execution,
   modular executor families, flags, conditionals, stack, interrupts, I/O
   routing, exact `RunForTStates` accounting, and `tact_execution`

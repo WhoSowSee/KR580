@@ -42,3 +42,32 @@ fn actor_runs_program_save_outside_the_emulator_loop() {
     handle.send(AppCommand::Shutdown).unwrap();
     std::fs::remove_file(path).ok();
 }
+
+#[test]
+fn successive_saves_to_one_path_keep_the_last_accepted_state() {
+    let path = std::env::temp_dir().join(format!("k580-save-order-{}.580", std::process::id()));
+    let handle = spawn_emulator();
+    handle
+        .send(AppCommand::SetRegister(RegisterName::A, 0x11))
+        .unwrap();
+    handle
+        .send_request(AppCommand::SaveProgram(path.clone()))
+        .unwrap();
+    handle
+        .send(AppCommand::SetRegister(RegisterName::A, 0x22))
+        .unwrap();
+    let last = handle
+        .send_request(AppCommand::SaveProgram(path.clone()))
+        .unwrap();
+    let events = handle.drain_until_request_finished(last, Duration::from_secs(3));
+    assert!(events.iter().any(|event| matches!(event, AppEvent::CommandFinished { id, result: Ok(CommandResult::SavedProgram) } if *id == last)));
+    assert_eq!(
+        k580_ui::persistence::ProgramSerializer::load_file(&path)
+            .unwrap()
+            .registers
+            .a,
+        0x22
+    );
+    handle.send(AppCommand::Shutdown).unwrap();
+    std::fs::remove_file(path).unwrap();
+}

@@ -88,6 +88,11 @@ paths, notices or CPU state. Imports return validated patches and `.krs` loads
 return their actual byte blocks; the actor applies them to its current CPU so
 unrelated edits made while reading remain intact. Save/export workers retain an
 independent captured state or export model.
+One named persistence worker executes accepted jobs in FIFO order, including
+multiple writes to the same destination. Its queue holds at most eight waiting
+jobs; full-queue admission fails immediately through the matching request rather
+than blocking the actor or creating another OS thread. Panics in file work become
+failed completions, so pending UI operations do not remain unresolved.
 
 File-association changes use an iced task backed by Tokio's blocking pool.
 `DesktopApp.file_association_pending` survives closing Settings and prevents

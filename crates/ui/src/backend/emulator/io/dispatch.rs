@@ -1,14 +1,13 @@
-use super::{Emulator, IoCompletion, IoJob, spawn};
+use super::{Emulator, IoJob, IoWorker};
 use crate::backend::{AppCommand, AppEvent, RequestId};
 use crate::persistence::ExportOptions;
-use crossbeam_channel::Sender;
 
 impl Emulator {
     pub(in crate::backend) fn start_io_request(
         &mut self,
         id: RequestId,
         command: &AppCommand,
-        completion_tx: Sender<IoCompletion>,
+        worker: &IoWorker,
     ) -> Option<Vec<AppEvent>> {
         let job = match command {
             AppCommand::SaveProgram(path) => IoJob::SaveProgram {
@@ -68,18 +67,30 @@ impl Emulator {
             },
             _ => return None,
         };
-        let mut events = Vec::new();
-        if matches!(
+        let replacement = matches!(
             command,
             AppCommand::LoadProgram(_) | AppCommand::LoadSubprogram { .. }
-        ) {
-            self.document_generation = self.document_generation.wrapping_add(1);
+        );
+        let generation = self
+            .document_generation
+            .wrapping_add(u64::from(replacement));
+        if let Err(error) = worker.enqueue(id, generation, job) {
+            return Some(vec![
+                AppEvent::ErrorRaised(error.clone()),
+                AppEvent::CommandFinished {
+                    id,
+                    result: Err(error),
+                },
+            ]);
+        }
+        let mut events = Vec::new();
+        if replacement {
+            self.document_generation = generation;
             if self.running {
                 self.running = false;
                 events.push(AppEvent::Stopped);
             }
         }
-        spawn(id, self.document_generation, job, completion_tx);
         Some(events)
     }
 }

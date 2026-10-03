@@ -2,14 +2,15 @@ mod dispatch;
 mod jobs;
 #[cfg(test)]
 mod tests;
+mod worker;
 
 use crate::backend::{AppError, AppEvent, CommandResult, RequestId};
 use crate::persistence::import::CpuPatch;
-use crossbeam_channel::Sender;
 use k580_core::Cpu8080State;
 
 use super::Emulator;
-use jobs::{IoJob, run};
+use jobs::IoJob;
+pub(crate) use worker::IoWorker;
 
 pub(crate) enum IoUpdate {
     Program(Box<Cpu8080State>),
@@ -21,16 +22,6 @@ pub(crate) struct IoCompletion {
     pub id: RequestId,
     pub generation: u64,
     pub result: Result<(CommandResult, Option<IoUpdate>), AppError>,
-}
-
-fn spawn(id: RequestId, generation: u64, job: IoJob, completion_tx: Sender<IoCompletion>) {
-    std::thread::spawn(move || {
-        let _ = completion_tx.send(IoCompletion {
-            id,
-            generation,
-            result: run(job),
-        });
-    });
 }
 
 impl Emulator {

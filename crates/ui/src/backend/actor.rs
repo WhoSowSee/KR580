@@ -165,6 +165,18 @@ fn run_worker(
 ) {
     let mut emulator = Emulator::default();
     let (io_tx, io_rx) = unbounded::<crate::backend::emulator::io::IoCompletion>();
+    let io_worker = match crate::backend::emulator::io::IoWorker::new(io_tx) {
+        Ok(worker) => worker,
+        Err(error) => {
+            publish(
+                &event_tx,
+                &critical_tx,
+                &state_mailbox,
+                AppEvent::ErrorRaised(error),
+            );
+            return;
+        }
+    };
     let initial = emulator.snapshot();
     let mut published_network = initial.devices.network.clone();
     let mut published_printer = initial.devices.printer.clone();
@@ -189,7 +201,7 @@ fn run_worker(
                 let Ok(command) = command else { break };
                 let shutdown = matches!(&command, AppCommand::Shutdown);
                 if let AppCommand::Request { id, command } = command {
-                    if let Some(events) = emulator.start_io_request(id, &command, io_tx.clone()) {
+                    if let Some(events) = emulator.start_io_request(id, &command, &io_worker) {
                         for event in events {
                             publish(&event_tx, &critical_tx, &state_mailbox, event);
                         }
