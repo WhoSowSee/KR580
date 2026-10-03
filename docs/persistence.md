@@ -11,22 +11,8 @@ The nine bytes at offsets 65,536–65,544 contain `A, B, C, D, E, H, L, W, Z`
 in that order. Loading restores all nine registers; saving writes their current
 values, including the internal W/Z pair. Flags, interrupt state, halt state,
 and timing are absent from this original format and retain their defaults on
-load; use the core snapshot encoding for complete CPU state serialization.
-The obsolete `ProgramError::InvalidLegacyTrailer` variant has been removed;
-Rust callers referencing it must remove those references.
-
-## Core snapshot encoding
-
-Snapshots are versioned little-endian binary files:
-
-- magic `K580`;
-- `u16` version (`1`);
-- `u32` payload length;
-- TLV payload using the tag registry from `prompt/04_file_formats.md`.
-
-Unknown low-bit tags fail with `SnapshotError::UnsupportedTag`; high-bit extension tags are skipped.
-
-Snapshot tests verify roundtrip fidelity, deterministic byte output, unsupported-version rejection, payload-length validation, and high-bit extension tag skipping.
+load. This is the compatibility format used by the reference KP580 emulator;
+it has no magic header or version field and must remain exactly 65,549 bytes.
 
 `ProgramSerializer::supports_path` and `SubprogramSerializer::supports_path`
 provide the case-insensitive extension checks used by persistence and desktop
@@ -37,8 +23,8 @@ file routing.
 `load_into_state` returns the inclusive end address (`Result<u16, SubprogramError>`)
 calculated from the bytes it actually reads and installs. The obsolete
 metadata-only `file_end` API has been removed; callers should use the load result. Desktop
-loading records the range from the worker's completion event, so a file size
-change cannot leave ordinary Save using a stale range.
+loading records the range from the matching `CommandFinished` event, so a file
+size change cannot leave ordinary Save using a stale range.
 
 Saves stage the complete range in a uniquely created sibling temporary file,
 flush it with `sync_all`, close it, and replace the destination with a rename.

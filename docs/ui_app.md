@@ -162,12 +162,15 @@ RAM-range dialog. Detached device windows do not accept program drops.
     walk, Ctrl+Arrow navigation).
   - `app/undo.rs` – `UndoEntry` / `UndoStack` storage and coalescing,
     plus tests under `app/undo/tests.rs`.
+  - `app/pending.rs` – request-owned Save, Load, Import, Export, and
+    subprogram operations held until the actor publishes `CommandFinished`.
 - `runtime/` contains app-facing command dispatch, event draining, file
   dialogs, and the per-panel update logic. The methods all hang off
   `impl DesktopApp` and are grouped by responsibility:
   - `runtime/mod.rs` – module root.
   - `runtime/dispatch.rs` – sync/async worker dispatch
-    (`dispatch`, `dispatch_sync`, `dispatch_with_undo`) plus the
+    (`dispatch`, `dispatch_sync`, `dispatch_async_request`,
+    `dispatch_with_undo`) plus the
     `toggle_run` / `restart_program` control flow.
   - `runtime/events.rs` – `pull_events`, `consume_event`, and the
     `apply_snapshot` reconciler.
@@ -209,8 +212,10 @@ RAM-range dialog. Detached device windows do not accept program drops.
 
 The actor publishes `StateChanged`, `InstructionBoundaryReached`,
 `TactAdvanced`, `PortRead`, `PortWritten`, `HaltStateChanged`,
-`ErrorRaised`, and `Stopped`. Events are notifications only; the latest
-`AppSnapshot` remains the authoritative render source.
+`ErrorRaised`, `Stopped`, and request-correlated `CommandFinished` events.
+Full snapshots use a latest-state mailbox; the UI keeps the most recent
+`AppSnapshot` as the authoritative render source and does not treat an
+arbitrary snapshot as command completion.
 
 ## Font routing
 
@@ -715,9 +720,11 @@ as soon as content is present. The footer shows the storage status,
 configured path, queued byte count, and last device error when present.
 While the file-content view is open, each UI tick compares the attached
 path, file length, and modification time with the last loaded revision.
-Floppy and HDD contents are read again only when that revision changes,
-so edits or atomic replacements made by another process appear without
-toggling the file-content view off and on.
+When that revision changes, the byte read runs in a blocking worker and
+returns through a typed message; the iced update loop never reads the image
+payload itself. Floppy and HDD contents are read again only when that
+revision changes, so edits or atomic replacements made by another process
+appear without toggling the file-content view off and on.
 
 The header buttons are icon-only and mirror the monitor menu chrome:
 
@@ -1331,15 +1338,12 @@ core фиксирует в трёх точках (`step_instruction` атома�
 
 #### Persistence
 
-timing-TLV (тег `0x08`) расширен до variable-length
-`8 | 9 | 10` байт. Старые файлы (8 байт = только `cycle_count`,
-9 байт = `+ tact_phase`) грузятся как раньше – `last_completed_tact_phase`
-у них остаётся `None`. Новый 10-байтовый формат несёт обе фазы.
-Особый случай (`tact_phase == None`, `last_completed_tact_phase == Some`)
-закодирован sentinel'ом `0xFF` в slot[8]: реальная T-фаза 8080 не
-превышает ~38, поэтому 0xFF свободна как маркер «активной нет».
-Round-trip покрыт тестами `snapshot_roundtrips_last_completed_*` и
-`snapshot_loads_legacy_v1_payload_without_last_completed`.
+`.580` остаётся оригинальным фиксированным образом KP580: 65,536 байт RAM,
+девять байт `A B C D E H L W Z`, затем little-endian `PC` и `SP` по два
+байта. Формат не содержит magic, версии, flags, interrupt state, halt state
+или timing. При загрузке отсутствующие поля получают значения CPU по умолчанию.
+Формат `.krs` остаётся необработанным диапазоном байтов RAM с адресом начала,
+который задаёт пользователь.
 
 #### Источник раскладок M-циклов
 
@@ -1432,8 +1436,10 @@ While the run is armed, the highlight in the memory list (and the
 address spinner / inline value buffer) tracks `cpu.pc` automatically.
 Implementation:
 
-- The actor publishes one `StateChanged` per executed instruction.
-- The `Message::Tick` subscription folds those snapshots into
+- The actor produces one snapshot per executed instruction in paced mode.
+  The backend mailbox keeps only the latest full snapshot while the UI is
+  busy, so stale RAM copies cannot accumulate.
+- The `Message::Tick` subscription folds the latest available snapshot into
   `DesktopApp` via `pull_events` → `apply_snapshot`; while running its
   interval follows the active speed tier.
 - After draining the events, `Tick` calls `follow_pc_during_run` when
@@ -1462,11 +1468,11 @@ frozen counter.
 
 ### Final-tick follow-PC at high speed
 
-At slow paces (e.g. the default 10 Hz) the worker delivers one
-`StateChanged` per Tick, so the highlight inevitably catches up. At
-high speed (e.g. 1000 Hz) it can deliver a long burst of `StateChanged`
-followed by a terminal `HaltStateChanged` / `Stopped` inside the same
-100 ms tick. By the time the Tick branch re-reads `self.running` the
+At slow paces (e.g. the default 10 Hz) the mailbox usually contains one
+new `StateChanged` per Tick, so the highlight catches up. At high speed
+the mailbox may replace several intermediate snapshots before the same
+`Message::Tick` reads it, followed by a terminal `HaltStateChanged` /
+`Stopped`. By the time the Tick branch re-reads `self.running` the
 flag is already `false`, so the closing `follow_pc_during_run` would
 not fire and the highlight would be left on whichever row the last
 per-instruction snapshot landed on – visibly mid-program even though
@@ -1632,10 +1638,11 @@ snap the caret to the end of the field.
 
 ### Unsaved-changes modal
 
-Successful `.krs` loading emits `SubprogramLoaded { path, start, end }` after
-`StateChanged`. The UI completes opening and records the range from that event;
-the dialog does not precompute the range from file metadata. Completion also
-works when loading finishes after the synchronous dispatch wait expires.
+Successful `.krs` loading applies the bytes on the actor, emits `StateChanged`,
+and completes the matching request with the installed end address. The UI
+records the range from that completion; the dialog does not precompute the range
+from file metadata. Completion also works when loading finishes after the
+synchronous dispatch wait expires.
 
 Saving `.krs`, through either the range dialog or ordinary Save, updates the
 saved baseline only for the inclusive RAM range written to that file. Register
@@ -1808,8 +1815,9 @@ during a paced `Run`. Two variants:
   speed tiers. `Emulator::tick()` executes exactly one instruction,
   publishes one `InstructionBoundaryReached` and one `StateChanged`,
   and the actor re-arms its `after(step_interval)` deadline. The UI
-  sees every step. This is the path that lets the highlighted memory
-  row walk one cell at a time.
+  normally sees each step at these paced intervals; if it falls behind,
+  the latest-state mailbox coalesces intermediate snapshots. This is the
+  path that lets the highlighted memory row walk one cell at a time.
 - `RunMode::Burst { slice }` – used by the Max speed tier. `tick()`
   enters a tight inner loop that keeps stepping until any of:
   - `slice` wall-time has elapsed (re-checked every 64 instructions

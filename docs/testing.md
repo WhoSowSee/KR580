@@ -158,9 +158,11 @@ current selected option without submitting a physical print job.
   CP866 decoding and 80-column native printer line wrapping, PrintTicket
   capability parsing, delta generation, feature de-duplication, and property
   localization,
-  `.580` roundtrip/determinism/header validation, raw `.krs` behavior,
+  `.580` roundtrip/determinism/fixed-layout validation, raw `.krs` behavior,
   settings JSON versioning, `.txt`/`.xlsx` direct exporters/importers,
-  command-mediated state mutation, floppy image attachment, printer
+  request-correlated command completion, coalesced actor snapshots,
+  command-mediated state mutation, floppy image attachment and worker error
+  propagation, non-blocking external image refresh, printer
   clearing/raw export, and actor publication of completed printer jobs. Native
   printer discovery, capability loading, PrintTicket validation, fallback
   Properties pages, and printing are a Windows smoke-test path because they

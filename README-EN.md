@@ -34,7 +34,7 @@ The project focuses on inspectable execution: edit RAM and registers, step by in
 > - Instruction stepping, tact-level stepping, paced run, and burst run modes.
 > - Native iced desktop UI with RAM list, register editor, status register, machine-cycle view, control schematic, and localized Russian/English installer text.
 > - External device windows for monitor, floppy, HDD, network adapter, and printer.
-> - Versioned `.580` snapshots, raw `.krs` subprogram loading, direct `.txt` / `.xlsx` import and export, and native printing with driver settings.
+> - Original KP580-compatible `.580` images, raw `.krs` subprogram loading, direct `.txt` / `.xlsx` import and export, and native printing with driver settings.
 > - Graphical installer, uninstaller, terminal launcher, optional `.580` and `.krs` file associations, and portable or system install layouts.
 
 ## Screenshots
@@ -158,7 +158,7 @@ After installation, `kr` can open `.580` snapshots and `.krs` subprograms from t
 
 | Format | Purpose |
 |---|---|
-| `.580` | Versioned little-endian emulator snapshot with magic `K580`. |
+| `.580` | Fixed 65,549-byte image of the original KP580 RAM, registers, PC, and SP. |
 | `.krs` | Raw subprogram bytes loaded at a caller-provided base address. |
 | `.txt` | Plain-text register, flag, and memory exports; also importable. |
 | `.xlsx` | Workbook export/import through `rust_xlsxwriter` and `calamine`. |

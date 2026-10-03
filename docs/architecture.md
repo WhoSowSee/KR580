@@ -10,7 +10,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 ## Repository layout
 
 - `crates/core/`: public `k580-core` library crate.
-- `crates/ui/`: public `kr580` package with private app, device, persistence, UI, launcher, and installer modules. Its hidden `desktop_entry` helper centralizes freedesktop command quoting and XDG data-home resolution, `install_mode` resolves adjacent versus manifest-owned binaries, and `shell_quote` supplies the shared Unix single-argument encoder.
+- `crates/ui/`: public `kr580` package with a private binary-side app and view, plus public library modules for backend, devices, persistence, launcher, and installer integration. The library modules are hidden from generated rustdoc where appropriate. Its `desktop_entry` helper centralizes freedesktop command quoting and XDG data-home resolution, `install_mode` resolves adjacent versus manifest-owned binaries, and `shell_quote` supplies the shared Unix single-argument encoder.
 - `crates/ui/src/file_assoc/linux_default.rs`: owns the saved Linux default-handler state, `mimeapps.list` cleanup, and restoration of the handler that preceded KR580. `linux_files.rs` supplies process locking, atomic writes, and file backups used for rollback.
 - `crates/ui/assets/linux/`: canonical freedesktop launcher, file-handler, package, and shared-MIME templates consumed by runtime registration and native packages.
 - `crates/ui/assets/macos/Info.plist`: canonical macOS application metadata used by runtime integration and release packaging.
@@ -65,9 +65,9 @@ the successful animation reaches 100%.
 
 UI messages become `AppCommand` values. The internal backend actor owns `Cpu8080State` and `IoBus`, applies commands, and publishes typed `AppEvent` values. The UI stores only display/input state and can always re-render from `AppSnapshot`.
 
-After `.krs` loading, the actor publishes `StateChanged` followed by
-`SubprogramLoaded { path, start, end }`. The completion range comes from the
-bytes installed in RAM, and the UI uses it for subsequent subprogram saves.
+After `.krs` loading, the actor applies the bytes, publishes `StateChanged`,
+and completes the matching request with the installed end address. The UI uses
+that completion range for subsequent subprogram saves.
 
 ## Invariants
 
@@ -88,7 +88,7 @@ The dialog keeps that Windows status for both rendering and keyboard actions;
 the pending flag has a single owner in `DesktopApp`. Unix has no unused
 registration-status query or Launch Services default-handler lookup.
 
-`kr580` sends commands through a crossbeam channel to its internal backend emulator actor. The actor applies commands synchronously against the core and bus, then emits state snapshots and typed events. `Emulator` owns a Tokio runtime for storage, network, and native printer workers, so file, TCP, GDI printing, and printer-driver calls stay outside the UI thread. The printer settings layer keeps the Windows PrintTicket provider lifecycle inside one blocking MTA task, while the iced state stores only parsed capabilities and the validated `DEVMODEW`. The actor polls network state and printer completion every 50 ms and publishes a snapshot only when either state differs from the last published one, allowing received bytes, connection changes, and completed print jobs to reach an idle UI without causing continuous redraws. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
+`kr580` sends commands through a crossbeam channel to its internal backend emulator actor. The actor owns CPU and device state and emits typed events. Persistence requests capture actor state and run file work on a dedicated worker, then return a matching `RequestId` completion before the UI changes paths or dirty state. The event path coalesces full snapshots into a latest-state mailbox while keeping completion and error events separate. `Emulator` owns a Tokio runtime for storage, network, and native printer workers, so file, TCP, GDI printing, and printer-driver calls stay outside the UI thread. The printer settings layer keeps the Windows PrintTicket provider lifecycle inside one blocking MTA task, while the iced state stores only parsed capabilities and the validated `DEVMODEW`. The actor polls network, storage, and printer completion every 50 ms and publishes a snapshot only when device state differs from the last published one. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
 
 ## Actor pacing loop
 
@@ -108,7 +108,7 @@ simultaneously on the command channel and a timer:
     `emulator.tick()`, which advances exactly one instruction and
     emits `InstructionBoundaryReached`, `HaltStateChanged` (on halt),
     `Stopped` (on budget exhaustion or error), and a fresh
-    `StateChanged`. The UI sees every step.
+    `StateChanged`; the UI consumes the latest available snapshot.
   - `RunMode::Burst { slice }` (Max speed tier in the UI) – the
     deadline is `slice` (16 ms by default). Each timer fire calls
     `emulator.tick()`, which now runs an inner loop that keeps
