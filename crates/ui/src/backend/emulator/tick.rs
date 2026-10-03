@@ -7,8 +7,6 @@ impl Emulator {
     pub fn tick(&mut self) -> Vec<AppEvent> {
         let mut events = Vec::new();
         if !self.running {
-            // Defensive: a tick after `Stop` still gets a snapshot so the
-            // UI doesn't lose its recovery path.
             events.push(AppEvent::StateChanged(Box::new(self.snapshot())));
             return events;
         }

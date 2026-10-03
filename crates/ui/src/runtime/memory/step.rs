@@ -18,9 +18,7 @@ impl DesktopApp {
         self.follow_pc_after_execution_boundary()
     }
 
-    /// PC mutates on the first tact, so before/after PC comparison
-    /// would teleport the cursor every press. Watch
-    /// `last_tact_was_boundary` instead.
+    /// PC advances before instruction completion; follow it only at a tact boundary.
     pub(crate) fn step_tact_and_maybe_advance(&mut self) -> Task<Message> {
         if self.run_blocked_after_halt {
             self.raise_halt_notice();
@@ -63,12 +61,9 @@ impl DesktopApp {
         scroll_memory_to(target_offset)
     }
 
-    /// Differs from `follow_pc_into_memory_list`: skips
-    /// `sync_pc_to_cursor` (PC is authoritative during a run), and
-    /// preserves an in-progress inline edit on a faraway cell.
+    /// During execution PC owns the cursor; preserve unrelated inline drafts.
     pub(crate) fn follow_pc_during_run(&mut self) -> Task<Message> {
-        // After HLT, PC sits one past the opcode but the highlight
-        // should land on the HLT row itself.
+        // HLT advances PC past its opcode; the memory highlight must retain the halt address.
         let target = if self.snapshot.cpu.halted && self.snapshot.cpu.pc > 0 {
             self.snapshot.cpu.pc.wrapping_sub(1)
         } else {

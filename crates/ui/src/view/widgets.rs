@@ -336,9 +336,7 @@ pub(super) fn icon_action_button(
     const BUTTON_SIZE: f32 = 38.0;
     const GLYPH_SIZE: f32 = 20.0;
 
-    // Disabled chip → low-alpha muted grey. The style callback's host
-    // is a `container`, not the `button`, so its status stays `Idle`
-    // and we have to bake the enabled/disabled choice in at build time.
+    // iced 0.14 container status stays Idle, so button disablement must be passed into its style.
     let enabled = message.is_some();
     let glyph_color = if enabled {
         accent

@@ -285,8 +285,6 @@ fn mux_register_cell(
     let editing = edit_state.inline_target == Some(target);
     let hovered = edit_state.hovered_target == Some(target);
 
-    // Selected register name uses tokyo_blue(), idle uses tokyo_muted() –
-    // matches the memory-row address column. Byte stays tokyo_green().
     let label_color = if is_selected {
         tokyo_blue()
     } else {

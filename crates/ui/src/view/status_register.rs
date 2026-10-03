@@ -17,8 +17,7 @@ use iced::{Element, Length, Padding, alignment};
 use k580_core::{Cpu8080State, MachineCycleKind, kind_at, layout_for, position_for};
 
 pub(super) fn derive_status_kind(cpu: &Cpu8080State) -> MachineCycleKind {
-    // INTA before HLT: an INT raised while halted lifts HLT on the next
-    // tact, so the status byte must reflect interrupt-ack already.
+    // Interrupt acknowledgement takes precedence over halt while resuming the 8080.
     if cpu.interrupt_request_pending && cpu.interrupt_enable {
         return MachineCycleKind::InterruptAck;
     }
@@ -26,8 +25,7 @@ pub(super) fn derive_status_kind(cpu: &Cpu8080State) -> MachineCycleKind {
         return MachineCycleKind::HaltAck;
     }
 
-    // Cold start: nothing executed yet, but T1 of the first M1 must
-    // already read as `M1Fetch` to match the reference panel.
+    // Before the first opcode fetch, the status panel models T1 of M1.
     let Some(phase) = cpu.last_completed_tact_phase else {
         return MachineCycleKind::M1Fetch;
     };

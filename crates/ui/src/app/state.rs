@@ -54,30 +54,26 @@ pub(crate) struct DesktopApp {
     pub(crate) opcode_dropdown_address: Option<u16>,
     pub(crate) opcode_search_input: String,
     pub(crate) opcode_highlight_index: usize,
-    /// Stored separately because each match overwrites `memory_address_input`.
+    /// Each search match changes the visible address; preserve the original query.
     pub(crate) memory_search_pattern: Option<String>,
     pub(crate) memory_operand_return_address: Option<u16>,
     pub(crate) memory_operand_return_scroll_offset: Option<f32>,
     pub(crate) keyboard_modifiers: keyboard::Modifiers,
-    /// Cosmetic focus marker – iced 0.14 has no on_focus / on_blur.
+    /// iced 0.14 exposes no on_focus/on_blur callbacks for this marker.
     pub(crate) focused_input: Option<&'static str>,
     pub(crate) replacement_input: Option<&'static str>,
     pub(crate) replacement_placeholder: String,
     pub(crate) replacement_original_value: String,
-    /// Cached for `MousePressed` – `ButtonPressed` carries identity
-    /// only, not coordinates.
+    /// ButtonPressed supplies no coordinates; retain the last cursor position for hit tests.
     pub(crate) latest_cursor_position: Point,
     /// iced drops local click history when the first click swaps in a text input.
     pub(crate) previous_left_click: Option<iced::advanced::mouse::Click>,
     pub(crate) mouse_press_generation: u64,
     pub(crate) replacement_reconcile_guard: Option<(u64, &'static str)>,
     pub(crate) running: bool,
-    /// One-shot signal that the next `Tick` must run `follow_pc_during_run`
-    /// even though `running` is already false (high-speed bursts where
-    /// auto-pause clears `running` before Tick reads it).
+    /// A burst may auto-pause before Tick; the final PC still needs following.
     pub(crate) pending_follow_pc: bool,
     pub(crate) inline_register_just_entered: bool,
-    /// Set on `TactAdvanced { instruction_boundary: true }`.
     pub(crate) last_tact_was_boundary: bool,
     pub(crate) startup_frames_seen: u8,
     pub(crate) main_window_size: Size,
@@ -91,9 +87,7 @@ pub(crate) struct DesktopApp {
     pub(crate) speed_tier: SpeedTier,
     pub(crate) halt_notice: Option<String>,
     pub(crate) halt_notice_dismiss_at: Option<Instant>,
-    /// Disables every execution-side button until reset. Outlives the
-    /// halt notice's 8-second fade – the contract is "until reset",
-    /// not "until the message disappears".
+    /// The post-HLT execution lock outlives the fading halt notice.
     pub(crate) run_blocked_after_halt: bool,
     pub(crate) error_notice: Option<String>,
     pub(crate) error_notice_dismiss_at: Option<Instant>,
@@ -376,7 +370,6 @@ impl DesktopApp {
         };
         app.apply_speed_tier(default_speed);
 
-        // Startup commands must settle before synchronous import drains StateChanged events.
         let settle_deadline = Instant::now() + Duration::from_millis(100);
         loop {
             let remaining = settle_deadline.saturating_duration_since(Instant::now());

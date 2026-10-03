@@ -141,7 +141,6 @@ pub(super) fn cycle_panels(cpu: &Cpu8080State, lang: Lang) -> Element<'_, Messag
     ))
     .width(Length::Fixed(CYCLE_BLOCK_WIDTH));
 
-    // `*` = "instruction finished, last recorded value shown".
     let linear_phase_text = match (cpu.tact_phase, cpu.last_completed_tact_phase) {
         (Some(phase), _) => phase.to_string(),
         (None, Some(last)) => format!("{last}*"),

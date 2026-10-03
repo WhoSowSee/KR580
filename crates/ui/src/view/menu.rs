@@ -36,8 +36,6 @@ const MENU_CATEGORY_SPACING: f32 = 6.0;
 
 impl DesktopApp {
     pub(super) fn menu_bar(&self) -> Element<'_, Message> {
-        // Empty space between menu and caption buttons is the
-        // OS-native window drag handle.
         let drag_handle: Element<'_, Message> = mouse_area(
             container(Space::new())
                 .width(Length::Fill)
@@ -132,9 +130,7 @@ impl DesktopApp {
                 .spacing(MENU_CATEGORY_SPACING)
                 .align_y(alignment::Vertical::Center),
         )
-        // Asymmetric padding equidistantly aligns the cpu glyph and
-        // the close cross to the window edges. `.left(11)` is coupled
-        // to FILE/MP_MENU_DROPDOWN_LEFT in `view/mod.rs`.
+        // The left caption padding must match FILE/MP_MENU_DROPDOWN_LEFT.
         .padding(iced::Padding::ZERO.left(11).right(2))
         .width(Length::Fill)
         .height(Length::Fixed(34.0))
@@ -181,9 +177,6 @@ impl DesktopApp {
             bar.into()
         };
 
-        // While a dropdown is open the divider gets a hole punched
-        // under it; the bleed pushes segment endpoints under the
-        // frame so the dropdown's opaque fill paints over the seam.
         const DIVIDER_GAP_BLEED: f32 = -6.0;
         const ROOT_PADDING_LEFT: f32 = 8.0;
         let divider: Element<'_, Message> = match self.open_menu {

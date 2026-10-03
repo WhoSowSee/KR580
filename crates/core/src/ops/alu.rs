@@ -53,8 +53,6 @@ impl Cpu8080State {
         }
 
         match opcode {
-            // `fetch_byte` takes `&mut self` for bus latches, so each
-            // immediate must land in a local before the ALU call.
             0xC6 => {
                 let value = self.fetch_byte(1);
                 self.add(value, false);

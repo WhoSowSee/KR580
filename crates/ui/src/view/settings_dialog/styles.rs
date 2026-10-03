@@ -244,10 +244,6 @@ pub(super) fn dropdown_option_style(
     selected: bool,
     highlighted: bool,
 ) -> button::Style {
-    // Selected fills with tokyo_surface(); the keyboard highlight uses
-    // the same fill so arrow keys feel like a hover preview without
-    // committing the value. Mouse hover on a non-selected, non-
-    // highlighted row uses the muted half-alpha tint.
     let background = match (selected || highlighted, status) {
         (true, _) => tokyo_surface(),
         (false, button::Status::Hovered) => Color {

@@ -137,15 +137,7 @@ pub(super) fn settings_content<'a>(
     let body: Element<'a, Message> = match (dialog.language_dropdown_open, language_row_index) {
         (true, Some(idx)) if !searching => {
             let row_top = CONTENT_PADDING + (idx as f32) * (SETTING_ROW_HEIGHT + 20.0);
-            // Slight overlap (-4 px) so the dropdown panel reads as a
-            // continuation of the anchor's chrome instead of a panel
-            // floating below it.
             let overlay_top = row_top + SETTING_ROW_HEIGHT - 4.0;
-            // When the user has moved the keyboard highlight, the
-            // selected row stops painting filled so only one option
-            // reads as "active under the cursor". When no highlight
-            // exists yet (dropdown was just opened), selected stands
-            // in for it.
             let (visible_selection, highlighted) = match dialog.dropdown_highlight {
                 Some(h) => (None, h),
                 None => (Some(dialog.draft_lang), dialog.draft_lang),

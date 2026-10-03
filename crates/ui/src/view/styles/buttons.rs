@@ -200,8 +200,6 @@ pub(crate) fn menu_button_disabled_style(_status: button::Status) -> button::Sty
 }
 
 pub(crate) fn step_button_style(status: button::Status) -> button::Style {
-    // Inline glyphs: transparent at rest, faint surface tint on
-    // hover/press – no border so they don't read as detached chips.
     let background = if is_button_active(status) {
         tokyo_surface_3_tint()
     } else {

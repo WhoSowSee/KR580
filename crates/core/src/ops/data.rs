@@ -45,7 +45,7 @@ impl Cpu8080State {
         }
 
         if opcode & 0xCF == 0x01 {
-            // LXI rp,d16: operand passes through W/Z on the way to rp.
+            // LXI captures the immediate word in WZ even when loading another register pair.
             let value = self.fetch_word(1);
             self.registers.set_wz(value);
             self.write_pair(RegPair::from_code((opcode >> 4) & 3), value);
@@ -78,8 +78,7 @@ impl Cpu8080State {
         }
 
         match opcode {
-            // STAX/LDAX (BC|DE) intentionally skip WZ – the address
-            // is already on the latches, no microcode parks it.
+            // STAX/LDAX leave WZ unchanged because BC/DE supply the address latches directly.
             0x02 => self.bus_write(self.registers.bc(), self.registers.a),
             0x0A => self.registers.a = self.bus_read(self.registers.bc()),
             0x12 => self.bus_write(self.registers.de(), self.registers.a),
@@ -132,7 +131,7 @@ impl Cpu8080State {
     }
 
     fn xchg(&mut self) {
-        // HL → WZ; DE → HL; WZ → DE. WZ residue = previous HL.
+        // XCHG leaves the previous HL value in WZ.
         let prev_hl = self.registers.hl();
         let prev_de = self.registers.de();
         self.registers.set_wz(prev_hl);

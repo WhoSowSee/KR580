@@ -148,7 +148,6 @@ mod tests {
     #[test]
     fn graphics_command_writes_pixel_at_coordinates() {
         let mut dev = MonitorDevice::default();
-        // 3-byte cmd: bit7=1 + colour 0x7F, X=10, Y=20.
         dev.output_byte(0xFF);
         dev.output_byte(10);
         dev.output_byte(20);
@@ -161,7 +160,6 @@ mod tests {
     #[test]
     fn text_command_writes_character_with_colour() {
         let mut dev = MonitorDevice::default();
-        // 2-byte cmd: bit7=0 + colour 0x40, char='A' (0x41).
         dev.output_byte(0x40);
         dev.output_byte(0x41);
         let s = dev.state();

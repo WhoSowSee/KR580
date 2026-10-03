@@ -10,10 +10,6 @@ use crate::i18n::Lang;
 use crate::persistence::PrinterDialogMode;
 
 impl DesktopApp {
-    /// Mirrors `route_discard_modal_message`: while the settings modal
-    /// is open, only messages that drive its own state pass through –
-    /// everything else (CtrlS, Tick, ArrowKey, ...) is swallowed so the
-    /// rest of the app stays inert.
     pub(crate) fn route_settings_modal_message(
         &mut self,
         message: &Message,
@@ -303,10 +299,6 @@ impl DesktopApp {
             return Task::none();
         }
         if dialog.language_dropdown_open {
-            // ArrowKey carries +1 for Up, -1 for Down – flip so a
-            // visual Down moves to the next list item. Stop at the
-            // ends instead of wrapping so the highlight doesn't
-            // unexpectedly jump to the opposite edge.
             let current = dialog.dropdown_highlight.unwrap_or(dialog.draft_lang);
             let next = match (current, direction) {
                 (Lang::Ru, d) if d < 0 => Lang::En,

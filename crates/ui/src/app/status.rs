@@ -1,63 +1,25 @@
 use crate::i18n::{Key, Lang};
 
-/// Provenance of the live `status` string – used to re-render the
-/// status bar when the UI language switches at runtime. Each variant
-/// owns the raw values (numbers, paths, mnemonics) that the rendered
-/// string was built from; the language-dependent prefix / unit comes
-/// from `Lang::t` at render time inside [`StatusKind::render`].
 #[derive(Clone, Debug)]
 pub(crate) enum StatusKind {
-    /// Set from a non-canonical source (raw error, port log line,
-    /// search-error message). `render` returns `None` so the caller
-    /// keeps the existing string verbatim.
     Custom,
     Ready,
     NewFile,
     CpuHalted,
     Stopped,
-    TactProgress {
-        tact_phase: u8,
-        cycle_count: u64,
-    },
-    InstructionAt {
-        mnemonic: String,
-        pc_before: u16,
-    },
-    PortRead {
-        port: u8,
-        value: u8,
-    },
-    PortWrite {
-        port: u8,
-        value: u8,
-    },
-    NoProgramAt {
-        pc: u16,
-    },
-    Opened {
-        display: String,
-    },
-    SavedTo {
-        display: String,
-    },
-    ExportTo {
-        display: String,
-    },
-    ImportFrom {
-        display: String,
-    },
-    MonitorImageSaved {
-        display: String,
-    },
-    FloppyImageAttached {
-        display: String,
-    },
-    HddImageAttached {
-        display: String,
-    },
-    HddFileDeleted {
-        display: String,
-    },
+    TactProgress { tact_phase: u8, cycle_count: u64 },
+    InstructionAt { mnemonic: String, pc_before: u16 },
+    PortRead { port: u8, value: u8 },
+    PortWrite { port: u8, value: u8 },
+    NoProgramAt { pc: u16 },
+    Opened { display: String },
+    SavedTo { display: String },
+    ExportTo { display: String },
+    ImportFrom { display: String },
+    MonitorImageSaved { display: String },
+    FloppyImageAttached { display: String },
+    HddImageAttached { display: String },
+    HddFileDeleted { display: String },
     InvalidByteHex,
     InvalidAddressHex,
     NothingToUndo,
@@ -65,13 +27,8 @@ pub(crate) enum StatusKind {
     EnterHexPattern,
     InvalidMemoryBytes,
     MemoryBytesOutOfRange,
-    PatternFound {
-        pattern: String,
-        address: u16,
-    },
-    NoMatchesFor {
-        pattern: String,
-    },
+    PatternFound { pattern: String, address: u16 },
+    NoMatchesFor { pattern: String },
 }
 
 impl StatusKind {
@@ -145,11 +102,7 @@ impl StatusKind {
 
 const ELLIPSIS: char = '…';
 
-/// Approximate width of one monospaced 13-pt glyph (the size used by the
-/// status text widget). The status row spans the right half of the
-/// header, so the available chars budget is derived from the window
-/// width with a fixed reservation for the left-hand register strip and
-/// the "Статус"/"Status" label.
+/// This width calculation assumes the view uses a 13-point monospaced font.
 const STATUS_LEFT_RESERVATION_PX: f32 = 600.0;
 const STATUS_GLYPH_WIDTH_PX: f32 = 9.0;
 

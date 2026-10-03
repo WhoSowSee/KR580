@@ -23,11 +23,7 @@ impl DesktopApp {
         }
     }
 
-    /// Jumps the memory view to a resolved 16-bit address (e.g. the
-    /// target decoded from an address operand). Mirrors
-    /// `jump_memory_address` but takes a ready `u16` instead of
-    /// parsing the address field, and never dispatches `SetPc` –
-    /// this is a view relocation, not a program-counter move.
+    /// Relocates the view to an address without changing PC.
     pub(crate) fn jump_memory_to(&mut self, address: u16) -> Task<Message> {
         self.memory_address_input = format!("{address:04X}");
         self.refresh_memory_value(address);
@@ -80,7 +76,7 @@ impl DesktopApp {
         self.memory_search_pattern = None;
     }
 
-    /// Cache the initial fragment because each match replaces the address input.
+    /// Each match overwrites the visible address; retain the original query fragment.
     pub(crate) fn find_next_memory_address_in_direction(
         &mut self,
         backward: bool,
@@ -142,9 +138,9 @@ mod tests {
     use iced::keyboard;
 
     fn load_lxi_b_d16(app: &mut DesktopApp) {
-        app.snapshot.cpu.memory.write(0x0000, 0x01); // LXI B,d16
+        app.snapshot.cpu.memory.write(0x0000, 0x01);
         app.snapshot.cpu.memory.write(0x0001, 0x34);
-        app.snapshot.cpu.memory.write(0x0002, 0x12); // -> 0x1234
+        app.snapshot.cpu.memory.write(0x0002, 0x12);
     }
 
     fn select_address(app: &mut DesktopApp, address: u16) {
@@ -242,9 +238,9 @@ mod tests {
     fn alt_shift_enter_restores_operand_view_position_after_jump() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
         let instruction = 0x0104;
-        app.snapshot.cpu.memory.write(instruction, 0x01); // LXI B,d16
+        app.snapshot.cpu.memory.write(instruction, 0x01);
         app.snapshot.cpu.memory.write(instruction + 1, 0x34);
-        app.snapshot.cpu.memory.write(instruction + 2, 0x12); // -> 0x1234
+        app.snapshot.cpu.memory.write(instruction + 2, 0x12);
         app.scroll_memory(0x0100 as f32 * crate::app::MEMORY_ROW_HEIGHT);
         select_address(&mut app, instruction + 1);
         let original_scroll_offset = app.memory_scroll_offset;
@@ -273,7 +269,7 @@ mod tests {
     }
 
     fn load_out_port(app: &mut DesktopApp, address: u16, port: u8) {
-        app.snapshot.cpu.memory.write(address, 0xD3); // OUT
+        app.snapshot.cpu.memory.write(address, 0xD3);
         app.snapshot.cpu.memory.write(address.wrapping_add(1), port);
     }
 
@@ -314,7 +310,7 @@ mod tests {
     #[test]
     fn alt_enter_on_unknown_port_does_not_open_device() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_out_port(&mut app, 0x0000, 0x7F); // unmapped port
+        load_out_port(&mut app, 0x0000, 0x7F);
         app.memory_address_input = "0001".to_owned();
         app.refresh_memory_value(0x0001);
         app.keyboard_modifiers = keyboard::Modifiers::ALT;
@@ -345,7 +341,7 @@ mod tests {
     #[test]
     fn alt_enter_on_data_operand_still_falls_through() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.snapshot.cpu.memory.write(0x0000, 0x06); // MVI B
+        app.snapshot.cpu.memory.write(0x0000, 0x06);
         app.snapshot.cpu.memory.write(0x0001, 0x42);
         app.memory_address_input = "0001".to_owned();
         app.refresh_memory_value(0x0001);
@@ -373,7 +369,7 @@ mod tests {
     #[test]
     fn alt_shift_enter_on_data_operand_does_not_enter_inline_editor() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.snapshot.cpu.memory.write(0x0000, 0x06); // MVI B
+        app.snapshot.cpu.memory.write(0x0000, 0x06);
         app.snapshot.cpu.memory.write(0x0001, 0x42);
         select_address(&mut app, 0x0001);
         app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;

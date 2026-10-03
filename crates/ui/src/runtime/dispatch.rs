@@ -54,8 +54,6 @@ impl DesktopApp {
     }
 
     pub(crate) fn toggle_run(&mut self) {
-        // Pause wins first – otherwise once PC walks off the loaded
-        // program into NOP territory the gates below refuse the press.
         if self.running {
             self.running = false;
             self.dispatch(AppCommand::Stop);

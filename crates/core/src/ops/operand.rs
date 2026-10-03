@@ -20,8 +20,6 @@ impl RegPair {
 }
 
 impl Cpu8080State {
-    /// `&mut self` because the M=`(HL)` arm goes through the bus
-    /// latches; the other seven register codes are internal-only.
     pub(crate) fn read_reg_code(&mut self, code: u8) -> u8 {
         match code & 0x07 {
             0 => self.registers.b,

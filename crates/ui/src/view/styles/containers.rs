@@ -189,8 +189,6 @@ pub(crate) fn memory_row_container_style(selected: bool, halted: bool) -> contai
         background,
         text_color: Some(tokyo_text()),
         border: Border {
-            // Round only the highlighted row so 1-px separators between
-            // unhighlighted rows still meet edge-to-edge.
             radius: if selected { 6.0.into() } else { 0.0.into() },
             width: 0.0,
             color: Color::TRANSPARENT,

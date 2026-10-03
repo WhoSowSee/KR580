@@ -106,8 +106,7 @@ impl DesktopApp {
         self.reveal_memory_address(next)
     }
 
-    /// Skips `SetPc` dispatch – sync round-trips were eating focus
-    /// on the inline editor every ArrowUp/Down keystroke.
+    /// Row navigation must preserve the inline editor focus without a SetPc roundtrip.
     pub(crate) fn step_memory_address_browse(&mut self, delta: i32) -> Task<Message> {
         let (view_start, _) = self.memory_view();
         if self.memory_address_input.is_empty() {
@@ -178,9 +177,7 @@ impl DesktopApp {
         self.sync_pc_to_cursor(address);
     }
 
-    /// Skipped when halted – PC sits past the halt opcode, and the
-    /// `SetPc` round-trip would race with the halt snapshot and bump
-    /// the visible address forward on every click.
+    /// HLT leaves PC past the opcode; cursor synchronization must not advance the halt row.
     pub(super) fn sync_pc_to_cursor(&mut self, address: u16) {
         if self.snapshot.cpu.tact_phase.is_some()
             || self.snapshot.cpu.halted

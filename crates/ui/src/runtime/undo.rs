@@ -61,8 +61,7 @@ impl DesktopApp {
         }
     }
 
-    /// Bypasses `dispatch_with_undo`: the apply-undo path *is* the
-    /// rewind, pushing another `Cpu` entry would loop.
+    /// Undo replay must not create another undo entry.
     fn replay_cpu_state(
         &mut self,
         metadata: CpuMetadata,

@@ -316,8 +316,7 @@ mod tests {
         );
     }
 
-    /// `Path::extension` reports `.bashrc` as having no extension, so
-    /// the suffix gets appended (`.bashrc.txt`).
+    /// Dotfiles without an extension also receive the requested suffix.
     #[test]
     fn dotfiles_get_txt_appended() {
         assert_eq!(

@@ -233,8 +233,6 @@ pub(super) fn monitor_layout_row(dialog: &SettingsDialog, lang: Lang) -> Element
 pub(super) fn floppy_image_row<'a>(dialog: &'a SettingsDialog, lang: Lang) -> Element<'a, Message> {
     let kb_focused = dialog.content_focus_is_visible(ContentFocus::FloppyImage);
 
-    // The floppy row carries both a browse and a clear button, so the
-    // path text has a smaller budget than the single-button HDD row.
     let path_display = dialog
         .draft_floppy_image_path
         .as_ref()

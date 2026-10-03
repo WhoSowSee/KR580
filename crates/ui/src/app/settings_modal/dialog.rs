@@ -8,9 +8,7 @@ use crate::persistence::{
 };
 use k580_ui::devices::printer::PrinterSettings;
 
-/// Draft state edited by the dialog. Live language, speed, and shortcut
-/// fields on `DesktopApp` are kept in sync for immediate preview;
-/// `original_*` snapshots let Cancel / backdrop click roll that back.
+/// Original values restore immediate previews on Cancel; Save commits only after persistence succeeds.
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsDialog {
     pub(crate) category: SettingsCategory,

@@ -94,11 +94,7 @@ impl DesktopApp {
 
         self.memory_address_input = format!("{address:04X}");
         self.memory_inline_value_input = value;
-        // No text-undo entry: the inline buffer follows whichever
-        // address is highlighted, so a text entry tied to this id
-        // would be interpreted against a different address on
-        // Ctrl+Z. The byte mutation lands as a `Cpu` undo pair on
-        // Enter.
+        // The inline editor changes RAM addresses, so text undo cannot be bound to this widget ID.
     }
 
     pub(crate) fn paste_memory_bytes(&mut self, address: u16, value: String) {

@@ -17,25 +17,17 @@ pub struct Cpu8080State<M = Memory64K> {
     pub cycle_count: u64,
     pub interrupt_vector_byte: Option<u8>,
     pub tact_phase: Option<u8>,
-    /// Last executed T-phase of the current/just-finished instruction.
-    /// `tact_phase` resets to `None` at boundaries; this field holds
-    /// `total - 1` at completion so the UI freezes on the final T.
-    /// `None` only on cold start / Reset.
+    /// Last completed T-phase persists at instruction boundaries; None after reset.
     pub last_completed_tact_phase: Option<u8>,
     pub(crate) active_tacts_remaining: u8,
     pub(crate) active_tacts_total: u8,
     pub(crate) active_opcode: Option<u8>,
     pub(crate) active_branch_taken: bool,
-    /// Mirror of the chip's IR: holds the last opcode fetched on M1
-    /// until the next M1. After `HLT` a `memory.read(pc)` look-ahead
-    /// would show NOP from blank RAM; the IR still reads `0x76`.
+    /// Last opcode latched on M1, retained until the next M1 including after HLT.
     pub last_fetched_opcode: u8,
-    /// Mirror of the chip's data bus latch (D7-D0). After `HLT` it
-    /// must show `0x76`, not the byte at the new PC.
+    /// Last latched data bus byte, including the HLT opcode after PC advances.
     pub last_data_bus_byte: u8,
-    /// Mirror of the chip's address bus latch (A0-A15). PC, HL, SP,
-    /// and 16-bit immediates take turns on it. After `HLT` PC=halt+1
-    /// but the latch still shows the HLT address.
+    /// Last latched address, including the HLT address after PC advances.
     pub last_address_bus: u16,
 }
 
@@ -150,8 +142,7 @@ impl Cpu8080State {
         self.last_address_bus = metadata.last_address_bus;
     }
 
-    /// 8080 leaves SP indeterminate on reset; the reference uses
-    /// `0xFFFF` so a stray `PUSH` lands in the high stack region.
+    /// Reset chooses SP=0xFFFF; physical 8080 hardware leaves SP unspecified.
     pub const RESET_SP: u16 = 0xFFFF;
 
     pub fn reset_cpu(&mut self) {
@@ -193,8 +184,7 @@ impl Cpu8080State {
         Ok(())
     }
 
-    /// Mirrors both bus latches; executors must go through this so
-    /// the address/data buffers don't go stale on the UI.
+    /// CPU memory traffic must update both address and data bus latches.
     pub(crate) fn bus_read(&mut self, address: u16) -> u8 {
         let value = self.memory.read(address);
         self.last_address_bus = address;
@@ -221,8 +211,7 @@ impl Cpu8080State {
         opcode
     }
 
-    /// Side-effect-free read for UI/disassembler; executors go through
-    /// `bus_read*` / `bus_write*` / `fetch_opcode`.
+    /// Reads memory without changing bus latches.
     pub fn peek(&self, address: u16) -> u8 {
         self.memory.read(address)
     }

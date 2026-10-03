@@ -1,12 +1,4 @@
-//! Custom widget operations for post-click focus reconciliation.
-//!
-//! Iced 0.14 only converges focus inside flat containers – across
-//! stacked panels sibling text_inputs end up with stale
-//! `is_focused = Some(_)`. The two-pass split below is what unfocuses
-//! them: a single-pass walk would also unfocus the input that just
-//! processed the click when layout drifts a pixel, so we only mutate
-//! state after `find_focusable_at` confirms a hit.
-
+// iced 0.14 stacked focus needs two passes to preserve the clicked input and its caret.
 use iced::Point;
 use iced::Rectangle;
 use iced::advanced::widget::Id;
@@ -37,9 +29,7 @@ pub(crate) fn find_focusable_at(point: Point) -> impl Operation<Option<Id>> {
     FindFocusableAt { point, hit: None }
 }
 
-/// Like iced's built-in `find_focused`, but always reports –
-/// built-in returns `Outcome::None` when nothing is focused, and
-/// `Task::map` then silently drops the focus-clear message.
+/// Reports an explicit empty focus result because iced 0.14 otherwise drops the clear message.
 pub(crate) fn find_focused_optional() -> impl Operation<Option<Id>> {
     struct FindFocused {
         focused: Option<Id>,
@@ -64,8 +54,7 @@ pub(crate) fn find_focused_optional() -> impl Operation<Option<Id>> {
     FindFocused { focused: None }
 }
 
-/// Deliberately avoids calling `state.focus()` on the kept widget –
-/// iced snaps the caret to the end of the field on `focus()`.
+/// iced 0.14 focus() moves the caret; preserve focus without refocusing the kept input.
 pub(crate) fn unfocus_except(except: Id) -> impl Operation<()> {
     struct UnfocusExcept {
         except: Id,

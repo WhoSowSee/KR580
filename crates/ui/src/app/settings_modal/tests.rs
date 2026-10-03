@@ -276,9 +276,6 @@ fn tab_toggles_reset_confirm_focus_in_a_two_button_ring() {
 
 #[test]
 fn enter_in_reset_confirm_activates_focused_button() {
-    // The router's Enter handler returns a follow-up Task that the
-    // test harness does not execute, so we dispatch the follow-up
-    // manually to verify routing rather than the iced runtime.
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     app.lang = Lang::En;
     app.default_speed = SpeedTier::Max;

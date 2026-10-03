@@ -31,8 +31,6 @@ pub(super) fn discard_modal_overlay(
     let title = lang.t(title_key);
     let title_note = title_note_key.map(|k| lang.t(k));
 
-    // Backdrop click → `CancelDiscard`, same as the cancel button.
-    // `opaque` keeps the event from passing further down the tree.
     let backdrop = mouse_area(
         container(Space::new())
             .width(Length::Fill)
@@ -98,8 +96,6 @@ pub(super) fn discard_modal_overlay(
     .padding(16)
     .style(modal_dialog_style);
 
-    // `Length::Fill` spacers on all four sides centre the dialog
-    // without picking absolute pixel coordinates.
     let centred = column![
         Space::new().height(Length::Fill),
         row![
@@ -113,8 +109,6 @@ pub(super) fn discard_modal_overlay(
     .width(Length::Fill)
     .height(Length::Fill);
 
-    // Backdrop spans the whole window; the dialog only takes its
-    // content size – both stacked together.
     stack![opaque(backdrop), centred]
         .width(Length::Fill)
         .height(Length::Fill)

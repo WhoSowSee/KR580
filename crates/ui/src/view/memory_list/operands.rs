@@ -140,11 +140,31 @@ fn operand_kind(opcode: u8) -> OperandKind {
 fn is_address_opcode(opcode: u8) -> bool {
     matches!(
         opcode,
-        0x01 | 0x11 | 0x21 | 0x31 | // LXI rp,d16
-        0x22 | 0x2A | 0x32 | 0x3A | // SHLD, LHLD, STA, LDA
-        0xC3 | 0xCD | // JMP, CALL
-        0xC2 | 0xCA | 0xD2 | 0xDA | 0xE2 | 0xEA | 0xF2 | 0xFA | // Jcond
-        0xC4 | 0xCC | 0xD4 | 0xDC | 0xE4 | 0xEC | 0xF4 | 0xFC // Ccond
+        0x01 | 0x11
+            | 0x21
+            | 0x31
+            | 0x22
+            | 0x2A
+            | 0x32
+            | 0x3A
+            | 0xC3
+            | 0xCD
+            | 0xC2
+            | 0xCA
+            | 0xD2
+            | 0xDA
+            | 0xE2
+            | 0xEA
+            | 0xF2
+            | 0xFA
+            | 0xC4
+            | 0xCC
+            | 0xD4
+            | 0xDC
+            | 0xE4
+            | 0xEC
+            | 0xF4
+            | 0xFC
     )
 }
 
@@ -178,9 +198,9 @@ mod tests {
     #[test]
     fn one_byte_instructions_have_no_operands() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x00); // NOP
-        memory.write(1, 0x07); // RLC
-        memory.write(2, 0x76); // HLT
+        memory.write(0, 0x00);
+        memory.write(1, 0x07);
+        memory.write(2, 0x76);
         let operands = classify_operands(0, 3, &memory);
         assert!(operands.addresses.is_empty());
         assert!(operands.data.is_empty());
@@ -190,7 +210,7 @@ mod tests {
     #[test]
     fn eight_bit_data_operand_is_marked() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x06); // MVI B
+        memory.write(0, 0x06);
         memory.write(1, 0x42);
         memory.write(2, 0x00);
         let operands = classify_operands(0, 3, &memory);
@@ -202,10 +222,10 @@ mod tests {
     #[test]
     fn sixteen_bit_address_operands_are_marked() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x01); // LXI B
+        memory.write(0, 0x01);
         memory.write(1, 0x34);
         memory.write(2, 0x12);
-        memory.write(3, 0xC3); // JMP
+        memory.write(3, 0xC3);
         memory.write(4, 0x00);
         memory.write(5, 0x01);
         let operands = classify_operands(0, 6, &memory);
@@ -219,7 +239,7 @@ mod tests {
     #[test]
     fn operand_classification_wraps_across_64k_boundary() {
         let mut memory = Memory64K::default();
-        memory.write(0xFFFF, 0x06); // MVI B
+        memory.write(0xFFFF, 0x06);
         memory.write(0x0000, 0x42);
         let operands = classify_operands(0, 1, &memory);
         assert!(operands.data.contains(&0));
@@ -228,10 +248,10 @@ mod tests {
     #[test]
     fn in_and_out_port_operands_are_purple() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0xD3); // OUT
-        memory.write(1, 0x04); // port 4
-        memory.write(2, 0xDB); // IN
-        memory.write(3, 0x00); // port 0
+        memory.write(0, 0xD3);
+        memory.write(1, 0x04);
+        memory.write(2, 0xDB);
+        memory.write(3, 0x00);
         let operands = classify_operands(0, 4, &memory);
         assert!(operands.ports.contains(&1));
         assert!(operands.ports.contains(&3));
@@ -242,16 +262,16 @@ mod tests {
     #[test]
     fn jump_target_from_low_operand_byte_is_little_endian_address() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x01); // LXI B,d16
-        memory.write(1, 0x34); // low
-        memory.write(2, 0x12); // high -> 0x1234
+        memory.write(0, 0x01);
+        memory.write(1, 0x34);
+        memory.write(2, 0x12);
         assert_eq!(operand_jump_target(1, &memory), Some(0x1234));
     }
 
     #[test]
     fn jump_target_from_high_operand_byte_matches_low_half() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x01); // LXI B,d16
+        memory.write(0, 0x01);
         memory.write(1, 0x34);
         memory.write(2, 0x12);
         assert_eq!(operand_jump_target(2, &memory), Some(0x1234));
@@ -260,7 +280,7 @@ mod tests {
     #[test]
     fn jump_target_is_none_on_the_opcode_byte_itself() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0xC3); // JMP
+        memory.write(0, 0xC3);
         memory.write(1, 0x00);
         memory.write(2, 0x10);
         assert_eq!(operand_jump_target(0, &memory), None);
@@ -269,9 +289,9 @@ mod tests {
     #[test]
     fn jump_target_resolves_after_a_preceding_two_byte_instruction() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x06); // MVI B (2 bytes)
+        memory.write(0, 0x06);
         memory.write(1, 0xFF);
-        memory.write(2, 0xC3); // JMP 0x0200
+        memory.write(2, 0xC3);
         memory.write(3, 0x00);
         memory.write(4, 0x02);
         assert_eq!(operand_jump_target(3, &memory), Some(0x0200));
@@ -281,9 +301,9 @@ mod tests {
     #[test]
     fn jump_target_is_none_for_data_and_port_operands() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x06); // MVI B,d8
+        memory.write(0, 0x06);
         memory.write(1, 0x42);
-        memory.write(2, 0xD3); // OUT
+        memory.write(2, 0xD3);
         memory.write(3, 0x04);
         assert_eq!(operand_jump_target(1, &memory), None);
         assert_eq!(operand_jump_target(3, &memory), None);
@@ -292,7 +312,7 @@ mod tests {
     #[test]
     fn jump_target_wraps_across_64k_boundary() {
         let mut memory = Memory64K::default();
-        memory.write(0xFFFF, 0x01); // LXI B,d16 wrapping
+        memory.write(0xFFFF, 0x01);
         memory.write(0x0000, 0x78);
         memory.write(0x0001, 0x56);
         assert_eq!(operand_jump_target(0x0000, &memory), Some(0x5678));
@@ -302,23 +322,23 @@ mod tests {
     #[test]
     fn port_number_from_out_operand_byte() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0xD3); // OUT
-        memory.write(1, 0x04); // port 4
+        memory.write(0, 0xD3);
+        memory.write(1, 0x04);
         assert_eq!(operand_port_number(1, &memory), Some(0x04));
     }
 
     #[test]
     fn port_number_from_in_operand_byte() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0xDB); // IN
-        memory.write(1, 0x00); // port 0 (monitor)
+        memory.write(0, 0xDB);
+        memory.write(1, 0x00);
         assert_eq!(operand_port_number(1, &memory), Some(0x00));
     }
 
     #[test]
     fn port_number_is_none_on_opcode_byte() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0xD3); // OUT
+        memory.write(0, 0xD3);
         memory.write(1, 0x04);
         assert_eq!(operand_port_number(0, &memory), None);
     }
@@ -326,9 +346,9 @@ mod tests {
     #[test]
     fn port_number_is_none_for_data_and_address_operands() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x06); // MVI B,d8
+        memory.write(0, 0x06);
         memory.write(1, 0x42);
-        memory.write(2, 0x01); // LXI B,d16
+        memory.write(2, 0x01);
         memory.write(3, 0x34);
         memory.write(4, 0x12);
         assert_eq!(operand_port_number(1, &memory), None);
@@ -339,9 +359,9 @@ mod tests {
     #[test]
     fn port_number_resolves_after_preceding_instruction() {
         let mut memory = Memory64K::default();
-        memory.write(0, 0x3E); // MVI A (2 bytes)
+        memory.write(0, 0x3E);
         memory.write(1, 0xFF);
-        memory.write(2, 0xD3); // OUT 0x02
+        memory.write(2, 0xD3);
         memory.write(3, 0x02);
         assert_eq!(operand_port_number(3, &memory), Some(0x02));
     }

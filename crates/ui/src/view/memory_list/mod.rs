@@ -51,8 +51,7 @@ impl DesktopApp {
 
         for row in render_start..render_end {
             let address = view_start + row as u16;
-            // PC sits one byte past the HLT opcode after halt;
-            // halted row = `pc == addr+1` AND byte == 0x76.
+            // HLT advances PC past its opcode; the halted row still belongs to the previous address.
             let halted_here =
                 cpu.halted && address.wrapping_add(1) == cpu.pc && cpu.memory.read(address) == 0x76;
             rows = rows.push(memory_row(
@@ -206,8 +205,6 @@ fn memory_row<'a>(
     inline_placeholder: &'a str,
 ) -> Element<'a, Message> {
     let value = cpu.memory.read(address);
-    // Mirror the in-progress inline edit on the selected row so the
-    // command column updates live; others decode the stored byte.
     let preview_value = if visuals.selected {
         parse_hex_u8_preview(inline_value_input).unwrap_or(value)
     } else {
@@ -235,8 +232,6 @@ fn memory_row<'a>(
         tokyo_green()
     };
 
-    // Cells fill the full row height; clicks on the bottom-edge
-    // pixel land on the cell above (separator is purely cosmetic).
     let cells_row: Element<'a, Message> = container(
         row![
             address_cell(address, accent),
@@ -258,8 +253,6 @@ fn memory_row<'a>(
     .style(move |_theme| memory_row_container_style(visuals.selected, visuals.halted_here))
     .into();
 
-    // Cosmetic 1-px divider over the cells row. Hidden when this/next
-    // row is selected or halted.
     let separator_overlay: Element<'a, Message> =
         if visuals.selected || visuals.next_selected || visuals.halted_here {
             Space::new()

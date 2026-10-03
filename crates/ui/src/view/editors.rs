@@ -178,10 +178,6 @@ impl DesktopApp {
     fn actions_panel(&self) -> Element<'_, Message> {
         const CHIP_SPACING: f32 = 14.0;
 
-        // Two leftmost buttons are tumblers driven by `self.running`:
-        // run/pause is gated on `cpu.pc` inside `toggle_run`;
-        // step/restart swaps `StepInstruction` ↔ `RestartProgram`
-        // (ResetCpu + Run, RAM preserved).
         let (run_icon, run_accent, run_tooltip) = if self.running {
             (icons::pause(), tokyo_red(), self.lang.t(Key::ActionPause))
         } else {
@@ -205,8 +201,6 @@ impl DesktopApp {
             )
         };
 
-        // Post-HLT latch greys out every execution chip until reset.
-        // `apply_snapshot` clears it on the first non-halted snapshot.
         let blocked = self.run_blocked_after_halt;
         let gate = |msg: Message| if blocked { None } else { Some(msg) };
         let step_shortcut = if self.running {
@@ -275,8 +269,6 @@ impl DesktopApp {
             Length::Shrink,
         );
 
-        // Widths differ by exactly 52 px (one chip + one CHIP_SPACING
-        // gap) so the centred strips leave equal slack on either side.
         const EXECUTION_PANEL_WIDTH: f32 = 186.0;
         const RESET_PANEL_WIDTH: f32 = 134.0;
 

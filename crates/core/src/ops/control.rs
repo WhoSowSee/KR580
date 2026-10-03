@@ -17,7 +17,7 @@ impl Cpu8080State {
         t_states: u8,
     ) -> InstructionStep {
         if opcode & 0xC7 == 0xC0 {
-            // Rcond: WZ records the popped target only when taken.
+            // An untaken conditional return leaves WZ unchanged.
             let taken = self.condition((opcode >> 3) & 7);
             if taken {
                 let target = self.pop_word();
@@ -36,9 +36,7 @@ impl Cpu8080State {
         }
 
         if opcode & 0xC7 == 0xC2 {
-            // Jcond/Ccond: both operand bytes are fetched into WZ
-            // before the flag test, so WZ holds the target even on
-            // not-taken branches.
+            // Conditional jumps/calls fetch their target into WZ even when the condition fails.
             let target = self.fetch_word(1);
             self.registers.set_wz(target);
             let taken = self.condition((opcode >> 3) & 7);
@@ -70,7 +68,7 @@ impl Cpu8080State {
         }
 
         if opcode & 0xC7 == 0xC7 {
-            // RST n: synthesised target `n*8` parks in WZ (W=0, Z=n*8).
+            // RST synthesizes its target in WZ without fetching an immediate operand.
             let rst = (opcode >> 3) & 7;
             let target = u16::from(rst) * 8;
             self.push_word(self.pc.wrapping_add(1));

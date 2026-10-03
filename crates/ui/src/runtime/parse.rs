@@ -1,7 +1,3 @@
-//! Free helper functions used by the runtime: hex parsing, normalization,
-//! and a couple of small calculators that don't need access to
-//! `DesktopApp` state.
-
 use crate::app::{MEMORY_SCROLL_ID, Message, REGISTER_ORDER};
 use iced::Task;
 use iced::widget::operation;
@@ -112,13 +108,7 @@ pub(super) fn register_index(register: RegisterName) -> usize {
         .unwrap_or(0)
 }
 
-/// Adds `delta` to a byte and clamps the result into `0x00..=0xFF`. Used
-/// by the ArrowUp/ArrowDown handlers on byte-typed inputs so that
-/// stepping past either end of the range becomes a no-op instead of
-/// wrapping around (which would silently change a `00` into `FF` on a
-/// single keystroke). `delta` is `i32` for ergonomic call sites; only
-/// values in `i16`'s range can ever change the result, which is well
-/// within what we ever pass.
+/// Clamps byte edits to 00..FF without wrapping.
 pub(super) fn saturating_step_u8(value: u8, delta: i32) -> u8 {
     (value as i32 + delta).clamp(0, u8::MAX as i32) as u8
 }

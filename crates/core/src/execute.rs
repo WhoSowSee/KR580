@@ -20,9 +20,7 @@ impl Cpu8080State {
         }
 
         let pending_before = self.interrupt_enable_pending;
-        // `fetch_opcode` (not `memory.read`): M1 must latch the byte
-        // into IR and bus buffers so the schematic readouts reflect
-        // real bus traffic, not a look-ahead at PC.
+        // M1 must latch the opcode so HLT readouts do not follow the advanced PC.
         let opcode = self.fetch_opcode();
         let outcome = self.execute_opcode(opcode, bus)?;
         if pending_before && self.interrupt_enable_pending {

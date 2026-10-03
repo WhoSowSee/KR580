@@ -52,9 +52,7 @@ impl DesktopApp {
         {
             self.settings_notice = None;
         }
-        // `pending_follow_pc` covers a fast run that auto-paused
-        // inside one tick: by the time we read `running` here it's
-        // already false.
+        // A fast run can auto-pause before Tick reads running; its final PC still needs following.
         if self.running || self.pending_follow_pc {
             let was_pending = self.pending_follow_pc;
             self.pending_follow_pc = false;
@@ -147,8 +145,6 @@ impl DesktopApp {
             self.focused_input = resolved;
             return iced::advanced::widget::operate(crate::runtime::unfocus_except(id)).discard();
         }
-        // Miss = dead-space click or layout-race false negative;
-        // poll iced for the ground truth.
         iced::advanced::widget::operate(crate::runtime::find_focused_optional())
             .map(Message::ResolveFocusedTracker)
     }

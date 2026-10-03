@@ -131,7 +131,6 @@ impl DesktopApp {
             self.lang.t(Key::FileDropOpenHint),
         );
 
-        // Notice stacking order, bottom to top: halt → error.
         let app_with_overlays: Element<'_, Message> =
             if let Some(notice) = self.halt_notice.as_deref() {
                 stack![app_with_menu, halt_notice_overlay(notice)]
@@ -152,9 +151,6 @@ impl DesktopApp {
                 app_with_overlays
             };
 
-        // One scrim covers both interactive overlays (opcode picker
-        // and menu dropdown). Their dropdowns sit inside `opaque` so
-        // inner clicks don't bubble up.
         let scrimmed: Element<'_, Message> = if self.opcode_dropdown_address.is_some() {
             mouse_area(app_with_overlays)
                 .on_press(Message::HideOpcodeDropdown)

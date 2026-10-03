@@ -27,9 +27,6 @@ impl SettingsCategory {
     }
 }
 
-/// Footer button focus. `Tab` cycles forward, `Shift+Tab` backward,
-/// `Enter` activates whichever side is focused. Defaults to `Cancel`
-/// so an accidental `Enter` press does not commit a draft change.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FooterFocus {
     Reset,
@@ -82,9 +79,6 @@ impl FooterFocus {
     }
 }
 
-/// Reset-confirm sub-modal focus. Two buttons (Cancel / Confirm), Tab
-/// toggles between them. Defaults to `Cancel` so a stray `Enter` does
-/// not destroy settings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ResetConfirmFocus {
     Cancel,
@@ -100,9 +94,6 @@ impl ResetConfirmFocus {
     }
 }
 
-/// Top-level keyboard zone. `Ctrl+Tab` cycles forward through these
-/// zones, `Ctrl+Shift+Tab` backward; plain `Tab` walks within the
-/// active zone.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SettingsSection {
     Search,
@@ -125,9 +116,6 @@ impl SettingsSection {
     }
 }
 
-/// Focus inside the right-hand content pane. Order matches the
-/// vertical layout: language anchor on top, then the speed segments
-/// left-to-right, or the theme picker on the Appearance tab.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ContentFocus {
     LanguageAnchor,

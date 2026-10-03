@@ -207,16 +207,12 @@ impl DesktopApp {
         self.select_register_target(RegisterInlineTarget::for_register(REGISTER_ORDER[next]));
     }
 
-    /// Tags the undo entry with `(before, after)` so Ctrl+Z restores
-    /// the editor to whichever register the user was *editing*, not
-    /// whichever register the follow-on step walked to.
+    /// Undo restores the register being edited before any following selection step.
     fn apply_register_with_step_selection(&mut self, register_after: RegisterName) {
         let register_before = self.selected_register;
         self.apply_register_inner(Some((register_before, register_after)));
     }
 
-    /// Inlines the dispatch instead of going through `dispatch_with_undo`
-    /// so the undo entry can carry the optional register selection.
     fn apply_register_inner(&mut self, register_selection: Option<(RegisterName, RegisterName)>) {
         self.commit_replacement(REGISTER_NAME_INPUT_ID);
         self.commit_replacement(REGISTER_VALUE_INPUT_ID);
