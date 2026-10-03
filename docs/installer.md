@@ -1,5 +1,9 @@
 # Installer
 
+Windows PATH registry reads validate the string type and even UTF-16 byte count
+before filling the native buffer, including a second validation after the read.
+Malformed registry data fails the operation without changing PATH.
+
 `kr580` builds four desktop-facing binaries:
 
 - `kr580` - the GUI emulator.

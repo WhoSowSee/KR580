@@ -2,6 +2,9 @@ use super::super::contains_path_entry;
 use k580_ui::install_mode::InstallScope;
 use std::path::Path;
 
+#[cfg(test)]
+mod tests;
+
 pub fn add_to_path(bin_dir: &Path, scope: InstallScope) -> Result<bool, String> {
     let target = bin_dir
         .to_str()
@@ -106,14 +109,17 @@ fn read_path_value(
         unsafe { RegCloseKey(key) };
         return Ok(String::new());
     }
-    if status != ERROR_SUCCESS || (value_type != REG_SZ && value_type != REG_EXPAND_SZ) {
+    if status != ERROR_SUCCESS
+        || (value_type != REG_SZ && value_type != REG_EXPAND_SZ)
+        || !value_bytes.is_multiple_of(2)
+    {
         // SAFETY: `key` was opened by `RegOpenKeyExW` above.
         unsafe { RegCloseKey(key) };
         return Err(format!("query PATH length failed: {status}"));
     }
 
     let mut value = vec![0u16; value_bytes as usize / std::mem::size_of::<u16>()];
-    // SAFETY: `value` is sized from Windows' reported byte count for this registry value.
+    // SAFETY: The validated even byte count fits the initialized UTF-16 allocation; key/name stay live.
     let status = unsafe {
         RegQueryValueExW(
             key,
@@ -126,7 +132,10 @@ fn read_path_value(
     };
     // SAFETY: `key` was opened by `RegOpenKeyExW` above.
     unsafe { RegCloseKey(key) };
-    if status != ERROR_SUCCESS {
+    if status != ERROR_SUCCESS
+        || (value_type != REG_SZ && value_type != REG_EXPAND_SZ)
+        || !value_bytes.is_multiple_of(2)
+    {
         return Err(format!("query PATH failed: {status}"));
     }
 
