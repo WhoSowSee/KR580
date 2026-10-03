@@ -85,7 +85,7 @@ fn storage_worker_writes_to_configured_file() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let path = unique_temp_path("floppy.kpd");
     let mut bus = IoBus::default();
-    bus.floppy.attach_file(&path, runtime.handle());
+    bus.floppy.attach_file(&path, runtime.handle()).unwrap();
     bus.output(IoBus::FLOPPY_PORT, 0x41).unwrap();
     bus.floppy.flush().unwrap();
     runtime.block_on(async { tokio::time::sleep(Duration::from_millis(50)).await });
@@ -101,7 +101,7 @@ fn storage_visible_buffer_can_be_cleared_without_resetting_file_state() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let path = unique_temp_path("floppy-clear.kpd");
     let mut bus = IoBus::default();
-    bus.floppy.attach_file(&path, runtime.handle());
+    bus.floppy.attach_file(&path, runtime.handle()).unwrap();
     bus.output(IoBus::FLOPPY_PORT, b'A').unwrap();
 
     bus.floppy.clear_visible_buffer();
@@ -122,9 +122,6 @@ fn network_no_data_is_non_fatal_and_buffers_are_separate() {
         .configure(NetworkMode::Client, "127.0.0.1", 5800);
     assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0);
     assert_eq!(bus.snapshot().network.status, DeviceStatus::NoData);
-    bus.network.queue_received(0);
-    assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0);
-    assert_eq!(bus.snapshot().network.status, DeviceStatus::Connected);
 
     assert!(matches!(
         bus.output(IoBus::NETWORK_PORT, 0x10),
@@ -133,6 +130,11 @@ fn network_no_data_is_non_fatal_and_buffers_are_separate() {
     bus.network.queue_received(0x55);
     assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0x55);
     assert_eq!(bus.snapshot().network.tx_buffer, vec![0x10]);
+    assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0);
+    assert_eq!(bus.snapshot().network.status, DeviceStatus::NoData);
+    bus.network.queue_received(0);
+    assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0);
+    assert_eq!(bus.snapshot().network.status, DeviceStatus::Connected);
 }
 
 #[test]

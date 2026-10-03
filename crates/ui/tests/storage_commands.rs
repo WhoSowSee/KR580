@@ -45,7 +45,8 @@ fn clear_floppy_buffer_command_clears_visible_device_buffers() {
     emulator
         .bus_mut()
         .floppy
-        .attach_file(&path, runtime.handle());
+        .attach_file(&path, runtime.handle())
+        .unwrap();
     emulator.handle_command(AppCommand::WritePort(0x01, b'A'));
 
     emulator.handle_command(AppCommand::ClearFloppyBuffer);
@@ -84,7 +85,19 @@ fn detach_floppy_image_command_disconnects_file_backed_storage() {
 fn attaching_a_directory_reports_a_storage_error() {
     let mut emulator = Emulator::default();
     let path = std::env::temp_dir();
-    emulator.handle_command(AppCommand::AttachFloppyImage(path));
+    let events = emulator.handle_command(AppCommand::Request {
+        id: k580_ui::backend::RequestId(1),
+        command: Box::new(AppCommand::AttachFloppyImage(path)),
+    });
+    assert!(
+        events
+            .iter()
+            .any(|event| matches!(event, k580_ui::backend::AppEvent::ErrorRaised(_)))
+    );
+    assert!(events.iter().any(|event| matches!(
+        event,
+        k580_ui::backend::AppEvent::CommandFinished { result: Err(_), .. }
+    )));
     let floppy = emulator.snapshot().devices.floppy;
     assert!(matches!(floppy.status, DeviceStatus::Error(_)));
     assert!(floppy.last_error.is_some());

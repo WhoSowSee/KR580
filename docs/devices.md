@@ -80,6 +80,10 @@ Both modes share the meta strip (phase, text cursor, pixel count, last command) 
 
 ## Storage inspection windows
 
+`StorageDevice::attach_file` returns a typed `Result`. Open/create failures set
+the device's error state and fail the matching backend command, so an attachment
+cannot publish a successful completion or update the saved path after an error.
+
 `StorageState` is re-exported from the internal `kr580` backend module for UI rendering. The
 Дисковод quick-access chip opens a modal over
 `AppSnapshot.devices.floppy`; it renders accepted `visible_buffer`

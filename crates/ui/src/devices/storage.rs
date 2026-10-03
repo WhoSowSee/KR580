@@ -52,7 +52,11 @@ impl StorageDevice {
         }
     }
 
-    pub fn attach_file(&mut self, path: impl AsRef<Path>, handle: &tokio::runtime::Handle) {
+    pub fn attach_file(
+        &mut self,
+        path: impl AsRef<Path>,
+        handle: &tokio::runtime::Handle,
+    ) -> Result<(), DeviceError> {
         self.detach_file();
         let path = path.as_ref().to_path_buf();
         let file = match OpenOptions::new().create(true).append(true).open(&path) {
@@ -65,7 +69,7 @@ impl StorageDevice {
                 self.state.worker_alive = false;
                 self.tx = None;
                 self.error_rx = None;
-                return;
+                return Err(error);
             }
         };
         let (tx, mut rx) = mpsc::unbounded_channel();
@@ -97,6 +101,7 @@ impl StorageDevice {
         self.state.debug_buffer = false;
         self.tx = Some(tx);
         self.error_rx = Some(error_rx);
+        Ok(())
     }
 
     pub fn detach_file(&mut self) {

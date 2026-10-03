@@ -328,13 +328,19 @@ impl Emulator {
                 self.bus.floppy.clear_visible_buffer();
             }
             AppCommand::AttachFloppyImage(path) => {
-                self.bus.floppy.attach_file(path, self.io_runtime.handle());
+                self.bus
+                    .floppy
+                    .attach_file(path, self.io_runtime.handle())
+                    .map_err(|error| AppError::Io(error.to_string()))?;
             }
             AppCommand::DetachFloppyImage => {
                 self.bus.floppy.detach_file();
             }
             AppCommand::AttachHddFile(path) => {
-                self.bus.hdd.attach_file(path, self.io_runtime.handle());
+                self.bus
+                    .hdd
+                    .attach_file(path, self.io_runtime.handle())
+                    .map_err(|error| AppError::Io(error.to_string()))?;
             }
             AppCommand::SetHddDebugBuffer(enabled) => {
                 self.bus.hdd.set_debug_buffer(enabled);
