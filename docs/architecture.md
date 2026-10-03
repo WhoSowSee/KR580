@@ -71,6 +71,12 @@ that completion range for subsequent subprogram saves.
 
 ## Invariants
 
+Backend failures carry `ErrorData`: a typed `AppErrorKind` and an Arc-owned
+original error with its `source()` chain. Cloning an event preserves the cause;
+`Display` is diagnostic only. Persistence conversions classify the concrete
+variant and `io::ErrorKind`, so OS codes with different meanings cannot change
+UI localization. `backend/error/` separates data, categories and conversions.
+
 - `prompt/` is the source of truth for behavior, file formats, and quality gates.
 - CPU state is owned by `k580-core` and the internal backend actor, never by UI widgets.
 - Device state is owned by the internal `devices` module; `IN`/`OUT` route through `PortBus`.

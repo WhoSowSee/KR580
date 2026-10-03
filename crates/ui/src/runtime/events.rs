@@ -55,8 +55,8 @@ impl DesktopApp {
             AppEvent::ErrorRaised(error) => {
                 self.running = false;
                 self.pending_follow_pc = true;
-                let raw = error.to_string();
-                let humanized = humanize_error::humanize(&raw, self.lang);
+                tracing::error!(%error, "backend command failed");
+                let humanized = humanize_error::humanize(&error, self.lang);
                 self.set_status_custom(humanized.clone());
                 self.error_notice =
                     Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), humanized));

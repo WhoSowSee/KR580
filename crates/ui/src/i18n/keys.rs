@@ -132,6 +132,6 @@ scalar_keys! {
     SubprogramRangeInvalid,
     ErrSettingsNewerVersion, ErrSettingsCorrupt, ErrCannotReadFileFormat, ErrCannotReadFile,
     ErrCannotWriteTable, ErrCannotWriteFile, ErrFileNotFound, ErrPermissionDenied,
-    ErrFileAlreadyExists, ErrDiskFull, ErrIoGeneric, ErrAddressOutOfRange, ErrUnknownRegister,
-    ErrUndocumentedOpcode, ErrFloppyImageNotAttached, ErrInternal, ErrGenericFailed,
+    ErrFileAlreadyExists, ErrDiskFull, ErrIoGeneric, ErrAddressOutOfRange,
+    ErrUndocumentedOpcode, ErrDeviceNotReady, ErrInternal, ErrGenericFailed,
 }

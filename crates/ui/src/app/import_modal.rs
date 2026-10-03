@@ -155,7 +155,7 @@ impl DesktopApp {
                 self.import_target_input.clear();
                 self.import_modal_focus = ImportModalFocus::Browse;
                 self.import_error = Some(crate::runtime::humanize_error::humanize(
-                    &err.to_string(),
+                    &err.into(),
                     self.lang,
                 ));
             }

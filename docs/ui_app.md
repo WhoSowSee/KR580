@@ -189,14 +189,9 @@ RAM-range dialog. Detached device windows do not accept program drops.
   - `runtime/focus_ops.rs` – custom `Focusable` operations
     (`find_focusable_at`, `find_focused_optional`, `unfocus_except`)
     used by post-click focus reconciliation.
-  - `runtime/humanize_error.rs` – translates English `AppError` Display
-    strings into short Russian phrases for the floating overlay. The
-    patterns are matched in order and must stay narrow enough that an
-    unrecognized error falls through to the honest fallback rather than
-    being labelled as something else: `os error N` is matched with its
-    closing paren, because `os error 2` is also a prefix of `os error 28`
-    (disk full), and disk exhaustion is matched by its actual phrases
-    rather than by the word `disk`.
+  - `runtime/humanize_error.rs` – maps typed `AppErrorKind` categories to
+    localized labels. Display wording and platform error numbers are never
+    parsed. Unknown bridge errors retain their diagnostic text in the fallback.
   - `runtime/parse.rs` – small free helpers (hex parsing,
     `saturating_step_u8`, `scroll_memory_to`).
   - `runtime/undo.rs` – applies a popped `UndoEntry` back to live

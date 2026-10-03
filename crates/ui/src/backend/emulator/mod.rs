@@ -145,7 +145,7 @@ impl Emulator {
         let mut events = Vec::new();
         match command {
             AppCommand::Request { .. } => {
-                return Err(AppError::Io("nested backend request".to_owned()));
+                return Err(AppError::Io("nested backend request".to_owned().into()));
             }
             AppCommand::ResetCpu => {
                 let was_running = self.running;
@@ -331,7 +331,7 @@ impl Emulator {
                 self.bus
                     .floppy
                     .attach_file(path, self.io_runtime.handle())
-                    .map_err(|error| AppError::Io(error.to_string()))?;
+                    .map_err(AppError::from)?;
             }
             AppCommand::DetachFloppyImage => {
                 self.bus.floppy.detach_file();
@@ -340,7 +340,7 @@ impl Emulator {
                 self.bus
                     .hdd
                     .attach_file(path, self.io_runtime.handle())
-                    .map_err(|error| AppError::Io(error.to_string()))?;
+                    .map_err(AppError::from)?;
             }
             AppCommand::SetHddDebugBuffer(enabled) => {
                 self.bus.hdd.set_debug_buffer(enabled);
@@ -368,7 +368,7 @@ impl Emulator {
                 self.bus
                     .printer
                     .print_native(settings, self.io_runtime.handle())
-                    .map_err(|error| crate::backend::AppError::Io(error.to_string()))?;
+                    .map_err(AppError::from)?;
             }
             AppCommand::Shutdown => {
                 self.running = false;
