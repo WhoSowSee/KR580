@@ -133,20 +133,14 @@ fn should_log_settings_load_error(error: &SettingsError) -> bool {
     !matches!(error, SettingsError::Io(source) if source.kind() == std::io::ErrorKind::NotFound)
 }
 
-/// Saves settings best-effort. Errors are logged but not surfaced to the
-/// user – losing a single settings write is recoverable (defaults next
-/// time) and we do not want a popup for IO hiccups.
-pub(crate) fn save_settings(settings: &Settings) {
+pub(crate) fn save_settings(
+    settings: &Settings,
+) -> Result<(), k580_ui::persistence::SettingsError> {
     let path = settings_path();
-    if let Some(parent) = path.parent()
-        && let Err(error) = std::fs::create_dir_all(parent)
-    {
-        tracing::warn!(?path, %error, "settings directory create failed");
-        return;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
     }
-    if let Err(error) = SettingsStore::save(&path, settings) {
-        tracing::warn!(?path, %error, "settings save failed");
-    }
+    SettingsStore::save(&path, settings)
 }
 
 pub(crate) fn speed_tier_from_preset(preset: SpeedPreset) -> SpeedTier {

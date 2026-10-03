@@ -2541,6 +2541,13 @@ and the dialog draft with defaults.
 
 ### Settings dialog: live preview, sub-modal, persistence
 
+Manual Save and Reset advance the dialog's original/cancel state and display
+their success notice only after settings storage succeeds. A write failure
+clears stale success notices, keeps the draft and original cancel baseline,
+and shows a localized error. Printer profile writes use the same failure rule.
+`app/update_settings/persistence.rs` owns storage results and success notices;
+the main settings router and reset handler share that completion policy.
+
 `SettingsDialog` holds tentative `draft_lang`, `draft_speed`, `draft_color_scheme`,
 `draft_show_file_name`, and `draft_monitor_split` values; `original_lang`, `original_speed`, and
 `original_color_scheme` snapshot the latest committed state, initially

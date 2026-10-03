@@ -71,7 +71,9 @@ impl DesktopApp {
             name: name.clone(),
             settings,
         });
-        save_settings(&stored);
+        if !self.persist_printer_presets(&stored) {
+            return;
+        }
         self.reload_property_presets(Some(name));
     }
 
@@ -94,7 +96,9 @@ impl DesktopApp {
             .general
             .printer_presets
             .retain(|preset| preset.name != name || preset.settings.printer_name != printer_name);
-        save_settings(&stored);
+        if !self.persist_printer_presets(&stored) {
+            return;
+        }
         self.reload_property_presets(None);
     }
 
@@ -117,6 +121,19 @@ impl DesktopApp {
             properties.selected_preset = selected.clone();
             properties.preset_name = selected.unwrap_or_default();
             properties.error = None;
+        }
+    }
+
+    fn persist_printer_presets(&mut self, stored: &crate::persistence::Settings) -> bool {
+        match save_settings(stored) {
+            Ok(()) => true,
+            Err(error) => {
+                let notice = crate::runtime::humanize_error::humanize(&error.into(), self.lang);
+                if let Some(properties) = self.properties_mut() {
+                    properties.error = Some(notice);
+                }
+                false
+            }
         }
     }
 }

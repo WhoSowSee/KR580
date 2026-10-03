@@ -1,15 +1,20 @@
-use std::time::Instant;
+mod network;
+mod persistence;
+mod reset;
+mod section;
+mod shortcuts;
+mod storage;
+
+use network::parse_network_defaults;
+use section::cycle_section;
 
 use super::constants::SETTINGS_SEARCH_INPUT_ID;
 use super::messages::Message;
 use super::settings_modal::SettingsDialog;
 use super::settings_modal::{FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsSection};
-use super::settings_notice::SettingsNotice;
 use super::state::DesktopApp;
 use crate::i18n::Key;
-use crate::settings_storage::{
-    language_from_lang, load_settings, preset_from_speed_tier, save_settings,
-};
+use crate::settings_storage::load_settings;
 use iced::Task;
 
 impl DesktopApp {
@@ -84,9 +89,8 @@ impl DesktopApp {
                         return Some(Task::none());
                     }
                 };
-                self.save_settings_dialog(dialog, network);
-                self.commit_settings_dialog_state();
-                self.show_settings_notice(Key::SettingsSavedNotice);
+                let result = self.save_settings_dialog(dialog, network);
+                self.finish_settings_save(result, Key::SettingsSavedNotice);
                 Some(Task::none())
             }
             Message::SettingsCategorySelected(category) => {
@@ -282,8 +286,8 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SettingsResetConfirmed => {
-                self.reset_settings();
-                self.show_settings_notice(Key::SettingsResetNotice);
+                let result = self.reset_settings();
+                self.finish_settings_save(result, Key::SettingsResetNotice);
                 Some(Task::none())
             }
             Message::SettingsFileAssociationRegister => {
@@ -345,40 +349,4 @@ impl DesktopApp {
         dialog.original_printer_dialog_mode = dialog.draft_printer_dialog_mode;
         dialog.original_shortcuts = dialog.draft_shortcuts.clone();
     }
-
-    fn save_settings_dialog(&self, dialog: &SettingsDialog, network: NetworkDefaults) {
-        let mut settings = load_settings();
-        settings.general.language = language_from_lang(self.lang);
-        settings.general.default_speed = preset_from_speed_tier(self.default_speed);
-        settings.general.follow_pc = dialog.draft_follow_pc;
-        settings.general.memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
-        settings.general.show_file_name = dialog.draft_show_file_name;
-        settings.general.monitor_split = dialog.draft_monitor_split;
-        settings.general.floppy_image_path = dialog.draft_floppy_image_path.clone();
-        settings.general.hdd_directory = dialog.draft_hdd_directory.clone();
-        settings
-            .general
-            .set_printer_settings(dialog.draft_printer_settings.clone());
-        settings.general.printer_dialog_mode = dialog.draft_printer_dialog_mode;
-        settings.ui.theme = dialog.draft_color_scheme;
-        apply_network_defaults(&mut settings.network, network);
-        settings.shortcuts = dialog.draft_shortcuts.clone();
-        save_settings(&settings);
-    }
-
-    fn show_settings_notice(&mut self, message_key: Key) {
-        let started_at = Instant::now();
-        self.settings_notice = Some(match self.settings_notice.take() {
-            Some(notice) => notice.restarted(message_key, started_at),
-            None => SettingsNotice::new(message_key, started_at),
-        });
-    }
 }
-
-mod network;
-mod reset;
-mod section;
-mod shortcuts;
-mod storage;
-use network::{NetworkDefaults, apply_network_defaults, parse_network_defaults};
-use section::cycle_section;

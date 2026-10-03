@@ -51,7 +51,10 @@ impl DesktopApp {
 
         let mut settings = load_settings();
         settings.storage.floppy_path = path.clone();
-        save_settings(&settings);
+        if let Err(error) = save_settings(&settings) {
+            let notice = crate::runtime::humanize_error::humanize(&error.into(), self.lang);
+            self.show_error_notice(notice);
+        }
         self.refresh_hdd_file_exists();
         self.set_status(StatusKind::FloppyImageAttached {
             display: path.display().to_string(),
