@@ -17,7 +17,6 @@ use crate::view::icons;
 mod association;
 mod rows;
 use association::file_association_row;
-use rows::*;
 
 const SCROLL_HINT_HEIGHT: f32 = 24.0;
 const SCROLL_HINT_ICON_SIZE: f32 = 12.0;
@@ -244,7 +243,7 @@ fn collect_category_rows<'a>(
                 lang,
                 lower_query,
             ) {
-                out.push(follow_pc_toggle_row(dialog, lang));
+                out.push(rows::follow_pc_toggle_row(dialog, lang));
             }
             if matches_query(
                 &[
@@ -254,7 +253,7 @@ fn collect_category_rows<'a>(
                 lang,
                 lower_query,
             ) {
-                out.push(memory_operand_highlighting_row(dialog, lang));
+                out.push(rows::memory_operand_highlighting_row(dialog, lang));
             }
             if matches_query(
                 &[
@@ -264,7 +263,7 @@ fn collect_category_rows<'a>(
                 lang,
                 lower_query,
             ) {
-                out.push(show_file_name_toggle_row(dialog, lang));
+                out.push(rows::show_file_name_toggle_row(dialog, lang));
             }
             if k580_ui::file_assoc::is_user_configurable()
                 && matches_query(
@@ -287,7 +286,7 @@ fn collect_category_rows<'a>(
                 lang,
                 lower_query,
             ) {
-                out.push(floppy_image_row(dialog, lang));
+                out.push(rows::floppy_image_row(dialog, lang));
             }
             if matches_query(
                 &[
@@ -297,7 +296,7 @@ fn collect_category_rows<'a>(
                 lang,
                 lower_query,
             ) {
-                out.push(hdd_directory_row(dialog, lang));
+                out.push(rows::hdd_directory_row(dialog, lang));
             }
             if matches_query(
                 &[
@@ -310,7 +309,7 @@ fn collect_category_rows<'a>(
                 lang,
                 lower_query,
             ) {
-                out.push(printer_default_row(dialog, lang));
+                out.push(rows::printer_default_row(dialog, lang));
             }
             if matches_query(
                 &[
@@ -322,7 +321,7 @@ fn collect_category_rows<'a>(
                 lang,
                 lower_query,
             ) {
-                out.push(printer_dialog_mode_row(dialog, lang));
+                out.push(rows::printer_dialog_mode_row(dialog, lang));
             }
             if matches_query(
                 &[
@@ -334,7 +333,7 @@ fn collect_category_rows<'a>(
                 lang,
                 lower_query,
             ) {
-                out.push(monitor_layout_row(dialog, lang));
+                out.push(rows::monitor_layout_row(dialog, lang));
             }
             if matches_query(
                 &[
