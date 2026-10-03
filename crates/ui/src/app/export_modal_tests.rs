@@ -9,7 +9,7 @@ use crate::persistence::{ExportFlagKind, ExportRegisterKind};
 #[test]
 fn export_opens_with_defaults_and_can_switch_to_import() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     let _task = app.update(Message::OpenMonitor);
 
     let _task = app.update(Message::Export);
@@ -75,7 +75,7 @@ fn language_change_relocalizes_generated_export_targets() {
 #[test]
 fn tab_cycles_export_modal_focus_through_tabs_and_settings() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::FocusCycle { backward: false });
@@ -92,7 +92,7 @@ fn tab_cycles_export_modal_focus_through_tabs_and_settings() {
 #[test]
 fn selecting_text_tab_changes_active_tab_without_closing_modal() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportTabSelected(ExportTab::Text));
@@ -106,7 +106,7 @@ fn selecting_text_tab_changes_active_tab_without_closing_modal() {
 #[test]
 fn toggling_register_updates_export_selection() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ToggleExportRegister(ExportRegister::B));
@@ -118,7 +118,7 @@ fn toggling_register_updates_export_selection() {
 #[test]
 fn toggling_flag_updates_export_selection() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ToggleExportFlag(ExportFlag::Zero));
@@ -152,7 +152,7 @@ fn selected_flags_follow_visible_flag_strip_order() {
 #[test]
 fn esc_clears_export_input_focus_without_closing_modal() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
@@ -165,7 +165,7 @@ fn esc_clears_export_input_focus_without_closing_modal() {
 #[test]
 fn esc_clears_export_checkbox_focus_without_closing_modal() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ToggleExportFlag(ExportFlag::Zero));
@@ -178,7 +178,7 @@ fn esc_clears_export_checkbox_focus_without_closing_modal() {
 #[test]
 fn mouse_press_clears_export_value_focus_without_closing_modal() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
@@ -191,7 +191,7 @@ fn mouse_press_clears_export_value_focus_without_closing_modal() {
 #[test]
 fn captured_mouse_press_keeps_export_value_focus() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
@@ -204,7 +204,7 @@ fn captured_mouse_press_keeps_export_value_focus() {
 #[test]
 fn esc_closes_export_modal_without_value_focus() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::EscPressed);
@@ -215,7 +215,7 @@ fn esc_closes_export_modal_without_value_focus() {
 #[test]
 fn text_tab_uses_separate_section_list_for_export_target() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportTabSelected(ExportTab::Text));
@@ -231,7 +231,7 @@ fn text_tab_uses_separate_section_list_for_export_target() {
 #[test]
 fn adding_existing_export_target_without_open_dropdown_keeps_dropdown_closed() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportTargetAdd);
@@ -246,7 +246,7 @@ fn adding_existing_export_target_without_open_dropdown_keeps_dropdown_closed() {
 #[test]
 fn adding_existing_export_target_with_open_dropdown_keeps_dropdown_open() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportTargetDropdownToggled);
@@ -262,7 +262,7 @@ fn adding_existing_export_target_with_open_dropdown_keeps_dropdown_open() {
 #[test]
 fn deleting_export_target_falls_back_to_remaining_session_entry() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportTargetChanged("Лист 2".to_owned()));
@@ -279,7 +279,7 @@ fn deleting_export_target_falls_back_to_remaining_session_entry() {
 #[test]
 fn deleting_export_target_with_open_dropdown_keeps_dropdown_open() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportTargetChanged("Лист 2".to_owned()));
@@ -297,7 +297,7 @@ fn deleting_export_target_with_open_dropdown_keeps_dropdown_open() {
 #[test]
 fn export_options_parse_range_and_selected_registers() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
     app.export_memory_start_input = "0010".to_owned();
     app.export_memory_end_input = "001F".to_owned();
@@ -328,7 +328,7 @@ fn export_options_parse_range_and_selected_registers() {
 #[test]
 fn text_export_options_include_all_session_sections_with_own_ranges() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportTabSelected(ExportTab::Text));
@@ -352,7 +352,7 @@ fn text_export_options_include_all_session_sections_with_own_ranges() {
 #[test]
 fn xlsx_export_options_include_all_session_pages_with_own_ranges() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.apply_language(Lang::Ru);
     app.open_export_modal();
 
     let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
