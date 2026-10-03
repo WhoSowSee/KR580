@@ -55,18 +55,12 @@ pub(super) fn control(
     .style(move |_theme, status| dropdown_anchor_style(status, control.opened, control.focused));
 
     let item_count = items.len();
-    let options = column(
-        items
-            .into_iter()
-            .enumerate()
-            .map(|(index, item)| {
-                let emphasized = control
-                    .highlighted
-                    .map_or(item.selected, |value| value == index);
-                dropdown_option(item, emphasized)
-            })
-            .collect::<Vec<_>>(),
-    )
+    let options = column(items.into_iter().enumerate().map(|(index, item)| {
+        let emphasized = control
+            .highlighted
+            .map_or(item.selected, |value| value == index);
+        dropdown_option(item, emphasized)
+    }))
     .spacing(0)
     .width(Length::Fill);
     let options = scrollable(options)
