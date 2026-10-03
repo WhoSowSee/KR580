@@ -2314,6 +2314,11 @@ bidirectional Russian/English table for driver-supplied labels;
 `view/printer_setup/properties.rs` and its submodules – the embedded
 properties tabs, feature controls, profiles, and preview.
 
+Opening a device from an `IN`/`OUT` operand forwards the complete device-opening
+task. `Alt+Enter` therefore applies native window closing and detached-window
+focus actions as well as updating the attached-panel state, while retaining the
+selected RAM address and scroll position.
+
 ## Keyboard shortcuts
 
 The defaults below can be changed in Settings → Shortcuts. Modifier names

@@ -302,8 +302,7 @@ impl DesktopApp {
                 if let Some(port) = crate::view::operand_port_number(address, memory)
                     && let Some(open) = open_device_message(port)
                 {
-                    let _ = self.update(open);
-                    return Task::none();
+                    return self.update(open);
                 }
                 if let Some(target) = crate::view::operand_jump_target(address, memory) {
                     return self.jump_from_memory_operand(address, target);
