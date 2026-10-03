@@ -52,10 +52,12 @@ pub struct NetworkDevice {
     worker_status: Arc<Mutex<NetworkWorkerStatus>>,
     worker_abort: Option<AbortHandle>,
     rx_space: Arc<Notify>,
+    generation: u64,
 }
 
 #[derive(Clone, Debug)]
 struct NetworkWorkerStatus {
+    revision: u64,
     connection: ConnectionState,
     status: DeviceStatus,
     rx_total: u64,
@@ -66,6 +68,7 @@ struct NetworkWorkerStatus {
 impl Default for NetworkWorkerStatus {
     fn default() -> Self {
         Self {
+            revision: 0,
             connection: ConnectionState::Disconnected,
             status: DeviceStatus::Disconnected,
             rx_total: 0,
@@ -95,12 +98,14 @@ impl Default for NetworkDevice {
             worker_status: Arc::new(Mutex::new(NetworkWorkerStatus::default())),
             worker_abort: None,
             rx_space: Arc::new(Notify::new()),
+            generation: 0,
         }
     }
 }
 
 impl NetworkDevice {
     pub fn configure(&mut self, mode: NetworkMode, host: impl Into<String>, port: u16) {
+        self.generation = self.generation.wrapping_add(1);
         self.stop_worker();
         self.state.mode = mode;
         self.state.host = host.into();
@@ -122,11 +127,13 @@ impl NetworkDevice {
     }
 
     pub fn start_worker(&mut self, handle: &tokio::runtime::Handle) {
+        self.generation = self.generation.wrapping_add(1);
         self.stop_worker();
         let (tx, rx_out) = mpsc::unbounded_channel();
         self.worker_rx = Arc::new(Mutex::new(VecDeque::new()));
         self.rx_space = Arc::new(Notify::new());
         self.worker_status = Arc::new(Mutex::new(NetworkWorkerStatus {
+            revision: 0,
             connection: match self.state.mode {
                 NetworkMode::Client => ConnectionState::Connecting,
                 NetworkMode::Server => ConnectionState::Listening,
@@ -197,6 +204,10 @@ impl NetworkDevice {
         value.unwrap_or(0)
     }
 
+    pub(crate) fn revision(&self) -> (u64, u64) {
+        (self.generation, self.worker_status.lock().unwrap().revision)
+    }
+
     pub fn state(&self) -> NetworkState {
         let mut state = self.state.clone();
         let worker = self.worker_status.lock().unwrap();
@@ -259,6 +270,7 @@ async fn run_worker(
     };
     {
         let mut worker = status.lock().unwrap();
+        worker.revision = worker.revision.wrapping_add(1);
         worker.connection = ConnectionState::Connected;
         worker.status = DeviceStatus::Connected;
         worker.last_error = None;
@@ -282,6 +294,7 @@ async fn run_worker(
                 queue.extend(buf[..count].iter().copied());
             }
             let mut worker = status.lock().unwrap();
+            worker.revision = worker.revision.wrapping_add(1);
             worker.rx_total += count as u64;
             worker.status = DeviceStatus::Connected;
         }
@@ -290,6 +303,7 @@ async fn run_worker(
         while let Some(byte) = rx_out.recv().await {
             write_half.write_all(&[byte]).await?;
             let mut worker = status.lock().unwrap();
+            worker.revision = worker.revision.wrapping_add(1);
             worker.tx_total += 1;
             worker.status = DeviceStatus::Connected;
         }
@@ -303,6 +317,7 @@ async fn run_worker(
         Err(error) => set_network_error(&status, error),
         Ok(()) => {
             let mut worker = status.lock().unwrap();
+            worker.revision = worker.revision.wrapping_add(1);
             worker.connection = ConnectionState::Disconnected;
             worker.status = DeviceStatus::Disconnected;
         }
@@ -311,6 +326,7 @@ async fn run_worker(
 
 fn set_network_error(status: &Arc<Mutex<NetworkWorkerStatus>>, error: std::io::Error) {
     let mut worker = status.lock().unwrap();
+    worker.revision = worker.revision.wrapping_add(1);
     worker.connection = match error.kind() {
         std::io::ErrorKind::ConnectionRefused => ConnectionState::Refused,
         std::io::ErrorKind::TimedOut => ConnectionState::TimedOut,

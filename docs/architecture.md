@@ -86,6 +86,13 @@ UI localization. `backend/error/` separates data, categories and conversions.
 
 ## Runtime shape
 
+Paused device polling drains storage/printer completions and compares a cheap
+network generation/revision before constructing an owned snapshot. Unchanged
+polls copy neither RAM nor device buffers and do not retain duplicate published
+device states. Network worker revisions advance on connect, RX/TX, EOF and
+errors; the publication baseline is captured before snapshot creation so a
+concurrent worker update is noticed by the next poll.
+
 `backend/emulator/apply.rs` owns command mutations. Undo sends `ApplyCpuDelta`
 with core control metadata and sparse cells or a full RAM replacement. The CPU
 actor owns that application and invalidates older document completions.

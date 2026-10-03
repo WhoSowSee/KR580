@@ -160,10 +160,7 @@ fn run_worker(
         }
     };
     let initial = emulator.snapshot();
-    let mut published_network = initial.devices.network.clone();
-    let mut published_printer = initial.devices.printer.clone();
-    let mut published_floppy = initial.devices.floppy.clone();
-    let mut published_hdd = initial.devices.hdd.clone();
+    let mut published_network = emulator.bus().network.revision();
     publish(
         &event_tx,
         &critical_tx,
@@ -178,6 +175,7 @@ fn run_worker(
         } else {
             never()
         };
+        let network_revision = emulator.bus().network.revision();
         select! {
             recv(command_rx) -> command => {
                 let Ok(command) = command else { break };
@@ -191,21 +189,15 @@ fn run_worker(
                         continue;
                     }
                     for event in emulator.handle_command(AppCommand::Request { id, command }) {
-                        if let AppEvent::StateChanged(snapshot) = &event {
-                            published_network = snapshot.devices.network.clone();
-                            published_printer = snapshot.devices.printer.clone();
-                            published_floppy = snapshot.devices.floppy.clone();
-                            published_hdd = snapshot.devices.hdd.clone();
+                        if matches!(event, AppEvent::StateChanged(_)) {
+                            published_network = network_revision;
                         }
                         publish(&event_tx, &critical_tx, &state_mailbox, event);
                     }
                 } else {
                     for event in emulator.handle_command(command) {
-                        if let AppEvent::StateChanged(snapshot) = &event {
-                            published_network = snapshot.devices.network.clone();
-                            published_printer = snapshot.devices.printer.clone();
-                            published_floppy = snapshot.devices.floppy.clone();
-                            published_hdd = snapshot.devices.hdd.clone();
+                        if matches!(event, AppEvent::StateChanged(_)) {
+                            published_network = network_revision;
                         }
                         publish(&event_tx, &critical_tx, &state_mailbox, event);
                     }
@@ -217,30 +209,15 @@ fn run_worker(
             }
             recv(run_tick) -> _ => {
                 for event in emulator.tick() {
-                    if let AppEvent::StateChanged(snapshot) = &event {
-                        published_network = snapshot.devices.network.clone();
-                        published_printer = snapshot.devices.printer.clone();
-                        published_floppy = snapshot.devices.floppy.clone();
-                        published_hdd = snapshot.devices.hdd.clone();
+                    if matches!(event, AppEvent::StateChanged(_)) {
+                        published_network = network_revision;
                     }
                     publish(&event_tx, &critical_tx, &state_mailbox, event);
                 }
                 next_run_at = schedule_run_tick(&emulator);
             }
             recv(device_poll) -> _ => {
-                emulator.bus_mut().floppy.poll();
-                emulator.bus_mut().hdd.poll();
-                emulator.bus_mut().printer.poll();
-                let snapshot = emulator.snapshot();
-                if snapshot.devices.network != published_network
-                    || snapshot.devices.printer != published_printer
-                    || snapshot.devices.floppy != published_floppy
-                    || snapshot.devices.hdd != published_hdd
-                {
-                    published_network = snapshot.devices.network.clone();
-                    published_printer = snapshot.devices.printer.clone();
-                    published_floppy = snapshot.devices.floppy.clone();
-                    published_hdd = snapshot.devices.hdd.clone();
+                if let Some(snapshot) = emulator.poll_devices(&mut published_network) {
                     publish(
                         &event_tx,
                         &critical_tx,
@@ -252,11 +229,8 @@ fn run_worker(
             recv(io_rx) -> completion => {
                 let Ok(completion) = completion else { break };
                 for event in emulator.finish_io(completion) {
-                    if let AppEvent::StateChanged(snapshot) = &event {
-                        published_network = snapshot.devices.network.clone();
-                        published_printer = snapshot.devices.printer.clone();
-                        published_floppy = snapshot.devices.floppy.clone();
-                        published_hdd = snapshot.devices.hdd.clone();
+                    if matches!(event, AppEvent::StateChanged(_)) {
+                        published_network = network_revision;
                     }
                     publish(&event_tx, &critical_tx, &state_mailbox, event);
                 }

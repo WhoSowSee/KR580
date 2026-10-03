@@ -119,6 +119,8 @@ CPU conditional return/call regressions build short programs in memory from
 their language explicitly. Attach tests expect Windows to retain a hidden
 window ID and Unix to close it. Parallel Windows association tests reserve
 different private registry roots with a process-local counter.
+The device polling allocation regression prepares long monitor/printer/storage
+buffers and requires zero allocations across 2000 unchanged paused polls.
 Hosted macOS and release packaging remain native CI checks; a Windows or WSL
 run alone does not verify them.
 Installer script changes must capture all three effective commands for debug
