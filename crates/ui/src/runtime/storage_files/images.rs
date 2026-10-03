@@ -69,7 +69,7 @@ impl DesktopApp {
                 Message::HddImageContentsLoaded(message_path.clone(), result)
             }
         };
-        Some(Task::perform(read_file(path.clone()), message))
+        Some(Task::perform(read_file(path), message))
     }
 
     pub(crate) fn apply_floppy_image_contents(

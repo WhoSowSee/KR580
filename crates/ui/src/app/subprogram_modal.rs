@@ -193,7 +193,7 @@ impl DesktopApp {
             Some(_) => return self.restore_subprogram_error(dialog, Key::SubprogramRangeInvalid),
             None => return self.restore_subprogram_error(dialog, Key::StatusInvalidAddressHex),
         };
-        let path = dialog.path.clone();
+        let path = dialog.path;
         let display = path.display().to_string();
         self.dispatch_pending_request(
             crate::backend::AppCommand::SaveSubprogram {
