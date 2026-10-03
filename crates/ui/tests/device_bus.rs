@@ -122,6 +122,9 @@ fn network_no_data_is_non_fatal_and_buffers_are_separate() {
         .configure(NetworkMode::Client, "127.0.0.1", 5800);
     assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0);
     assert_eq!(bus.snapshot().network.status, DeviceStatus::NoData);
+    bus.network.queue_received(0);
+    assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0);
+    assert_eq!(bus.snapshot().network.status, DeviceStatus::Connected);
 
     assert!(matches!(
         bus.output(IoBus::NETWORK_PORT, 0x10),

@@ -34,6 +34,8 @@ Snapshots publish every status of the current worker, including clean EOF as
 RX retains at most 64 KiB. The reader requests only the available capacity and
 waits for an `IN` read or Clear when full, applying TCP backpressure instead of
 discarding an already-read chunk. `rx_total` counts the bytes actually retained.
+A received `00h` byte is data. `NoData` is set only when both input queues are
+empty, even though the `IN` return value for an empty queue is also zero.
 
 `NetworkDevice::start_worker` spawns a Tokio task for client or server mode. The worker connects or binds explicitly from settings, splits the socket into read/write halves, queues received bytes into the device RX queue, drains outgoing bytes from a channel, and updates visible status/counters. The old manual `queue_received` test hook remains available for deterministic unit tests.
 

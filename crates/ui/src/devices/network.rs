@@ -184,23 +184,17 @@ impl NetworkDevice {
 
     pub fn input_byte(&mut self) -> u8 {
         self.apply_worker_status();
-        let value = self
-            .worker_rx
-            .lock()
-            .unwrap()
-            .pop_front()
-            .or_else(|| {
-                let mut rx = VecDeque::from(std::mem::take(&mut self.state.rx_buffer));
-                let value = rx.pop_front();
-                self.state.rx_buffer = rx.into();
-                value
-            })
-            .unwrap_or(0);
+        let value = self.worker_rx.lock().unwrap().pop_front().or_else(|| {
+            let mut rx = VecDeque::from(std::mem::take(&mut self.state.rx_buffer));
+            let value = rx.pop_front();
+            self.state.rx_buffer = rx.into();
+            value
+        });
         self.rx_space.notify_one();
-        if value == 0 {
+        if value.is_none() {
             self.state.status = DeviceStatus::NoData;
         }
-        value
+        value.unwrap_or(0)
     }
 
     pub fn state(&self) -> NetworkState {
