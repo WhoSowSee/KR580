@@ -5,6 +5,9 @@ use k580_core::Cpu8080State;
 use std::fs;
 use std::path::Path;
 
+mod patch;
+pub(crate) use patch::CpuPatch;
+
 pub struct Importers;
 
 impl Importers {
@@ -224,63 +227,7 @@ fn named_text_section(line: &str) -> Option<&str> {
 
 impl ExportModel {
     pub fn apply_to(&self, state: &mut Cpu8080State) -> Result<(), ImportError> {
-        for (name, value) in &self.registers {
-            match name.as_str() {
-                "A" => {
-                    state.registers.a = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "W" => {
-                    state.registers.w = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "Z" => {
-                    state.registers.z = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "B" => {
-                    state.registers.b = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "C" => {
-                    state.registers.c = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "D" => {
-                    state.registers.d = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "E" => {
-                    state.registers.e = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "H" => {
-                    state.registers.h = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "L" => {
-                    state.registers.l = parse_u8_hex(value).ok_or_else(|| reg_err(name, value))?
-                }
-                "PC" => state.pc = parse_u16_hex(value).ok_or_else(|| reg_err(name, value))?,
-                "SP" => state.sp = parse_u16_hex(value).ok_or_else(|| reg_err(name, value))?,
-                "cycles" => {
-                    state.cycle_count = value.parse::<u64>().map_err(|_| reg_err(name, value))?;
-                }
-                _ => {
-                    return Err(ImportError::Malformed(format!("unknown register `{name}`")));
-                }
-            }
-        }
-
-        for (name, set) in &self.flags {
-            match name.as_str() {
-                "S" => state.flags.sign = *set,
-                "Z" => state.flags.zero = *set,
-                "AC" => state.flags.auxiliary_carry = *set,
-                "P" => state.flags.parity = *set,
-                "C" | "CY" => state.flags.carry = *set,
-                _ => {
-                    return Err(ImportError::Malformed(format!("unknown flag `{name}`")));
-                }
-            }
-        }
-
-        for (address, value) in &self.memory {
-            state.memory.write(*address, *value);
-        }
-
+        CpuPatch::parse(self)?.apply_to(state);
         Ok(())
     }
 }

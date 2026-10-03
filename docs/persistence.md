@@ -78,4 +78,9 @@ The UI exposes both export actions, and the internal `kr580` backend routes them
 
 ## Imports
 
+Imports validate every register name, numeric value and flag before changing CPU
+state. `ExportModel::apply_to` either applies the complete model or returns an
+error with the CPU unchanged. The internal `import/patch.rs` converts display
+strings to a typed CPU patch; applying that validated patch cannot fail.
+
 `persistence::Importers` round-trips the same two formats back into an `ExportModel`, and `ExportModel::apply_to(&mut Cpu8080State)` writes the parsed registers, flags, and memory cells into a CPU state. The XLSX reader uses `calamine`; by default it imports the first worksheet, while `xlsx_sheet_names()` and `read_xlsx_sheet()` let the UI present and import a specific worksheet from a multi-page export. The TXT reader parses the same `[Registers]`, `[Flags]`, and `[Memory]` sections that the exporter emits. Plain TXT files still import as one model; multi-section text exports expose their named blocks through `txt_section_names()` and `read_txt_section()`.
