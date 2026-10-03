@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 use tokio::task::AbortHandle;
 
 const RX_BUFFER_CAP: usize = Memory64K::SIZE;
@@ -51,6 +51,7 @@ pub struct NetworkDevice {
     worker_rx: Arc<Mutex<VecDeque<u8>>>,
     worker_status: Arc<Mutex<NetworkWorkerStatus>>,
     worker_abort: Option<AbortHandle>,
+    rx_space: Arc<Notify>,
 }
 
 #[derive(Clone, Debug)]
@@ -93,6 +94,7 @@ impl Default for NetworkDevice {
             worker_rx: Arc::new(Mutex::new(VecDeque::new())),
             worker_status: Arc::new(Mutex::new(NetworkWorkerStatus::default())),
             worker_abort: None,
+            rx_space: Arc::new(Notify::new()),
         }
     }
 }
@@ -109,18 +111,21 @@ impl NetworkDevice {
         self.tx = None;
         self.worker_rx = Arc::new(Mutex::new(VecDeque::new()));
         self.worker_status = Arc::new(Mutex::new(NetworkWorkerStatus::default()));
+        self.rx_space = Arc::new(Notify::new());
     }
 
     pub fn clear_buffers(&mut self) {
         self.state.rx_buffer.clear();
         self.state.tx_buffer.clear();
         self.worker_rx.lock().unwrap().clear();
+        self.rx_space.notify_one();
     }
 
     pub fn start_worker(&mut self, handle: &tokio::runtime::Handle) {
         self.stop_worker();
         let (tx, rx_out) = mpsc::unbounded_channel();
         self.worker_rx = Arc::new(Mutex::new(VecDeque::new()));
+        self.rx_space = Arc::new(Notify::new());
         self.worker_status = Arc::new(Mutex::new(NetworkWorkerStatus {
             connection: match self.state.mode {
                 NetworkMode::Client => ConnectionState::Connecting,
@@ -139,8 +144,9 @@ impl NetworkDevice {
         let mode = self.state.mode;
         let host = self.state.host.clone();
         let port = self.state.port;
+        let rx_space = Arc::clone(&self.rx_space);
         let task = handle.spawn(async move {
-            run_worker(mode, host, port, rx_out, rx_in, status).await;
+            run_worker(mode, host, port, rx_out, rx_in, status, rx_space).await;
         });
         self.worker_abort = Some(task.abort_handle());
         self.state.connection = self.worker_status.lock().unwrap().connection.clone();
@@ -190,6 +196,7 @@ impl NetworkDevice {
                 value
             })
             .unwrap_or(0);
+        self.rx_space.notify_one();
         if value == 0 {
             self.state.status = DeviceStatus::NoData;
         }
@@ -239,6 +246,7 @@ async fn run_worker(
     mut rx_out: mpsc::UnboundedReceiver<u8>,
     rx_in: Arc<Mutex<VecDeque<u8>>>,
     status: Arc<Mutex<NetworkWorkerStatus>>,
+    rx_space: Arc<Notify>,
 ) {
     let address = format!("{host}:{port}");
     let connected = match mode {
@@ -265,14 +273,19 @@ async fn run_worker(
     let reader = async {
         let mut buf = [0u8; 256];
         loop {
-            let count = read_half.read(&mut buf).await?;
+            let remaining = RX_BUFFER_CAP.saturating_sub(rx_in.lock().unwrap().len());
+            if remaining == 0 {
+                rx_space.notified().await;
+                continue;
+            }
+            let limit = remaining.min(buf.len());
+            let count = read_half.read(&mut buf[..limit]).await?;
             if count == 0 {
                 return Ok::<(), std::io::Error>(());
             }
             {
                 let mut queue = rx_in.lock().unwrap();
-                let remaining = RX_BUFFER_CAP.saturating_sub(queue.len());
-                queue.extend(buf[..count.min(remaining)].iter().copied());
+                queue.extend(buf[..count].iter().copied());
             }
             let mut worker = status.lock().unwrap();
             worker.rx_total += count as u64;

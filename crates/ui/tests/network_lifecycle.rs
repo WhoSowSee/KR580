@@ -4,6 +4,39 @@ use std::net::{Shutdown, TcpListener};
 use std::time::{Duration, Instant};
 
 #[test]
+fn saturated_rx_delivers_every_byte_in_order_after_cpu_reads() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut device = NetworkDevice::default();
+    device.configure(
+        NetworkMode::Client,
+        "127.0.0.1",
+        listener.local_addr().unwrap().port(),
+    );
+    device.start_worker(runtime.handle());
+    let (mut peer, _) = listener.accept().unwrap();
+    let expected: Vec<_> = (0..131_072).map(|index| (index % 251) as u8).collect();
+    peer.write_all(&expected).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while device.state().rx_buffer.len() != 65_536 {
+        assert!(Instant::now() < deadline);
+        std::thread::yield_now();
+    }
+    let mut received = Vec::with_capacity(expected.len());
+    while received.len() != expected.len() {
+        assert!(Instant::now() < deadline);
+        let available = device.state().rx_buffer.len();
+        for _ in 0..available {
+            received.push(device.input_byte());
+        }
+        std::thread::yield_now();
+    }
+    assert_eq!(received, expected);
+    assert_eq!(device.state().rx_total, expected.len() as u64);
+    assert_eq!(device.state().last_error, None);
+}
+
+#[test]
 fn clean_peer_eof_is_published_without_an_error() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

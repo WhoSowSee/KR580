@@ -31,6 +31,9 @@ generation cannot publish bytes or status into the new device. EOF or a terminal
 failure ends both halves of the connection.
 Snapshots publish every status of the current worker, including clean EOF as
 `Disconnected`; the absence of a worker is tracked separately from that status.
+RX retains at most 64 KiB. The reader requests only the available capacity and
+waits for an `IN` read or Clear when full, applying TCP backpressure instead of
+discarding an already-read chunk. `rx_total` counts the bytes actually retained.
 
 `NetworkDevice::start_worker` spawns a Tokio task for client or server mode. The worker connects or binds explicitly from settings, splits the socket into read/write halves, queues received bytes into the device RX queue, drains outgoing bytes from a channel, and updates visible status/counters. The old manual `queue_received` test hook remains available for deterministic unit tests.
 
