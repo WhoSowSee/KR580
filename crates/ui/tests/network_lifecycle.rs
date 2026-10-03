@@ -19,8 +19,16 @@ fn saturated_rx_delivers_every_byte_in_order_after_cpu_reads() {
     peer.write_all(&expected).unwrap();
     let deadline = Instant::now() + Duration::from_secs(5);
     while device.state().rx_buffer.len() != 65_536 {
-        assert!(Instant::now() < deadline);
-        std::thread::yield_now();
+        let state = device.state();
+        assert!(
+            Instant::now() < deadline,
+            "RX {}, total {}, connection {:?}, error {:?}",
+            state.rx_buffer.len(),
+            state.rx_total,
+            state.connection,
+            state.last_error
+        );
+        std::thread::sleep(Duration::from_millis(1));
     }
     let mut received = Vec::with_capacity(expected.len());
     while received.len() != expected.len() {
