@@ -6,8 +6,15 @@ use k580_core::{Cpu8080State, InstructionOutcome, RegisterName, TactOutcome};
 use std::path::PathBuf;
 use std::time::Duration;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct RequestId(pub u64);
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AppCommand {
+    Request {
+        id: RequestId,
+        command: Box<AppCommand>,
+    },
     ResetCpu,
     ClearHalt,
     SetHalted(bool),
@@ -81,14 +88,39 @@ pub struct AppSnapshot {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CommandResult {
+    Completed,
+    SavedProgram,
+    LoadedProgram,
+    SavedSubprogram,
+    LoadedSubprogram { end: u16 },
+    Exported,
+    Imported,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AppEvent {
-    SubprogramLoaded { path: PathBuf, start: u16, end: u16 },
+    SubprogramLoaded {
+        path: PathBuf,
+        start: u16,
+        end: u16,
+    },
     StateChanged(Box<AppSnapshot>),
     InstructionBoundaryReached(InstructionOutcome),
     TactAdvanced(TactOutcome),
-    PortRead { port: u8, value: u8 },
-    PortWritten { port: u8, value: u8 },
+    PortRead {
+        port: u8,
+        value: u8,
+    },
+    PortWritten {
+        port: u8,
+        value: u8,
+    },
     HaltStateChanged(bool),
     ErrorRaised(AppError),
     Stopped,
+    CommandFinished {
+        id: RequestId,
+        result: Result<CommandResult, AppError>,
+    },
 }

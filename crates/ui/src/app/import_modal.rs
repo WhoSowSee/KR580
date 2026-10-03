@@ -1,4 +1,4 @@
-use super::{DesktopApp, ImportFileFormat, ImportModalFocus, Message, StatusKind};
+use super::{DesktopApp, ImportFileFormat, ImportModalFocus, Message};
 use crate::backend::AppCommand;
 use crate::i18n::Key;
 use crate::persistence::Importers;
@@ -185,13 +185,7 @@ impl DesktopApp {
         self.close_import_modal();
         self.clear_error_notice();
         self.running = false;
-        self.dispatch_sync(command);
-        if self.error_notice.is_some() {
-            return Task::none();
-        }
-        self.undo_stack.clear();
-        self.mark_saved();
-        self.set_status(StatusKind::ImportFrom { display });
+        self.dispatch_pending_request(command, super::pending::PendingRequest::Import { display });
         Task::none()
     }
 

@@ -80,6 +80,17 @@ fn detach_floppy_image_command_disconnects_file_backed_storage() {
     std::fs::remove_file(path).ok();
 }
 
+#[test]
+fn attaching_a_directory_reports_a_storage_error() {
+    let mut emulator = Emulator::default();
+    let path = std::env::temp_dir();
+    emulator.handle_command(AppCommand::AttachFloppyImage(path));
+    let floppy = emulator.snapshot().devices.floppy;
+    assert!(matches!(floppy.status, DeviceStatus::Error(_)));
+    assert!(floppy.last_error.is_some());
+    assert!(!floppy.worker_alive);
+}
+
 fn unique_temp_path(name: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

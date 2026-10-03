@@ -9,6 +9,6 @@ pub use crate::devices::{
     TEXT_ROWS, TextCell, decode_oem_byte, decode_oem_text,
 };
 pub use actor::{EmulatorHandle, MIN_STEP_INTERVAL, initial_snapshot, spawn_emulator};
-pub use command::{AppCommand, AppEvent, AppSnapshot, RunMode};
+pub use command::{AppCommand, AppEvent, AppSnapshot, CommandResult, RequestId, RunMode};
 pub use emulator::{DEFAULT_STEP_INTERVAL, Emulator};
 pub use error::AppError;

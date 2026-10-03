@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use crate::app::DesktopApp;
+use crate::app::PendingRequest;
 use crate::backend::AppCommand;
+use crate::backend::RequestId;
 
 pub(super) const SYNC_DISPATCH_TIMEOUT: Duration = Duration::from_millis(50);
 
@@ -13,18 +15,42 @@ impl DesktopApp {
         self.pull_events();
     }
 
-    /// Blocks until the worker publishes a `StateChanged` (or 50 ms).
-    /// Without this, handlers that read `self.snapshot` right after
-    /// dispatch race the channel and the user clicks twice.
     pub(crate) fn dispatch_sync(&mut self, command: AppCommand) {
         self.pull_events();
-        if let Err(error) = self.handle.send(command) {
-            self.set_status_custom(error.to_string());
-            return;
-        }
-        for event in self.handle.drain_until_state_change(SYNC_DISPATCH_TIMEOUT) {
+        let request_id = match self.handle.send_request(command) {
+            Ok(id) => id,
+            Err(error) => {
+                self.set_status_custom(error.to_string());
+                return;
+            }
+        };
+        for event in self
+            .handle
+            .drain_until_request_finished(request_id, SYNC_DISPATCH_TIMEOUT)
+        {
             self.consume_event(event);
         }
+    }
+
+    pub(crate) fn dispatch_async_request(&mut self, command: AppCommand) -> Option<RequestId> {
+        match self.handle.send_request(command) {
+            Ok(id) => Some(id),
+            Err(error) => {
+                self.set_status_custom(error.to_string());
+                None
+            }
+        }
+    }
+
+    pub(crate) fn dispatch_pending_request(
+        &mut self,
+        command: AppCommand,
+        pending: PendingRequest,
+    ) {
+        let Some(id) = self.dispatch_async_request(command) else {
+            return;
+        };
+        self.pending_requests.insert(id, pending);
     }
 
     pub(crate) fn toggle_run(&mut self) {
@@ -65,8 +91,6 @@ impl DesktopApp {
         self.dispatch(AppCommand::Run);
     }
 
-    /// Sync dispatch is non-negotiable: an async version captured
-    /// `after == before` and `push_cpu` silently dropped every entry.
     pub(crate) fn dispatch_with_undo(&mut self, command: AppCommand) {
         self.pull_events();
         let before = self.snapshot.cpu.clone();

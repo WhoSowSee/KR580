@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use crate::app::{
-    DesktopApp, ExportTab, Message, StatusKind, SubprogramDialogMode, ToolWindowKind,
+    DesktopApp, ExportTab, Message, PendingRequest, StatusKind, SubprogramDialogMode,
+    ToolWindowKind,
 };
 use crate::backend::AppCommand;
 use crate::i18n::Key;
@@ -44,18 +45,10 @@ impl DesktopApp {
         self.clear_error_notice();
         let display = path.display().to_string();
         self.running = false;
-        self.dispatch_sync(AppCommand::LoadProgram(path.clone()));
-        if self.error_notice.is_some() {
-            return;
-        }
-        self.current_snapshot_path = Some(path);
-        self.current_subprogram_range = None;
-        self.undo_stack.clear();
-        self.mark_saved();
-        self.speed_tier = self.default_speed;
-        let pc = self.snapshot.cpu.pc;
-        self.set_memory_address(pc);
-        self.set_status(StatusKind::Opened { display });
+        self.dispatch_pending_request(
+            AppCommand::LoadProgram(path.clone()),
+            PendingRequest::LoadProgram { path, display },
+        );
     }
 
     pub(crate) fn save_program(&mut self) -> Task<Message> {
@@ -94,17 +87,21 @@ impl DesktopApp {
         if SubprogramSerializer::supports_path(&path) {
             if let Some((start, end)) = subprogram_range {
                 self.clear_error_notice();
-                self.dispatch_sync(AppCommand::SaveSubprogram {
-                    path: path.clone(),
-                    start,
-                    end,
-                });
-                if self.error_notice.is_none() {
-                    self.mark_subprogram_saved(start, end);
-                    self.set_status(StatusKind::SavedTo {
-                        display: path.display().to_string(),
-                    });
-                }
+                let display = path.display().to_string();
+                self.dispatch_pending_request(
+                    AppCommand::SaveSubprogram {
+                        path: path.clone(),
+                        start,
+                        end,
+                    },
+                    PendingRequest::SaveSubprogram {
+                        path,
+                        display,
+                        start,
+                        end,
+                        state: Box::new(self.snapshot.cpu.clone()),
+                    },
+                );
                 return;
             }
             self.open_subprogram_dialog(path, SubprogramDialogMode::Save);
@@ -112,14 +109,14 @@ impl DesktopApp {
         }
         self.clear_error_notice();
         let display = path.display().to_string();
-        self.dispatch_sync(AppCommand::SaveProgram(path.clone()));
-        if self.error_notice.is_some() {
-            return;
-        }
-        self.current_snapshot_path = Some(path);
-        self.current_subprogram_range = None;
-        self.mark_saved();
-        self.set_status(StatusKind::SavedTo { display });
+        self.dispatch_pending_request(
+            AppCommand::SaveProgram(path.clone()),
+            PendingRequest::SaveProgram {
+                path,
+                display,
+                state: Box::new(self.snapshot.cpu.clone()),
+            },
+        );
     }
 
     fn commit_pending_inline_edit(&mut self) {
@@ -166,14 +163,11 @@ impl DesktopApp {
         let path = normalise_export_path_for_format(path, format);
         self.clear_error_notice();
         let display = path.display().to_string();
-        match format {
-            ExportTab::Xlsx => self.dispatch_sync(AppCommand::ExportXlsxWithOptions(path, options)),
-            ExportTab::Text => self.dispatch_sync(AppCommand::ExportTxtWithOptions(path, options)),
-        }
-        if self.error_notice.is_some() {
-            return;
-        }
-        self.set_status(StatusKind::ExportTo { display });
+        let command = match format {
+            ExportTab::Xlsx => AppCommand::ExportXlsxWithOptions(path, options),
+            ExportTab::Text => AppCommand::ExportTxtWithOptions(path, options),
+        };
+        self.dispatch_pending_request(command, PendingRequest::Export { display });
     }
 }
 

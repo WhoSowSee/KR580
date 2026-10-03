@@ -1,10 +1,10 @@
+mod export_model;
+pub(crate) mod io;
 mod tick;
 
 use crate::backend::{AppCommand, AppError, AppEvent, AppSnapshot, RunMode};
 use crate::devices::IoBus;
-use crate::persistence::{
-    ExportModel, ExportOptions, Exporters, Importers, ProgramSerializer, SubprogramSerializer,
-};
+use crate::persistence::{Exporters, Importers, ProgramSerializer, SubprogramSerializer};
 use k580_core::{Cpu8080State, PortBus};
 use std::time::Duration;
 
@@ -82,10 +82,28 @@ impl Emulator {
     }
 
     pub fn handle_command(&mut self, command: AppCommand) -> Vec<AppEvent> {
+        match command {
+            AppCommand::Request { id, command } => self.handle_command_inner(Some(id), *command),
+            command => self.handle_command_inner(None, command),
+        }
+    }
+
+    fn handle_command_inner(
+        &mut self,
+        request_id: Option<crate::backend::RequestId>,
+        command: AppCommand,
+    ) -> Vec<AppEvent> {
         if matches!(&command, AppCommand::ClearNetworkBuffers) {
             let network = self.bus.network.state();
             if network.rx_buffer.is_empty() && network.tx_buffer.is_empty() {
-                return Vec::new();
+                return request_id
+                    .map(|id| {
+                        vec![AppEvent::CommandFinished {
+                            id,
+                            result: Ok(crate::backend::CommandResult::Completed),
+                        }]
+                    })
+                    .unwrap_or_default();
             }
         }
         let result = self.apply(command);
@@ -100,12 +118,32 @@ impl Emulator {
         };
         events.push(AppEvent::StateChanged(Box::new(self.snapshot())));
         events.extend(completion);
+        if let Some(id) = request_id {
+            let result = if events
+                .iter()
+                .any(|event| matches!(event, AppEvent::ErrorRaised(_)))
+            {
+                events
+                    .iter()
+                    .find_map(|event| match event {
+                        AppEvent::ErrorRaised(error) => Some(Err(error.clone())),
+                        _ => None,
+                    })
+                    .unwrap_or(Ok(crate::backend::CommandResult::Completed))
+            } else {
+                Ok(crate::backend::CommandResult::Completed)
+            };
+            events.push(AppEvent::CommandFinished { id, result });
+        }
         events
     }
 
     fn apply(&mut self, command: AppCommand) -> Result<Vec<AppEvent>, AppError> {
         let mut events = Vec::new();
         match command {
+            AppCommand::Request { .. } => {
+                return Err(AppError::Io("nested backend request".to_owned()));
+            }
             AppCommand::ResetCpu => {
                 let was_running = self.running;
                 let was_halted_before = self.cpu.halted;
@@ -329,44 +367,5 @@ impl Emulator {
             events.push(AppEvent::HaltStateChanged(true));
         }
         Ok(events)
-    }
-
-    fn export_model(&self) -> ExportModel {
-        ExportModel::from_cpu(&self.cpu)
-    }
-
-    fn export_model_with_options(&self, options: &ExportOptions) -> ExportModel {
-        ExportModel::from_cpu_with_options(&self.cpu, options)
-    }
-
-    fn export_text_models(&self, options: &ExportOptions) -> Vec<(String, ExportModel)> {
-        options
-            .text_sections
-            .iter()
-            .map(|section| {
-                (
-                    section.name.clone(),
-                    ExportModel::from_cpu_with_options(&self.cpu, &section.to_options()),
-                )
-            })
-            .collect()
-    }
-
-    fn export_xlsx_models(
-        &self,
-        options: &ExportOptions,
-    ) -> Vec<(String, ExportModel, ExportOptions)> {
-        options
-            .xlsx_pages
-            .iter()
-            .map(|page| {
-                let page_options = page.to_options();
-                (
-                    page.name.clone(),
-                    ExportModel::from_cpu_with_options(&self.cpu, &page_options),
-                    page_options,
-                )
-            })
-            .collect()
     }
 }

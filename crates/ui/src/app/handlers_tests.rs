@@ -183,14 +183,16 @@ fn tick_refreshes_external_floppy_and_hdd_file_changes() {
     app.floppy_show_image_contents = true;
     app.hdd_show_image_contents = true;
 
-    let _ = app.handle_tick();
+    app.refresh_floppy_image_contents();
+    app.refresh_hdd_image_contents();
     assert_eq!(app.floppy_image_contents, b"floppy before");
     assert_eq!(app.hdd_image_contents, b"hdd before");
 
     fs::write(&floppy_path, b"floppy after external edit").unwrap();
     fs::write(&hdd_path, b"hdd after external edit").unwrap();
 
-    let _ = app.handle_tick();
+    app.refresh_floppy_image_contents();
+    app.refresh_hdd_image_contents();
     assert_eq!(app.floppy_image_contents, b"floppy after external edit");
     assert_eq!(app.hdd_image_contents, b"hdd after external edit");
     fs::remove_file(floppy_path).unwrap();

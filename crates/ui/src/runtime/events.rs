@@ -1,8 +1,9 @@
 use std::time::{Duration, Instant};
 
 use crate::app::DesktopApp;
+use crate::app::PendingRequest;
 use crate::app::StatusKind;
-use crate::backend::{AppEvent, AppSnapshot};
+use crate::backend::{AppEvent, AppSnapshot, CommandResult};
 use crate::i18n::Key;
 
 use super::humanize_error;
@@ -66,6 +67,85 @@ impl DesktopApp {
                 self.pending_follow_pc = true;
                 self.set_status(StatusKind::Stopped);
             }
+            AppEvent::CommandFinished { id, result } => self.finish_request(id, result),
+        }
+    }
+
+    fn finish_request(
+        &mut self,
+        id: crate::backend::RequestId,
+        result: Result<CommandResult, crate::backend::AppError>,
+    ) {
+        let Some(pending) = self.pending_requests.remove(&id) else {
+            return;
+        };
+        let Err(error) = result else {
+            let result = result.unwrap();
+            match (pending, result) {
+                (PendingRequest::LoadProgram { path, display }, CommandResult::LoadedProgram) => {
+                    self.current_snapshot_path = Some(path);
+                    self.current_subprogram_range = None;
+                    self.undo_stack.clear();
+                    self.mark_saved();
+                    self.speed_tier = self.default_speed;
+                    self.set_memory_address(self.snapshot.cpu.pc);
+                    self.set_status(StatusKind::Opened { display });
+                }
+                (
+                    PendingRequest::SaveProgram {
+                        path,
+                        display,
+                        state,
+                    },
+                    CommandResult::SavedProgram,
+                ) => {
+                    self.current_snapshot_path = Some(path);
+                    self.current_subprogram_range = None;
+                    if self.snapshot.cpu == *state {
+                        self.mark_saved();
+                    } else {
+                        self.recompute_dirty();
+                    }
+                    self.set_status(StatusKind::SavedTo { display });
+                }
+                (
+                    PendingRequest::SaveSubprogram {
+                        path,
+                        display,
+                        start,
+                        end,
+                        state,
+                    },
+                    CommandResult::SavedSubprogram,
+                ) => {
+                    self.current_snapshot_path = Some(path);
+                    self.current_subprogram_range = Some((start, end));
+                    if self.snapshot.cpu == *state {
+                        self.mark_subprogram_saved(start, end);
+                    } else {
+                        self.recompute_dirty();
+                    }
+                    self.set_status(StatusKind::SavedTo { display });
+                }
+                (
+                    PendingRequest::LoadSubprogram { dialog, start },
+                    CommandResult::LoadedSubprogram { end },
+                ) => self.finish_subprogram_load(dialog.path, start, end),
+                (PendingRequest::Export { display }, CommandResult::Exported) => {
+                    self.set_status(StatusKind::ExportTo { display });
+                }
+                (PendingRequest::Import { display }, CommandResult::Imported) => {
+                    self.undo_stack.clear();
+                    self.mark_saved();
+                    self.set_status(StatusKind::ImportFrom { display });
+                }
+                _ => {}
+            }
+            return;
+        };
+        if let PendingRequest::LoadSubprogram { dialog, .. } = pending {
+            self.error_notice_dismiss_at = None;
+            self.restore_subprogram_error_text(dialog, error.to_string());
         }
     }
 
@@ -89,7 +169,6 @@ impl DesktopApp {
             .is_some_and(|value| self.memory_inline_value_input == *value);
 
         self.snapshot = snapshot;
-        self.refresh_open_image_contents();
 
         if !self.snapshot.cpu.halted {
             self.clear_halt_notice();

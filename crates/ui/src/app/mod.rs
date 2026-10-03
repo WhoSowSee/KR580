@@ -25,6 +25,7 @@ pub(crate) mod messages;
 mod modal;
 mod network;
 mod opcode_picker;
+mod pending;
 mod printer;
 mod read_only_text;
 mod register_inline;
@@ -74,6 +75,7 @@ pub(crate) use messages::{
 };
 pub(crate) use modal::{DiscardModalButton, PendingAction};
 pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};
+pub(crate) use pending::PendingRequest;
 pub(crate) use printer::{
     PRINTER_PROPERTIES_PRESET_INPUT_ID, PrinterPropertiesDialog, PrinterPropertiesFocus,
     PrinterPropertiesTab, PrinterPropertyDropdown, PrinterSetupDialog, PrinterSetupDropdown,

@@ -19,9 +19,13 @@ impl DesktopApp {
             self.open_associated_file(path);
         }
         self.pull_events();
-        self.refresh_open_image_contents();
+        let image_task = self.refresh_open_image_contents();
         let now = Instant::now();
         let help_search_task = self.due_help_search_task(now);
+        let background_task = match help_search_task {
+            Some(task) => Task::batch([image_task, task]),
+            None => image_task,
+        };
         #[cfg(target_os = "windows")]
         if !self.file_association_pending
             && let Some(dialog) = self.settings_dialog.as_mut()
@@ -55,14 +59,14 @@ impl DesktopApp {
             let was_pending = self.pending_follow_pc;
             self.pending_follow_pc = false;
             if was_pending {
-                return batch_optional(help_search_task, self.follow_pc_during_run());
+                return Task::batch([background_task, self.follow_pc_during_run()]);
             }
             if self.follow_pc {
-                return batch_optional(help_search_task, self.follow_pc_during_run());
+                return Task::batch([background_task, self.follow_pc_during_run()]);
             }
             self.track_pc_in_place();
         }
-        help_search_task.unwrap_or_else(Task::none)
+        background_task
     }
 
     fn due_help_search_task(&mut self, now: Instant) -> Option<Task<Message>> {
@@ -247,13 +251,6 @@ impl DesktopApp {
         }
         self.hide_opcode_dropdown();
         resolve
-    }
-}
-
-fn batch_optional(optional: Option<Task<Message>>, task: Task<Message>) -> Task<Message> {
-    match optional {
-        Some(optional) => Task::batch([optional, task]),
-        None => task,
     }
 }
 

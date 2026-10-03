@@ -1,5 +1,6 @@
 use crate::devices::{DeviceError, DeviceStatus};
 use serde::{Deserialize, Serialize};
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
@@ -22,6 +23,7 @@ pub struct StorageState {
 pub struct StorageDevice {
     state: StorageState,
     tx: Option<mpsc::UnboundedSender<StorageCommand>>,
+    error_rx: Option<mpsc::UnboundedReceiver<DeviceError>>,
 }
 
 #[derive(Debug)]
@@ -46,36 +48,42 @@ impl StorageDevice {
                 debug_buffer: false,
             },
             tx: None,
+            error_rx: None,
         }
     }
 
     pub fn attach_file(&mut self, path: impl AsRef<Path>, handle: &tokio::runtime::Handle) {
+        self.detach_file();
         let path = path.as_ref().to_path_buf();
+        let file = match OpenOptions::new().create(true).append(true).open(&path) {
+            Ok(file) => file,
+            Err(error) => {
+                let error = DeviceError::from(error);
+                self.state.path = Some(path);
+                self.state.status = DeviceStatus::Error(error.to_string());
+                self.state.last_error = Some(error.to_string());
+                self.state.worker_alive = false;
+                self.tx = None;
+                self.error_rx = None;
+                return;
+            }
+        };
         let (tx, mut rx) = mpsc::unbounded_channel();
-        let worker_path = path.clone();
+        let (error_tx, error_rx) = mpsc::unbounded_channel();
         handle.spawn(async move {
-            let mut file = match tokio::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(worker_path)
-                .await
-            {
-                Ok(file) => file,
-                Err(err) => {
-                    tracing::error!(error = %err, "storage worker failed to open file");
-                    return;
-                }
-            };
+            let mut file = tokio::fs::File::from_std(file);
             while let Some(command) = rx.recv().await {
                 match command {
                     StorageCommand::Write(byte) => {
                         if let Err(err) = file.write_all(&[byte]).await {
-                            tracing::error!(error = %err, "storage worker write failed");
+                            let _ = error_tx.send(DeviceError::from(err));
+                            break;
                         }
                     }
                     StorageCommand::Flush => {
                         if let Err(err) = file.flush().await {
-                            tracing::error!(error = %err, "storage worker flush failed");
+                            let _ = error_tx.send(DeviceError::from(err));
+                            break;
                         }
                     }
                     StorageCommand::Close => break,
@@ -88,6 +96,7 @@ impl StorageDevice {
         self.state.worker_alive = true;
         self.state.debug_buffer = false;
         self.tx = Some(tx);
+        self.error_rx = Some(error_rx);
     }
 
     pub fn detach_file(&mut self) {
@@ -102,6 +111,7 @@ impl StorageDevice {
         };
         self.state.last_error = None;
         self.state.worker_alive = false;
+        self.error_rx = None;
     }
 
     pub fn write_byte(&mut self, value: u8) -> Result<(), DeviceError> {
@@ -142,6 +152,21 @@ impl StorageDevice {
     pub fn clear_visible_buffer(&mut self) {
         self.state.visible_buffer.clear();
         self.state.tail_buffer.clear();
+    }
+
+    pub fn poll(&mut self) -> bool {
+        let Some(error_rx) = self.error_rx.as_mut() else {
+            return false;
+        };
+        let mut changed = false;
+        while let Ok(error) = error_rx.try_recv() {
+            self.state.status = DeviceStatus::Error(error.to_string());
+            self.state.last_error = Some(error.to_string());
+            self.state.worker_alive = false;
+            self.tx = None;
+            changed = true;
+        }
+        changed
     }
 
     pub fn flush(&mut self) -> Result<(), DeviceError> {

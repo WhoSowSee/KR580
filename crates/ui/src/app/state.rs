@@ -1,6 +1,7 @@
 use crate::backend::{AppSnapshot, EmulatorHandle, initial_snapshot, spawn_emulator};
 use iced::{Point, Size, Task, keyboard};
 use k580_core::RegisterName;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -11,6 +12,7 @@ use super::messages::{
     ExportTab, MenuId, Message, RegisterInlineTarget, SpeedTier, TopMenuFocus, TopMenuIndicator,
 };
 use super::modal::{DiscardModalButton, PendingAction};
+use super::pending::PendingRequests;
 use super::printer::PrinterSetupDialog;
 use super::settings_modal::SettingsDialog;
 use super::settings_notice::SettingsNotice;
@@ -186,6 +188,7 @@ pub(crate) struct DesktopApp {
     pub(crate) changelog_dialog: Option<ChangelogDialog>,
     pub(crate) help_dialog: Option<HelpDialog>,
     pub(crate) monitor_hex_filter: HexStreamFilter,
+    pub(crate) pending_requests: PendingRequests,
 }
 
 impl DesktopApp {
@@ -369,6 +372,7 @@ impl DesktopApp {
             floppy_image_error: None,
             floppy_image_file_stamp: None,
             monitor_hex_filter: HexStreamFilter::default(),
+            pending_requests: HashMap::new(),
         };
         app.apply_speed_tier(default_speed);
 

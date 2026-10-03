@@ -213,6 +213,7 @@ fn confirming_xlsx_import_applies_selected_sheet() {
     app.load_import_file(path.clone());
     app.import_target_input = "Подпрограмма 2".to_owned();
     let _task = app.confirm_import();
+    settle_backend(&mut app);
 
     assert!(!app.import_modal_open);
     assert_eq!(app.snapshot.cpu.memory.read(0x0100), 0x00);
@@ -229,6 +230,7 @@ fn confirming_plain_txt_import_applies_whole_file_without_targets() {
     app.open_import_modal();
     app.load_import_file(path.clone());
     let _task = app.confirm_import();
+    settle_backend(&mut app);
 
     assert!(app.import_target_options.is_empty());
     assert_eq!(app.snapshot.cpu.memory.read(0x0300), 0xAA);
@@ -244,6 +246,7 @@ fn confirming_malformed_txt_import_sets_localized_status() {
     app.open_import_modal();
     app.load_import_file(path.clone());
     let _task = app.confirm_import();
+    settle_backend(&mut app);
 
     assert_eq!(app.status, "Не удалось прочитать файл – проверьте формат");
     assert!(
@@ -268,4 +271,17 @@ fn unique_temp_file(name: &str) -> PathBuf {
         .unwrap()
         .as_nanos();
     std::env::temp_dir().join(format!("{nanos}-{name}"))
+}
+
+fn settle_backend(app: &mut DesktopApp) {
+    for _ in 0..100 {
+        for event in app.handle.drain_events() {
+            app.consume_event(event);
+        }
+        if app.pending_requests.is_empty() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    panic!("backend request did not finish");
 }
