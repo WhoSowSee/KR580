@@ -149,22 +149,25 @@ fn read_string(root: HKEY, subkey: &str, name: &str) -> Option<String> {
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::Foundation::ERROR_SUCCESS;
     use windows_sys::Win32::System::Registry::{
-        KEY_QUERY_VALUE, REG_EXPAND_SZ, REG_SZ, RegCloseKey, RegOpenKeyExW, RegQueryValueExW,
+        KEY_QUERY_VALUE, REG_EXPAND_SZ, REG_SZ, RegOpenKeyExW, RegQueryValueExW,
     };
 
     let subkey_w: Vec<u16> = OsStr::new(subkey).encode_wide().chain(Some(0)).collect();
     let name_w: Vec<u16> = OsStr::new(name).encode_wide().chain(Some(0)).collect();
     let mut key: HKEY = std::ptr::null_mut();
+    // SAFETY: The predefined/fixture root and terminated subkey remain live with a writable output handle.
     let status = unsafe { RegOpenKeyExW(root, subkey_w.as_ptr(), 0, KEY_QUERY_VALUE, &mut key) };
     if status != ERROR_SUCCESS {
         return None;
     }
 
+    let key = RegistryKey(key);
     let mut value_type = 0;
     let mut value_bytes = 0;
+    // SAFETY: The opened key and terminated value name remain live; null data queries the byte capacity.
     let status = unsafe {
         RegQueryValueExW(
-            key,
+            key.0,
             name_w.as_ptr(),
             std::ptr::null_mut(),
             &mut value_type,
@@ -172,16 +175,19 @@ fn read_string(root: HKEY, subkey: &str, name: &str) -> Option<String> {
             &mut value_bytes,
         )
     };
-    if status != ERROR_SUCCESS || !matches!(value_type, REG_SZ | REG_EXPAND_SZ) || value_bytes == 0
+    if status != ERROR_SUCCESS
+        || !matches!(value_type, REG_SZ | REG_EXPAND_SZ)
+        || value_bytes == 0
+        || !value_bytes.is_multiple_of(2)
     {
-        unsafe { RegCloseKey(key) };
         return None;
     }
 
     let mut value = vec![0u16; value_bytes as usize / std::mem::size_of::<u16>()];
+    // SAFETY: The initialized UTF-16 allocation covers the even reported byte capacity; the key/name remain live.
     let status = unsafe {
         RegQueryValueExW(
-            key,
+            key.0,
             name_w.as_ptr(),
             std::ptr::null_mut(),
             &mut value_type,
@@ -189,8 +195,10 @@ fn read_string(root: HKEY, subkey: &str, name: &str) -> Option<String> {
             &mut value_bytes,
         )
     };
-    unsafe { RegCloseKey(key) };
-    if status != ERROR_SUCCESS {
+    if status != ERROR_SUCCESS
+        || !matches!(value_type, REG_SZ | REG_EXPAND_SZ)
+        || !value_bytes.is_multiple_of(2)
+    {
         return None;
     }
 
@@ -204,8 +212,7 @@ fn write_string(root: HKEY, subkey: &str, name: &str, value: &str) -> Result<(),
     use std::ptr;
     use windows_sys::Win32::Foundation::ERROR_SUCCESS;
     use windows_sys::Win32::System::Registry::{
-        KEY_SET_VALUE, REG_OPTION_NON_VOLATILE, REG_SZ, RegCloseKey, RegCreateKeyExW,
-        RegSetValueExW,
+        KEY_SET_VALUE, REG_OPTION_NON_VOLATILE, REG_SZ, RegCreateKeyExW, RegSetValueExW,
     };
 
     let subkey_w: Vec<u16> = OsStr::new(subkey).encode_wide().chain(Some(0)).collect();
@@ -213,6 +220,7 @@ fn write_string(root: HKEY, subkey: &str, name: &str, value: &str) -> Result<(),
     let value_w: Vec<u16> = OsStr::new(value).encode_wide().chain(Some(0)).collect();
 
     let mut key: HKEY = ptr::null_mut();
+    // SAFETY: The root and terminated subkey remain live and the output receives an owned registry handle.
     let status = unsafe {
         RegCreateKeyExW(
             root,
@@ -230,10 +238,13 @@ fn write_string(root: HKEY, subkey: &str, name: &str, value: &str) -> Result<(),
         return Err(format!("RegCreateKeyExW({subkey}) failed: {status}"));
     }
 
-    let value_bytes = (value_w.len() * std::mem::size_of::<u16>()) as u32;
+    let key = RegistryKey(key);
+    let value_bytes = u32::try_from(value_w.len() * std::mem::size_of::<u16>())
+        .map_err(|_| "registry string is too large".to_owned())?;
+    // SAFETY: The owned key/name and terminated UTF-16 data remain live for the checked byte count.
     let status = unsafe {
         RegSetValueExW(
-            key,
+            key.0,
             name_w.as_ptr(),
             0,
             REG_SZ,
@@ -241,7 +252,6 @@ fn write_string(root: HKEY, subkey: &str, name: &str, value: &str) -> Result<(),
             value_bytes,
         )
     };
-    unsafe { RegCloseKey(key) };
 
     if status != ERROR_SUCCESS {
         return Err(format!("RegSetValueExW({subkey}\\{name}) failed: {status}"));
@@ -258,6 +268,7 @@ fn delete_tree(root: HKEY, subkey: &str) -> Result<(), String> {
     use windows_sys::Win32::System::Registry::RegDeleteTreeW;
 
     let subkey_w: Vec<u16> = OsStr::new(subkey).encode_wide().chain(Some(0)).collect();
+    // SAFETY: The predefined/fixture root and terminated subkey remain live for this synchronous deletion.
     let status = unsafe { RegDeleteTreeW(root, subkey_w.as_ptr()) };
     if matches!(
         status,
@@ -297,6 +308,7 @@ fn notify_shell() {
     use std::ptr;
     use windows_sys::Win32::UI::Shell::{SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify};
 
+    // SAFETY: ASSOCCHANGED with IDLIST permits null item pointers and retains no Rust data.
     unsafe {
         SHChangeNotify(
             SHCNE_ASSOCCHANGED as i32,
@@ -309,3 +321,12 @@ fn notify_shell() {
 
 #[cfg(test)]
 mod tests;
+
+struct RegistryKey(HKEY);
+
+impl Drop for RegistryKey {
+    fn drop(&mut self) {
+        // SAFETY: This private guard owns a successful open/create handle, never a predefined root.
+        unsafe { windows_sys::Win32::System::Registry::RegCloseKey(self.0) };
+    }
+}

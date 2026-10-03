@@ -2,7 +2,7 @@ mod delta;
 mod parser;
 
 use super::super::wide_null;
-use super::{configuration_from_devmode, print_devmode};
+use super::{AlignedDevMode, configuration_from_devmode, print_devmode};
 use crate::devices::printer::{
     PrinterInfo, PrinterPropertyChange, PrinterPropertySheet, PrinterSettings,
 };
@@ -18,6 +18,8 @@ use windows::Win32::System::Com::{
     COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize, IStream, STREAM_SEEK_END, STREAM_SEEK_SET,
 };
 use windows::core::{BSTR, PCWSTR};
+
+const MAX_STREAM_BYTES: usize = 16_777_216;
 
 pub(super) fn load(
     printer: &PrinterInfo,
@@ -59,6 +61,7 @@ pub(super) fn apply(
     let delta_ticket = stream_from_bytes(delta_xml.as_bytes())?;
     let result_ticket = empty_stream()?;
     let mut driver_error = BSTR::new();
+    // SAFETY: The provider and live COM streams belong to this initialized thread; the output BSTR remains live.
     unsafe {
         PTMergeAndValidatePrintTicket(
             provider.0,
@@ -99,10 +102,14 @@ fn inspect(
 
 fn ticket_from_devmode(provider: &Provider, devmode: &[u8]) -> Result<IStream, String> {
     let ticket = empty_stream()?;
+    let size =
+        u32::try_from(devmode.len()).map_err(|_| "printer DEVMODE is too large".to_owned())?;
+    let devmode = AlignedDevMode::from_bytes(devmode);
+    // SAFETY: The same-thread provider receives a validated aligned DEVMODE blob of size bytes and a live stream.
     unsafe {
         PTConvertDevModeToPrintTicket(
             provider.0,
-            devmode.len() as u32,
+            size,
             devmode.as_ptr().cast::<DEVMODEA>(),
             kPTJobScope,
             &ticket,
@@ -126,6 +133,7 @@ fn capabilities_from_ticket(
     rewind(ticket)?;
     let capabilities = empty_stream()?;
     let mut driver_error = BSTR::new();
+    // SAFETY: The same-thread provider and rewound input/output streams remain live with the output BSTR.
     unsafe { PTGetPrintCapabilities(provider.0, ticket, &capabilities, Some(&mut driver_error)) }
         .map_err(|error| api_error("PTGetPrintCapabilities", error, &driver_error))?;
     let ticket_xml = stream_to_bytes(ticket)?;
@@ -138,6 +146,7 @@ fn devmode_from_ticket(provider: &Provider, ticket: &IStream) -> Result<Vec<u8>,
     let mut size = 0;
     let mut output = std::ptr::null_mut::<DEVMODEA>();
     let mut driver_error = BSTR::new();
+    // SAFETY: The same-thread provider and rewound stream remain live; size/pointer/BSTR outputs are writable.
     unsafe {
         PTConvertPrintTicketToDevMode(
             provider.0,
@@ -150,23 +159,30 @@ fn devmode_from_ticket(provider: &Provider, ticket: &IStream) -> Result<Vec<u8>,
         )
     }
     .map_err(|error| api_error("PTConvertPrintTicketToDevMode", error, &driver_error))?;
-    if output.is_null() || size == 0 {
+    let output = ProviderMemory(output.cast());
+    if output.0.is_null() || size == 0 || size as usize > isize::MAX as usize {
         return Err("PTConvertPrintTicketToDevMode returned an empty DEVMODE".to_owned());
     }
-    let bytes = unsafe { std::slice::from_raw_parts(output.cast::<u8>(), size as usize).to_vec() };
-    unsafe { PTReleaseMemory(output.cast()) }
-        .map_err(|error| format!("PTReleaseMemory failed: {error}"))?;
+    // SAFETY: Successful conversion owns a non-null allocation of size initialized bytes until release.
+    let bytes =
+        unsafe { std::slice::from_raw_parts(output.0.cast::<u8>(), size as usize).to_vec() };
+    output.release()?;
     Ok(bytes)
 }
 
 fn empty_stream() -> Result<IStream, String> {
+    // SAFETY: Null HGLOBAL requests new owned storage; true makes the COM stream release it on Drop.
     unsafe { CreateStreamOnHGlobal(HGLOBAL(std::ptr::null_mut()), true) }
         .map_err(|error| format!("CreateStreamOnHGlobal failed: {error}"))
 }
 
 fn stream_from_bytes(bytes: &[u8]) -> Result<IStream, String> {
+    if bytes.len() > MAX_STREAM_BYTES {
+        return Err("printer ticket exceeds the stream size limit".to_owned());
+    }
     let stream = empty_stream()?;
     let mut written = 0;
+    // SAFETY: The bounded initialized input covers the byte count and written points to a live output.
     unsafe {
         stream.Write(
             bytes.as_ptr().cast(),
@@ -188,11 +204,17 @@ fn stream_from_bytes(bytes: &[u8]) -> Result<IStream, String> {
 
 fn stream_to_bytes(stream: &IStream) -> Result<Vec<u8>, String> {
     let mut size = 0;
+    // SAFETY: The live same-thread stream writes its end position to a live u64 output.
     unsafe { stream.Seek(0, STREAM_SEEK_END, Some(&mut size)) }
         .map_err(|error| format!("IStream::Seek failed: {error}"))?;
     rewind(stream)?;
-    let mut bytes = vec![0; size as usize];
+    let size = usize::try_from(size)
+        .ok()
+        .filter(|size| *size <= MAX_STREAM_BYTES)
+        .ok_or_else(|| "printer ticket exceeds the stream size limit".to_owned())?;
+    let mut bytes = vec![0; size];
     let mut read = 0;
+    // SAFETY: The bounded initialized byte buffer covers the supplied capacity and read is a live output.
     unsafe {
         stream.Read(
             bytes.as_mut_ptr().cast(),
@@ -208,6 +230,7 @@ fn stream_to_bytes(stream: &IStream) -> Result<Vec<u8>, String> {
 }
 
 fn rewind(stream: &IStream) -> Result<(), String> {
+    // SAFETY: The live same-thread stream accepts a zero seek offset and no result pointer.
     unsafe { stream.Seek(0, STREAM_SEEK_SET, None) }
         .map_err(|error| format!("IStream::Seek failed: {error}"))
 }
@@ -221,40 +244,65 @@ fn api_error(api: &str, error: windows::core::Error, driver_error: &BSTR) -> Str
     }
 }
 
-struct Provider(HPTPROVIDER);
+struct Provider(HPTPROVIDER, std::marker::PhantomData<std::rc::Rc<()>>);
 
 impl Provider {
     fn open(printer_name: &str) -> Result<Self, String> {
         let name = wide_null(printer_name);
+        // SAFETY: The terminated printer name remains live and the provider is retained on this initialized COM thread.
         unsafe { PTOpenProvider(PCWSTR(name.as_ptr()), 1) }
-            .map(Self)
+            .map(|handle| Self(handle, std::marker::PhantomData))
             .map_err(|error| format!("PTOpenProvider failed: {error}"))
     }
 }
 
 impl Drop for Provider {
     fn drop(&mut self) {
+        // SAFETY: This non-Send guard closes the provider before its owning COM apartment is dropped.
         unsafe {
             let _ = PTCloseProvider(self.0);
         }
     }
 }
 
-struct ComApartment;
+struct ComApartment(std::marker::PhantomData<std::rc::Rc<()>>);
 
 impl ComApartment {
     fn init() -> Result<Self, String> {
+        // SAFETY: No reserved pointer is supplied; success is paired with the non-Send guard on this thread.
         unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }
             .ok()
             .map_err(|error| format!("CoInitializeEx failed: {error}"))?;
-        Ok(Self)
+        Ok(Self(std::marker::PhantomData))
     }
 }
 
 impl Drop for ComApartment {
     fn drop(&mut self) {
+        // SAFETY: This non-Send guard pairs one successful COM initialization on the same thread.
         unsafe {
             CoUninitialize();
+        }
+    }
+}
+
+struct ProviderMemory(*mut std::ffi::c_void);
+
+impl ProviderMemory {
+    fn release(mut self) -> Result<(), String> {
+        let ptr = std::mem::replace(&mut self.0, std::ptr::null_mut());
+        // SAFETY: Conversion returned this provider-owned allocation and ownership is consumed once.
+        unsafe { PTReleaseMemory(ptr) }.map_err(|error| format!("PTReleaseMemory failed: {error}"))
+    }
+}
+
+impl Drop for ProviderMemory {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            // SAFETY: The owned conversion allocation has not been explicitly released.
+            if let Err(error) = unsafe { PTReleaseMemory(self.0) } {
+                tracing::warn!(%error, "printer conversion memory release failed");
+            }
         }
     }
 }

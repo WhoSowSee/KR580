@@ -1,9 +1,9 @@
-use super::super::{last_os_error, read_wide_z};
+mod global;
+
+use super::super::last_os_error;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::{HGLOBAL, HWND};
-use windows_sys::Win32::Graphics::Gdi::DEVMODEW;
 use windows_sys::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoUninitialize};
-use windows_sys::Win32::System::Memory::{GlobalLock, GlobalUnlock};
 use windows_sys::Win32::UI::Controls::Dialogs::{
     CommDlgExtendedError, DEVNAMES, PD_PRINTSETUP, PD_USEDEVMODECOPIESANDCOLLATE, PRINTDLGW,
     PrintDlgW,
@@ -11,24 +11,21 @@ use windows_sys::Win32::UI::Controls::Dialogs::{
 
 pub(super) fn configure() -> Result<Option<(String, Vec<u8>)>, String> {
     let _com = ComApartment::init()?;
-    let mut dialog = print_dialog();
-    let accepted = unsafe { PrintDlgW(&mut dialog) };
+    let mut dialog = DialogHandles(print_dialog());
+    // SAFETY: The initialized structure has the correct size and no borrowed hook/template pointers.
+    let accepted = unsafe { PrintDlgW(&mut dialog.0) };
     if accepted == 0 {
+        // SAFETY: CommDlgExtendedError reads the failure state of PrintDlgW on this same thread.
         let code = unsafe { CommDlgExtendedError() };
-        free_dialog_handles(&mut dialog);
         return if code == 0 {
             Ok(None)
         } else {
             Err(format!("printer setup failed: 0x{code:04X}"))
         };
     }
-    let result = (|| {
-        let printer_name = device_name(dialog.hDevNames)?;
-        let devmode = devmode(dialog.hDevMode)?;
-        Ok((printer_name, devmode))
-    })();
-    free_dialog_handles(&mut dialog);
-    result.map(Some)
+    let printer_name = device_name(dialog.0.hDevNames)?;
+    let devmode = devmode(dialog.0.hDevMode)?;
+    Ok(Some((printer_name, devmode)))
 }
 
 fn print_dialog() -> PRINTDLGW {
@@ -55,56 +52,50 @@ fn print_dialog() -> PRINTDLGW {
     }
 }
 
-fn device_name(hdevnames: HGLOBAL) -> Result<String, String> {
-    let ptr = unsafe { GlobalLock(hdevnames) as *const DEVNAMES };
-    if ptr.is_null() {
-        return Err(last_os_error("GlobalLock"));
+fn device_name(handle: HGLOBAL) -> Result<String, String> {
+    let memory = global::LockedGlobal::lock(handle)?;
+    let bytes = memory.bytes();
+    if bytes.len() < std::mem::size_of::<DEVNAMES>() {
+        return Err("printer dialog DEVNAMES header is truncated".to_owned());
     }
-    let result = unsafe {
-        let names = *ptr;
-        let base = ptr.cast::<u16>();
-        read_wide_z(base.add(names.wDeviceOffset as usize))
-    };
-    unsafe {
-        GlobalUnlock(hdevnames);
-    }
-    result
+    // SAFETY: The byte view contains the complete POD header; no alignment is assumed.
+    let names = unsafe { bytes.as_ptr().cast::<DEVNAMES>().read_unaligned() };
+    super::super::buffer::wide_string(bytes, names.wDeviceOffset as usize * 2)
 }
 
-fn devmode(hdevmode: HGLOBAL) -> Result<Vec<u8>, String> {
-    let ptr = unsafe { GlobalLock(hdevmode) as *const DEVMODEW };
-    if ptr.is_null() {
-        return Err(last_os_error("GlobalLock"));
-    }
-    let mode = unsafe { ptr.read_unaligned() };
-    let len = mode.dmSize as usize + mode.dmDriverExtra as usize;
-    let bytes = unsafe { std::slice::from_raw_parts(ptr.cast::<u8>(), len).to_vec() };
-    unsafe {
-        GlobalUnlock(hdevmode);
-    }
-    Ok(bytes)
+fn devmode(handle: HGLOBAL) -> Result<Vec<u8>, String> {
+    let memory = global::LockedGlobal::lock(handle)?;
+    let bytes = memory.bytes();
+    let mode = super::read_devmode(bytes)
+        .ok_or_else(|| "printer dialog DEVMODE buffer is invalid".to_owned())?;
+    Ok(bytes[..mode.dmSize as usize + mode.dmDriverExtra as usize].to_vec())
 }
 
-fn free_dialog_handles(dialog: &mut PRINTDLGW) {
-    if !dialog.hDC.is_null() {
+struct DialogHandles(PRINTDLGW);
+
+impl Drop for DialogHandles {
+    fn drop(&mut self) {
+        if !self.0.hDC.is_null() {
+            // SAFETY: PrintDlgW returned this owned DC and all dialog reads have finished.
+            unsafe { windows_sys::Win32::Graphics::Gdi::DeleteDC(self.0.hDC) };
+        }
+        // SAFETY: These non-null handles are owned PrintDlgW outputs and no locks remain alive.
         unsafe {
-            windows_sys::Win32::Graphics::Gdi::DeleteDC(dialog.hDC);
-        }
-    }
-    unsafe {
-        if !dialog.hDevMode.is_null() {
-            windows_sys::Win32::Foundation::GlobalFree(dialog.hDevMode);
-        }
-        if !dialog.hDevNames.is_null() {
-            windows_sys::Win32::Foundation::GlobalFree(dialog.hDevNames);
+            if !self.0.hDevMode.is_null() {
+                windows_sys::Win32::Foundation::GlobalFree(self.0.hDevMode);
+            }
+            if !self.0.hDevNames.is_null() {
+                windows_sys::Win32::Foundation::GlobalFree(self.0.hDevNames);
+            }
         }
     }
 }
 
-pub(super) struct ComApartment;
+struct ComApartment(std::marker::PhantomData<std::rc::Rc<()>>);
 
 impl ComApartment {
-    pub(super) fn init() -> Result<Self, String> {
+    fn init() -> Result<Self, String> {
+        // SAFETY: The reserved pointer is null; a successful initialization is paired on this thread with Drop.
         let result = unsafe { CoInitializeEx(null_mut(), COINIT_APARTMENTTHREADED as u32) };
         if result < 0 {
             return Err(format!(
@@ -112,12 +103,13 @@ impl ComApartment {
                 result as u32
             ));
         }
-        Ok(Self)
+        Ok(Self(std::marker::PhantomData))
     }
 }
 
 impl Drop for ComApartment {
     fn drop(&mut self) {
+        // SAFETY: The non-Send guard pairs one successful CoInitializeEx on this same thread.
         unsafe {
             CoUninitialize();
         }

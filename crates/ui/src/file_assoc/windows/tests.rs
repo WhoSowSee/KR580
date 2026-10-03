@@ -109,3 +109,24 @@ fn one_installation_cannot_unregister_another() {
         assert!(read_string(root.handle, extension, "").is_none());
     }
 }
+
+#[test]
+fn malformed_odd_byte_registry_string_is_rejected() {
+    use windows_sys::Win32::System::Registry::{
+        KEY_SET_VALUE, REG_SZ, RegOpenKeyExW, RegSetValueExW,
+    };
+    let root = RegistryRoot::new();
+    write_string(root.handle, "malformed", "value", "old").unwrap();
+    let name: Vec<_> = "malformed".encode_utf16().chain([0]).collect();
+    let value: Vec<_> = "value".encode_utf16().chain([0]).collect();
+    let mut handle = std::ptr::null_mut();
+    // SAFETY: The isolated fixture root and terminated name remain live with a writable handle output.
+    let status =
+        unsafe { RegOpenKeyExW(root.handle, name.as_ptr(), 0, KEY_SET_VALUE, &mut handle) };
+    assert_eq!(status, 0);
+    let handle = RegistryKey(handle);
+    // SAFETY: This fixture-owned key/name and one initialized byte cover the supplied byte count.
+    let status = unsafe { RegSetValueExW(handle.0, value.as_ptr(), 0, REG_SZ, [65u8].as_ptr(), 1) };
+    assert_eq!(status, 0);
+    assert!(read_string(root.handle, "malformed", "value").is_none());
+}

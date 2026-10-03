@@ -125,6 +125,11 @@ Device budget regressions park worker execution to fill queues deterministically
 verify that refused bytes do not change accepted data, then drain storage and
 compare every byte. Separate buffer checks verify diagnostic suffix order and
 explicit overflow/recovery for unsaved storage and printer data.
+FFI buffer regressions reject unterminated/out-of-range UTF-16 strings without
+native calls. Windows tests also validate DEVMODE alignment/declared lengths
+and malformed registry strings in the isolated HKCU fixture. Run the native
+Clippy gate with `-D clippy::undocumented_unsafe_blocks`; physical GDI/driver
+and macOS AppKit execution still require their native smoke checks.
 Hosted macOS and release packaging remain native CI checks; a Windows or WSL
 run alone does not verify them.
 Installer script changes must capture all three effective commands for debug

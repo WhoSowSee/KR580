@@ -36,6 +36,7 @@ fn internal_is_directory_writable(path: &std::path::Path) -> bool {
     use std::os::unix::ffi::OsStrExt;
     let mut buf = path.as_os_str().as_bytes().to_vec();
     buf.push(0);
+    // SAFETY: The initialized path byte buffer has a trailing NUL and remains live for access.
     unsafe { libc::access(buf.as_ptr() as *const libc::c_char, libc::W_OK) == 0 }
 }
 

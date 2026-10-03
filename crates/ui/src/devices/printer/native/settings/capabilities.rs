@@ -49,6 +49,7 @@ fn query_pairs(
     names_capability: u16,
     name_len: usize,
 ) -> Result<Vec<(i16, String)>, String> {
+    // SAFETY: The private caller retains terminated names and a validated aligned DEVMODE during queries.
     let count = unsafe { DeviceCapabilitiesW(device, port, ids_capability, null_mut(), devmode) };
     if count < 0 {
         return Ok(Vec::new());
@@ -56,22 +57,36 @@ fn query_pairs(
     if count == 0 {
         return Ok(Vec::new());
     }
+    if count > 65_536 {
+        return Err("printer capability count exceeds the buffer limit".to_owned());
+    }
     let mut ids = vec![0u16; count as usize];
     let ids_count =
+        // SAFETY: Windows' count query sizes this initialized output for the same capability/DEVMODE.
         unsafe { DeviceCapabilitiesW(device, port, ids_capability, ids.as_mut_ptr(), devmode) };
     if ids_count < 0 {
         return Err("DeviceCapabilitiesW failed while reading identifiers".to_owned());
     }
+    if ids_count as usize > ids.len() {
+        return Err("printer identifier count changed during enumeration".to_owned());
+    }
     ids.truncate(ids_count as usize);
 
-    let mut names = vec![0u16; ids.len() * name_len];
-    let names_count =
-        unsafe { DeviceCapabilitiesW(device, port, names_capability, names.as_mut_ptr(), devmode) };
-    if names_count < 0 {
-        return Ok(ids
-            .into_iter()
-            .map(|id| (id as i16, id.to_string()))
-            .collect());
+    // SAFETY: Live terminated names and aligned DEVMODE are retained; null output queries name count.
+    let count = unsafe { DeviceCapabilitiesW(device, port, names_capability, null_mut(), devmode) };
+    if count > 65_536 {
+        return Err("printer name count exceeds the buffer limit".to_owned());
+    }
+    let mut names = vec![0u16; count.max(0) as usize * name_len];
+    if count > 0 {
+        // SAFETY: The same name-capability query sized fixed-width UTF-16 entries in initialized storage.
+        let names_count = unsafe {
+            DeviceCapabilitiesW(device, port, names_capability, names.as_mut_ptr(), devmode)
+        };
+        if names_count > count {
+            return Err("printer name count changed during enumeration".to_owned());
+        }
+        names.truncate(names_count.max(0) as usize * name_len);
     }
     Ok(ids
         .into_iter()
@@ -79,7 +94,10 @@ fn query_pairs(
         .map(|(index, id)| {
             let start = index * name_len;
             let end = start + name_len;
-            let name = fixed_wide_string(&names[start..end]);
+            let name = names
+                .get(start..end)
+                .map(fixed_wide_string)
+                .unwrap_or_default();
             let name = if name.is_empty() {
                 id.to_string()
             } else {

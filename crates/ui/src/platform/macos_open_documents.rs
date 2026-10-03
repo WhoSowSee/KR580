@@ -11,11 +11,13 @@ thread_local! {
 }
 
 define_class!(
+    // SAFETY: This no-ivar main-thread class inherits NSObject's layout and lifetime rules.
     #[unsafe(super(NSObject))]
     #[thread_kind = MainThreadOnly]
     struct OpenDocumentHandler;
 
     impl OpenDocumentHandler {
+        // SAFETY: This selector takes two descriptor objects and returns void, matching Apple's handler ABI.
         #[unsafe(method(handleOpenDocuments:withReplyEvent:))]
         fn handle_open_documents(
             &self,
@@ -46,11 +48,15 @@ define_class!(
 );
 
 pub fn install() {
+    let Some(_main_thread) = objc2::MainThreadMarker::new() else {
+        return;
+    };
     HANDLER.with_borrow_mut(|slot| {
         if slot.is_some() {
             return;
         }
         let handler: Retained<OpenDocumentHandler> =
+            // SAFETY: MainThreadMarker validated this thread; NSObject new returns a retained instance of this no-ivar subclass.
             unsafe { msg_send![OpenDocumentHandler::class(), new] };
         let manager = NSAppleEventManager::sharedAppleEventManager();
         // SAFETY: The selector matches the handler method and `slot` retains the receiver for app lifetime.

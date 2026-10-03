@@ -97,6 +97,15 @@ admits one spool at a time and publishes completion/errors through the same
 bounded completion path as native printing. `NetworkDevice::queue_received`
 also returns `Result` and obeys the RX capacity.
 
+Windows printer FFI uses owned DC/font/job guards and same-thread COM/provider
+guards. Dialog global memory is pinned by a lock guard and checked against
+`GlobalSize` before reading DEVNAMES/DEVMODE. Enumeration strings are decoded
+inside the owned returned buffer; saved DEVMODE headers and driver-extra sizes
+are validated before aligned native access. Capability lists reject counts over
+65536, and PrintTicket streams reject sizes over 16 MiB. Conversion memory is
+released on success and every early error. `native/printing.rs` owns GDI job
+lifecycle; `native/buffer.rs` provides the bounded UTF-16 decoder.
+
 Storage retains its 4096-byte tail as a deque, so each accepted byte evicts at
 most one old byte without shifting the entire tail. Snapshots keep the existing
 ordered `Vec<u8>` representation for inspection.

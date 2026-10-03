@@ -205,6 +205,12 @@ RAM-range dialog. Detached device windows do not accept program drops.
 
 ## Event handling
 
+Native safety boundaries retain OS-owned resources until their last use.
+Windows registry reads reject odd UTF-16 byte sizes and close opened keys with
+an ownership guard. The macOS document handler checks the main thread before
+constructing or registering its Objective-C receiver; COM printer guards cannot
+move between threads. FFI safety comments describe these local invariants.
+
 CPU undo history stores control/tact metadata plus changed RAM cells. Dense
 changes keep two full RAM values; single-byte and register edits retain sparse
 data. Undo/redo moves entries between bounded deques and materializes only the

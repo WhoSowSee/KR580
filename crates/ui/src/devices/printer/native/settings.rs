@@ -1,6 +1,8 @@
 mod capabilities;
 mod dialog;
 mod print_ticket;
+#[cfg(test)]
+mod tests;
 
 use super::super::{
     PrinterConfiguration, PrinterInfo, PrinterOrientation, PrinterPropertyChange,
@@ -75,6 +77,9 @@ pub(super) fn configuration_from_devmode(
     printer: &PrinterInfo,
     devmode: Vec<u8>,
 ) -> Result<PrinterConfiguration, String> {
+    if read_devmode(&devmode).is_none() {
+        return Err("printer DEVMODE buffer is invalid".to_owned());
+    }
     let aligned = AlignedDevMode::from_bytes(&devmode);
     let (papers, sources) = capabilities::load(printer, aligned.as_ptr())?;
     Ok(PrinterConfiguration {
@@ -94,6 +99,7 @@ fn settings_from_devmode(
         return PrinterSettings::named(printer_name);
     };
     let fields = mode.dmFields;
+    // SAFETY: read_devmode validated a complete printer DEVMODEW; the union members are integer POD fields.
     let printer = unsafe { mode.Anonymous1.Anonymous1 };
     let paper_id = ((fields & DM_PAPERSIZE) != 0).then_some(printer.dmPaperSize);
     let source_id = ((fields & DM_DEFAULTSOURCE) != 0).then_some(printer.dmDefaultSource);
@@ -125,7 +131,9 @@ fn settings_from_devmode(
 }
 
 fn apply_standard_settings(devmode: &mut AlignedDevMode, settings: &PrinterSettings) {
+    // SAFETY: Default/normalized DEVMODE has a complete header in a uniquely borrowed aligned allocation.
     let mode = unsafe { &mut *devmode.as_mut_ptr() };
+    // SAFETY: The validated printer DEVMODE union contains only initialized integer fields.
     let mut printer = unsafe { mode.Anonymous1.Anonymous1 };
     mode.dmFields |= DM_ORIENTATION;
     printer.dmOrientation = match settings.orientation {
@@ -155,11 +163,13 @@ fn default_devmode_with_handle(
 ) -> Result<AlignedDevMode, String> {
     let name = wide_null(printer_name);
     let size =
+        // SAFETY: The opened printer handle and terminated name remain live; null outputs request the byte size.
         unsafe { DocumentPropertiesW(null_mut(), handle, name.as_ptr(), null_mut(), null(), 0) };
-    if size <= 0 {
+    if size < std::mem::size_of::<DEVMODEW>() as i32 {
         return Err(last_os_error("DocumentPropertiesW"));
     }
     let mut devmode = AlignedDevMode::zeroed(size as usize);
+    // SAFETY: The aligned zeroed output covers the queried size and the opened handle/name remain live.
     let result = unsafe {
         DocumentPropertiesW(
             null_mut(),
@@ -172,6 +182,9 @@ fn default_devmode_with_handle(
     };
     if result != IDOK {
         return Err(last_os_error("DocumentPropertiesW"));
+    }
+    if read_devmode(devmode.as_bytes()).is_none() {
+        return Err("printer driver returned an invalid DEVMODE".to_owned());
     }
     Ok(devmode)
 }
@@ -187,6 +200,7 @@ fn normalize_devmode(
     let input = AlignedDevMode::from_bytes(input);
     let mut output = default_devmode_with_handle(printer_name, handle)?;
     let name = wide_null(printer_name);
+    // SAFETY: Validated aligned input and sized output remain live and disjoint with the owned printer handle.
     let result = unsafe {
         DocumentPropertiesW(
             null_mut(),
@@ -207,6 +221,7 @@ fn read_devmode(bytes: &[u8]) -> Option<DEVMODEW> {
     if bytes.len() < std::mem::size_of::<DEVMODEW>() {
         return None;
     }
+    // SAFETY: The length check covers a complete POD DEVMODEW; read_unaligned does not assume byte-slice alignment.
     let mode = unsafe { bytes.as_ptr().cast::<DEVMODEW>().read_unaligned() };
     let required = mode.dmSize as usize + mode.dmDriverExtra as usize;
     (mode.dmSize as usize >= std::mem::size_of::<DEVMODEW>() && required <= bytes.len())
@@ -219,6 +234,7 @@ impl PrinterHandle {
     fn open(name: &str) -> Result<Self, String> {
         let name = wide_null(name);
         let mut handle = PRINTER_HANDLE::default();
+        // SAFETY: The name is terminated UTF-16 and the live output receives the newly owned printer handle.
         if unsafe { OpenPrinterW(name.as_ptr(), &mut handle, null()) } == 0 {
             return Err(last_os_error("OpenPrinterW"));
         }
@@ -228,6 +244,7 @@ impl PrinterHandle {
 
 impl Drop for PrinterHandle {
     fn drop(&mut self) {
+        // SAFETY: This guard owns one successful OpenPrinterW handle and closes it exactly once.
         unsafe {
             ClosePrinter(self.0);
         }
@@ -250,6 +267,7 @@ impl AlignedDevMode {
 
     fn from_bytes(bytes: &[u8]) -> Self {
         let mut buffer = Self::zeroed(bytes.len());
+        // SAFETY: The new initialized word allocation covers bytes.len() and is disjoint from the borrowed input.
         unsafe {
             std::ptr::copy_nonoverlapping(
                 bytes.as_ptr(),
@@ -268,7 +286,12 @@ impl AlignedDevMode {
         self.words.as_mut_ptr().cast()
     }
 
+    fn as_bytes(&self) -> &[u8] {
+        // SAFETY: The zero-initialized aligned word allocation contains at least len bytes.
+        unsafe { std::slice::from_raw_parts(self.words.as_ptr().cast::<u8>(), self.len) }
+    }
+
     fn into_bytes(self) -> Vec<u8> {
-        unsafe { std::slice::from_raw_parts(self.words.as_ptr().cast::<u8>(), self.len).to_vec() }
+        self.as_bytes().to_vec()
     }
 }

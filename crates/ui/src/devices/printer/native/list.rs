@@ -1,5 +1,5 @@
 use super::super::{PrinterInfo, PrinterStatus};
-use super::{last_os_error, read_wide_z};
+use super::last_os_error;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Graphics::Printing::{
     EnumPrintersW, GetDefaultPrinterW, PRINTER_ATTRIBUTE_DEFAULT, PRINTER_ENUM_CONNECTIONS,
@@ -18,6 +18,7 @@ pub(super) fn printers() -> Result<Vec<PrinterInfo>, String> {
     let mut needed = 0;
     let mut returned = 0;
     let first =
+        // SAFETY: Null output with zero capacity queries the required byte count into live outputs.
         unsafe { EnumPrintersW(flags, null(), 2, null_mut(), 0, &mut needed, &mut returned) };
     if first == 0 && needed == 0 {
         return Err(last_os_error("EnumPrintersW"));
@@ -26,13 +27,14 @@ pub(super) fn printers() -> Result<Vec<PrinterInfo>, String> {
         return Ok(Vec::new());
     }
 
-    let mut buffer = vec![0u8; needed as usize];
+    let mut buffer = vec![0usize; (needed as usize).div_ceil(std::mem::size_of::<usize>())];
+    // SAFETY: The aligned initialized allocation covers the requested byte count and outputs remain live.
     let ok = unsafe {
         EnumPrintersW(
             flags,
             null(),
             2,
-            buffer.as_mut_ptr(),
+            buffer.as_mut_ptr().cast(),
             needed,
             &mut needed,
             &mut returned,
@@ -44,22 +46,26 @@ pub(super) fn printers() -> Result<Vec<PrinterInfo>, String> {
 
     let default_name = default_printer_name().ok();
     let item_size = std::mem::size_of::<PRINTER_INFO_2W>();
-    Ok((0..returned as usize)
-        .filter_map(|index| {
-            let ptr = unsafe {
-                buffer
-                    .as_ptr()
-                    .add(index * item_size)
-                    .cast::<PRINTER_INFO_2W>()
-            };
-            let printer = unsafe { ptr.read_unaligned() };
-            printer_info(&printer, default_name.as_deref())
+    let size = buffer.len() * std::mem::size_of::<usize>();
+    if returned as usize > size / item_size {
+        return Err("printer enumeration count exceeds its buffer".to_owned());
+    }
+    // SAFETY: The initialized word allocation covers size bytes and outlives the borrowed view.
+    let bytes = unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), size) };
+    Ok(bytes
+        .chunks_exact(item_size)
+        .take(returned as usize)
+        .filter_map(|item| {
+            // SAFETY: Each chunk contains a complete POD PRINTER_INFO_2W; alignment is not assumed.
+            let printer = unsafe { item.as_ptr().cast::<PRINTER_INFO_2W>().read_unaligned() };
+            printer_info(&printer, bytes, default_name.as_deref())
         })
         .collect())
 }
 
 pub(super) fn default_printer_name() -> Result<String, String> {
     let mut len = 0;
+    // SAFETY: Null output queries the required UTF-16 length into a live output.
     unsafe {
         GetDefaultPrinterW(null_mut(), &mut len);
     }
@@ -67,6 +73,7 @@ pub(super) fn default_printer_name() -> Result<String, String> {
         return Err(last_os_error("GetDefaultPrinterW"));
     }
     let mut buffer = vec![0u16; len as usize];
+    // SAFETY: The initialized UTF-16 allocation has the queried character capacity and remains live.
     if unsafe { GetDefaultPrinterW(buffer.as_mut_ptr(), &mut len) } == 0 {
         return Err(last_os_error("GetDefaultPrinterW"));
     }
@@ -77,16 +84,20 @@ pub(super) fn default_printer_name() -> Result<String, String> {
     String::from_utf16(&buffer).map_err(|error| error.to_string())
 }
 
-fn printer_info(printer: &PRINTER_INFO_2W, default_name: Option<&str>) -> Option<PrinterInfo> {
-    let name = read_wide_ptr(printer.pPrinterName).ok()?;
+fn printer_info(
+    printer: &PRINTER_INFO_2W,
+    bytes: &[u8],
+    default_name: Option<&str>,
+) -> Option<PrinterInfo> {
+    let name = read_wide_ptr(bytes, printer.pPrinterName).ok()?;
     let is_default = (printer.Attributes & PRINTER_ATTRIBUTE_DEFAULT) != 0
         || default_name.is_some_and(|default| default.eq_ignore_ascii_case(&name));
     Some(PrinterInfo {
         name,
-        driver: read_wide_ptr(printer.pDriverName).unwrap_or_default(),
-        port: read_wide_ptr(printer.pPortName).unwrap_or_default(),
-        location: read_wide_ptr(printer.pLocation).unwrap_or_default(),
-        comment: read_wide_ptr(printer.pComment).unwrap_or_default(),
+        driver: read_wide_ptr(bytes, printer.pDriverName).unwrap_or_default(),
+        port: read_wide_ptr(bytes, printer.pPortName).unwrap_or_default(),
+        location: read_wide_ptr(bytes, printer.pLocation).unwrap_or_default(),
+        comment: read_wide_ptr(bytes, printer.pComment).unwrap_or_default(),
         status: printer_status(printer.Status),
         is_default,
     })
@@ -132,9 +143,12 @@ fn printer_status(status: u32) -> PrinterStatus {
     PrinterStatus::Unknown
 }
 
-fn read_wide_ptr(ptr: *const u16) -> Result<String, String> {
+fn read_wide_ptr(bytes: &[u8], ptr: *const u16) -> Result<String, String> {
     if ptr.is_null() {
         return Ok(String::new());
     }
-    read_wide_z(ptr)
+    let offset = (ptr as usize)
+        .checked_sub(bytes.as_ptr() as usize)
+        .ok_or_else(|| "printer string precedes its buffer".to_owned())?;
+    super::buffer::wide_string(bytes, offset)
 }
