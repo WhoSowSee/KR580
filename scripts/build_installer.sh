@@ -46,6 +46,9 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 manifest_path="$repo_root/Cargo.toml"
 cargo_bin="${KR580_CARGO:-cargo}"
+if [[ "$cargo_bin" == "cross" ]]; then
+  cargo metadata --locked --format-version 1 --manifest-path "$manifest_path" > /dev/null
+fi
 profile_args=()
 target_args=()
 
@@ -62,7 +65,7 @@ if [[ -z "$dist_dir" ]]; then
 fi
 
 KR580_WINDOWS_ICON_KIND= \
-  "$cargo_bin" build "${profile_args[@]}" "${target_args[@]}" -p kr580 --bin kr580 --bin kr --manifest-path "$manifest_path"
+  "$cargo_bin" build --locked "${profile_args[@]}" "${target_args[@]}" -p kr580 --bin kr580 --bin kr --manifest-path "$manifest_path"
 
 host_target_root="${CARGO_TARGET_DIR:-$repo_root/target}"
 container_target_root="$host_target_root"
@@ -78,11 +81,11 @@ else
 fi
 
 KR580_WINDOWS_ICON_KIND=uninstaller \
-  "$cargo_bin" build "${profile_args[@]}" "${target_args[@]}" -p kr580 --bin k580-uninstaller --manifest-path "$manifest_path"
+  "$cargo_bin" build --locked "${profile_args[@]}" "${target_args[@]}" -p kr580 --bin k580-uninstaller --manifest-path "$manifest_path"
 
 KR580_INSTALLER_PAYLOAD_DIR="$build_payload_dir" \
 KR580_WINDOWS_ICON_KIND=setup \
-  "$cargo_bin" build "${profile_args[@]}" "${target_args[@]}" -p kr580 --bin k580-installer --manifest-path "$manifest_path"
+  "$cargo_bin" build --locked "${profile_args[@]}" "${target_args[@]}" -p kr580 --bin k580-installer --manifest-path "$manifest_path"
 
 mkdir -p "$dist_dir"
 

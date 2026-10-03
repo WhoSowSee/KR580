@@ -12,6 +12,12 @@ The user-facing setup artifact is built by `scripts/build_installer.ps1`
 on Windows or `scripts/build_installer.sh` on Linux/Unix. The scripts first
 build `kr580` and `kr`, then build `k580-uninstaller` with the uninstall icon,
 then rebuild `k580-installer` with the setup icon and those binaries embedded.
+All three stages use `--locked`. The Unix `cross` branch first validates native
+Cargo metadata with `--locked`, because cross's metadata probe may otherwise
+resolve the lockfile before forwarding build arguments. A stale lockfile fails
+before any payload build; native/cross targets, icons and embedding paths keep
+the same contracts. Snap and macOS DMG build commands retain their own existing
+locking behavior.
 The resulting file under `dist/` is the installer a new user runs before `kr`
 exists.
 

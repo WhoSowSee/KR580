@@ -121,6 +121,12 @@ window ID and Unix to close it. Parallel Windows association tests reserve
 different private registry roots with a process-local counter.
 Hosted macOS and release packaging remain native CI checks; a Windows or WSL
 run alone does not verify them.
+Installer script changes must capture all three effective commands for debug
+and release, with and without a target, including `KR580_CARGO=cross`.
+Each build contains exactly one `--locked`; verify the icon role and embedded
+payload directory as well as the final artifact name. A deliberately stale
+temporary lockfile must fail locked metadata validation. Command capture does
+not replace hosted cross/container, Snap or native macOS packaging checks.
 Feature audits inspect the effective all-target graph and invert any dependency
 whose defaults are expected to stay off:
 
