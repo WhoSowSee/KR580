@@ -1,5 +1,8 @@
 use crate::devices::DeviceStatus;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
+
+const HISTORY_CAP: usize = 65_536;
 
 pub const TEXT_COLS: u16 = 64;
 pub const TEXT_ROWS: u16 = 20;
@@ -46,6 +49,7 @@ pub struct MonitorState {
 #[derive(Clone, Debug)]
 pub struct MonitorDevice {
     state: MonitorState,
+    history: VecDeque<u8>,
 }
 
 impl Default for MonitorDevice {
@@ -60,13 +64,17 @@ impl Default for MonitorDevice {
                 hex_buffer: Vec::new(),
                 status: DeviceStatus::Ready,
             },
+            history: VecDeque::new(),
         }
     }
 }
 
 impl MonitorDevice {
     pub fn output_byte(&mut self, value: u8) {
-        self.state.hex_buffer.push(value);
+        self.history.push_back(value);
+        if self.history.len() > HISTORY_CAP {
+            self.history.pop_front();
+        }
         match self.state.phase {
             MonitorPhase::Idle => {
                 self.state.last_command = Some(value);
@@ -96,7 +104,9 @@ impl MonitorDevice {
     }
 
     pub fn state(&self) -> MonitorState {
-        self.state.clone()
+        let mut state = self.state.clone();
+        state.hex_buffer = self.history.iter().copied().collect();
+        state
     }
 
     pub fn clear(&mut self) {
@@ -105,7 +115,7 @@ impl MonitorDevice {
         self.state.pixels.clear();
         self.state.phase = MonitorPhase::Idle;
         self.state.last_command = None;
-        self.state.hex_buffer.clear();
+        self.history.clear();
     }
 
     fn write_text_char(&mut self, color: u8, ch: u8) {
@@ -212,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn hex_buffer_records_every_outgoing_byte() {
+    fn hex_buffer_records_outgoing_bytes_in_order() {
         let mut dev = MonitorDevice::default();
         dev.output_byte(0x80);
         dev.output_byte(1);

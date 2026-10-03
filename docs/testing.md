@@ -121,6 +121,10 @@ window ID and Unix to close it. Parallel Windows association tests reserve
 different private registry roots with a process-local counter.
 The device polling allocation regression prepares long monitor/printer/storage
 buffers and requires zero allocations across 2000 unchanged paused polls.
+Device budget regressions park worker execution to fill queues deterministically,
+verify that refused bytes do not change accepted data, then drain storage and
+compare every byte. Separate buffer checks verify diagnostic suffix order and
+explicit overflow/recovery for unsaved storage and printer data.
 Hosted macOS and release packaging remain native CI checks; a Windows or WSL
 run alone does not verify them.
 Installer script changes must capture all three effective commands for debug

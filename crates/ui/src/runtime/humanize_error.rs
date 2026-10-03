@@ -22,6 +22,7 @@ pub(crate) fn humanize(error: &AppError, lang: Lang) -> String {
         AppErrorKind::AddressRange => Key::ErrAddressOutOfRange,
         AppErrorKind::UndocumentedOpcode => Key::ErrUndocumentedOpcode,
         AppErrorKind::DeviceNotReady => Key::ErrDeviceNotReady,
+        AppErrorKind::DeviceBusy => Key::ErrDeviceBusy,
         AppErrorKind::Internal => Key::ErrInternal,
         AppErrorKind::Generic => return format!("{} ({error})", lang.t(Key::ErrGenericFailed)),
     };

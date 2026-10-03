@@ -1,13 +1,15 @@
 use crate::devices::{DeviceError, DeviceStatus};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
+mod export;
 mod native;
 mod properties;
 mod status;
 mod text;
+
+const SPOOL_CAP: usize = 1_048_576;
 
 pub use status::PrinterStatus;
 
@@ -122,9 +124,9 @@ impl PrinterConfiguration {
 #[derive(Debug)]
 pub struct PrinterDevice {
     state: PrinterState,
-    tx: Option<mpsc::UnboundedSender<Vec<u8>>>,
-    completion_tx: mpsc::UnboundedSender<PrintCompletion>,
-    completion_rx: mpsc::UnboundedReceiver<PrintCompletion>,
+    tx: Option<mpsc::Sender<Vec<u8>>>,
+    completion_tx: mpsc::Sender<PrintCompletion>,
+    completion_rx: mpsc::Receiver<PrintCompletion>,
 }
 
 #[derive(Debug)]
@@ -134,7 +136,7 @@ struct PrintCompletion {
 
 impl Default for PrinterDevice {
     fn default() -> Self {
-        let (completion_tx, completion_rx) = mpsc::unbounded_channel();
+        let (completion_tx, completion_rx) = mpsc::channel(1);
         Self {
             state: PrinterState {
                 spool: Vec::new(),
@@ -151,51 +153,40 @@ impl Default for PrinterDevice {
 }
 
 impl PrinterDevice {
-    pub fn output_byte(&mut self, value: u8) {
+    pub fn output_byte(&mut self, value: u8) -> Result<(), DeviceError> {
+        if self.state.spool.len() == SPOOL_CAP {
+            self.state.last_error = Some(DeviceError::Busy.to_string());
+            return Err(DeviceError::Busy);
+        }
         self.state.spool.push(value);
         self.state.bytes_buffered += 1;
+        self.state.last_error = None;
+        Ok(())
     }
 
     pub fn attach_export_path(&mut self, path: impl AsRef<Path>, handle: &tokio::runtime::Handle) {
         let path = path.as_ref().to_path_buf();
-        let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
-        let worker_path = path.clone();
-        handle.spawn(async move {
-            while let Some(bytes) = rx.recv().await {
-                match tokio::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(&worker_path)
-                    .await
-                {
-                    Ok(mut file) => {
-                        if let Err(err) = file.write_all(&bytes).await {
-                            tracing::error!(error = %err, "printer export write failed");
-                            continue;
-                        }
-                        if let Err(err) = file.flush().await {
-                            tracing::error!(error = %err, "printer export flush failed");
-                        }
-                    }
-                    Err(err) => tracing::error!(error = %err, "printer export open failed"),
-                }
-            }
-        });
+        let (tx, rx) = mpsc::channel(1);
+        handle.spawn(export::write_spools(
+            path.clone(),
+            rx,
+            self.completion_tx.clone(),
+        ));
         self.state.target_path = Some(path);
         self.tx = Some(tx);
     }
 
     pub fn print_spool(&mut self) -> Result<(), DeviceError> {
-        let Some(tx) = self.tx.clone() else {
+        if self.state.status == DeviceStatus::Busy {
+            return Err(DeviceError::Busy);
+        }
+        let Some(tx) = self.tx.as_ref() else {
             self.state.status = DeviceStatus::NotReady;
             self.state.last_error = Some(DeviceError::NotReady.to_string());
             return Err(DeviceError::NotReady);
         };
-        tx.send(self.state.spool.clone()).map_err(|_| {
-            self.state.status = DeviceStatus::Disconnected;
-            self.state.last_error = Some(DeviceError::Disconnected.to_string());
-            DeviceError::Disconnected
-        })?;
+        super::queue::enqueue(tx, self.state.spool.clone())?;
+        self.state.status = DeviceStatus::Busy;
         self.state.last_error = None;
         Ok(())
     }
@@ -214,7 +205,7 @@ impl PrinterDevice {
         self.state.last_error = None;
         handle.spawn_blocking(move || {
             let result = native::print(settings.as_ref(), &spool);
-            let _ = completion_tx.send(PrintCompletion { result });
+            let _ = completion_tx.try_send(PrintCompletion { result });
         });
         Ok(())
     }
@@ -245,6 +236,7 @@ impl PrinterDevice {
     pub fn clear(&mut self) {
         self.state.spool.clear();
         self.state.bytes_buffered = 0;
+        self.state.last_error = None;
     }
 
     pub fn input_byte(&self) -> u8 {
@@ -300,7 +292,7 @@ mod tests {
         printer.state.status = DeviceStatus::Busy;
         printer
             .completion_tx
-            .send(PrintCompletion {
+            .try_send(PrintCompletion {
                 result: Err(native::PrintFailure::Cancelled),
             })
             .unwrap();

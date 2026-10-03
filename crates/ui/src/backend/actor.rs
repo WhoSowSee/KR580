@@ -16,8 +16,13 @@ pub struct EmulatorHandle {
 impl EmulatorHandle {
     pub fn send(&self, command: AppCommand) -> Result<(), AppError> {
         self.command_tx
-            .send(command)
-            .map_err(|_| AppError::WorkerStopped)
+            .try_send(command)
+            .map_err(|error| match error {
+                crossbeam_channel::TrySendError::Full(_) => {
+                    crate::devices::DeviceError::Busy.into()
+                }
+                crossbeam_channel::TrySendError::Disconnected(_) => AppError::WorkerStopped,
+            })
     }
 
     pub fn send_request(&self, command: AppCommand) -> Result<crate::backend::RequestId, AppError> {
@@ -118,9 +123,9 @@ impl EmulatorHandle {
 }
 
 pub fn spawn_emulator() -> EmulatorHandle {
-    let (command_tx, command_rx) = crossbeam_channel::unbounded::<AppCommand>();
+    let (command_tx, command_rx) = crossbeam_channel::bounded::<AppCommand>(256);
     let (event_tx, event_rx) = crossbeam_channel::bounded::<AppEvent>(256);
-    let (critical_tx, critical_rx) = crossbeam_channel::unbounded::<AppEvent>();
+    let (critical_tx, critical_rx) = crossbeam_channel::bounded::<AppEvent>(1024);
     let state_mailbox = Arc::new(Mutex::new(None));
     thread::spawn({
         let state_mailbox = state_mailbox.clone();

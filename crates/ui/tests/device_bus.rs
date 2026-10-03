@@ -127,12 +127,12 @@ fn network_no_data_is_non_fatal_and_buffers_are_separate() {
         bus.output(IoBus::NETWORK_PORT, 0x10),
         Err(PortError::Disconnected)
     ));
-    bus.network.queue_received(0x55);
+    bus.network.queue_received(0x55).unwrap();
     assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0x55);
     assert_eq!(bus.snapshot().network.tx_buffer, vec![0x10]);
     assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0);
     assert_eq!(bus.snapshot().network.status, DeviceStatus::NoData);
-    bus.network.queue_received(0);
+    bus.network.queue_received(0).unwrap();
     assert_eq!(bus.input(IoBus::NETWORK_PORT).unwrap(), 0);
     assert_eq!(bus.snapshot().network.status, DeviceStatus::Connected);
 }
@@ -198,7 +198,7 @@ fn network_worker_transfers_bytes_over_tcp() {
 fn network_buffers_can_be_cleared_without_resetting_connection_settings() {
     let mut network = NetworkDevice::default();
     network.configure(NetworkMode::Server, "0.0.0.0", 5803);
-    network.queue_received(0x55);
+    network.queue_received(0x55).unwrap();
     let _ = network.output_byte(0x10);
 
     network.clear_buffers();

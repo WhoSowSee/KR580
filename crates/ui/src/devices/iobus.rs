@@ -73,10 +73,7 @@ impl PortBus for IoBus {
             Self::FLOPPY_PORT => self.floppy.write_byte(value).map_err(Into::into),
             Self::HDD_PORT => self.hdd.write_byte(value).map_err(Into::into),
             Self::NETWORK_PORT => self.network.output_byte(value).map_err(Into::into),
-            Self::PRINTER_PORT => {
-                self.printer.output_byte(value);
-                Ok(())
-            }
+            Self::PRINTER_PORT => self.printer.output_byte(value).map_err(Into::into),
             invalid => Err(PortError::InvalidPort(invalid)),
         }
     }

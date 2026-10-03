@@ -4,6 +4,7 @@ pub mod monitor;
 pub mod network;
 mod oem;
 pub mod printer;
+mod queue;
 pub mod status;
 pub mod storage;
 

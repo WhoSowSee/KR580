@@ -18,6 +18,7 @@ pub enum AppErrorKind {
     AddressRange,
     UndocumentedOpcode,
     DeviceNotReady,
+    DeviceBusy,
     Internal,
     Generic,
 }
@@ -36,6 +37,7 @@ impl AppErrorKind {
     pub(super) fn port(error: &k580_core::PortError) -> Self {
         match error {
             k580_core::PortError::NotReady => Self::DeviceNotReady,
+            k580_core::PortError::Busy => Self::DeviceBusy,
             k580_core::PortError::PathNotFound(_) => Self::NotFound,
             k580_core::PortError::PermissionDenied(_) => Self::PermissionDenied,
             k580_core::PortError::Io(_) => Self::Io,

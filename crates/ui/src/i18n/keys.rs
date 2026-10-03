@@ -133,5 +133,5 @@ scalar_keys! {
     ErrSettingsNewerVersion, ErrSettingsCorrupt, ErrCannotReadFileFormat, ErrCannotReadFile,
     ErrCannotWriteTable, ErrCannotWriteFile, ErrFileNotFound, ErrPermissionDenied,
     ErrFileAlreadyExists, ErrDiskFull, ErrIoGeneric, ErrAddressOutOfRange,
-    ErrUndocumentedOpcode, ErrDeviceNotReady, ErrInternal, ErrGenericFailed,
+    ErrUndocumentedOpcode, ErrDeviceNotReady, ErrDeviceBusy, ErrInternal, ErrGenericFailed,
 }

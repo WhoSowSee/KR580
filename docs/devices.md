@@ -80,6 +80,23 @@ Both modes share the meta strip (phase, text cursor, pixel count, last command) 
 
 ## Storage inspection windows
 
+Device admission and history have separate budgets. Network TX and storage
+command queues hold at most 64 KiB of byte writes. `try_send` refuses a full
+queue with `DeviceError::Busy` before changing accepted counters or buffers;
+closed workers report `Disconnected`. Network socket writes and storage file
+writes drain FIFO batches of up to 4096 bytes. Storage close/detach closes
+admission and lets accepted bytes drain and flush through `storage/worker.rs`.
+
+Monitor hex history and attached storage inspection retain the latest 64 KiB
+in deques. The storage file still receives every accepted byte; its queued-byte
+counter covers the complete stream. Storage's separate tail remains 4096 bytes.
+Unsaved storage debug data and printer spool each have a 1 MiB cap and refuse
+further bytes with `Busy`; accepted user data is retained until explicit clear.
+Buffer export saves the currently retained inspection data. Printer file export
+admits one spool at a time and publishes completion/errors through the same
+bounded completion path as native printing. `NetworkDevice::queue_received`
+also returns `Result` and obeys the RX capacity.
+
 Storage retains its 4096-byte tail as a deque, so each accepted byte evicts at
 most one old byte without shifting the entire tail. Snapshots keep the existing
 ordered `Vec<u8>` representation for inspection.

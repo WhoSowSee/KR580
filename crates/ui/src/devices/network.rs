@@ -3,11 +3,14 @@ use k580_core::Memory64K;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Notify, mpsc};
 use tokio::task::AbortHandle;
 
+mod worker;
+
+use worker::run_worker;
+
+const TX_QUEUE_CAP: usize = 65_536;
 const RX_BUFFER_CAP: usize = Memory64K::SIZE;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,7 +50,7 @@ pub struct NetworkState {
 #[derive(Clone, Debug)]
 pub struct NetworkDevice {
     state: NetworkState,
-    tx: Option<mpsc::UnboundedSender<u8>>,
+    tx: Option<mpsc::Sender<u8>>,
     worker_rx: Arc<Mutex<VecDeque<u8>>>,
     worker_status: Arc<Mutex<NetworkWorkerStatus>>,
     worker_abort: Option<AbortHandle>,
@@ -129,7 +132,7 @@ impl NetworkDevice {
     pub fn start_worker(&mut self, handle: &tokio::runtime::Handle) {
         self.generation = self.generation.wrapping_add(1);
         self.stop_worker();
-        let (tx, rx_out) = mpsc::unbounded_channel();
+        let (tx, rx_out) = mpsc::channel(TX_QUEUE_CAP);
         self.worker_rx = Arc::new(Mutex::new(VecDeque::new()));
         self.rx_space = Arc::new(Notify::new());
         self.worker_status = Arc::new(Mutex::new(NetworkWorkerStatus {
@@ -162,27 +165,40 @@ impl NetworkDevice {
         self.tx = Some(tx);
     }
 
-    pub fn queue_received(&mut self, value: u8) {
-        self.state.rx_buffer.push(value);
-        if matches!(self.state.status, DeviceStatus::NoData) {
+    pub fn queue_received(&mut self, value: u8) -> Result<(), DeviceError> {
+        let mut queue = self.worker_rx.lock().unwrap();
+        if queue.len() == RX_BUFFER_CAP {
+            return Err(DeviceError::Busy);
+        }
+        queue.push_back(value);
+        if self.state.status == DeviceStatus::NoData {
             self.state.status = DeviceStatus::Connected;
         }
+        Ok(())
     }
 
     pub fn output_byte(&mut self, value: u8) -> Result<(), DeviceError> {
-        self.state.tx_buffer.clear();
-        self.state.tx_buffer.push(value);
         if let Some(tx) = &self.tx {
-            tx.send(value).map_err(|_| {
-                self.state.status = DeviceStatus::Disconnected;
-                self.state.connection = ConnectionState::Disconnected;
-                self.state.last_error = Some(DeviceError::Disconnected.to_string());
-                DeviceError::Disconnected
-            })?;
-            self.state.tx_total += 1;
+            let result = super::queue::enqueue(tx, value);
+            if let Err(error) = result {
+                let mut worker = self.worker_status.lock().unwrap();
+                worker.revision = worker.revision.wrapping_add(1);
+                worker.status = if error == DeviceError::Busy {
+                    DeviceStatus::Busy
+                } else {
+                    worker.connection = ConnectionState::Disconnected;
+                    DeviceStatus::Disconnected
+                };
+                worker.last_error = Some(error.to_string());
+                return Err(error);
+            }
+            self.state.tx_buffer.clear();
+            self.state.tx_buffer.push(value);
             self.apply_worker_status();
             return Ok(());
         }
+        self.state.tx_buffer.clear();
+        self.state.tx_buffer.push(value);
         match self.state.status {
             DeviceStatus::Connected | DeviceStatus::Listening | DeviceStatus::Ready => Ok(()),
             _ => Err(DeviceError::Disconnected),
@@ -191,12 +207,7 @@ impl NetworkDevice {
 
     pub fn input_byte(&mut self) -> u8 {
         self.apply_worker_status();
-        let value = self.worker_rx.lock().unwrap().pop_front().or_else(|| {
-            let mut rx = VecDeque::from(std::mem::take(&mut self.state.rx_buffer));
-            let value = rx.pop_front();
-            self.state.rx_buffer = rx.into();
-            value
-        });
+        let value = self.worker_rx.lock().unwrap().pop_front();
         self.rx_space.notify_one();
         if value.is_none() {
             self.state.status = DeviceStatus::NoData;
@@ -242,96 +253,4 @@ impl NetworkDevice {
         }
         self.tx = None;
     }
-}
-
-async fn run_worker(
-    mode: NetworkMode,
-    host: String,
-    port: u16,
-    mut rx_out: mpsc::UnboundedReceiver<u8>,
-    rx_in: Arc<Mutex<VecDeque<u8>>>,
-    status: Arc<Mutex<NetworkWorkerStatus>>,
-    rx_space: Arc<Notify>,
-) {
-    let address = format!("{host}:{port}");
-    let connected = match mode {
-        NetworkMode::Client => TcpStream::connect(&address).await,
-        NetworkMode::Server => match TcpListener::bind(&address).await {
-            Ok(listener) => listener.accept().await.map(|(socket, _)| socket),
-            Err(error) => Err(error),
-        },
-    };
-    let mut socket = match connected {
-        Ok(socket) => socket,
-        Err(error) => {
-            set_network_error(&status, error);
-            return;
-        }
-    };
-    {
-        let mut worker = status.lock().unwrap();
-        worker.revision = worker.revision.wrapping_add(1);
-        worker.connection = ConnectionState::Connected;
-        worker.status = DeviceStatus::Connected;
-        worker.last_error = None;
-    }
-    let (mut read_half, mut write_half) = socket.split();
-    let reader = async {
-        let mut buf = [0u8; 256];
-        loop {
-            let remaining = RX_BUFFER_CAP.saturating_sub(rx_in.lock().unwrap().len());
-            if remaining == 0 {
-                rx_space.notified().await;
-                continue;
-            }
-            let limit = remaining.min(buf.len());
-            let count = read_half.read(&mut buf[..limit]).await?;
-            if count == 0 {
-                return Ok::<(), std::io::Error>(());
-            }
-            {
-                let mut queue = rx_in.lock().unwrap();
-                queue.extend(buf[..count].iter().copied());
-            }
-            let mut worker = status.lock().unwrap();
-            worker.revision = worker.revision.wrapping_add(1);
-            worker.rx_total += count as u64;
-            worker.status = DeviceStatus::Connected;
-        }
-    };
-    let writer = async {
-        while let Some(byte) = rx_out.recv().await {
-            write_half.write_all(&[byte]).await?;
-            let mut worker = status.lock().unwrap();
-            worker.revision = worker.revision.wrapping_add(1);
-            worker.tx_total += 1;
-            worker.status = DeviceStatus::Connected;
-        }
-        Ok::<(), std::io::Error>(())
-    };
-    let result = tokio::select! {
-        result = reader => result,
-        result = writer => result,
-    };
-    match result {
-        Err(error) => set_network_error(&status, error),
-        Ok(()) => {
-            let mut worker = status.lock().unwrap();
-            worker.revision = worker.revision.wrapping_add(1);
-            worker.connection = ConnectionState::Disconnected;
-            worker.status = DeviceStatus::Disconnected;
-        }
-    }
-}
-
-fn set_network_error(status: &Arc<Mutex<NetworkWorkerStatus>>, error: std::io::Error) {
-    let mut worker = status.lock().unwrap();
-    worker.revision = worker.revision.wrapping_add(1);
-    worker.connection = match error.kind() {
-        std::io::ErrorKind::ConnectionRefused => ConnectionState::Refused,
-        std::io::ErrorKind::TimedOut => ConnectionState::TimedOut,
-        _ => ConnectionState::Error(error.to_string()),
-    };
-    worker.status = DeviceStatus::Error(error.to_string());
-    worker.last_error = Some(error.to_string());
 }

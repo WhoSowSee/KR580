@@ -366,6 +366,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ErrAddressOutOfRange => "Адрес вне допустимого диапазона памяти",
         Key::ErrUndocumentedOpcode => "Недокументированная команда",
         Key::ErrDeviceNotReady => "Устройство не готово",
+        Key::ErrDeviceBusy => "Устройство занято или буфер заполнен",
         Key::ErrInternal => "Внутренняя ошибка приложения",
         Key::ErrGenericFailed => "Не удалось выполнить операцию",
         _ => unreachable!("missing russian translation for {key:?}"),

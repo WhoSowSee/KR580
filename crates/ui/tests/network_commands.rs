@@ -26,7 +26,7 @@ fn clear_network_buffers_command_preserves_endpoint() {
         host: "127.0.0.1".to_owned(),
         port: 5800,
     });
-    emulator.bus_mut().network.queue_received(0x55);
+    emulator.bus_mut().network.queue_received(0x55).unwrap();
     emulator.handle_command(AppCommand::WritePort(0x03, 0x10));
 
     emulator.handle_command(AppCommand::ClearNetworkBuffers);

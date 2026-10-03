@@ -3,8 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
-use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
+
+mod worker;
+
+const QUEUE_CAP: usize = 65_536;
+const HISTORY_CAP: usize = 65_536;
+const DEBUG_BUFFER_CAP: usize = 1_048_576;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,15 +29,15 @@ pub struct StorageState {
 pub struct StorageDevice {
     state: StorageState,
     tail: VecDeque<u8>,
-    tx: Option<mpsc::UnboundedSender<StorageCommand>>,
-    error_rx: Option<mpsc::UnboundedReceiver<DeviceError>>,
+    visible: VecDeque<u8>,
+    tx: Option<mpsc::Sender<StorageCommand>>,
+    error_rx: Option<mpsc::Receiver<DeviceError>>,
 }
 
 #[derive(Debug)]
 enum StorageCommand {
     Write(u8),
     Flush,
-    Close,
 }
 
 impl StorageDevice {
@@ -50,6 +55,7 @@ impl StorageDevice {
                 debug_buffer: false,
             },
             tail: VecDeque::new(),
+            visible: VecDeque::new(),
             tx: None,
             error_rx: None,
         }
@@ -75,28 +81,9 @@ impl StorageDevice {
                 return Err(error);
             }
         };
-        let (tx, mut rx) = mpsc::unbounded_channel();
-        let (error_tx, error_rx) = mpsc::unbounded_channel();
-        handle.spawn(async move {
-            let mut file = tokio::fs::File::from_std(file);
-            while let Some(command) = rx.recv().await {
-                match command {
-                    StorageCommand::Write(byte) => {
-                        if let Err(err) = file.write_all(&[byte]).await {
-                            let _ = error_tx.send(DeviceError::from(err));
-                            break;
-                        }
-                    }
-                    StorageCommand::Flush => {
-                        if let Err(err) = file.flush().await {
-                            let _ = error_tx.send(DeviceError::from(err));
-                            break;
-                        }
-                    }
-                    StorageCommand::Close => break,
-                }
-            }
-        });
+        let (tx, rx) = mpsc::channel(QUEUE_CAP);
+        let (error_tx, error_rx) = mpsc::channel(1);
+        handle.spawn(worker::write_file(file, rx, error_tx));
         self.state.path = Some(path);
         self.state.status = DeviceStatus::Ready;
         self.state.last_error = None;
@@ -108,9 +95,7 @@ impl StorageDevice {
     }
 
     pub fn detach_file(&mut self) {
-        if let Some(tx) = self.tx.take() {
-            let _ = tx.send(StorageCommand::Close);
-        }
+        self.tx = None;
         self.state.path = None;
         self.state.status = if self.state.debug_buffer {
             DeviceStatus::Ready
@@ -124,12 +109,8 @@ impl StorageDevice {
 
     pub fn write_byte(&mut self, value: u8) -> Result<(), DeviceError> {
         if let Some(tx) = self.tx.as_ref() {
-            tx.send(StorageCommand::Write(value)).map_err(|_| {
-                self.state.status = DeviceStatus::Disconnected;
-                self.state.worker_alive = false;
-                self.state.last_error = Some(DeviceError::Disconnected.to_string());
-                DeviceError::Disconnected
-            })?;
+            let result = super::queue::enqueue(tx, StorageCommand::Write(value));
+            self.finish_enqueue(result)?;
             self.accept_visible_byte(value);
             self.state.bytes_queued += 1;
             self.state.last_error = None;
@@ -137,6 +118,9 @@ impl StorageDevice {
         }
 
         if self.state.debug_buffer {
+            if self.visible.len() == DEBUG_BUFFER_CAP {
+                return self.finish_enqueue(Err(DeviceError::Busy));
+            }
             self.state.status = DeviceStatus::Ready;
             self.accept_visible_byte(value);
             self.state.last_error = None;
@@ -158,7 +142,7 @@ impl StorageDevice {
     }
 
     pub fn clear_visible_buffer(&mut self) {
-        self.state.visible_buffer.clear();
+        self.visible.clear();
         self.tail.clear();
     }
 
@@ -183,19 +167,12 @@ impl StorageDevice {
             self.state.last_error = Some(DeviceError::NotReady.to_string());
             return Err(DeviceError::NotReady);
         };
-        tx.send(StorageCommand::Flush).map_err(|_| {
-            self.state.status = DeviceStatus::Disconnected;
-            self.state.worker_alive = false;
-            self.state.last_error = Some(DeviceError::Disconnected.to_string());
-            DeviceError::Disconnected
-        })
+        let result = super::queue::enqueue(tx, StorageCommand::Flush);
+        self.finish_enqueue(result)
     }
 
     pub fn close(&mut self) -> Result<(), DeviceError> {
-        if let Some(tx) = self.tx.take() {
-            tx.send(StorageCommand::Close)
-                .map_err(|_| DeviceError::Disconnected)?;
-        }
+        self.tx = None;
         self.state.status = DeviceStatus::NotReady;
         self.state.worker_alive = false;
         Ok(())
@@ -207,12 +184,32 @@ impl StorageDevice {
 
     pub fn state(&self) -> StorageState {
         let mut state = self.state.clone();
+        state.visible_buffer = self.visible.iter().copied().collect();
         state.tail_buffer = self.tail.iter().copied().collect();
         state
     }
 
+    fn finish_enqueue(&mut self, result: Result<(), DeviceError>) -> Result<(), DeviceError> {
+        match &result {
+            Ok(()) => self.state.status = DeviceStatus::Ready,
+            Err(error) => {
+                self.state.status = if *error == DeviceError::Busy {
+                    DeviceStatus::Busy
+                } else {
+                    self.state.worker_alive = false;
+                    DeviceStatus::Disconnected
+                };
+                self.state.last_error = Some(error.to_string());
+            }
+        }
+        result
+    }
+
     fn accept_visible_byte(&mut self, value: u8) {
-        self.state.visible_buffer.push(value);
+        self.visible.push_back(value);
+        if self.tx.is_some() && self.visible.len() > HISTORY_CAP {
+            self.visible.pop_front();
+        }
         self.tail.push_back(value);
         if self.tail.len() > 4096 {
             self.tail.pop_front();

@@ -66,6 +66,7 @@ impl From<crate::devices::DeviceError> for AppError {
         use crate::devices::DeviceError;
         let kind = match &error {
             DeviceError::NotReady => AppErrorKind::DeviceNotReady,
+            DeviceError::Busy => AppErrorKind::DeviceBusy,
             DeviceError::PathNotFound(_) => AppErrorKind::NotFound,
             DeviceError::PermissionDenied(_) => AppErrorKind::PermissionDenied,
             DeviceError::Io(_) => AppErrorKind::Io,

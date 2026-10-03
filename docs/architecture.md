@@ -86,6 +86,12 @@ UI localization. `backend/error/` separates data, categories and conversions.
 
 ## Runtime shape
 
+The CPU actor accepts at most 256 queued commands through nonblocking admission;
+full admission returns a typed Busy error. Its 1024-entry critical event queue
+preserves command completions by applying backpressure to the actor. The UI can
+drain events without waiting for command acceptance. Device queue and retained
+data budgets are documented in `devices.md`.
+
 Paused device polling drains storage/printer completions and compares a cheap
 network generation/revision before constructing an owned snapshot. Unchanged
 polls copy neither RAM nor device buffers and do not retain duplicate published

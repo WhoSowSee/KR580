@@ -362,6 +362,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::ErrAddressOutOfRange => "Address out of memory range",
         Key::ErrUndocumentedOpcode => "Undocumented opcode",
         Key::ErrDeviceNotReady => "Device is not ready",
+        Key::ErrDeviceBusy => "Device is busy or its buffer is full",
         Key::ErrInternal => "Internal application error",
         Key::ErrGenericFailed => "Operation failed",
         _ => unreachable!("missing english translation for {key:?}"),

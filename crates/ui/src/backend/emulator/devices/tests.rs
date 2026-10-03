@@ -34,7 +34,7 @@ fn unchanged_polls_allocate_nothing_with_long_device_buffers() {
     emulator.bus.floppy.set_debug_buffer(true);
     for value in (0..100_000).map(|value| value as u8) {
         emulator.bus.monitor.output_byte(value);
-        emulator.bus.printer.output_byte(value);
+        emulator.bus.printer.output_byte(value).unwrap();
         emulator.bus.floppy.write_byte(value).unwrap();
     }
     let mut revision = emulator.bus.network.revision();
