@@ -1,5 +1,6 @@
 use crate::devices::{DeviceError, DeviceStatus};
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncWriteExt;
@@ -22,6 +23,7 @@ pub struct StorageState {
 #[derive(Debug)]
 pub struct StorageDevice {
     state: StorageState,
+    tail: VecDeque<u8>,
     tx: Option<mpsc::UnboundedSender<StorageCommand>>,
     error_rx: Option<mpsc::UnboundedReceiver<DeviceError>>,
 }
@@ -47,6 +49,7 @@ impl StorageDevice {
                 worker_alive: false,
                 debug_buffer: false,
             },
+            tail: VecDeque::new(),
             tx: None,
             error_rx: None,
         }
@@ -156,7 +159,7 @@ impl StorageDevice {
 
     pub fn clear_visible_buffer(&mut self) {
         self.state.visible_buffer.clear();
-        self.state.tail_buffer.clear();
+        self.tail.clear();
     }
 
     pub fn poll(&mut self) -> bool {
@@ -203,15 +206,16 @@ impl StorageDevice {
     }
 
     pub fn state(&self) -> StorageState {
-        self.state.clone()
+        let mut state = self.state.clone();
+        state.tail_buffer = self.tail.iter().copied().collect();
+        state
     }
 
     fn accept_visible_byte(&mut self, value: u8) {
         self.state.visible_buffer.push(value);
-        self.state.tail_buffer.push(value);
-        if self.state.tail_buffer.len() > 4096 {
-            let drop_count = self.state.tail_buffer.len() - 4096;
-            self.state.tail_buffer.drain(0..drop_count);
+        self.tail.push_back(value);
+        if self.tail.len() > 4096 {
+            self.tail.pop_front();
         }
     }
 }

@@ -24,6 +24,10 @@ while preserving the stable `StepInstruction` / `Run` execution path.
 
 ## Execution API
 
+`CpuMetadata` is the control/register/tact state without RAM. `metadata()` captures
+it without copying memory; `apply_metadata()` restores that opaque state without
+replacing RAM. `Cpu8080State` retains its `Memory64K` default type parameter.
+
 `decode_metadata` and `step_instruction_metadata` return static mnemonic references
 through `InstructionMetadata` and `InstructionStep`. Burst execution, tact setup
 and `run_until_halt` use this allocation-free path. The existing `decode_opcode`

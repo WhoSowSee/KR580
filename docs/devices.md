@@ -80,6 +80,10 @@ Both modes share the meta strip (phase, text cursor, pixel count, last command) 
 
 ## Storage inspection windows
 
+Storage retains its 4096-byte tail as a deque, so each accepted byte evicts at
+most one old byte without shifting the entire tail. Snapshots keep the existing
+ordered `Vec<u8>` representation for inspection.
+
 `StorageDevice::attach_file` returns a typed `Result`. Open/create failures set
 the device's error state and fail the matching backend command, so an attachment
 cannot publish a successful completion or update the saved path after an error.

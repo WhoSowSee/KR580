@@ -4,12 +4,12 @@ use crate::{
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Cpu8080State {
+pub struct Cpu8080State<M = Memory64K> {
     pub registers: Registers,
     pub pc: u16,
     pub sp: u16,
     pub flags: Flags,
-    pub memory: Memory64K,
+    pub memory: M,
     pub interrupt_request_pending: bool,
     pub interrupt_enable: bool,
     pub interrupt_enable_pending: bool,
@@ -39,7 +39,8 @@ pub struct Cpu8080State {
     pub last_address_bus: u16,
 }
 
-/// `#[derive(Default)]` would yield `sp: 0`; reference uses `0xFFFF`.
+pub type CpuMetadata = Cpu8080State<()>;
+
 impl Default for Cpu8080State {
     fn default() -> Self {
         Self {
@@ -102,6 +103,53 @@ pub struct TactOutcome {
 }
 
 impl Cpu8080State {
+    pub fn metadata(&self) -> CpuMetadata {
+        Cpu8080State {
+            memory: (),
+            registers: self.registers,
+            pc: self.pc,
+            sp: self.sp,
+            flags: self.flags,
+            interrupt_request_pending: self.interrupt_request_pending,
+            interrupt_enable: self.interrupt_enable,
+            interrupt_enable_pending: self.interrupt_enable_pending,
+            halted: self.halted,
+            cycle_count: self.cycle_count,
+            interrupt_vector_byte: self.interrupt_vector_byte,
+            tact_phase: self.tact_phase,
+            last_completed_tact_phase: self.last_completed_tact_phase,
+            active_tacts_remaining: self.active_tacts_remaining,
+            active_tacts_total: self.active_tacts_total,
+            active_opcode: self.active_opcode,
+            active_branch_taken: self.active_branch_taken,
+            last_fetched_opcode: self.last_fetched_opcode,
+            last_data_bus_byte: self.last_data_bus_byte,
+            last_address_bus: self.last_address_bus,
+        }
+    }
+
+    pub fn apply_metadata(&mut self, metadata: CpuMetadata) {
+        self.registers = metadata.registers;
+        self.pc = metadata.pc;
+        self.sp = metadata.sp;
+        self.flags = metadata.flags;
+        self.interrupt_request_pending = metadata.interrupt_request_pending;
+        self.interrupt_enable = metadata.interrupt_enable;
+        self.interrupt_enable_pending = metadata.interrupt_enable_pending;
+        self.halted = metadata.halted;
+        self.cycle_count = metadata.cycle_count;
+        self.interrupt_vector_byte = metadata.interrupt_vector_byte;
+        self.tact_phase = metadata.tact_phase;
+        self.last_completed_tact_phase = metadata.last_completed_tact_phase;
+        self.active_tacts_remaining = metadata.active_tacts_remaining;
+        self.active_tacts_total = metadata.active_tacts_total;
+        self.active_opcode = metadata.active_opcode;
+        self.active_branch_taken = metadata.active_branch_taken;
+        self.last_fetched_opcode = metadata.last_fetched_opcode;
+        self.last_data_bus_byte = metadata.last_data_bus_byte;
+        self.last_address_bus = metadata.last_address_bus;
+    }
+
     /// 8080 leaves SP indeterminate on reset; the reference uses
     /// `0xFFFF` so a stray `PUSH` lands in the high stack region.
     pub const RESET_SP: u16 = 0xFFFF;

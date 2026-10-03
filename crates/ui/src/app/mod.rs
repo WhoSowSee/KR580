@@ -90,4 +90,4 @@ pub(crate) use speed::tier_hz;
 pub(crate) use state::DesktopApp;
 pub(crate) use status::{StatusKind, shorten_status_for_width};
 pub(crate) use subprogram_modal::{SubprogramDialogFocus, SubprogramDialogMode};
-pub(crate) use undo::UndoEntry;
+pub(crate) use undo::UndoReplay;

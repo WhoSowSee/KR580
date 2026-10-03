@@ -86,6 +86,10 @@ UI localization. `backend/error/` separates data, categories and conversions.
 
 ## Runtime shape
 
+`backend/emulator/apply.rs` owns command mutations. Undo sends `ApplyCpuDelta`
+with core control metadata and sparse cells or a full RAM replacement. The CPU
+actor owns that application and invalidates older document completions.
+
 Persistence dispatch and execution live in `backend/emulator/io/{dispatch,jobs}.rs`;
 `io/mod.rs` owns completion reconciliation. Every job carries the document
 generation. New CPU documents and subsequent program/subprogram loads supersede

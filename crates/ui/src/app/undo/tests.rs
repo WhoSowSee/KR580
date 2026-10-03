@@ -44,6 +44,30 @@ fn cpu_push_breaks_text_coalescing() {
 }
 
 #[test]
+fn byte_edit_keeps_sparse_history_and_replays_both_directions() {
+    let mut stack = UndoStack::default();
+    stack.push_cpu(fresh_state(0), fresh_state(0xAB));
+    let change = match stack.undo.back().unwrap() {
+        UndoEntry::Cpu { change, .. } => change,
+        _ => panic!("expected CPU delta"),
+    };
+    let (_, update) = change.replay(Direction::Redo);
+    assert_eq!(update, crate::backend::MemoryUpdate::Cells(vec![(0, 0xAB)]));
+    for (replay, expected) in [
+        (stack.pop_undo().unwrap(), 0),
+        (stack.pop_redo().unwrap(), 0xAB),
+    ] {
+        match replay {
+            UndoReplay::Cpu { memory, .. } => assert_eq!(
+                memory,
+                crate::backend::MemoryUpdate::Cells(vec![(0, expected)])
+            ),
+            _ => panic!("expected CPU replay"),
+        }
+    }
+}
+
+#[test]
 fn redo_clears_on_new_push() {
     let mut stack = UndoStack::default();
     stack.push_text("addr", "00".to_owned(), "01".to_owned());
@@ -69,17 +93,15 @@ fn pop_undo_then_redo_round_trips() {
     stack.push_text("addr", "00".to_owned(), "01".to_owned());
     let undone = stack.pop_undo().expect("undo entry available");
     match undone {
-        UndoEntry::Text { before, after, .. } => {
-            assert_eq!(before, "00");
-            assert_eq!(after, "01");
+        UndoReplay::Text { value, .. } => {
+            assert_eq!(value, "00");
         }
         other => panic!("unexpected entry: {other:?}"),
     }
     let redone = stack.pop_redo().expect("redo entry available");
     match redone {
-        UndoEntry::Text { before, after, .. } => {
-            assert_eq!(before, "00");
-            assert_eq!(after, "01");
+        UndoReplay::Text { value, .. } => {
+            assert_eq!(value, "01");
         }
         other => panic!("unexpected entry: {other:?}"),
     }

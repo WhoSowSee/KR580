@@ -205,6 +205,11 @@ RAM-range dialog. Detached device windows do not accept program drops.
 
 ## Event handling
 
+CPU undo history stores control/tact metadata plus changed RAM cells. Dense
+changes keep two full RAM values; single-byte and register edits retain sparse
+data. Undo/redo moves entries between bounded deques and materializes only the
+requested direction through `ApplyCpuDelta`, preserving register selection.
+
 `CommandFinished` may report `Superseded` when a newer document operation has
 invalidated the request. The UI removes that pending request without applying
 its old path, saved-state marker or error. Loading pauses active execution when

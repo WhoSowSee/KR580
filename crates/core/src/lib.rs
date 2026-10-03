@@ -24,5 +24,5 @@ pub use machine_cycle::{
 };
 pub use memory::Memory64K;
 pub use registers::{RegisterName, Registers};
-pub use state::{Cpu8080State, InstructionOutcome, InstructionStep, TactOutcome};
+pub use state::{Cpu8080State, CpuMetadata, InstructionOutcome, InstructionStep, TactOutcome};
 pub use timing::InstructionTiming;

@@ -2,7 +2,9 @@ use crate::backend::AppError;
 use crate::devices::printer::PrinterSettings;
 use crate::devices::{DeviceSnapshot, NetworkMode};
 use crate::persistence::ExportOptions;
-use k580_core::{Cpu8080State, InstructionOutcome, RegisterName, TactOutcome};
+use k580_core::{
+    Cpu8080State, CpuMetadata, InstructionOutcome, Memory64K, RegisterName, TactOutcome,
+};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -47,6 +49,10 @@ pub enum AppCommand {
         values: Vec<u8>,
     },
     ApplyCpuState(Box<Cpu8080State>),
+    ApplyCpuDelta {
+        metadata: CpuMetadata,
+        memory: MemoryUpdate,
+    },
     ExportTxt(PathBuf),
     ExportXlsx(PathBuf),
     ExportTxtWithOptions(PathBuf, ExportOptions),
@@ -79,6 +85,12 @@ pub enum AppCommand {
 pub enum RunMode {
     Paced,
     Burst { slice: Duration },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MemoryUpdate {
+    Cells(Vec<(u16, u8)>),
+    Replace(Memory64K),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
