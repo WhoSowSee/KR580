@@ -23,12 +23,12 @@ impl Cpu8080State {
             match (opcode >> 3) & 7 {
                 0 => self.add(value, false),
                 1 => self.add(value, true),
-                2 => self.sub(value, false, true),
-                3 => self.sub(value, true, true),
+                2 => self.subtract(value),
+                3 => self.subtract_with_borrow(value),
                 4 => self.ana(value),
                 5 => self.xra(value),
                 6 => self.ora(value),
-                _ => self.sub(value, false, false),
+                _ => self.compare(value),
             }
             self.pc = self.pc.wrapping_add(1);
             return self.outcome(Some(opcode), mnemonic, pc_before, t_states, false);
@@ -65,11 +65,11 @@ impl Cpu8080State {
             }
             0xD6 => {
                 let value = self.fetch_byte(1);
-                self.sub(value, false, true);
+                self.subtract(value);
             }
             0xDE => {
                 let value = self.fetch_byte(1);
-                self.sub(value, true, true);
+                self.subtract_with_borrow(value);
             }
             0xE6 => {
                 let value = self.fetch_byte(1);
@@ -85,7 +85,7 @@ impl Cpu8080State {
             }
             0xFE => {
                 let value = self.fetch_byte(1);
-                self.sub(value, false, false);
+                self.compare(value);
             }
             _ => unreachable!("ALU dispatch reached non-ALU opcode {opcode:#04X}"),
         }
@@ -118,16 +118,25 @@ impl Cpu8080State {
         self.registers.a = result;
     }
 
-    pub(crate) fn sub(&mut self, value: u8, borrow: bool, write_result: bool) {
-        let borrow_in = u8::from(borrow && self.flags.carry);
+    pub(crate) fn subtract(&mut self, value: u8) {
+        self.registers.a = self.subtract_result(value, 0);
+    }
+
+    pub(crate) fn subtract_with_borrow(&mut self, value: u8) {
+        self.registers.a = self.subtract_result(value, u8::from(self.flags.carry));
+    }
+
+    pub(crate) fn compare(&mut self, value: u8) {
+        self.subtract_result(value, 0);
+    }
+
+    fn subtract_result(&mut self, value: u8, borrow_in: u8) -> u8 {
         let a = self.registers.a;
         let result = a.wrapping_sub(value).wrapping_sub(borrow_in);
         self.flags.carry = (a as u16) < (value as u16 + borrow_in as u16);
         self.flags.auxiliary_carry = (a & 0x0F) >= ((value & 0x0F).wrapping_add(borrow_in));
         self.flags.set_sign_zero_parity(result);
-        if write_result {
-            self.registers.a = result;
-        }
+        result
     }
 
     pub(crate) fn ana(&mut self, value: u8) {
