@@ -242,14 +242,20 @@ jobs:
           fi
           snap_name=${snaps[0]}
           check_root=$(mktemp -d)
+          trap 'rm -rf -- "$check_root"' EXIT
           check_dir="$check_root/root"
           unsquashfs -d "$check_dir" "$snap_name" >/dev/null
           test -x "$check_dir/bin/kr580"
           test ! -e "$check_dir/bin/k580-installer"
           test ! -e "$check_dir/bin/k580-uninstaller"
-          desktop-file-validate "$check_dir/meta/gui/kr580.desktop"
+          desktop="$check_dir/meta/gui/kr580.desktop"
+          icon_path=usr/share/icons/hicolor/256x256/apps/kr580.png
+          test -s "$check_dir/$icon_path"
+          grep -Fxq "Icon=\${SNAP}/$icon_path" "$desktop"
+          sed "s|^Icon=\${SNAP}/|Icon=$check_dir/|" "$desktop" > "$check_root/kr580.desktop"
+          desktop-file-validate "$check_root/kr580.desktop"
           grep -Fq 'command: bin/kr580' "$check_dir/meta/snap.yaml"
-          grep -Fq 'MimeType=application/x-kr580;' "$check_dir/meta/gui/kr580.desktop"
+          grep -Fq 'MimeType=application/x-kr580;' "$desktop"
           version=$(awk -F'"' '/^version[[:space:]]*=/ { print $2; exit }' Cargo.toml)
           test -n "$version"
           mkdir -p artifacts

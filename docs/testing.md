@@ -56,6 +56,11 @@ Linux metadata changes must validate the canonical files under
 `crates/ui/assets/linux`; runtime and package outputs are rendered from those
 same inputs and must not add independent copies.
 
+Snap CI checks the packaged PNG and `${SNAP}` icon reference before validating
+a temporary Desktop Entry copy with that prefix resolved to the unpacked root.
+The original entry remains unchanged, and the unpacked files are removed on
+success or failure. Both native `amd64` and `arm64` package jobs use this check.
+
 Desktop Entry renderer tests compare the complete `Exec` entry as a logical line.
 They accept LF and CRLF checkouts while still checking the executable and
 unresolved placeholders.

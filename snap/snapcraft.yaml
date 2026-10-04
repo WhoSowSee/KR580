@@ -65,7 +65,8 @@ parts:
       mkdir -p "$(dirname "$desktop")"
       grep -Fq 'Exec=@EXEC@ %f' \
         "$CRAFT_PART_SRC/crates/ui/assets/linux/kr580-package.desktop"
-      sed 's/@EXEC@/kr580/g' \
+      sed -e 's/@EXEC@/kr580/g' \
+        -e 's|^Icon=kr580$|Icon=/usr/share/icons/hicolor/256x256/apps/kr580.png|' \
         "$CRAFT_PART_SRC/crates/ui/assets/linux/kr580-package.desktop" > "$desktop"
       ! grep -Fq '@EXEC@' "$desktop"
       desktop-file-validate "$desktop"

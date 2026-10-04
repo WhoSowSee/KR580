@@ -273,7 +273,12 @@ minimal because the graphics crates load those libraries at runtime.
 The Rust plugin uses the workspace's tested Rust 1.88.0 MSRV and builds only
 `crates/ui`'s `kr580` binary. Its override calls the
 plugin's default build before installing the application icon and rendering the
-canonical package Desktop Entry. There are no setup/uninstall commands or
+canonical package Desktop Entry. The Snap-specific rendering uses the staged
+256 px PNG's absolute path, so Snapcraft does not resolve the icon through the
+desktop theme. Snapcraft adds `${SNAP}` when copying the entry into `meta/gui`.
+CI checks that the referenced PNG exists in the unpacked package and validates
+a temporary copy of the entry with `${SNAP}` resolved to that unpacked root.
+The packaged entry keeps its Snap path. There are no setup/uninstall commands or
 nested installation directories: snapd owns installation, refresh, removal,
 command wrapping, interfaces, and desktop export.
 The exported Desktop Entry advertises `application/x-kr580`, but strict Snap
