@@ -137,7 +137,11 @@ mod tests {
         let executable = Path::new("/opt/kr580/kr580");
         let launcher = launcher(executable).unwrap();
 
-        assert!(launcher.contains("Exec=\"/opt/kr580/kr580\"\n"));
+        assert!(
+            launcher
+                .lines()
+                .any(|line| line == "Exec=\"/opt/kr580/kr580\"")
+        );
         assert!(!launcher.contains("@EXEC@"));
     }
 

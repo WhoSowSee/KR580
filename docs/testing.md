@@ -56,6 +56,10 @@ Linux metadata changes must validate the canonical files under
 `crates/ui/assets/linux`; runtime and package outputs are rendered from those
 same inputs and must not add independent copies.
 
+Desktop Entry renderer tests compare the complete `Exec` entry as a logical line.
+They accept LF and CRLF checkouts while still checking the executable and
+unresolved placeholders.
+
 On Windows, build `cargo build -p kr580 --bin kr --bin kr580` and inspect
 `(Get-Item target/debug/kr.exe).VersionInfo` and the corresponding `kr580.exe`
 property. Both `FileDescription` and `ProductName` must be `KR` for the launcher
