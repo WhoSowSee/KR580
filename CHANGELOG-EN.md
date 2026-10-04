@@ -1,5 +1,43 @@
 # Changelog
 
+## [4.0.0] - 2026-10-04
+
+### Breaking Changes
+
+- Changed: `StorageDevice::attach_file`, `StorageDevice::detach_file`, `NetworkDevice::queue_received` and `PrinterDevice::output_byte` return `Result<(), DeviceError>` instead of `()`; callers must handle refusal
+- Changed: `AppError::{Core, Persistence, Io}` variants contain `ErrorData` instead of `String`; use `kind()` for the category and `Error::source()` for the original cause
+- Changed: `CommandResult::SavedProgram` and `SavedSubprogram` contain the CPU state actually saved, and `AppSnapshot` has a `revision` field; update snapshot construction and result patterns
+- Changed: public `AppCommand`, `AppEvent` and `CommandResult` enums have new variants for requests, CPU deltas, superseded generations and worker shutdown; exhaustive `match` expressions need updating, and asynchronous operations complete through `RequestId` and `CommandFinished`
+- Changed: network TX and storage write queues are capped at 64 KiB and return `Busy` when full; monitor and attached-storage history retain the latest 64 KiB, unsaved debug buffers and printer spools have a 1 MiB cap without discarding accepted data, and disk previews display the first 64 KiB of the file
+
+### Bug Fixes
+
+- Fixed: background imports apply validated patches to the current CPU and preserve edits made while reading; results from a previous document are rejected
+- Fixed: imported registers, flags and values are validated before CPU mutation; a failed import leaves no partial changes
+- Fixed: `.580`, `.krs`, settings, monitor images and floppy-buffer saves use atomic replacement; a write failure preserves the previous file, permissions and symbolic-link target
+- Fixed: editing commands, Step/tact, Reset/Restart and Undo run without synchronous UI waits; undo history and follow-up actions use the actor's confirmed changes
+- Fixed: import target enumeration, disk metadata and preview reads, image encoding, buffer saves and directory validation run in the background; request generations reject stale results, including repeated selections of the same path
+- Fixed: settings success notices follow completed writes; successful Save advances Cancel's baseline to the submitted draft while retaining later edits in the open dialog, and sequential path and printer-profile changes do not overwrite each other
+- Fixed: TCP reconfiguration cancels both halves of the previous connection, clean EOF displays disconnection, RX applies backpressure without silently losing bytes, and a received zero byte differs from missing data
+- Fixed: storage open failures propagate to callers; files open outside the actor, and reattachment preserves accepted-write order while reusing one writer
+- Fixed: Alt+Enter on IN/OUT operands executes tasks that open the corresponding device window
+- Fixed: installation stages all binaries first and writes the final manifest after integration; stage failures roll back completed changes, preserve previous files, PATH values and foreign data, and retain recovery backups on conflicts
+- Fixed: native printer and registry wrappers validate buffer bounds/alignment and UTF-16, and release GDI, COM and global-memory resources on early errors
+
+### Performance and Code Structure
+
+- Optimized: instruction execution uses static metadata without allocating discarded mnemonic strings; the existing `decode_opcode` and `step_instruction` APIs remain available
+- Optimized: Undo stores metadata and changed cells instead of two full RAM copies for small edits; history queues and storage tails use deques
+- Optimized: unchanged-device polling checks revisions before copying snapshots, and event handling releases mailbox locks before processing
+- Updated: UI state is divided by responsibility; window, dropdown and memory-view phases use typed states, and export target names and settings stay together
+- Updated: removed obsolete implementations, redundant copies, intermediate collections and comments; subtraction and comparison operations have explicit names
+
+### Build and Verification
+
+- Updated: UI file operations and persistence use separate bounded FIFO workers with explicit admission errors and ordered writes
+- Added: a complete Windows, Linux and macOS workspace gate for branch pushes, pull requests and manual runs; CPU tests no longer depend on external absolute fixture paths
+- Fixed: all three installer build stages use `--locked`, and cross additionally checks locked metadata; synchronized architecture, device, I/O, testing and installer documentation
+
 ## [3.1.0] - 2026-09-07
 
 ### Features
