@@ -1,4 +1,5 @@
 mod apply;
+mod changes;
 mod devices;
 mod export_model;
 pub(crate) mod io;
@@ -23,6 +24,7 @@ pub struct Emulator {
     pub(super) step_interval: Duration,
     pub(super) run_mode: RunMode,
     document_generation: u64,
+    revision: u64,
 }
 
 impl Default for Emulator {
@@ -36,6 +38,7 @@ impl Default for Emulator {
             step_interval: DEFAULT_STEP_INTERVAL,
             run_mode: RunMode::Paced,
             document_generation: 0,
+            revision: 0,
         }
     }
 }
@@ -51,6 +54,7 @@ impl Emulator {
             step_interval: DEFAULT_STEP_INTERVAL,
             run_mode: RunMode::Paced,
             document_generation: 0,
+            revision: 0,
         }
     }
 
@@ -80,6 +84,7 @@ impl Emulator {
 
     pub fn snapshot(&self) -> AppSnapshot {
         AppSnapshot {
+            revision: self.revision,
             cpu: self.cpu.clone(),
             devices: self.bus.snapshot(),
         }
@@ -97,6 +102,16 @@ impl Emulator {
         request_id: Option<crate::backend::RequestId>,
         command: AppCommand,
     ) -> Vec<AppEvent> {
+        if matches!(command, AppCommand::RequestSnapshot) {
+            let mut events = vec![AppEvent::StateChanged(Box::new(self.snapshot()))];
+            if let Some(id) = request_id {
+                events.push(AppEvent::CommandFinished {
+                    id,
+                    result: Ok(crate::backend::CommandResult::Completed),
+                });
+            }
+            return events;
+        }
         if matches!(&command, AppCommand::ClearNetworkBuffers) {
             let network = self.bus.network.state();
             if network.rx_buffer.is_empty() && network.tx_buffer.is_empty() {
@@ -110,7 +125,23 @@ impl Emulator {
                     .unwrap_or_default();
             }
         }
-        let result = self.apply(command);
+        let (checkpoint, command, allowed) = match command {
+            AppCommand::Edit(command) => {
+                let checkpoint =
+                    request_id.and_then(|_| changes::CpuCheckpoint::capture(&self.cpu, &command));
+                let allowed = checkpoint.is_some();
+                (checkpoint, *command, allowed)
+            }
+            command => (None, command, true),
+        };
+        let result = if allowed {
+            self.apply(command)
+        } else {
+            Err(AppError::Io(
+                "tracked edit requires a CPU mutation request".into(),
+            ))
+        };
+        self.revision = self.revision.wrapping_add(1);
         let mut events = match result {
             Ok(events) => events,
             Err(error) => vec![AppEvent::ErrorRaised(error)],
@@ -135,7 +166,13 @@ impl Emulator {
                     })
                     .unwrap_or(Ok(crate::backend::CommandResult::Completed))
             } else {
-                Ok(crate::backend::CommandResult::Completed)
+                match checkpoint {
+                    Some(checkpoint) => Ok(crate::backend::CommandResult::CpuChanged {
+                        revision: self.revision,
+                        change: Box::new(checkpoint.finish(&self.cpu)),
+                    }),
+                    None => Ok(crate::backend::CommandResult::Completed),
+                }
             };
             events.push(AppEvent::CommandFinished { id, result });
         }

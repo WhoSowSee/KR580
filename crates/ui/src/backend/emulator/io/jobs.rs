@@ -62,7 +62,7 @@ pub(super) fn run(job: IoJob) -> Result<(CommandResult, Option<IoUpdate>), AppEr
     match job {
         IoJob::SaveProgram { path, state } => {
             ProgramSerializer::save_file(path, &state)?;
-            Ok((CommandResult::SavedProgram, None))
+            Ok((CommandResult::SavedProgram { state }, None))
         }
         IoJob::LoadProgram { path } => {
             let state = ProgramSerializer::load_file(path)?;
@@ -78,7 +78,7 @@ pub(super) fn run(job: IoJob) -> Result<(CommandResult, Option<IoUpdate>), AppEr
             end,
         } => {
             SubprogramSerializer::save_file(path, &state, start, end)?;
-            Ok((CommandResult::SavedSubprogram, None))
+            Ok((CommandResult::SavedSubprogram { state }, None))
         }
         IoJob::LoadSubprogram { path, start } => {
             let (values, end) = SubprogramSerializer::read_block(&path, start)?;

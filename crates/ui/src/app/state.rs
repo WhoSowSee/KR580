@@ -3,7 +3,7 @@ use iced::{Point, Size, Task, keyboard};
 use k580_core::RegisterName;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use super::changelog::ChangelogDialog;
 use super::help::HelpDialog;
@@ -74,7 +74,6 @@ pub(crate) struct DesktopApp {
     /// A burst may auto-pause before Tick; the final PC still needs following.
     pub(crate) pending_follow_pc: bool,
     pub(crate) inline_register_just_entered: bool,
-    pub(crate) last_tact_was_boundary: bool,
     pub(crate) startup_frames_seen: u8,
     pub(crate) main_window_size: Size,
     pub(crate) open_menu: Option<MenuId>,
@@ -183,6 +182,8 @@ pub(crate) struct DesktopApp {
     pub(crate) help_dialog: Option<HelpDialog>,
     pub(crate) monitor_hex_filter: HexStreamFilter,
     pub(crate) pending_requests: PendingRequests,
+    pub(crate) backend_tasks: Vec<Task<Message>>,
+    pub(crate) edit_epoch: u64,
 }
 
 impl DesktopApp {
@@ -259,7 +260,6 @@ impl DesktopApp {
             running: false,
             pending_follow_pc: false,
             inline_register_just_entered: false,
-            last_tact_was_boundary: false,
             startup_frames_seen: 0,
             main_window_size: Size::new(1180.0, 720.0),
             open_menu: None,
@@ -367,23 +367,11 @@ impl DesktopApp {
             floppy_image_file_stamp: None,
             monitor_hex_filter: HexStreamFilter::default(),
             pending_requests: HashMap::new(),
+            backend_tasks: Vec::new(),
+            edit_epoch: 0,
         };
         app.apply_speed_tier(default_speed);
-
-        let settle_deadline = Instant::now() + Duration::from_millis(100);
-        loop {
-            let remaining = settle_deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                break;
-            }
-            let events = app.handle.drain_until_state_change(remaining);
-            if events.is_empty() {
-                break;
-            }
-            for event in events {
-                app.consume_event(event);
-            }
-        }
+        app.dispatch_request(crate::backend::AppCommand::RequestSnapshot);
 
         (app, startup_task)
     }

@@ -7,7 +7,8 @@ impl Emulator {
     pub(super) fn apply(&mut self, command: AppCommand) -> Result<Vec<AppEvent>, AppError> {
         let mut events = Vec::new();
         match command {
-            AppCommand::Request { .. } => {
+            AppCommand::RequestSnapshot => {}
+            AppCommand::Request { .. } | AppCommand::Edit(_) => {
                 return Err(AppError::Io("nested backend request".to_owned().into()));
             }
             AppCommand::ResetCpu => {
@@ -53,6 +54,7 @@ impl Emulator {
                     events.push(AppEvent::HaltStateChanged(target));
                 }
             }
+            AppCommand::ToggleHalt => return self.apply(AppCommand::SetHalted(!self.cpu.halted)),
             AppCommand::ResetRam => {
                 let was_running = self.running;
                 let was_halted_before = self.cpu.halted;
@@ -227,6 +229,11 @@ impl Emulator {
             AppCommand::SetHddDebugBuffer(enabled) => {
                 self.bus.hdd.set_debug_buffer(enabled);
             }
+            AppCommand::ToggleHddDebugBuffer => {
+                self.bus
+                    .hdd
+                    .set_debug_buffer(!self.bus.hdd.debug_buffer_enabled());
+            }
             AppCommand::DetachHddFile => {
                 self.bus.hdd.detach_file();
             }
@@ -235,6 +242,11 @@ impl Emulator {
             }
             AppCommand::SetFloppyDebugBuffer(enabled) => {
                 self.bus.floppy.set_debug_buffer(enabled);
+            }
+            AppCommand::ToggleFloppyDebugBuffer => {
+                self.bus
+                    .floppy
+                    .set_debug_buffer(!self.bus.floppy.debug_buffer_enabled());
             }
             AppCommand::ConfigureNetwork { mode, host, port } => {
                 self.bus.network.configure(mode, host, port);

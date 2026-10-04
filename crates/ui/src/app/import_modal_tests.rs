@@ -1,5 +1,6 @@
 use super::{DesktopApp, ImportFileFormat, ImportModalFocus};
 use crate::app::Message;
+use crate::app::test_support::settle_backend;
 use crate::persistence::{ExportModel, ExportOptions, Exporters};
 use iced::{Event, window};
 use std::path::PathBuf;
@@ -282,17 +283,4 @@ fn unique_temp_file(name: &str) -> PathBuf {
         .unwrap()
         .as_nanos();
     std::env::temp_dir().join(format!("{nanos}-{name}"))
-}
-
-fn settle_backend(app: &mut DesktopApp) {
-    for _ in 0..100 {
-        for event in app.handle.drain_events() {
-            app.consume_event(event);
-        }
-        if app.pending_requests.is_empty() {
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    panic!("backend request did not finish");
 }

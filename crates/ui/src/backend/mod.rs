@@ -10,7 +10,8 @@ pub use crate::devices::{
 };
 pub use actor::{EmulatorHandle, MIN_STEP_INTERVAL, initial_snapshot, spawn_emulator};
 pub use command::{
-    AppCommand, AppEvent, AppSnapshot, CommandResult, MemoryUpdate, RequestId, RunMode,
+    AppCommand, AppEvent, AppSnapshot, ChangeDirection, CommandResult, CpuChange, MemoryUpdate,
+    RequestId, RunMode,
 };
 pub use emulator::{DEFAULT_STEP_INTERVAL, Emulator};
 pub use error::AppError;

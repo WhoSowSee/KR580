@@ -105,15 +105,26 @@ impl DesktopApp {
         }
     }
 
-    pub(crate) fn apply_inline_memory_value(&mut self, address: u16) {
+    fn apply_inline_memory_action(&mut self, address: u16, mut action: crate::app::BackendAction) {
         self.commit_replacement(MEMORY_INLINE_INPUT_ID);
         match parse_hex_u8(&self.memory_inline_value_input) {
             Some(value) => {
+                if let crate::app::BackendAction::Memory {
+                    value: submitted, ..
+                } = &mut action
+                {
+                    *submitted = value;
+                }
                 self.memory_address_input = format!("{address:04X}");
                 self.memory_value_input = format!("{value:02X}");
                 self.memory_inline_value_input = self.memory_value_input.clone();
                 self.undo_stack.break_coalescing();
-                self.dispatch_with_undo(AppCommand::SetMemory(address, value));
+                self.dispatch_edit(
+                    AppCommand::SetMemory(address, value),
+                    crate::app::UndoPolicy::Record,
+                    None,
+                    action,
+                );
             }
             None => self.set_status(StatusKind::InvalidByteHex),
         }
@@ -141,13 +152,19 @@ impl DesktopApp {
     pub(crate) fn handle_inline_memory_submit(&mut self, address: u16) -> Task<Message> {
         let replacing = self.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
         let backward = self.keyboard_modifiers.shift();
-        self.apply_inline_memory_value(address);
-        let step = self.step_memory_address(if backward { -1 } else { 1 });
-        if replacing {
-            self.begin_replacement(MEMORY_INLINE_INPUT_ID);
-        }
-        self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
-        step.chain(operation::focus(MEMORY_INLINE_INPUT_ID))
+        let value = parse_hex_u8(&self.memory_inline_value_input).unwrap_or(0);
+        self.apply_inline_memory_action(
+            address,
+            crate::app::BackendAction::Memory {
+                address,
+                value,
+                target: crate::app::MemoryCompletion::Inline {
+                    delta: if backward { -1 } else { 1 },
+                    replacing,
+                },
+            },
+        );
+        Task::none()
     }
 
     pub(crate) fn cancel_inline_memory_edit(&mut self) -> Task<Message> {
@@ -246,6 +263,10 @@ impl DesktopApp {
     }
 
     pub(crate) fn apply_memory(&mut self) -> Task<Message> {
+        self.apply_memory_action(crate::app::BackendAction::None)
+    }
+
+    fn apply_memory_action(&mut self, action: crate::app::BackendAction) -> Task<Message> {
         self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         self.commit_replacement(MEMORY_VALUE_INPUT_ID);
         match (
@@ -255,7 +276,12 @@ impl DesktopApp {
             (Some(address), Some(value)) => {
                 self.memory_inline_value_input = format!("{value:02X}");
                 self.undo_stack.break_coalescing();
-                self.dispatch_with_undo(AppCommand::SetMemory(address, value));
+                self.dispatch_edit(
+                    AppCommand::SetMemory(address, value),
+                    crate::app::UndoPolicy::Record,
+                    None,
+                    action,
+                );
                 Task::none()
             }
             (None, _) => {
@@ -270,17 +296,35 @@ impl DesktopApp {
     }
 
     pub(crate) fn apply_memory_and_step(&mut self, backward: bool) -> Task<Message> {
-        let write = self.apply_memory();
-        self.step_address_in_input(backward);
-        self.continue_replacement(MEMORY_VALUE_INPUT_ID);
-        self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
-        write.chain(operation::focus(MEMORY_VALUE_INPUT_ID))
+        self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
+        self.commit_replacement(MEMORY_VALUE_INPUT_ID);
+        let (Some(address), Some(value)) = (
+            parse_hex_u16(&self.memory_address_input),
+            parse_hex_u8(&self.memory_value_input),
+        ) else {
+            return self.apply_memory();
+        };
+        self.apply_memory_action(crate::app::BackendAction::Memory {
+            address,
+            value,
+            target: crate::app::MemoryCompletion::ValueStep { backward },
+        })
     }
 
     pub(crate) fn apply_memory_and_jump(&mut self) -> Task<Message> {
-        let write = self.apply_memory();
-        let jump = self.jump_memory_address();
-        write.chain(jump)
+        self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
+        self.commit_replacement(MEMORY_VALUE_INPUT_ID);
+        let (Some(address), Some(value)) = (
+            parse_hex_u16(&self.memory_address_input),
+            parse_hex_u8(&self.memory_value_input),
+        ) else {
+            return self.apply_memory();
+        };
+        self.apply_memory_action(crate::app::BackendAction::Memory {
+            address,
+            value,
+            target: crate::app::MemoryCompletion::Jump,
+        })
     }
 
     fn write_memory_block(&mut self, start: u16, values: Vec<u8>) {
@@ -296,6 +340,36 @@ impl DesktopApp {
         self.memory_address_input = format!("{start:04X}");
         self.memory_value_input = format!("{first:02X}");
         self.memory_inline_value_input = self.memory_value_input.clone();
+    }
+
+    pub(crate) fn finish_memory_completion(
+        &mut self,
+        address: u16,
+        value: u8,
+        target: crate::app::MemoryCompletion,
+    ) -> Task<Message> {
+        if parse_hex_u16(&self.memory_address_input) != Some(address)
+            || parse_hex_u8(&self.memory_inline_value_input) != Some(value)
+        {
+            return Task::none();
+        }
+        match target {
+            crate::app::MemoryCompletion::Inline { delta, replacing } => {
+                let step = self.step_memory_address(delta);
+                if replacing {
+                    self.begin_replacement(MEMORY_INLINE_INPUT_ID);
+                }
+                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+                Task::batch([step, operation::focus(MEMORY_INLINE_INPUT_ID)])
+            }
+            crate::app::MemoryCompletion::ValueStep { backward } => {
+                self.step_address_in_input(backward);
+                self.continue_replacement(MEMORY_VALUE_INPUT_ID);
+                self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
+                operation::focus(MEMORY_VALUE_INPUT_ID)
+            }
+            crate::app::MemoryCompletion::Jump => self.jump_memory_address(),
+        }
     }
 }
 

@@ -10,6 +10,7 @@ impl Emulator {
             events.push(AppEvent::StateChanged(Box::new(self.snapshot())));
             return events;
         }
+        self.revision = self.revision.wrapping_add(1);
         if self.cpu.halted {
             self.running = false;
             events.push(AppEvent::HaltStateChanged(true));

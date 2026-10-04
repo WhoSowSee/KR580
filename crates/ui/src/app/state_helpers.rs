@@ -72,16 +72,29 @@ impl DesktopApp {
     }
 
     pub(crate) fn run_new_file(&mut self) {
-        self.dispatch(crate::backend::AppCommand::ResetRam);
-        self.dispatch(crate::backend::AppCommand::ResetCpu);
+        let epoch = self.edit_epoch.wrapping_add(1);
+        if !self.dispatch_action(
+            crate::backend::AppCommand::ApplyCpuState(Box::default()),
+            super::pending::BackendAction::NewFile { edit_epoch: epoch },
+        ) {
+            return;
+        }
+        self.edit_epoch = epoch;
+        self.pending_requests.retain(|_, request| {
+            !matches!(
+                request,
+                super::pending::PendingRequest::CpuEdit { .. }
+                    | super::pending::PendingRequest::LoadProgram { .. }
+                    | super::pending::PendingRequest::LoadSubprogram { .. }
+                    | super::pending::PendingRequest::Import { .. }
+            )
+        });
         self.running = false;
         self.current_snapshot_path = None;
         self.current_subprogram_range = None;
         self.subprogram_dialog = None;
         self.undo_stack.clear();
-        self.mark_saved();
         self.speed_tier = self.default_speed;
-        self.set_status(StatusKind::NewFile);
     }
 
     pub(crate) fn mark_saved(&mut self) {
@@ -90,14 +103,16 @@ impl DesktopApp {
     }
 
     pub(crate) fn recompute_dirty(&mut self) {
-        self.dirty = self.snapshot.cpu != self.saved_cpu;
-    }
-
-    pub(crate) fn mark_subprogram_saved(&mut self, start: u16, end: u16) {
-        let range = usize::from(start)..=usize::from(end);
-        self.saved_cpu.memory.as_mut_slice()[range.clone()]
-            .copy_from_slice(&self.snapshot.cpu.memory.as_slice()[range]);
-        self.recompute_dirty();
+        self.dirty = self.snapshot.cpu != self.saved_cpu
+            || self.pending_requests.values().any(|request| {
+                matches!(
+                    request,
+                    super::pending::PendingRequest::CpuEdit {
+                        undo: super::pending::UndoPolicy::Record,
+                        ..
+                    }
+                )
+            });
     }
 
     pub(crate) fn apply_speed_tier(&mut self, tier: SpeedTier) {

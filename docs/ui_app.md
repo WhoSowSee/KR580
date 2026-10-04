@@ -118,8 +118,8 @@ RAM-range dialog. Detached device windows do not accept program drops.
   - `app/constants.rs` – widget identifiers, register order, and name
     lookup helpers. Re-exported from `crate::app::*` so the rest of the
     crate keeps importing them by short path.
-  - `app/update.rs` – the main `update()` message handler for runtime,
-    menu, focus, file, memory, register, and opcode messages.
+  - `app/update.rs` – the task envelope around routing in `update/dispatch.rs`
+    and CPU controls in `update/execution.rs`.
   - `app/windows.rs` – main/monitor window settings, IDs, lifecycle,
     drag, close-request routing, and daemon shutdown.
   - `app/handlers.rs` – helper handlers shared with `update`/`subscription`:
@@ -160,20 +160,20 @@ RAM-range dialog. Detached device windows do not accept program drops.
     asynchronous driver calls, capability loading, and session override state.
   - `app/register_inline.rs` – inline register-cell editor (Tab/Shift+Tab
     walk, Ctrl+Arrow navigation).
-  - `app/undo.rs` – `UndoEntry` / `UndoStack` storage and coalescing,
-    plus tests under `app/undo/tests.rs`.
+  - `app/undo.rs` – reserved/confirmed `UndoEntry` / `UndoStack` storage and
+    coalescing; shared CPU deltas live in `backend/command/change.rs`.
   - `app/pending.rs` – request-owned Save, Load, Import, Export, and
     subprogram operations held until the actor publishes `CommandFinished`.
 - `runtime/` contains app-facing command dispatch, event draining, file
   dialogs, and the per-panel update logic. The methods all hang off
   `impl DesktopApp` and are grouped by responsibility:
   - `runtime/mod.rs` – module root.
-  - `runtime/dispatch.rs` – sync/async worker dispatch
-    (`dispatch`, `dispatch_sync`, `dispatch_async_request`,
+  - `runtime/dispatch.rs` – nonblocking worker dispatch
+    (`dispatch`, `dispatch_request`, `dispatch_action`, `dispatch_edit`, `dispatch_async_request`,
     `dispatch_with_undo`) plus the
     `toggle_run` / `restart_program` control flow.
-  - `runtime/events.rs` – `pull_events`, `consume_event`, and the
-    `apply_snapshot` reconciler.
+  - `runtime/events.rs` – event reconciliation and request matching;
+    `events/actions.rs` runs confirmed follow-ups and collects widget effects.
   - `runtime/files.rs` – Open / Save / Save-As for `.580` snapshots and
     `.krs` subprograms, selected-format Export, and the export-path normaliser.
   - `runtime/register.rs` – register name/value editing including
@@ -194,8 +194,8 @@ RAM-range dialog. Detached device windows do not accept program drops.
     parsed. Unknown bridge errors retain their diagnostic text in the fallback.
   - `runtime/parse.rs` – small free helpers (hex parsing,
     `saturating_step_u8`, `scroll_memory_to`).
-  - `runtime/undo.rs` – applies a popped `UndoEntry` back to live
-    state (text-field restore, `ApplyCpuState` replay).
+  - `runtime/undo.rs` – restores text or submits a popped `UndoReplay` through
+    `ApplyCpuDelta`, then follows confirmed state without creating another entry.
 - `view/` renders the current snapshot and lays out every panel
   (split into focused submodules – see “Левая панель: расщепление
   модулей” below).
@@ -204,6 +204,35 @@ RAM-range dialog. Detached device windows do not accept program drops.
   iced window modes so winit's internal visibility state stays synchronized.
 
 ## Event handling
+
+CPU edits, step/tact commands, reset/restart, undo replay and device attachment
+use asynchronous request completions. UI handlers never wait for the actor.
+`CpuChanged` contains the actor's actual before/after delta and revision, so an
+edit confirmed after the former 50 ms deadline still creates the right undo.
+The bounded timeline reserves a non-replayable slot at submission and fills it
+on confirmation; later text edits retain their chronological order. Failed
+requests remove their slot, and refused undo admission restores the timeline.
+Text undo remains available while a CPU edit is pending; CPU replay reports Busy
+until earlier CPU commands are confirmed.
+
+Cursor advancement, register selection/focus, restart Run, attachment notices
+and saved paths follow confirmation. Register/memory completion guards preserve
+a newer draft or focus choice. Manual halt keeps the selected RAM row; reset
+and instruction/tact boundaries follow confirmed PC. A pause cancels a queued
+restart's Run follow-up. `app/update.rs` batches ordinary handler tasks with
+completion effects; `update/dispatch.rs` and `update/execution.rs` own routing.
+
+`RequestSnapshot` is a read-only acknowledgement used for initial reconciliation,
+replacing the startup settle loop. Snapshots reject older actor revisions.
+`WorkerStopped` clears pending requests/history slots and raises an error.
+Frontend admission is limited to 128 requests and reports Busy explicitly.
+Halt and storage debug-buffer toggles are evaluated against the actor's current
+state, so repeated presses do not reuse an old UI value. Detach notices also
+wait for acknowledgement.
+Full-document loads/new-file replacement hold CPU commits and Run until their
+completion. Partial imports/subprogram loads retain dirty state and history when
+edits were submitted during their work. Save completions carry the worker-owned
+CPU that was actually written; `.krs` updates only that saved RAM range.
 
 Native safety boundaries retain OS-owned resources until their last use.
 Windows registry reads reject odd UTF-16 byte sizes and close opened keys with
@@ -1617,18 +1646,11 @@ Esc / click and the 8-second deadline; see `clear_halt_notice` in
 fade timer (which clears the notice but leaves the latch armed –
 that is the whole point of the latch).
 
-`runtime::memory::sync_pc_to_cursor` also early-returns on halt. The
-function normally mirrors a freshly-clicked memory cell into `cpu.pc`
-so a subsequent step runs against that byte, but on a halted CPU
-there is no next step (the gestures are blocked), and the
-`SetPc` round-trip is actively harmful: `dispatch_sync` waits for a
-`StateChanged`, which on a halted CPU is the same post-halt snapshot
-the worker keeps republishing (`pc = halt_pc + 1`); `apply_snapshot`
-then reads that PC back into the spinner and the visible address
-jumps one cell forward on every click. Skipping the dispatch lets the
-user browse memory freely after HLT. `Message::ResetCpu` always arms
-`pending_follow_pc`, so the next worker snapshot reattaches the memory
-selection to reset PC `0000` even if HLT was cleared manually first.
+`runtime::memory::sync_pc_to_cursor` skips halted/in-flight tact state,
+full-document loading and an already matching PC. Otherwise it submits SetPc
+without waiting; later step commands share the actor's FIFO order. Browsing
+after HLT therefore retains the halt selection. ResetCpu follows confirmed PC
+`0000` through its request-owned action even if halt was cleared manually first.
 
 ### Esc reverts unsaved inline memory edits
 

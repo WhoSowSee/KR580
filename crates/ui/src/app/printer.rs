@@ -256,7 +256,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn print_printer_native(&mut self) {
-        self.dispatch_sync(crate::backend::AppCommand::PrintPrinterNative(
+        self.dispatch_request(crate::backend::AppCommand::PrintPrinterNative(
             self.active_printer_settings().cloned(),
         ));
     }

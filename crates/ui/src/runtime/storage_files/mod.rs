@@ -44,11 +44,16 @@ impl DesktopApp {
 
     pub(crate) fn attach_floppy_image(&mut self, path: PathBuf) {
         self.clear_error_notice();
-        self.dispatch_sync(AppCommand::AttachFloppyImage(path.clone()));
-        if self.error_notice.is_some() {
+        self.dispatch_action(
+            AppCommand::AttachFloppyImage(path.clone()),
+            crate::app::BackendAction::FloppyAttached(path),
+        );
+    }
+
+    pub(crate) fn finish_floppy_attachment(&mut self, path: PathBuf) {
+        if self.snapshot.devices.floppy.path.as_ref() != Some(&path) {
             return;
         }
-
         let mut settings = load_settings();
         settings.storage.floppy_path = path.clone();
         if let Err(error) = save_settings(&settings) {
@@ -178,17 +183,12 @@ impl DesktopApp {
     pub(crate) fn attach_hdd_directory(&mut self, folder: PathBuf) {
         self.clear_error_notice();
         let hdd_path = folder.join("hdd.kpd");
-        self.hdd_file_exists = true;
-        self.dispatch_sync(crate::backend::AppCommand::AttachHddFile(hdd_path.clone()));
-        if self.error_notice.is_some() {
-            self.hdd_file_exists = false;
-            return;
-        }
-
-        self.set_status(StatusKind::HddImageAttached {
-            display: hdd_path.display().to_string(),
-        });
+        self.dispatch_action(
+            AppCommand::AttachHddFile(hdd_path.clone()),
+            crate::app::BackendAction::HddAttached(hdd_path),
+        );
     }
+
     pub(crate) fn delete_hdd_file(&mut self) {
         let Some(path) = self.snapshot.devices.hdd.path.clone() else {
             return;
@@ -202,11 +202,10 @@ impl DesktopApp {
             self.set_status_custom(self.lang.t(Key::ErrCannotWriteFile).to_owned());
             return;
         }
-        self.hdd_file_exists = false;
-        self.dispatch_sync(crate::backend::AppCommand::DetachHddFile);
-        self.set_status(StatusKind::HddFileDeleted {
-            display: path.display().to_string(),
-        });
+        self.dispatch_action(
+            AppCommand::DetachHddFile,
+            crate::app::BackendAction::HddDeleted(path),
+        );
     }
 
     pub(crate) fn create_hdd_file(&mut self) {
@@ -217,14 +216,10 @@ impl DesktopApp {
             .path
             .clone()
             .unwrap_or_else(hdd_default_path);
-        self.dispatch_sync(crate::backend::AppCommand::AttachHddFile(path.clone()));
-        if self.error_notice.is_some() {
-            return;
-        }
-        self.hdd_file_exists = true;
-        self.set_status(StatusKind::HddImageAttached {
-            display: path.display().to_string(),
-        });
+        self.dispatch_action(
+            AppCommand::AttachHddFile(path.clone()),
+            crate::app::BackendAction::HddAttached(path),
+        );
     }
 
     pub(crate) fn refresh_hdd_file_exists(&mut self) {

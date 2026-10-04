@@ -68,6 +68,23 @@ fn byte_edit_keeps_sparse_history_and_replays_both_directions() {
 }
 
 #[test]
+fn confirmed_cpu_edit_stays_before_later_text_edits() {
+    let mut stack = UndoStack::default();
+    let id = crate::backend::RequestId(1);
+    stack.reserve_cpu(id);
+    stack.push_text("byte", "AA".into(), "BB".into());
+    stack.complete_cpu(
+        id,
+        Some(CpuChange::between(fresh_state(0), &fresh_state(0xAA))),
+        None,
+    );
+    assert!(matches!(stack.pop_undo(),Some(UndoReplay::Text {value,..}) if value=="AA"));
+    assert!(
+        matches!(stack.pop_undo(),Some(UndoReplay::Cpu {memory:crate::backend::MemoryUpdate::Cells(cells),..}) if cells==[(0,0)])
+    );
+}
+
+#[test]
 fn redo_clears_on_new_push() {
     let mut stack = UndoStack::default();
     stack.push_text("addr", "00".to_owned(), "01".to_owned());

@@ -1,16 +1,18 @@
-mod cpu;
 #[cfg(test)]
 mod tests;
 
 use crate::backend::MemoryUpdate;
-use cpu::CpuChange;
-use k580_core::{Cpu8080State, CpuMetadata, RegisterName};
+use crate::backend::{ChangeDirection as Direction, CpuChange};
+#[cfg(test)]
+use k580_core::Cpu8080State;
+use k580_core::{CpuMetadata, RegisterName};
 use std::collections::VecDeque;
 
 const UNDO_DEPTH_LIMIT: usize = 256;
 
 #[derive(Debug)]
 enum UndoEntry {
+    Pending(crate::backend::RequestId),
     Text {
         field: &'static str,
         before: String,
@@ -30,6 +32,12 @@ pub(crate) struct UndoStack {
 }
 
 impl UndoStack {
+    pub(crate) fn has_text_undo(&self) -> bool {
+        matches!(self.undo.back(), Some(UndoEntry::Text { .. }))
+    }
+    pub(crate) fn has_text_redo(&self) -> bool {
+        matches!(self.redo.back(), Some(UndoEntry::Text { .. }))
+    }
     pub(crate) fn push_text(&mut self, field: &'static str, before: String, after: String) {
         if before == after {
             return;
@@ -54,22 +62,23 @@ impl UndoStack {
         self.coalesce_field = Some(field);
     }
 
+    #[cfg(test)]
     pub(crate) fn push_cpu(&mut self, before: Cpu8080State, after: Cpu8080State) {
-        self.push_cpu_with_register_selection(before, after, None);
+        self.push_change(CpuChange::between(before, &after), None);
     }
 
-    pub(crate) fn push_cpu_with_register_selection(
+    #[cfg(test)]
+    pub(crate) fn push_change(
         &mut self,
-        before: Cpu8080State,
-        after: Cpu8080State,
+        change: CpuChange,
         register_selection: Option<(RegisterName, RegisterName)>,
     ) {
-        if before == after {
+        if change.is_empty() {
             return;
         }
         self.redo.clear();
         self.push_entry(UndoEntry::Cpu {
-            change: CpuChange::between(before, after),
+            change,
             register_selection,
         });
         self.coalesce_field = None;
@@ -79,7 +88,49 @@ impl UndoStack {
         self.coalesce_field = None;
     }
 
+    pub(crate) fn reserve_cpu(&mut self, id: crate::backend::RequestId) {
+        self.push_entry(UndoEntry::Pending(id));
+        self.coalesce_field = None;
+    }
+
+    pub(crate) fn complete_cpu(
+        &mut self,
+        id: crate::backend::RequestId,
+        change: Option<CpuChange>,
+        register_selection: Option<(RegisterName, RegisterName)>,
+    ) {
+        let Some(index) = self
+            .undo
+            .iter()
+            .position(|entry| matches!(entry, UndoEntry::Pending(pending) if *pending==id))
+        else {
+            return;
+        };
+        if let Some(change) = change.filter(|change| !change.is_empty()) {
+            self.redo.clear();
+            self.undo[index] = UndoEntry::Cpu {
+                change,
+                register_selection,
+            };
+        } else {
+            self.undo.remove(index);
+        }
+    }
+
+    pub(crate) fn cancel_replay(&mut self, direction: Direction) {
+        let (source, target) = match direction {
+            Direction::Undo => (&mut self.redo, &mut self.undo),
+            Direction::Redo => (&mut self.undo, &mut self.redo),
+        };
+        if let Some(entry) = source.pop_back() {
+            target.push_back(entry);
+        }
+    }
+
     pub(crate) fn pop_undo(&mut self) -> Option<UndoReplay> {
+        if matches!(self.undo.back(), Some(UndoEntry::Pending(_))) {
+            return None;
+        }
         let entry = self.undo.pop_back()?;
         self.coalesce_field = None;
         let replay = entry.replay(Direction::Undo);
@@ -109,12 +160,6 @@ impl UndoStack {
     }
 }
 
-#[derive(Clone, Copy)]
-enum Direction {
-    Undo,
-    Redo,
-}
-
 #[derive(Debug)]
 pub(crate) enum UndoReplay {
     Text {
@@ -132,6 +177,7 @@ impl UndoEntry {
     fn replay(&self, direction: Direction) -> UndoReplay {
         let forward = matches!(direction, Direction::Redo);
         match self {
+            Self::Pending(_) => unreachable!("pending CPU history is not replayable"),
             Self::Text {
                 field,
                 before,

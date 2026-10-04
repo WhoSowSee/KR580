@@ -1,21 +1,21 @@
-use crate::backend::MemoryUpdate;
+use super::MemoryUpdate;
 use k580_core::{Cpu8080State, CpuMetadata, Memory64K};
 
-#[derive(Debug)]
-pub(super) struct CpuChange {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CpuChange {
     before: CpuMetadata,
     after: CpuMetadata,
     memory: MemoryChange,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum MemoryChange {
     Cells(Vec<(u16, u8, u8)>),
     Full { before: Memory64K, after: Memory64K },
 }
 
 impl CpuChange {
-    pub(super) fn between(before: Cpu8080State, after: Cpu8080State) -> Self {
+    pub fn between(before: Cpu8080State, after: &Cpu8080State) -> Self {
         let count = before
             .memory
             .as_slice()
@@ -28,7 +28,7 @@ impl CpuChange {
         let memory = if count > Memory64K::SIZE / 2 {
             MemoryChange::Full {
                 before: before.memory,
-                after: after.memory,
+                after: after.memory.clone(),
             }
         } else {
             let cells = before
@@ -50,8 +50,8 @@ impl CpuChange {
         }
     }
 
-    pub(super) fn replay(&self, direction: super::Direction) -> (CpuMetadata, MemoryUpdate) {
-        let forward = matches!(direction, super::Direction::Redo);
+    pub fn replay(&self, direction: ChangeDirection) -> (CpuMetadata, MemoryUpdate) {
+        let forward = matches!(direction, ChangeDirection::Redo);
         let metadata = if forward {
             self.after.clone()
         } else {
@@ -73,5 +73,44 @@ impl CpuChange {
             }),
         };
         (metadata, memory)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChangeDirection {
+    Undo,
+    Redo,
+}
+
+impl CpuChange {
+    pub fn is_empty(&self) -> bool {
+        self.before == self.after
+            && matches!(&self.memory, MemoryChange::Cells(cells) if cells.is_empty())
+    }
+
+    pub fn before(&self) -> &CpuMetadata {
+        &self.before
+    }
+    pub fn after(&self) -> &CpuMetadata {
+        &self.after
+    }
+
+    pub(in crate::backend) fn from_cells(
+        before: CpuMetadata,
+        cells: Vec<(u16, u8)>,
+        after: &Cpu8080State,
+    ) -> Self {
+        let cells = cells
+            .into_iter()
+            .filter_map(|(address, before)| {
+                let value = after.memory.read(address);
+                (before != value).then_some((address, before, value))
+            })
+            .collect();
+        Self {
+            before,
+            after: after.metadata(),
+            memory: MemoryChange::Cells(cells),
+        }
     }
 }

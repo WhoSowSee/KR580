@@ -185,7 +185,13 @@ impl DesktopApp {
         self.close_import_modal();
         self.clear_error_notice();
         self.running = false;
-        self.dispatch_pending_request(command, super::pending::PendingRequest::Import { display });
+        self.dispatch_pending_request(
+            command,
+            super::pending::PendingRequest::Import {
+                display,
+                edit_epoch: self.edit_epoch,
+            },
+        );
         Task::none()
     }
 

@@ -2,13 +2,21 @@ use crate::app::{
     DesktopApp, MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, MEMORY_VALUE_INPUT_ID, Message,
     OPCODE_SEARCH_INPUT_ID, REGISTER_NAME_INPUT_ID, REGISTER_VALUE_INPUT_ID, UndoReplay,
 };
-use crate::backend::AppCommand;
+use crate::backend::{AppCommand, ChangeDirection};
 use iced::Task;
-use iced::widget::operation;
 use k580_core::{CpuMetadata, RegisterName};
 
 impl DesktopApp {
     pub(crate) fn apply_undo(&mut self) -> Task<Message> {
+        if !self.undo_stack.has_text_undo()
+            && self
+                .pending_requests
+                .values()
+                .any(|pending| matches!(pending, crate::app::PendingRequest::CpuEdit { .. }))
+        {
+            self.set_status_custom(self.lang.t(crate::i18n::Key::ErrDeviceBusy).to_owned());
+            return Task::none();
+        }
         let Some(entry) = self.undo_stack.pop_undo() else {
             self.set_status(crate::app::StatusKind::NothingToUndo);
             return Task::none();
@@ -23,11 +31,20 @@ impl DesktopApp {
                 memory,
                 register_selection,
                 ..
-            } => self.replay_cpu_state(metadata, memory, register_selection),
+            } => self.replay_cpu_state(metadata, memory, register_selection, ChangeDirection::Undo),
         }
     }
 
     pub(crate) fn apply_redo(&mut self) -> Task<Message> {
+        if !self.undo_stack.has_text_redo()
+            && self
+                .pending_requests
+                .values()
+                .any(|pending| matches!(pending, crate::app::PendingRequest::CpuEdit { .. }))
+        {
+            self.set_status_custom(self.lang.t(crate::i18n::Key::ErrDeviceBusy).to_owned());
+            return Task::none();
+        }
         let Some(entry) = self.undo_stack.pop_redo() else {
             self.set_status(crate::app::StatusKind::NothingToRedo);
             return Task::none();
@@ -42,7 +59,7 @@ impl DesktopApp {
                 memory,
                 register_selection,
                 ..
-            } => self.replay_cpu_state(metadata, memory, register_selection),
+            } => self.replay_cpu_state(metadata, memory, register_selection, ChangeDirection::Redo),
         }
     }
 
@@ -67,16 +84,17 @@ impl DesktopApp {
         metadata: CpuMetadata,
         memory: crate::backend::MemoryUpdate,
         register_selection: Option<RegisterName>,
+        direction: ChangeDirection,
     ) -> Task<Message> {
         self.running = false;
-        self.dispatch_sync(AppCommand::ApplyCpuDelta { metadata, memory });
-        self.recompute_dirty();
-        let memory_task = self.follow_pc_into_memory_list();
-        if let Some(register) = register_selection {
-            self.select_register(register);
-            self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
-            return Task::batch([memory_task, operation::focus(REGISTER_VALUE_INPUT_ID)]);
+        if !self.dispatch_edit(
+            AppCommand::ApplyCpuDelta { metadata, memory },
+            crate::app::UndoPolicy::Skip,
+            None,
+            crate::app::BackendAction::Replay(register_selection),
+        ) {
+            self.undo_stack.cancel_replay(direction);
         }
-        memory_task
+        Task::none()
     }
 }

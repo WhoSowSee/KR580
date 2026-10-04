@@ -125,6 +125,15 @@ Device budget regressions park worker execution to fill queues deterministically
 verify that refused bytes do not change accepted data, then drain storage and
 compare every byte. Separate buffer checks verify diagnostic suffix order and
 explicit overflow/recovery for unsaved storage and printer data.
+The delayed actor regression holds worker execution for 80 ms and checks each
+request's actual register transition. UI undo also waits 80 ms before receiving
+confirmation and then restores the byte and dirty baseline. Timeline coverage
+keeps confirmed CPU edits before text edits made while the reply was pending.
+UI CPU tests use `app/test_support.rs` to await acknowledgements with a deadline;
+they never assume sending a command has already changed the snapshot.
+If Windows rejects compiler mappings with error 1455, cap Cargo build jobs
+with `CARGO_BUILD_JOBS=2` and rerun the same checks; do not treat that resource
+failure as a passing test run.
 FFI buffer regressions reject unterminated/out-of-range UTF-16 strings without
 native calls. Windows tests also validate DEVMODE alignment/declared lengths
 and malformed registry strings in the isolated HKCU fixture. Run the native

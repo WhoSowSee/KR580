@@ -1,6 +1,6 @@
 use crate::backend::{AppCommand, AppError, AppEvent, AppSnapshot, Emulator, RunMode};
 use crossbeam_channel::{Receiver, Sender, after, never, select, tick, unbounded};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -11,6 +11,7 @@ pub struct EmulatorHandle {
     critical_rx: Receiver<AppEvent>,
     state_mailbox: Arc<Mutex<Option<Box<AppSnapshot>>>>,
     next_request_id: AtomicU64,
+    stopped_reported: AtomicBool,
 }
 
 impl EmulatorHandle {
@@ -43,10 +44,24 @@ impl EmulatorHandle {
 
     pub fn drain_events(&self) -> Vec<AppEvent> {
         let mut events: Vec<_> = self.event_rx.try_iter().collect();
+        let mut critical = Vec::new();
+        loop {
+            match self.critical_rx.try_recv() {
+                Ok(event) => critical.push(event),
+                Err(crossbeam_channel::TryRecvError::Empty) => break,
+                Err(crossbeam_channel::TryRecvError::Disconnected) => {
+                    if !self.stopped_reported.swap(true, Ordering::Relaxed) {
+                        critical.push(AppEvent::WorkerStopped);
+                    }
+                    break;
+                }
+            }
+        }
+        // Capture the mailbox after critical events so each CPU receipt has an authoritative state.
         if let Some(snapshot) = self.take_snapshot() {
             events.push(AppEvent::StateChanged(snapshot));
         }
-        events.extend(self.critical_rx.try_iter());
+        events.extend(critical);
         events
     }
 
@@ -137,12 +152,20 @@ pub fn spawn_emulator() -> EmulatorHandle {
         critical_rx,
         state_mailbox,
         next_request_id: AtomicU64::new(1),
+        stopped_reported: AtomicBool::new(false),
     }
 }
 
 pub fn initial_snapshot() -> AppSnapshot {
-    Emulator::default().snapshot()
+    AppSnapshot {
+        revision: 0,
+        cpu: k580_core::Cpu8080State::default(),
+        devices: crate::devices::IoBus::default().snapshot(),
+    }
 }
+
+#[cfg(test)]
+mod tests;
 
 fn run_worker(
     command_rx: Receiver<AppCommand>,

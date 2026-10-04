@@ -170,15 +170,10 @@ impl DesktopApp {
                 self.attach_floppy_image(path.clone());
             }
             Message::DetachFloppyImage => {
-                self.dispatch_sync(crate::backend::AppCommand::DetachFloppyImage);
-                self.set_status_custom(
-                    self.lang
-                        .t(crate::i18n::Key::FloppyImageDetached)
-                        .to_owned(),
+                self.dispatch_action(
+                    crate::backend::AppCommand::DetachFloppyImage,
+                    super::BackendAction::FloppyDetached,
                 );
-                if self.floppy_show_image_contents {
-                    self.refresh_floppy_image_contents();
-                }
             }
             Message::SaveFloppyBuffer => {
                 return Some(self.save_floppy_buffer());
@@ -187,8 +182,7 @@ impl DesktopApp {
                 self.save_floppy_buffer_to_path(path.clone());
             }
             Message::ToggleFloppyDebugBuffer => {
-                let enabled = !self.snapshot.devices.floppy.debug_buffer;
-                self.dispatch_sync(crate::backend::AppCommand::SetFloppyDebugBuffer(enabled));
+                self.dispatch_request(crate::backend::AppCommand::ToggleFloppyDebugBuffer);
             }
             Message::OpenHdd => {
                 self.close_top_menu();
@@ -221,8 +215,7 @@ impl DesktopApp {
                 self.attach_hdd_directory(path.clone());
             }
             Message::ToggleHddDebugBuffer => {
-                let enabled = !self.snapshot.devices.hdd.debug_buffer;
-                self.dispatch_sync(crate::backend::AppCommand::SetHddDebugBuffer(enabled));
+                self.dispatch_request(crate::backend::AppCommand::ToggleHddDebugBuffer);
             }
             Message::CreateHddFile => {
                 self.create_hdd_file();

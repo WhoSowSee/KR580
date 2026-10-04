@@ -14,8 +14,13 @@ impl DesktopApp {
             self.raise_halt_notice();
             return Task::none();
         }
-        self.dispatch_sync(AppCommand::StepInstruction);
-        self.follow_pc_after_execution_boundary()
+        self.dispatch_edit(
+            AppCommand::StepInstruction,
+            crate::app::UndoPolicy::Skip,
+            None,
+            crate::app::BackendAction::Instruction,
+        );
+        Task::none()
     }
 
     /// PC advances before instruction completion; follow it only at a tact boundary.
@@ -28,16 +33,16 @@ impl DesktopApp {
             self.raise_halt_notice();
             return Task::none();
         }
-        self.last_tact_was_boundary = false;
-        self.dispatch_sync(AppCommand::StepTact);
-        if !self.last_tact_was_boundary {
-            return Task::none();
-        }
-        self.last_tact_was_boundary = false;
-        self.follow_pc_after_execution_boundary()
+        self.dispatch_edit(
+            AppCommand::StepTact,
+            crate::app::UndoPolicy::Skip,
+            None,
+            crate::app::BackendAction::Tact,
+        );
+        Task::none()
     }
 
-    fn follow_pc_after_execution_boundary(&mut self) -> Task<Message> {
+    pub(crate) fn follow_pc_after_execution_boundary(&mut self) -> Task<Message> {
         if self.snapshot.cpu.halted {
             self.pending_follow_pc = false;
             self.follow_pc_during_run()
@@ -118,15 +123,11 @@ impl DesktopApp {
 mod tests {
     use super::DesktopApp;
     use crate::app::Message;
-    use std::thread;
-    use std::time::Duration;
+    use crate::app::test_support::settle_backend;
 
     fn app_with_clean_startup() -> DesktopApp {
         let (mut app, _) = DesktopApp::with_initial_path(None);
-        for _ in 0..4 {
-            thread::sleep(Duration::from_millis(5));
-            app.pull_events();
-        }
+        settle_backend(&mut app);
         app
     }
 
@@ -136,7 +137,7 @@ mod tests {
         app.select_memory(0x0010);
 
         let _ = app.update(Message::ToggleHalt);
-
+        settle_backend(&mut app);
         assert!(app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0010);
         assert_eq!(app.memory_address_input, "0010");
@@ -146,10 +147,16 @@ mod tests {
         assert_eq!(app.memory_address_input, "0010");
 
         let _ = app.update(Message::ToggleHalt);
+        settle_backend(&mut app);
         let _ = app.update(Message::Tick);
 
         assert!(!app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0010);
+        assert_eq!(app.memory_address_input, "0010");
+        let _ = app.update(Message::ToggleHalt);
+        let _ = app.update(Message::ToggleHalt);
+        settle_backend(&mut app);
+        assert!(!app.snapshot.cpu.halted);
         assert_eq!(app.memory_address_input, "0010");
     }
 
@@ -159,8 +166,11 @@ mod tests {
         app.select_memory(0x0010);
 
         let _ = app.update(Message::ToggleHalt);
+        settle_backend(&mut app);
         let _ = app.update(Message::ToggleHalt);
+        settle_backend(&mut app);
         let _ = app.update(Message::ResetCpu);
+        settle_backend(&mut app);
         let _ = app.update(Message::Tick);
 
         assert!(!app.snapshot.cpu.halted);
@@ -175,7 +185,7 @@ mod tests {
         app.select_opcode(0x0010, 0x76);
 
         let _ = app.update(Message::StepInstruction);
-
+        settle_backend(&mut app);
         assert!(app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0011);
         assert_eq!(app.memory_address_input, "0010");
@@ -195,6 +205,7 @@ mod tests {
             let _ = app.update(Message::StepTact);
         }
 
+        settle_backend(&mut app);
         assert!(app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0011);
         assert_eq!(app.memory_address_input, "0010");

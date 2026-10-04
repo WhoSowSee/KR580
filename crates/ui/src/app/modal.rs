@@ -214,6 +214,7 @@ mod tests {
         let _task = app.update(Message::EnterPressed);
 
         assert!(app.pending_action.is_none());
+        crate::app::test_support::settle_backend(&mut app);
         assert!(!app.dirty);
     }
 

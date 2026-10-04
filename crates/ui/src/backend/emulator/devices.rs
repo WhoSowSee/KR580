@@ -17,6 +17,7 @@ impl Emulator {
             return None;
         }
         *published_network = network_revision;
+        self.revision = self.revision.wrapping_add(1);
         Some(self.snapshot())
     }
 }

@@ -42,6 +42,7 @@ impl Emulator {
                         self.cpu.set_memory_block(start, &values)?;
                     }
                 }
+                self.revision = self.revision.wrapping_add(1);
                 self.running = false;
                 self.instructions_since_run = 0;
             }

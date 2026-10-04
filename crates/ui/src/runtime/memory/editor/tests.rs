@@ -1,16 +1,12 @@
+use crate::app::test_support::settle_backend;
 use crate::app::{
     DesktopApp, MEMORY_INLINE_INPUT_ID, Message, OPCODE_LIST_HEIGHT, OPCODE_OPTION_HEIGHT,
     OPCODE_SEARCH_INPUT_ID, StatusKind,
 };
-use std::thread;
-use std::time::Duration;
 
 fn app_with_clean_startup() -> DesktopApp {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    for _ in 0..4 {
-        thread::sleep(Duration::from_millis(5));
-        app.pull_events();
-    }
+    settle_backend(&mut app);
     app
 }
 
@@ -98,13 +94,7 @@ fn pasting_hex_bytes_writes_consecutive_memory_cells_immediately() {
     let mut app = app_with_clean_startup();
 
     app.change_inline_memory_value(0x0100, "3E 41 D3 03 76".to_owned());
-    for _ in 0..10 {
-        if app.snapshot.cpu.memory.read(0x0100) == 0x3E {
-            break;
-        }
-        thread::sleep(Duration::from_millis(5));
-        app.pull_events();
-    }
+    settle_backend(&mut app);
 
     assert_eq!(
         &app.snapshot.cpu.memory.as_slice()[0x0100..0x0105],
@@ -118,13 +108,7 @@ fn pasted_hex_bytes_replace_existing_inline_value_after_the_caret() {
     app.select_opcode(0x0100, 0xA5);
 
     app.change_inline_memory_value(0x0100, "A53E 41 D3 03 76".to_owned());
-    for _ in 0..10 {
-        if app.snapshot.cpu.memory.read(0x0100) == 0x3E {
-            break;
-        }
-        thread::sleep(Duration::from_millis(5));
-        app.pull_events();
-    }
+    settle_backend(&mut app);
 
     assert_eq!(
         &app.snapshot.cpu.memory.as_slice()[0x0100..0x0105],
@@ -138,13 +122,7 @@ fn pasted_hex_bytes_replace_existing_inline_value_before_the_caret() {
     app.select_opcode(0x0100, 0xA5);
 
     app.change_inline_memory_value(0x0100, "3E 41 D3 03 76A5".to_owned());
-    for _ in 0..10 {
-        if app.snapshot.cpu.memory.read(0x0100) == 0x3E {
-            break;
-        }
-        thread::sleep(Duration::from_millis(5));
-        app.pull_events();
-    }
+    settle_backend(&mut app);
 
     assert_eq!(
         &app.snapshot.cpu.memory.as_slice()[0x0100..0x0105],
@@ -168,6 +146,7 @@ fn value_input_uses_address_zero_when_the_address_field_is_empty() {
 fn value_input_is_shared_with_selected_memory_row_preview() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
     app.select_opcode(0x0010, 0x22);
+    settle_backend(&mut app);
 
     let _ = app.update(Message::MemoryValueChanged("3E".to_owned()));
 
@@ -206,13 +185,7 @@ fn pasted_bytes_use_selected_memory_cell_without_inline_edit_focus() {
     app.select_memory(0x0100);
 
     let _ = app.update(Message::MemoryBytesPasted(Some("12 15 16".to_owned())));
-    for _ in 0..10 {
-        if app.snapshot.cpu.memory.read(0x0100) == 0x12 {
-            break;
-        }
-        thread::sleep(Duration::from_millis(5));
-        app.pull_events();
-    }
+    settle_backend(&mut app);
 
     assert_eq!(app.focused_input, None);
     assert_eq!(app.memory_address_input, "0100");
@@ -230,13 +203,7 @@ fn pasted_bytes_use_address_zero_when_the_address_field_is_empty() {
     app.memory_address_input.clear();
 
     let _ = app.update(Message::MemoryValueChanged("3E 41".to_owned()));
-    for _ in 0..10 {
-        if app.snapshot.cpu.memory.read(0x0000) == 0x3E {
-            break;
-        }
-        thread::sleep(Duration::from_millis(5));
-        app.pull_events();
-    }
+    settle_backend(&mut app);
 
     assert_eq!(app.memory_address_input, "0000");
     assert_eq!(&app.snapshot.cpu.memory.as_slice()[..2], &[0x3E, 0x41]);
@@ -312,12 +279,14 @@ fn overflowing_hex_byte_sequence_does_not_change_memory() {
 fn inline_memory_enter_keeps_replacement_mode_on_next_cell() {
     let mut app = app_with_clean_startup();
     app.select_opcode(0x0010, 0x3E);
+    settle_backend(&mut app);
     app.enter_inline_memory_replacing(0x0010);
 
     assert!(app.memory_inline_value_input.is_empty());
     assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "3E");
 
     let _ = app.update(Message::ApplyInlineMemoryValue(0x0010));
+    settle_backend(&mut app);
 
     assert_eq!(app.memory_address_input, "0011");
     assert!(app.memory_inline_value_input.is_empty());

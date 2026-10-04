@@ -99,7 +99,6 @@ impl DesktopApp {
                         display,
                         start,
                         end,
-                        state: Box::new(self.snapshot.cpu.clone()),
                     },
                 );
                 return;
@@ -111,11 +110,7 @@ impl DesktopApp {
         let display = path.display().to_string();
         self.dispatch_pending_request(
             AppCommand::SaveProgram(path.clone()),
-            PendingRequest::SaveProgram {
-                path,
-                display,
-                state: Box::new(self.snapshot.cpu.clone()),
-            },
+            PendingRequest::SaveProgram { path, display },
         );
     }
 

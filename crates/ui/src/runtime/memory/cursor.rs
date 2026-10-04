@@ -179,13 +179,16 @@ impl DesktopApp {
 
     /// HLT leaves PC past the opcode; cursor synchronization must not advance the halt row.
     pub(super) fn sync_pc_to_cursor(&mut self, address: u16) {
+        if self.cpu_document_pending() {
+            return;
+        }
         if self.snapshot.cpu.tact_phase.is_some()
             || self.snapshot.cpu.halted
             || self.snapshot.cpu.pc == address
         {
             return;
         }
-        self.dispatch_sync(AppCommand::SetPc(address));
+        self.dispatch_request(AppCommand::SetPc(address));
     }
 
     pub(crate) fn refresh_memory_value(&mut self, address: u16) {

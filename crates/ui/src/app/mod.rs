@@ -38,6 +38,8 @@ mod state_helpers;
 mod status;
 mod subprogram_modal;
 mod subscription;
+#[cfg(test)]
+pub(crate) mod test_support;
 mod undo;
 mod update;
 mod update_overlays;
@@ -75,7 +77,9 @@ pub(crate) use messages::{
 };
 pub(crate) use modal::{DiscardModalButton, PendingAction};
 pub(crate) use opcode_picker::{OpcodeChoice, filtered_opcode_choices};
-pub(crate) use pending::PendingRequest;
+pub(crate) use pending::{
+    BackendAction, MemoryCompletion, PendingRequest, RegisterCompletion, UndoPolicy,
+};
 pub(crate) use printer::{
     PRINTER_PROPERTIES_PRESET_INPUT_ID, PrinterPropertiesDialog, PrinterPropertiesFocus,
     PrinterPropertiesTab, PrinterPropertyDropdown, PrinterSetupDialog, PrinterSetupDropdown,

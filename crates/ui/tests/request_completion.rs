@@ -35,7 +35,7 @@ fn actor_runs_program_save_outside_the_emulator_loop() {
         event,
         AppEvent::CommandFinished {
             id,
-            result: Ok(CommandResult::SavedProgram),
+            result: Ok(CommandResult::SavedProgram { .. }),
         } if *id == request
     )));
     assert_eq!(std::fs::metadata(&path).unwrap().len(), 65_549);
@@ -60,7 +60,7 @@ fn successive_saves_to_one_path_keep_the_last_accepted_state() {
         .send_request(AppCommand::SaveProgram(path.clone()))
         .unwrap();
     let events = handle.drain_until_request_finished(last, Duration::from_secs(3));
-    assert!(events.iter().any(|event| matches!(event, AppEvent::CommandFinished { id, result: Ok(CommandResult::SavedProgram) } if *id == last)));
+    assert!(events.iter().any(|event| matches!(event, AppEvent::CommandFinished { id, result: Ok(CommandResult::SavedProgram { .. }) } if *id == last)));
     assert_eq!(
         k580_ui::persistence::ProgramSerializer::load_file(&path)
             .unwrap()

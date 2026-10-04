@@ -48,13 +48,18 @@ impl DesktopApp {
                 }
             };
 
-        self.dispatch_sync(crate::backend::AppCommand::ConfigureNetwork {
-            mode: self.network_mode_draft,
-            host,
-            port,
-        });
-        self.network_settings_open = false;
-        self.network_settings_error = None;
+        self.dispatch_action(
+            crate::backend::AppCommand::ConfigureNetwork {
+                mode: self.network_mode_draft,
+                host: host.clone(),
+                port,
+            },
+            crate::app::pending::BackendAction::NetworkConfigured {
+                mode: self.network_mode_draft,
+                host,
+                port,
+            },
+        );
     }
 }
 

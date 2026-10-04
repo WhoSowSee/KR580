@@ -184,7 +184,11 @@ impl DesktopApp {
                     path: dialog.path.clone(),
                     start,
                 },
-                super::pending::PendingRequest::LoadSubprogram { dialog, start },
+                super::pending::PendingRequest::LoadSubprogram {
+                    dialog,
+                    start,
+                    edit_epoch: self.edit_epoch,
+                },
             );
             return;
         }
@@ -206,18 +210,27 @@ impl DesktopApp {
                 display,
                 start,
                 end,
-                state: Box::new(self.snapshot.cpu.clone()),
             },
         );
     }
 
-    pub(crate) fn finish_subprogram_load(&mut self, path: PathBuf, start: u16, end: u16) {
+    pub(crate) fn finish_subprogram_load(
+        &mut self,
+        path: PathBuf,
+        start: u16,
+        end: u16,
+        edit_epoch: Option<u64>,
+    ) {
         let display = path.display().to_string();
         self.current_snapshot_path = Some(path);
         self.current_subprogram_range = Some((start, end));
-        self.undo_stack.clear();
-        self.mark_saved();
-        self.set_memory_address(start);
+        if edit_epoch.is_some_and(|epoch| epoch != self.edit_epoch) {
+            self.recompute_dirty();
+        } else {
+            self.undo_stack.clear();
+            self.mark_saved();
+            self.set_memory_address(start);
+        }
         self.set_status(StatusKind::Opened { display });
     }
 

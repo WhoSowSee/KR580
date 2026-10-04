@@ -1,3 +1,7 @@
+mod change;
+
+pub use change::{ChangeDirection, CpuChange};
+
 use crate::backend::AppError;
 use crate::devices::printer::PrinterSettings;
 use crate::devices::{DeviceSnapshot, NetworkMode};
@@ -17,9 +21,12 @@ pub enum AppCommand {
         id: RequestId,
         command: Box<AppCommand>,
     },
+    Edit(Box<AppCommand>),
+    RequestSnapshot,
     ResetCpu,
     ClearHalt,
     SetHalted(bool),
+    ToggleHalt,
     LoadProgram(PathBuf),
     SaveProgram(PathBuf),
     LoadSubprogram {
@@ -66,9 +73,11 @@ pub enum AppCommand {
     AttachFloppyImage(PathBuf),
     DetachFloppyImage,
     SetFloppyDebugBuffer(bool),
+    ToggleFloppyDebugBuffer,
     ClearHddBuffer,
     DetachHddFile,
     SetHddDebugBuffer(bool),
+    ToggleHddDebugBuffer,
     AttachHddFile(PathBuf),
     ConfigureNetwork {
         mode: NetworkMode,
@@ -95,6 +104,7 @@ pub enum MemoryUpdate {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppSnapshot {
+    pub revision: u64,
     pub cpu: Cpu8080State,
     pub devices: DeviceSnapshot,
 }
@@ -102,11 +112,21 @@ pub struct AppSnapshot {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandResult {
     Completed,
+    CpuChanged {
+        revision: u64,
+        change: Box<CpuChange>,
+    },
     Superseded,
-    SavedProgram,
+    SavedProgram {
+        state: Box<Cpu8080State>,
+    },
     LoadedProgram,
-    SavedSubprogram,
-    LoadedSubprogram { end: u16 },
+    SavedSubprogram {
+        state: Box<Cpu8080State>,
+    },
+    LoadedSubprogram {
+        end: u16,
+    },
     Exported,
     Imported,
 }
@@ -132,6 +152,7 @@ pub enum AppEvent {
     HaltStateChanged(bool),
     ErrorRaised(AppError),
     Stopped,
+    WorkerStopped,
     CommandFinished {
         id: RequestId,
         result: Result<CommandResult, AppError>,

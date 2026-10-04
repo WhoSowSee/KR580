@@ -141,6 +141,10 @@ impl StorageDevice {
         self.state.last_error = None;
     }
 
+    pub(crate) fn debug_buffer_enabled(&self) -> bool {
+        self.state.debug_buffer
+    }
+
     pub fn clear_visible_buffer(&mut self) {
         self.visible.clear();
         self.tail.clear();

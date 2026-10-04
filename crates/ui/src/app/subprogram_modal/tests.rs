@@ -1,18 +1,7 @@
 use super::{SubprogramDialogFocus, SubprogramDialogMode};
 use crate::app::{DesktopApp, Message};
 
-fn settle_backend(app: &mut DesktopApp) {
-    for _ in 0..100 {
-        for event in app.handle.drain_events() {
-            app.consume_event(event);
-        }
-        if app.pending_requests.is_empty() {
-            return;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-    panic!("backend request did not finish");
-}
+use crate::app::test_support::settle_backend;
 
 #[test]
 fn loaded_range_and_next_save_follow_the_bytes_read() {
@@ -31,7 +20,8 @@ fn loaded_range_and_next_save_follow_the_bytes_read() {
             start: 0x1000,
         });
         std::fs::write(&path, [0xFF]).unwrap();
-        app.dispatch_sync(AppCommand::ApplyCpuState(Box::new(emulator.snapshot().cpu)));
+        app.dispatch_request(AppCommand::ApplyCpuState(Box::new(emulator.snapshot().cpu)));
+        settle_backend(&mut app);
         for event in events {
             app.consume_event(event);
         }
@@ -61,7 +51,8 @@ fn subprogram_saves_preserve_unsaved_memory_and_registers() {
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("partial.krs");
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.dispatch_sync(AppCommand::ApplyCpuState(Box::default()));
+    app.dispatch_request(AppCommand::ApplyCpuState(Box::default()));
+    settle_backend(&mut app);
     app.mark_saved();
     app.dispatch_with_undo(AppCommand::SetMemory(0x0100, 0x76));
     app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0x42));
@@ -84,6 +75,7 @@ fn subprogram_saves_preserve_unsaved_memory_and_registers() {
     assert!(app.dirty);
     app.dispatch_with_undo(AppCommand::SetRegister(RegisterName::A, 0));
     app.dispatch_with_undo(AppCommand::SetPc(0));
+    settle_backend(&mut app);
     assert!(!app.dirty);
     app.dispatch_with_undo(AppCommand::SetMemory(0x0100, 0xC9));
     app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0x33));
@@ -93,6 +85,7 @@ fn subprogram_saves_preserve_unsaved_memory_and_registers() {
     assert_eq!(std::fs::read(&path).unwrap(), [0xC9]);
     assert!(app.dirty);
     app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0));
+    settle_backend(&mut app);
     assert!(!app.dirty);
 
     app.dispatch_with_undo(AppCommand::SetMemory(0x0100, 0xFF));

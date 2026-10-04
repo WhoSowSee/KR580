@@ -86,6 +86,14 @@ UI localization. `backend/error/` separates data, categories and conversions.
 
 ## Runtime shape
 
+CPU edit requests carry an owned `CpuChange` completion from
+`backend/command/change.rs`. `emulator/changes.rs` captures register/control
+metadata and only affected cells for byte/block/register edits; instruction and
+dense replacements use a full checkpoint when needed. Snapshots carry a monotonic
+actor revision, advanced by commands, execution and changed-device polls. The
+UI captures the latest mailbox after draining critical events, then reconciles
+state before processing completions. Initial snapshots start no worker runtime.
+
 The CPU actor accepts at most 256 queued commands through nonblocking admission;
 full admission returns a typed Busy error. Its 1024-entry critical event queue
 preserves command completions by applying backpressure to the actor. The UI can
