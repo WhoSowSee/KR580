@@ -2,6 +2,7 @@ use super::focus::{
     ContentFocus, FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsSection,
 };
 use crate::app::messages::SpeedTier;
+use crate::app::state::DropdownState;
 use crate::i18n::Lang;
 use crate::persistence::{
     ColorScheme, NetworkSettings, PrinterDialogMode, ShortcutAction, ShortcutSettings,
@@ -37,12 +38,7 @@ pub(crate) struct SettingsDialog {
     pub(crate) network_error: Option<String>,
     #[cfg(target_os = "windows")]
     pub(crate) file_association_registered: bool,
-    pub(crate) language_dropdown_open: bool,
-    /// Keyboard highlight inside the open language dropdown. `None`
-    /// when the dropdown is closed; while open, ArrowUp / ArrowDown
-    /// move the highlight here without committing – the draft only
-    /// changes once the user presses Enter or clicks an option.
-    pub(crate) dropdown_highlight: Option<Lang>,
+    pub(crate) language_dropdown: DropdownState<Lang>,
     pub(crate) original_lang: Lang,
     pub(crate) original_speed: SpeedTier,
     pub(crate) original_active_speed: SpeedTier,
@@ -61,77 +57,66 @@ pub(crate) struct SettingsDialog {
     pub(crate) keyboard_focus_visible: bool,
 }
 
-impl SettingsDialog {
-    #[cfg(test)]
-    pub(crate) fn new(
-        lang: Lang,
-        speed: SpeedTier,
-        follow_pc: bool,
-        memory_operand_highlighting: bool,
-        floppy_image_path: Option<std::path::PathBuf>,
-        hdd_directory: Option<std::path::PathBuf>,
-        network: NetworkSettings,
-    ) -> Self {
-        Self::new_with_shortcuts_and_printer(
-            lang,
-            speed,
-            ColorScheme::DEFAULT,
-            follow_pc,
-            memory_operand_highlighting,
-            false,
-            floppy_image_path,
-            hdd_directory,
-            None,
-            PrinterDialogMode::default(),
-            network,
-            ShortcutSettings::default(),
-        )
-    }
+pub(crate) struct SettingsInitialState {
+    pub(crate) lang: Lang,
+    pub(crate) speed: SpeedTier,
+    pub(crate) active_speed: Option<SpeedTier>,
+    pub(crate) color_scheme: ColorScheme,
+    pub(crate) follow_pc: bool,
+    pub(crate) memory_operand_highlighting: bool,
+    pub(crate) show_file_name: bool,
+    pub(crate) monitor_split: bool,
+    pub(crate) original_monitor_split: Option<bool>,
+    pub(crate) floppy_image_path: Option<std::path::PathBuf>,
+    pub(crate) hdd_directory: Option<std::path::PathBuf>,
+    pub(crate) printer_settings: Option<PrinterSettings>,
+    pub(crate) printer_dialog_mode: PrinterDialogMode,
+    pub(crate) network: NetworkSettings,
+    pub(crate) shortcuts: ShortcutSettings,
+}
 
-    #[allow(clippy::too_many_arguments)]
-    #[cfg(test)]
-    pub(crate) fn new_with_shortcuts(
-        lang: Lang,
-        speed: SpeedTier,
-        color_scheme: ColorScheme,
-        follow_pc: bool,
-        memory_operand_highlighting: bool,
-        floppy_image_path: Option<std::path::PathBuf>,
-        hdd_directory: Option<std::path::PathBuf>,
-        network: NetworkSettings,
-        shortcuts: ShortcutSettings,
-    ) -> Self {
-        Self::new_with_shortcuts_and_printer(
+#[cfg(test)]
+impl Default for SettingsInitialState {
+    fn default() -> Self {
+        Self {
+            lang: Lang::Ru,
+            speed: SpeedTier::Medium,
+            active_speed: None,
+            color_scheme: ColorScheme::DEFAULT,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            show_file_name: false,
+            monitor_split: false,
+            original_monitor_split: None,
+            floppy_image_path: None,
+            hdd_directory: None,
+            printer_settings: None,
+            printer_dialog_mode: PrinterDialogMode::default(),
+            network: NetworkSettings::default(),
+            shortcuts: ShortcutSettings::default(),
+        }
+    }
+}
+
+impl SettingsDialog {
+    pub(crate) fn new(initial: SettingsInitialState) -> Self {
+        let SettingsInitialState {
             lang,
             speed,
             color_scheme,
             follow_pc,
             memory_operand_highlighting,
-            false,
+            show_file_name,
             floppy_image_path,
             hdd_directory,
-            None,
-            PrinterDialogMode::default(),
+            printer_settings,
+            printer_dialog_mode,
             network,
             shortcuts,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new_with_shortcuts_and_printer(
-        lang: Lang,
-        speed: SpeedTier,
-        color_scheme: ColorScheme,
-        follow_pc: bool,
-        memory_operand_highlighting: bool,
-        show_file_name: bool,
-        floppy_image_path: Option<std::path::PathBuf>,
-        hdd_directory: Option<std::path::PathBuf>,
-        printer_settings: Option<PrinterSettings>,
-        printer_dialog_mode: PrinterDialogMode,
-        network: NetworkSettings,
-        shortcuts: ShortcutSettings,
-    ) -> Self {
+            monitor_split,
+            original_monitor_split,
+            active_speed,
+        } = initial;
         Self {
             category: SettingsCategory::General,
             sidebar_focus: SettingsCategory::General,
@@ -144,7 +129,7 @@ impl SettingsDialog {
             draft_follow_pc: follow_pc,
             draft_memory_operand_highlighting: memory_operand_highlighting,
             draft_show_file_name: show_file_name,
-            draft_monitor_split: false,
+            draft_monitor_split: monitor_split,
             draft_floppy_image_path: floppy_image_path,
             draft_hdd_directory: hdd_directory,
             draft_printer_settings: printer_settings,
@@ -159,16 +144,15 @@ impl SettingsDialog {
             network_error: None,
             #[cfg(target_os = "windows")]
             file_association_registered: k580_ui::file_assoc::is_registered(),
-            language_dropdown_open: false,
-            dropdown_highlight: None,
+            language_dropdown: DropdownState::Closed,
             original_lang: lang,
             original_speed: speed,
-            original_active_speed: speed,
+            original_active_speed: active_speed.unwrap_or(speed),
             original_color_scheme: color_scheme,
             original_follow_pc: follow_pc,
             original_memory_operand_highlighting: memory_operand_highlighting,
             original_show_file_name: show_file_name,
-            original_monitor_split: false,
+            original_monitor_split: original_monitor_split.unwrap_or(monitor_split),
             original_printer_dialog_mode: printer_dialog_mode,
             footer_focus: FooterFocus::Cancel,
             reset_confirm_open: false,

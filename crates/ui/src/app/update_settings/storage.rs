@@ -6,10 +6,11 @@ use std::path::PathBuf;
 
 impl DesktopApp {
     pub(super) fn browse_settings_floppy_image(&self) -> Task<Message> {
-        if self.settings_dialog.is_none() {
+        if self.preferences.settings_dialog.is_none() {
             return Task::none();
         }
         let preferred = self
+            .preferences
             .settings_dialog
             .as_ref()
             .and_then(|d| d.draft_floppy_image_path.clone())
@@ -37,10 +38,11 @@ impl DesktopApp {
     }
 
     pub(super) fn browse_settings_hdd_directory(&self) -> Task<Message> {
-        if self.settings_dialog.is_none() {
+        if self.preferences.settings_dialog.is_none() {
             return Task::none();
         }
         let preferred = self
+            .preferences
             .settings_dialog
             .as_ref()
             .and_then(|d| d.draft_hdd_directory.clone())

@@ -27,39 +27,44 @@ impl DesktopApp {
             None => image_task,
         };
         #[cfg(target_os = "windows")]
-        if !self.file_association_pending
-            && let Some(dialog) = self.settings_dialog.as_mut()
+        if !self.preferences.file_association_pending
+            && let Some(dialog) = self.preferences.settings_dialog.as_mut()
         {
             dialog.file_association_registered = k580_ui::file_assoc::is_registered();
         }
-        self.memory_scroll_visible_ticks = self.memory_scroll_visible_ticks.saturating_sub(1);
-        self.opcode_scroll_visible_ticks = self.opcode_scroll_visible_ticks.saturating_sub(1);
-        self.monitor_hex_scroll_visible_ticks =
-            self.monitor_hex_scroll_visible_ticks.saturating_sub(1);
-        if let Some(deadline) = self.error_notice_dismiss_at
+        self.memory.memory_scroll_visible_ticks =
+            self.memory.memory_scroll_visible_ticks.saturating_sub(1);
+        self.memory.opcode_scroll_visible_ticks =
+            self.memory.opcode_scroll_visible_ticks.saturating_sub(1);
+        self.panels.monitor_hex_scroll_visible_ticks = self
+            .panels
+            .monitor_hex_scroll_visible_ticks
+            .saturating_sub(1);
+        if let Some(deadline) = self.shell.error_notice_dismiss_at
             && now >= deadline
         {
             self.clear_error_notice();
         }
-        if let Some(deadline) = self.halt_notice_dismiss_at
+        if let Some(deadline) = self.execution.halt_notice_dismiss_at
             && now >= deadline
         {
             self.clear_halt_notice();
         }
         if self
+            .preferences
             .settings_notice
             .is_some_and(|notice| notice.is_expired(now))
         {
-            self.settings_notice = None;
+            self.preferences.settings_notice = None;
         }
         // A fast run can auto-pause before Tick reads running; its final PC still needs following.
-        if self.running || self.pending_follow_pc {
-            let was_pending = self.pending_follow_pc;
-            self.pending_follow_pc = false;
+        if self.execution.running || self.execution.pending_follow_pc {
+            let was_pending = self.execution.pending_follow_pc;
+            self.execution.pending_follow_pc = false;
             if was_pending {
                 return Task::batch([background_task, self.follow_pc_during_run()]);
             }
-            if self.follow_pc {
+            if self.preferences.follow_pc {
                 return Task::batch([background_task, self.follow_pc_during_run()]);
             }
             self.track_pc_in_place();
@@ -69,9 +74,10 @@ impl DesktopApp {
 
     fn due_help_search_task(&mut self, now: Instant) -> Option<Task<Message>> {
         let request = self
+            .shell
             .help_dialog
             .as_mut()?
-            .take_due_search_request(self.lang, now)?;
+            .take_due_search_request(self.preferences.lang, now)?;
         Some(Task::perform(
             run_help_search(request),
             Message::HelpSearchFinished,
@@ -93,11 +99,11 @@ impl DesktopApp {
             OPCODE_SEARCH_INPUT_ID,
         ];
 
-        if generation != self.mouse_press_generation {
+        if generation != self.interaction.mouse_press_generation {
             return Task::none();
         }
 
-        self.undo_stack.break_coalescing();
+        self.document.undo_stack.break_coalescing();
 
         let resolved = hit.as_ref().and_then(|id| {
             TRACKED
@@ -105,21 +111,21 @@ impl DesktopApp {
                 .find(|known| *id == iced::widget::Id::new(known))
         });
 
-        if let Some((guard_generation, input)) = self.replacement_reconcile_guard.take()
+        if let Some((guard_generation, input)) = self.interaction.replacement_reconcile_guard.take()
             && generation == guard_generation
         {
-            self.focused_input = Some(input);
+            self.interaction.focused_input = Some(input);
             return iced::widget::operation::focus(input);
         }
 
-        if resolved != self.focused_input {
+        if resolved != self.interaction.focused_input {
             self.finish_replacement();
         }
 
-        if self.inline_register_just_entered {
-            self.inline_register_just_entered = false;
+        if self.register.inline_register_just_entered {
+            self.register.inline_register_just_entered = false;
             if let Some(id) = hit {
-                self.focused_input = resolved;
+                self.interaction.focused_input = resolved;
                 return iced::advanced::widget::operate(crate::runtime::unfocus_except(id))
                     .discard();
             }
@@ -127,7 +133,7 @@ impl DesktopApp {
                 .map(Message::ResolveFocusedTracker);
         }
 
-        if self.inline_register_target.is_some()
+        if self.register.inline_register_target.is_some()
             && !matches!(
                 resolved,
                 Some(REGISTER_INLINE_INPUT_ID)
@@ -142,7 +148,7 @@ impl DesktopApp {
         }
 
         if let Some(id) = hit {
-            self.focused_input = resolved;
+            self.interaction.focused_input = resolved;
             return iced::advanced::widget::operate(crate::runtime::unfocus_except(id)).discard();
         }
         iced::advanced::widget::operate(crate::runtime::find_focused_optional())
@@ -150,99 +156,99 @@ impl DesktopApp {
     }
 
     pub(crate) fn handle_esc(&mut self) -> Task<Message> {
-        self.undo_stack.break_coalescing();
-        if self.help_dialog.is_some() {
-            self.help_dialog = None;
+        self.document.undo_stack.break_coalescing();
+        if self.shell.help_dialog.is_some() {
+            self.shell.help_dialog = None;
             return Task::none();
         }
-        if self.settings_dialog.is_some() {
-            self.settings_dialog = None;
+        if self.preferences.settings_dialog.is_some() {
+            self.preferences.settings_dialog = None;
             return Task::none();
         }
-        if self.about_dialog_open {
-            self.about_dialog_open = false;
+        if self.shell.about_dialog_open {
+            self.shell.about_dialog_open = false;
             return Task::none();
         }
-        if self.monitor_open {
-            if self.monitor_hex_popup {
-                self.monitor_hex_popup = false;
+        if self.panels.monitor_open {
+            if self.panels.monitor_hex_popup {
+                self.panels.monitor_hex_popup = false;
             } else {
                 return self.close_monitor();
             }
             return Task::none();
         }
-        if self.network_settings_open {
-            self.network_settings_open = false;
-            self.network_settings_error = None;
+        if self.panels.network_settings_open {
+            self.panels.network_settings_open = false;
+            self.panels.network_settings_error = None;
             return Task::none();
         }
-        if self.network_open {
+        if self.panels.network_open {
             return self.close_network();
         }
-        if self.printer_open {
+        if self.panels.printer_open {
             return self.close_printer();
         }
-        if self.hdd_open {
+        if self.panels.hdd_open {
             return self.close_hdd();
         }
-        if self.floppy_open {
+        if self.panels.floppy_open {
             return self.close_floppy();
         }
-        if self.error_notice.is_some() {
+        if self.shell.error_notice.is_some() {
             self.clear_error_notice();
             return Task::none();
         }
-        if self.halt_notice.is_some() {
+        if self.execution.halt_notice.is_some() {
             self.clear_halt_notice();
             return Task::none();
         }
-        if self.open_menu.is_some() || self.top_menu_focus.is_some() {
+        if self.shell.open_menu.is_some() || self.shell.top_menu_focus.is_some() {
             self.close_top_menu();
             return Task::none();
         }
         let resolve = iced::advanced::widget::operate(crate::runtime::find_focused_optional())
             .map(Message::ResolveFocusedTracker);
-        if self.focused_input == Some(REGISTER_INLINE_INPUT_ID) {
+        if self.interaction.focused_input == Some(REGISTER_INLINE_INPUT_ID) {
             return self.cancel_inline_register_edit().chain(resolve);
         }
-        if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
+        if self.interaction.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
             return self.cancel_inline_memory_edit().chain(resolve);
         }
         if matches!(
-            self.focused_input,
+            self.interaction.focused_input,
             Some(REGISTER_NAME_INPUT_ID | REGISTER_VALUE_INPUT_ID)
         ) {
             self.finish_replacement();
-            self.active_register_target = None;
-            self.inline_register_target = None;
-            self.register_name_input.clear();
-            self.register_value_input.clear();
-            self.focused_input = None;
+            self.register.active_register_target = None;
+            self.register.inline_register_target = None;
+            self.register.register_name_input.clear();
+            self.register.register_value_input.clear();
+            self.interaction.focused_input = None;
             return resolve;
         }
-        if self.stack_view {
+        if self.memory.view.is_stack() {
             self.disable_stack_view();
             return Task::none();
         }
         self.finish_replacement();
-        if self.active_register_target.is_some() {
-            self.active_register_target = None;
-            self.inline_register_target = None;
-            self.register_name_input.clear();
-            self.register_value_input.clear();
+        if self.register.active_register_target.is_some() {
+            self.register.active_register_target = None;
+            self.register.inline_register_target = None;
+            self.register.register_name_input.clear();
+            self.register.register_value_input.clear();
             return resolve;
         }
-        if self.opcode_dropdown_address.is_some() {
+        if self.memory.opcode_dropdown_address.is_some() {
             self.hide_opcode_dropdown();
-            self.focused_input = None;
+            self.interaction.focused_input = None;
             return Task::none();
         }
         if self.selected_memory_address().is_some() {
-            self.memory_address_input.clear();
-            self.memory_value_input.clear();
-            self.memory_inline_value_input.clear();
-            self.opcode_dropdown_address = None;
-            self.opcode_search_input.clear();
+            self.memory.memory_address_input.clear();
+            self.memory.memory_value_input.clear();
+            self.memory.memory_inline_value_input.clear();
+            self.memory.opcode_dropdown_address = None;
+            self.memory.opcode_search_input.clear();
             return resolve;
         }
         self.hide_opcode_dropdown();

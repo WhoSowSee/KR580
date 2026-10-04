@@ -11,7 +11,11 @@ use crate::persistence::ShortcutSettings;
 impl DesktopApp {
     pub(crate) fn subscription(&self) -> Subscription<Message> {
         let mut subscriptions = vec![
-            time::every(tick_interval(self.running, self.speed_tier)).map(|_| Message::Tick),
+            time::every(tick_interval(
+                self.execution.running,
+                self.execution.speed_tier,
+            ))
+            .map(|_| Message::Tick),
             iced::window::close_events().map(Message::WindowClosed),
             event::listen_with(|event, status, window| {
                 Some(Message::RuntimeEvent {
@@ -22,7 +26,9 @@ impl DesktopApp {
             }),
         ];
 
-        if self.startup_frames_seen < 2 || self.settings_dialog.is_some() || self.file_drag_hovered
+        if self.shell.startup_frames_seen < 2
+            || self.preferences.settings_dialog.is_some()
+            || self.document.file_drag_hovered
         {
             subscriptions.push(iced::window::frames().map(|_| Message::FrameRendered));
         }
@@ -54,7 +60,7 @@ fn runtime_event_message(
     status: event::Status,
     window: iced::window::Id,
 ) -> Option<Message> {
-    if (app.export_modal_open || app.import_modal_open)
+    if (app.export.export_modal_open || app.import.import_modal_open)
         && let iced::Event::Keyboard(keyboard::Event::KeyPressed {
             key: keyboard::Key::Named(keyboard::key::Named::Tab),
             modifiers,
@@ -67,13 +73,14 @@ fn runtime_event_message(
             backward: modifiers.shift(),
         });
     }
-    if app.top_menu_focus.is_some()
+    if app.shell.top_menu_focus.is_some()
         && let iced::Event::Keyboard(keyboard::Event::KeyPressed { key, modifiers, .. }) = &event
         && let Some(message) = super::menu_keyboard::navigation_key_message(key, *modifiers)
     {
         return Some(message);
     }
     let recording_shortcut = app
+        .preferences
         .settings_dialog
         .as_ref()
         .and_then(|dialog| dialog.recording_shortcut)
@@ -116,7 +123,7 @@ fn runtime_event_message(
             }),
             status,
         ) if modifiers.command() => command_shortcut_message(
-            &app.shortcut_settings,
+            &app.preferences.shortcut_settings,
             &key,
             physical_key,
             modifiers,
@@ -131,7 +138,7 @@ fn runtime_event_message(
             }),
             status,
         ) if modifiers.alt() => contextual_shortcut_message(
-            &app.shortcut_settings,
+            &app.preferences.shortcut_settings,
             physical_key,
             modifiers,
             status,
@@ -146,7 +153,7 @@ fn runtime_event_message(
             }),
             iced::event::Status::Ignored,
         ) => contextual_shortcut_message(
-            &app.shortcut_settings,
+            &app.preferences.shortcut_settings,
             physical_key,
             modifiers,
             event::Status::Ignored,

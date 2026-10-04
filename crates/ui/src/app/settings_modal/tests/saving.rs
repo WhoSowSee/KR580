@@ -8,19 +8,22 @@ use crate::persistence::{ShortcutAction, ShortcutBinding, ShortcutKey};
 #[test]
 fn committed_settings_stay_open_and_advance_cancel_snapshot() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.speed_tier = SpeedTier::Slow;
-    app.default_speed = SpeedTier::Slow;
-    app.color_scheme = ColorScheme::TokyoNight;
-    app.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
-        app.lang,
-        app.default_speed,
-        app.color_scheme,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-        app.shortcut_settings.clone(),
+    app.execution.speed_tier = SpeedTier::Slow;
+    app.preferences.default_speed = SpeedTier::Slow;
+    app.preferences.color_scheme = ColorScheme::TokyoNight;
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            color_scheme: app.preferences.color_scheme,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            shortcuts: app.preferences.shortcut_settings.clone(),
+            ..Default::default()
+        },
     ));
 
     let _ = app.update(Message::SettingsDraftSpeedChanged(SpeedTier::Max));
@@ -46,7 +49,7 @@ fn committed_settings_stay_open_and_advance_cancel_snapshot() {
 
     app.commit_settings_dialog_state();
 
-    let dialog = app.settings_dialog.as_ref().unwrap();
+    let dialog = app.preferences.settings_dialog.as_ref().unwrap();
     assert_eq!(dialog.original_speed, SpeedTier::Max);
     assert_eq!(dialog.original_color_scheme, ColorScheme::GruvboxDark);
     assert!(!dialog.original_follow_pc);
@@ -71,70 +74,83 @@ fn committed_settings_stay_open_and_advance_cancel_snapshot() {
     ));
     let _ = app.update(Message::CloseSettings);
 
-    assert_eq!(app.speed_tier, SpeedTier::Max);
-    assert_eq!(app.default_speed, SpeedTier::Max);
-    assert_eq!(app.color_scheme, ColorScheme::GruvboxDark);
-    assert!(!app.follow_pc);
-    assert!(!app.memory_operand_highlighting);
-    assert!(app.show_file_name);
-    assert!(app.monitor_split);
-    assert_eq!(app.printer_dialog_mode, PrinterDialogMode::System);
+    assert_eq!(app.execution.speed_tier, SpeedTier::Max);
+    assert_eq!(app.preferences.default_speed, SpeedTier::Max);
+    assert_eq!(app.preferences.color_scheme, ColorScheme::GruvboxDark);
+    assert!(!app.preferences.follow_pc);
+    assert!(!app.preferences.memory_operand_highlighting);
+    assert!(app.preferences.show_file_name);
+    assert!(app.panels.monitor_split);
     assert_eq!(
-        app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
+        app.printer_setup.printer_dialog_mode,
+        PrinterDialogMode::System
+    );
+    assert_eq!(
+        app.preferences
+            .shortcut_settings
+            .binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, true, false, ShortcutKey::M))
     );
-    assert!(app.settings_dialog.is_none());
+    assert!(app.preferences.settings_dialog.is_none());
 }
 
 #[test]
 fn settings_router_allows_notice_dismissal() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            ..Default::default()
+        },
     ));
-    app.settings_notice = Some(SettingsNotice::new(
+    app.preferences.settings_notice = Some(SettingsNotice::new(
         Key::SettingsSavedNotice,
         Instant::now(),
     ));
 
     let _ = app.update(Message::DismissSettingsNotice);
 
-    assert!(app.settings_notice.is_none());
-    assert!(app.settings_dialog.is_some());
+    assert!(app.preferences.settings_notice.is_none());
+    assert!(app.preferences.settings_dialog.is_some());
 }
 
 #[test]
 fn rejected_save_clears_previous_success_notice() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            ..Default::default()
+        },
     ));
-    app.settings_dialog
+    app.preferences
+        .settings_dialog
         .as_mut()
         .unwrap()
         .draft_network_client_port = "invalid".to_owned();
-    app.settings_notice = Some(SettingsNotice::new(
+    app.preferences.settings_notice = Some(SettingsNotice::new(
         Key::SettingsSavedNotice,
         Instant::now(),
     ));
 
     let _ = app.update(Message::SaveSettings);
 
-    assert!(app.settings_notice.is_none());
+    assert!(app.preferences.settings_notice.is_none());
     assert!(
-        app.settings_dialog
+        app.preferences
+            .settings_dialog
             .as_ref()
             .unwrap()
             .network_error
@@ -145,12 +161,12 @@ fn rejected_save_clears_previous_success_notice() {
 #[test]
 fn tick_removes_notice_at_two_second_deadline() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.settings_notice = Some(SettingsNotice::new(
+    app.preferences.settings_notice = Some(SettingsNotice::new(
         Key::SettingsSavedNotice,
         Instant::now() - Duration::from_secs(2),
     ));
 
     let _ = app.handle_tick();
 
-    assert!(app.settings_notice.is_none());
+    assert!(app.preferences.settings_notice.is_none());
 }

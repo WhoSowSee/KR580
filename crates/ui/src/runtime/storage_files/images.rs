@@ -1,6 +1,7 @@
 use crate::app::{DesktopApp, Message};
 use crate::i18n::Key;
 use iced::Task;
+use k580_ui::devices::StorageKind;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -14,45 +15,45 @@ pub(crate) struct FileStamp {
 impl DesktopApp {
     pub(crate) fn refresh_open_image_contents(&mut self) -> Task<Message> {
         let mut tasks = Vec::new();
-        if self.floppy_open
-            && self.floppy_show_image_contents
-            && let Some(task) = self.schedule_image_read(true)
+        if self.panels.floppy_open
+            && self.panels.floppy_show_image_contents
+            && let Some(task) = self.schedule_image_read(StorageKind::Floppy)
         {
             tasks.push(task);
         }
-        if self.hdd_open
-            && self.hdd_show_image_contents
-            && let Some(task) = self.schedule_image_read(false)
+        if self.panels.hdd_open
+            && self.panels.hdd_show_image_contents
+            && let Some(task) = self.schedule_image_read(StorageKind::Hdd)
         {
             tasks.push(task);
         }
         Task::batch(tasks)
     }
 
-    fn schedule_image_read(&mut self, floppy: bool) -> Option<Task<Message>> {
-        let (path, stamp) = if floppy {
+    fn schedule_image_read(&mut self, kind: StorageKind) -> Option<Task<Message>> {
+        let (path, stamp) = if kind == StorageKind::Floppy {
             (
                 self.snapshot.devices.floppy.path.clone(),
-                &mut self.floppy_image_file_stamp,
+                &mut self.panels.floppy_image_file_stamp,
             )
         } else {
             (
                 self.snapshot.devices.hdd.path.clone(),
-                &mut self.hdd_image_file_stamp,
+                &mut self.panels.hdd_image_file_stamp,
             )
         };
         let path = path?;
         let current = match file_stamp(&path) {
             Ok(stamp) => stamp,
             Err(error) => {
-                if floppy {
-                    self.floppy_image_contents.clear();
-                    self.floppy_image_error = Some(error.to_string());
-                    self.floppy_image_file_stamp = None;
+                if kind == StorageKind::Floppy {
+                    self.panels.floppy_image_contents.clear();
+                    self.panels.floppy_image_error = Some(error.to_string());
+                    self.panels.floppy_image_file_stamp = None;
                 } else {
-                    self.hdd_image_contents.clear();
-                    self.hdd_image_error = Some(error.to_string());
-                    self.hdd_image_file_stamp = None;
+                    self.panels.hdd_image_contents.clear();
+                    self.panels.hdd_image_error = Some(error.to_string());
+                    self.panels.hdd_image_file_stamp = None;
                 }
                 return None;
             }
@@ -63,7 +64,7 @@ impl DesktopApp {
         *stamp = Some(current);
         let message_path = path.clone();
         let message = move |result| {
-            if floppy {
+            if kind == StorageKind::Floppy {
                 Message::FloppyImageContentsLoaded(message_path.clone(), result)
             } else {
                 Message::HddImageContentsLoaded(message_path.clone(), result)
@@ -82,13 +83,13 @@ impl DesktopApp {
         }
         match result {
             Ok(bytes) => {
-                self.floppy_image_contents = bytes;
-                self.floppy_image_error = None;
+                self.panels.floppy_image_contents = bytes;
+                self.panels.floppy_image_error = None;
             }
             Err(error) => {
-                self.floppy_image_contents.clear();
-                self.floppy_image_error = Some(error);
-                self.floppy_image_file_stamp = None;
+                self.panels.floppy_image_contents.clear();
+                self.panels.floppy_image_error = Some(error);
+                self.panels.floppy_image_file_stamp = None;
             }
         }
     }
@@ -103,58 +104,63 @@ impl DesktopApp {
         }
         match result {
             Ok(bytes) => {
-                self.hdd_image_contents = bytes;
-                self.hdd_image_error = None;
+                self.panels.hdd_image_contents = bytes;
+                self.panels.hdd_image_error = None;
             }
             Err(error) => {
-                self.hdd_image_contents.clear();
-                self.hdd_image_error = Some(error);
-                self.hdd_image_file_stamp = None;
+                self.panels.hdd_image_contents.clear();
+                self.panels.hdd_image_error = Some(error);
+                self.panels.hdd_image_file_stamp = None;
             }
         }
     }
 
     pub(crate) fn refresh_floppy_image_contents(&mut self) {
         let Some(path) = self.snapshot.devices.floppy.path.as_ref() else {
-            self.floppy_image_contents.clear();
-            self.floppy_image_file_stamp = None;
-            self.floppy_image_error = Some(self.lang.t(Key::FloppyPathMissing).into());
+            self.panels.floppy_image_contents.clear();
+            self.panels.floppy_image_file_stamp = None;
+            self.panels.floppy_image_error =
+                Some(self.preferences.lang.t(Key::FloppyPathMissing).into());
             return;
         };
 
-        match read_file_if_changed(path, &mut self.floppy_image_file_stamp) {
+        match read_file_if_changed(path, &mut self.panels.floppy_image_file_stamp) {
             Ok(Some(bytes)) => {
-                self.floppy_image_contents = bytes;
-                self.floppy_image_error = None;
+                self.panels.floppy_image_contents = bytes;
+                self.panels.floppy_image_error = None;
             }
             Ok(None) => {}
             Err(error) => {
-                self.floppy_image_contents.clear();
-                self.floppy_image_file_stamp = None;
-                self.floppy_image_error =
-                    Some(format!("{}: {error}", self.lang.t(Key::ErrCannotReadFile)));
+                self.panels.floppy_image_contents.clear();
+                self.panels.floppy_image_file_stamp = None;
+                self.panels.floppy_image_error = Some(format!(
+                    "{}: {error}",
+                    self.preferences.lang.t(Key::ErrCannotReadFile)
+                ));
             }
         }
     }
     pub(crate) fn refresh_hdd_image_contents(&mut self) {
         let Some(path) = self.snapshot.devices.hdd.path.as_ref() else {
-            self.hdd_image_contents.clear();
-            self.hdd_image_file_stamp = None;
-            self.hdd_image_error = Some(self.lang.t(Key::HddPathMissing).into());
+            self.panels.hdd_image_contents.clear();
+            self.panels.hdd_image_file_stamp = None;
+            self.panels.hdd_image_error = Some(self.preferences.lang.t(Key::HddPathMissing).into());
             return;
         };
 
-        match read_file_if_changed(path, &mut self.hdd_image_file_stamp) {
+        match read_file_if_changed(path, &mut self.panels.hdd_image_file_stamp) {
             Ok(Some(bytes)) => {
-                self.hdd_image_contents = bytes;
-                self.hdd_image_error = None;
+                self.panels.hdd_image_contents = bytes;
+                self.panels.hdd_image_error = None;
             }
             Ok(None) => {}
             Err(error) => {
-                self.hdd_image_contents.clear();
-                self.hdd_image_file_stamp = None;
-                self.hdd_image_error =
-                    Some(format!("{}: {error}", self.lang.t(Key::ErrCannotReadFile)));
+                self.panels.hdd_image_contents.clear();
+                self.panels.hdd_image_file_stamp = None;
+                self.panels.hdd_image_error = Some(format!(
+                    "{}: {error}",
+                    self.preferences.lang.t(Key::ErrCannotReadFile)
+                ));
             }
         }
     }

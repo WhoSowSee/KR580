@@ -7,11 +7,11 @@ use crate::settings_storage::load_settings;
 impl DesktopApp {
     pub(crate) fn open_network_settings(&mut self) {
         let network = &self.snapshot.devices.network;
-        self.network_mode_draft = network.mode;
-        self.network_host_input = network.host.clone();
-        self.network_port_input = network.port.to_string();
-        self.network_settings_error = None;
-        self.network_settings_open = true;
+        self.panels.network_mode_draft = network.mode;
+        self.panels.network_host_input = network.host.clone();
+        self.panels.network_port_input = network.port.to_string();
+        self.panels.network_settings_error = None;
+        self.panels.network_settings_open = true;
     }
 
     pub(crate) fn select_network_mode(&mut self, mode: NetworkMode) {
@@ -20,42 +20,46 @@ impl DesktopApp {
             NetworkMode::Client => (settings.network.host, settings.network.port),
             NetworkMode::Server => (settings.network.bind_host, settings.network.bind_port),
         };
-        self.network_mode_draft = mode;
-        self.network_host_input = host;
-        self.network_port_input = port.to_string();
-        self.network_settings_error = None;
+        self.panels.network_mode_draft = mode;
+        self.panels.network_host_input = host;
+        self.panels.network_port_input = port.to_string();
+        self.panels.network_settings_error = None;
     }
 
     pub(crate) fn apply_network_settings(&mut self) {
-        let (host, port) =
-            match parse_network_endpoint(&self.network_host_input, &self.network_port_input) {
-                Ok(endpoint) => endpoint,
-                Err(NetworkEndpointError::EmptyHost) => {
-                    self.network_settings_error = Some(
-                        self.lang
-                            .t(Key::Network(NetworkKey::HostRequired))
-                            .to_owned(),
-                    );
-                    return;
-                }
-                Err(NetworkEndpointError::InvalidPort) => {
-                    self.network_settings_error = Some(
-                        self.lang
-                            .t(Key::Network(NetworkKey::PortInvalid))
-                            .to_owned(),
-                    );
-                    return;
-                }
-            };
+        let (host, port) = match parse_network_endpoint(
+            &self.panels.network_host_input,
+            &self.panels.network_port_input,
+        ) {
+            Ok(endpoint) => endpoint,
+            Err(NetworkEndpointError::EmptyHost) => {
+                self.panels.network_settings_error = Some(
+                    self.preferences
+                        .lang
+                        .t(Key::Network(NetworkKey::HostRequired))
+                        .to_owned(),
+                );
+                return;
+            }
+            Err(NetworkEndpointError::InvalidPort) => {
+                self.panels.network_settings_error = Some(
+                    self.preferences
+                        .lang
+                        .t(Key::Network(NetworkKey::PortInvalid))
+                        .to_owned(),
+                );
+                return;
+            }
+        };
 
         self.dispatch_action(
             crate::backend::AppCommand::ConfigureNetwork {
-                mode: self.network_mode_draft,
+                mode: self.panels.network_mode_draft,
                 host: host.clone(),
                 port,
             },
             crate::app::pending::BackendAction::NetworkConfigured {
-                mode: self.network_mode_draft,
+                mode: self.panels.network_mode_draft,
                 host,
                 port,
             },

@@ -14,11 +14,11 @@ impl DesktopApp {
         &mut self,
         message: &Message,
     ) -> Option<Task<Message>> {
-        self.settings_dialog.as_ref()?;
+        self.preferences.settings_dialog.as_ref()?;
         if matches!(
             message,
             Message::EnterPressed | Message::MousePressed | Message::MousePressedIgnored
-        ) && let Some(dialog) = self.settings_dialog.as_mut()
+        ) && let Some(dialog) = self.preferences.settings_dialog.as_mut()
         {
             dialog.keyboard_focus_visible = false;
             dialog.reset_confirm_keyboard_focus_visible = false;
@@ -28,7 +28,7 @@ impl DesktopApp {
             can_scroll_down,
         } = message
         {
-            if let Some(dialog) = self.settings_dialog.as_mut() {
+            if let Some(dialog) = self.preferences.settings_dialog.as_mut() {
                 dialog.content_can_scroll_up = *can_scroll_up;
                 dialog.content_can_scroll_down = *can_scroll_down;
             }
@@ -43,12 +43,12 @@ impl DesktopApp {
                 | Message::SettingsSearchChanged(_)
                 | Message::SettingsDraftLanguageChanged(_)
                 | Message::SettingsResetConfirmed
-        ) && let Some(dialog) = self.settings_dialog.as_mut()
+        ) && let Some(dialog) = self.preferences.settings_dialog.as_mut()
         {
             dialog.content_can_scroll_up = false;
             dialog.content_can_scroll_down = true;
         }
-        let dialog = self.settings_dialog.as_ref()?;
+        let dialog = self.preferences.settings_dialog.as_ref()?;
         let reset_open = dialog.reset_confirm_open;
 
         match message {
@@ -102,7 +102,7 @@ impl DesktopApp {
                     Some(Task::done(Message::SettingsShortcutCaptureCancelled))
                 } else if reset_open {
                     Some(Task::done(Message::SettingsResetCancelled))
-                } else if dialog.language_dropdown_open {
+                } else if dialog.language_dropdown.is_open() {
                     Some(Task::done(Message::SettingsLanguageDropdownToggled))
                 } else {
                     Some(Task::done(Message::CloseSettings))
@@ -116,8 +116,11 @@ impl DesktopApp {
                     };
                     return Some(Task::done(action));
                 }
-                if dialog.language_dropdown_open {
-                    let target = dialog.dropdown_highlight.unwrap_or(dialog.draft_lang);
+                if dialog.language_dropdown.is_open() {
+                    let target = dialog
+                        .language_dropdown
+                        .highlight()
+                        .unwrap_or(dialog.draft_lang);
                     return Some(Task::done(Message::SettingsDraftLanguageChanged(target)));
                 }
                 Some(self.handle_settings_enter())
@@ -138,7 +141,7 @@ impl DesktopApp {
     }
 
     fn handle_settings_enter(&mut self) -> Task<Message> {
-        let Some(dialog) = self.settings_dialog.as_ref() else {
+        let Some(dialog) = self.preferences.settings_dialog.as_ref() else {
             return Task::none();
         };
         match dialog.section {
@@ -166,7 +169,11 @@ impl DesktopApp {
     }
 
     fn activate_focused_content(&mut self) -> Task<Message> {
-        let dialog = self.settings_dialog.as_ref().expect("dialog open");
+        let dialog = self
+            .preferences
+            .settings_dialog
+            .as_ref()
+            .expect("dialog open");
         let Some(focus) = dialog.content_focus else {
             return Task::none();
         };
@@ -215,7 +222,9 @@ impl DesktopApp {
             ContentFocus::FileAssociation if !k580_ui::file_assoc::is_user_configurable() => {
                 Task::none()
             }
-            ContentFocus::FileAssociation if self.file_association_pending => Task::none(),
+            ContentFocus::FileAssociation if self.preferences.file_association_pending => {
+                Task::none()
+            }
             ContentFocus::FileAssociation => {
                 #[cfg(target_os = "windows")]
                 {
@@ -238,7 +247,7 @@ impl DesktopApp {
     }
 
     fn handle_settings_tab(&mut self, backward: bool, reset_open: bool) -> Task<Message> {
-        let Some(dialog) = self.settings_dialog.as_mut() else {
+        let Some(dialog) = self.preferences.settings_dialog.as_mut() else {
             return Task::none();
         };
         if reset_open {
@@ -292,20 +301,23 @@ impl DesktopApp {
     }
 
     fn handle_settings_vertical_arrow(&mut self, direction: i32) -> Task<Message> {
-        let Some(dialog) = self.settings_dialog.as_mut() else {
+        let Some(dialog) = self.preferences.settings_dialog.as_mut() else {
             return Task::none();
         };
         if dialog.reset_confirm_open {
             return Task::none();
         }
-        if dialog.language_dropdown_open {
-            let current = dialog.dropdown_highlight.unwrap_or(dialog.draft_lang);
+        if dialog.language_dropdown.is_open() {
+            let current = dialog
+                .language_dropdown
+                .highlight()
+                .unwrap_or(dialog.draft_lang);
             let next = match (current, direction) {
                 (Lang::Ru, d) if d < 0 => Lang::En,
                 (Lang::En, d) if d > 0 => Lang::Ru,
                 _ => return Task::none(),
             };
-            dialog.dropdown_highlight = Some(next);
+            dialog.language_dropdown.set_highlight(Some(next));
             return Task::none();
         }
         if dialog.section == SettingsSection::Sidebar {
@@ -324,7 +336,7 @@ impl DesktopApp {
     }
 
     fn handle_settings_horizontal_arrow(&mut self, direction: i32) -> Task<Message> {
-        let Some(dialog) = self.settings_dialog.as_mut() else {
+        let Some(dialog) = self.preferences.settings_dialog.as_mut() else {
             return Task::none();
         };
         if dialog.section != SettingsSection::Content {

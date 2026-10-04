@@ -31,7 +31,7 @@ const FULLSCREEN_SCHEMATIC_COLUMN_GAP: f32 = 72.0;
 impl DesktopApp {
     pub(super) fn schematic_panel(&self) -> Element<'_, Message> {
         let cpu = &self.snapshot.cpu;
-        let lang = self.lang;
+        let lang = self.preferences.lang;
 
         let halt_indicator = mouse_area(mono_text(
             if cpu.halted {
@@ -84,9 +84,9 @@ impl DesktopApp {
         let accumulator_target = RegisterInlineTarget::Schematic(RegisterName::A);
         let buffer1_target = RegisterInlineTarget::Schematic(RegisterName::B);
         let buffer2_target = RegisterInlineTarget::Schematic(RegisterName::C);
-        let active_target = self.active_register_target;
-        let inline_target = self.inline_register_target;
-        let hovered_target = self.hovered_register_target;
+        let active_target = self.register.active_register_target;
+        let inline_target = self.register.inline_register_target;
+        let hovered_target = self.register.hovered_register_target;
         let inline_placeholder = self.input_placeholder(crate::app::REGISTER_INLINE_INPUT_ID, "00");
 
         let registers_grid = column![
@@ -101,7 +101,7 @@ impl DesktopApp {
                         editing: inline_target == Some(accumulator_target),
                         hovered: hovered_target == Some(accumulator_target),
                     },
-                    &self.register_value_input,
+                    &self.register.register_value_input,
                     inline_placeholder,
                 ),
                 Space::new().width(Length::Fill),
@@ -115,7 +115,7 @@ impl DesktopApp {
                         editing: inline_target == Some(buffer1_target),
                         hovered: hovered_target == Some(buffer1_target),
                     },
-                    &self.register_value_input,
+                    &self.register.register_value_input,
                     inline_placeholder,
                 ),
                 Space::new().width(Length::Fill),
@@ -129,7 +129,7 @@ impl DesktopApp {
                         editing: inline_target == Some(buffer2_target),
                         hovered: hovered_target == Some(buffer2_target),
                     },
-                    &self.register_value_input,
+                    &self.register.register_value_input,
                     inline_placeholder,
                 ),
             ]
@@ -190,8 +190,8 @@ impl DesktopApp {
         ]
         .spacing(LEFT_BOARD_SECTION_SPACING)
         .width(Length::Fixed(520.0));
-        let fullscreen_layout = self.window_maximized
-            || self.main_window_size.height >= FULLSCREEN_SCHEMATIC_MIN_HEIGHT;
+        let fullscreen_layout = self.shell.window_maximized
+            || self.shell.main_window_size.height >= FULLSCREEN_SCHEMATIC_MIN_HEIGHT;
 
         let status_register_block = super::status_register::status_register_tooltip(
             cpu,
@@ -214,8 +214,10 @@ impl DesktopApp {
             1,
             u8::from(cpu.flags.carry),
         );
-        let shortened_status =
-            crate::app::shorten_status_for_width(&self.status, self.main_window_size.width);
+        let shortened_status = crate::app::shorten_status_for_width(
+            &self.shell.status,
+            self.shell.main_window_size.width,
+        );
         let status_value: Element<'_, Message> = mono_text(shortened_status, 13, tokyo_text())
             .wrapping(iced::widget::text::Wrapping::None)
             .into();
@@ -251,11 +253,11 @@ impl DesktopApp {
             column![
                 super::mux::mux_panel(
                     cpu,
-                    self.selected_register,
-                    self.inline_register_target,
-                    self.active_register_target,
-                    self.hovered_register_target,
-                    &self.register_value_input,
+                    self.register.selected_register,
+                    self.register.inline_register_target,
+                    self.register.active_register_target,
+                    self.register.hovered_register_target,
+                    &self.register.register_value_input,
                     inline_placeholder,
                     MuxRegisterValues {
                         b: self.display_register_value(RegisterName::B),
@@ -266,8 +268,8 @@ impl DesktopApp {
                         l: self.display_register_value(RegisterName::L),
                     },
                     lang,
-                    !self.register_name_input.is_empty(),
-                    self.running,
+                    !self.register.register_name_input.is_empty(),
+                    self.execution.running,
                 ),
                 status_register_block,
             ]
@@ -316,35 +318,35 @@ impl DesktopApp {
                 tokyo_device_accent(tokyo_green()),
                 lang.t(Key::DeviceMonitor),
                 Some(Message::OpenMonitor),
-                shortcut_hint(&self.shortcut_settings, &Message::OpenMonitor),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::OpenMonitor),
             ),
             device_chip(
                 icons::device_floppy(),
                 tokyo_device_accent(tokyo_cyan()),
                 lang.t(Key::DeviceFloppy),
                 Some(Message::OpenFloppy),
-                shortcut_hint(&self.shortcut_settings, &Message::OpenFloppy),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::OpenFloppy),
             ),
             device_chip(
                 icons::device_hdd(),
                 tokyo_device_accent(tokyo_blue()),
                 lang.t(Key::DeviceHdd),
                 Some(Message::OpenHdd),
-                shortcut_hint(&self.shortcut_settings, &Message::OpenHdd),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::OpenHdd),
             ),
             device_chip(
                 icons::device_network(),
                 tokyo_device_accent(tokyo_yellow()),
                 lang.t(Key::DeviceNetwork),
                 Some(Message::OpenNetwork),
-                shortcut_hint(&self.shortcut_settings, &Message::OpenNetwork),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::OpenNetwork),
             ),
             device_chip(
                 icons::device_printer(),
                 tokyo_device_accent(tokyo_magenta()),
                 lang.t(Key::DevicePrinter),
                 Some(Message::OpenPrinter),
-                shortcut_hint(&self.shortcut_settings, &Message::OpenPrinter),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::OpenPrinter),
             ),
         ]
         .spacing(14)
@@ -361,7 +363,7 @@ impl DesktopApp {
         let bottom = row![
             quick_access,
             Space::new().width(Length::Fill),
-            super::speed::speed_panel(self.speed_tier, self.lang),
+            super::speed::speed_panel(self.execution.speed_tier, self.preferences.lang),
         ]
         .spacing(24)
         .align_y(alignment::Vertical::Bottom);
@@ -385,16 +387,4 @@ impl DesktopApp {
 }
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn central_column_status_gap_and_height_are_fixed() {
-        assert_eq!(
-            super::CENTRAL_COLUMN_SECTION_SPACING,
-            super::LEFT_BOARD_SECTION_SPACING + super::LEGEND_LINE_OFFSET
-        );
-        assert_eq!(super::CENTRAL_STATUS_REGISTER_SPACING_TRIM, 4.0);
-        assert_eq!(super::super::chips::SCHEMATIC_WIDE_READOUT_HEIGHT, 60.0);
-        assert_eq!(super::FULLSCREEN_SCHEMATIC_MIN_HEIGHT, 900.0);
-        assert_eq!(super::FULLSCREEN_SCHEMATIC_COLUMN_GAP, 72.0);
-    }
-}
+mod tests;

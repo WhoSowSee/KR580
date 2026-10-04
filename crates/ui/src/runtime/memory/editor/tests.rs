@@ -27,33 +27,33 @@ fn opcode_navigation_keeps_highlight_visible_and_wraps() {
         for _ in 0..5 {
             let _ = app.update(forward.clone());
         }
-        assert_eq!(app.opcode_highlight_index, 5);
-        assert_eq!(app.opcode_scroll_offset, 0.0);
+        assert_eq!(app.memory.opcode_highlight_index, 5);
+        assert_eq!(app.memory.opcode_scroll_offset, 0.0);
 
         let _ = app.update(forward.clone());
-        assert_eq!(app.opcode_highlight_index, 6);
+        assert_eq!(app.memory.opcode_highlight_index, 6);
         assert_eq!(
-            app.opcode_scroll_offset,
+            app.memory.opcode_scroll_offset,
             7.0 * OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT
         );
 
         let _ = app.update(forward.clone());
         let _ = app.update(forward);
-        assert_eq!(app.opcode_highlight_index, 0);
-        assert_eq!(app.opcode_scroll_offset, 0.0);
+        assert_eq!(app.memory.opcode_highlight_index, 0);
+        assert_eq!(app.memory.opcode_scroll_offset, 0.0);
 
         let _ = app.update(backward.clone());
-        assert_eq!(app.opcode_highlight_index, 7);
+        assert_eq!(app.memory.opcode_highlight_index, 7);
         assert_eq!(
-            app.opcode_scroll_offset,
+            app.memory.opcode_scroll_offset,
             8.0 * OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT
         );
 
-        app.opcode_highlight_index = 2;
+        app.memory.opcode_highlight_index = 2;
         let _ = app.update(backward);
-        assert_eq!(app.opcode_highlight_index, 1);
-        assert_eq!(app.opcode_scroll_offset, OPCODE_OPTION_HEIGHT);
-        assert_eq!(app.focused_input, focused_input);
+        assert_eq!(app.memory.opcode_highlight_index, 1);
+        assert_eq!(app.memory.opcode_scroll_offset, OPCODE_OPTION_HEIGHT);
+        assert_eq!(app.interaction.focused_input, focused_input);
     }
 }
 
@@ -62,17 +62,17 @@ fn opcode_search_and_address_changes_reset_scroll() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
     let _ = app.update(Message::OpcodeDropdownToggled(0x1234));
     let _ = app.update(Message::OpcodeScrolled(3_000.0));
-    app.opcode_highlight_index = 7;
+    app.memory.opcode_highlight_index = 7;
     let _ = app.update(Message::OpcodeSearchChanged("SUI".to_owned()));
-    assert_eq!(app.opcode_highlight_index, 0);
-    assert_eq!(app.opcode_scroll_offset, 0.0);
+    assert_eq!(app.memory.opcode_highlight_index, 0);
+    assert_eq!(app.memory.opcode_scroll_offset, 0.0);
 
     let _ = app.update(Message::OpcodeScrolled(3_000.0));
-    app.opcode_highlight_index = 7;
+    app.memory.opcode_highlight_index = 7;
     let _ = app.update(Message::OpcodeDropdownToggled(0x5678));
-    assert_eq!(app.opcode_dropdown_address, Some(0x5678));
-    assert_eq!(app.opcode_highlight_index, 0);
-    assert_eq!(app.opcode_scroll_offset, 0.0);
+    assert_eq!(app.memory.opcode_dropdown_address, Some(0x5678));
+    assert_eq!(app.memory.opcode_highlight_index, 0);
+    assert_eq!(app.memory.opcode_scroll_offset, 0.0);
 }
 
 #[test]
@@ -83,10 +83,10 @@ fn enter_applies_highlighted_opcode() {
 
     assert_eq!(app.highlighted_opcode_value(), Some(0x3E));
     let _ = app.update(Message::EnterPressed);
-    assert_eq!(app.opcode_dropdown_address, None);
-    assert_eq!(app.opcode_search_input, "");
-    assert_eq!(app.memory_address_input, "1234");
-    assert_eq!(app.memory_value_input, "3E");
+    assert_eq!(app.memory.opcode_dropdown_address, None);
+    assert_eq!(app.memory.opcode_search_input, "");
+    assert_eq!(app.memory.memory_address_input, "1234");
+    assert_eq!(app.memory.memory_value_input, "3E");
 }
 
 #[test]
@@ -133,13 +133,13 @@ fn pasted_hex_bytes_replace_existing_inline_value_before_the_caret() {
 #[test]
 fn value_input_uses_address_zero_when_the_address_field_is_empty() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.memory_address_input.clear();
-    app.memory_value_input.clear();
+    app.memory.memory_address_input.clear();
+    app.memory.memory_value_input.clear();
 
     let _ = app.update(Message::MemoryValueChanged("3E".to_owned()));
 
-    assert_eq!(app.memory_address_input, "0000");
-    assert_eq!(app.memory_value_input, "3E");
+    assert_eq!(app.memory.memory_address_input, "0000");
+    assert_eq!(app.memory.memory_value_input, "3E");
 }
 
 #[test]
@@ -150,8 +150,8 @@ fn value_input_is_shared_with_selected_memory_row_preview() {
 
     let _ = app.update(Message::MemoryValueChanged("3E".to_owned()));
 
-    assert_eq!(app.memory_value_input, "3E");
-    assert_eq!(app.memory_inline_value_input, "3E");
+    assert_eq!(app.memory.memory_value_input, "3E");
+    assert_eq!(app.memory.memory_inline_value_input, "3E");
     assert_eq!(app.snapshot.cpu.memory.read(0x0010), 0x22);
 }
 
@@ -163,8 +163,8 @@ fn overlong_memory_value_input_is_ignored_without_status_error() {
     let _ = app.update(Message::MemoryValueChanged("201".to_owned()));
     let _ = app.update(Message::MemoryValueChanged("20G".to_owned()));
 
-    assert_eq!(app.memory_value_input, "20");
-    assert!(matches!(app.status_kind, StatusKind::Ready));
+    assert_eq!(app.memory.memory_value_input, "20");
+    assert!(matches!(app.shell.status_kind, StatusKind::Ready));
 }
 
 #[test]
@@ -175,8 +175,8 @@ fn overlong_inline_memory_value_input_is_ignored_without_status_error() {
     let _ = app.update(Message::InlineMemoryValueChanged(0x0100, "201".to_owned()));
     let _ = app.update(Message::InlineMemoryValueChanged(0x0100, "20G".to_owned()));
 
-    assert_eq!(app.memory_inline_value_input, "20");
-    assert!(matches!(app.status_kind, StatusKind::Ready));
+    assert_eq!(app.memory.memory_inline_value_input, "20");
+    assert!(matches!(app.shell.status_kind, StatusKind::Ready));
 }
 
 #[test]
@@ -187,10 +187,10 @@ fn pasted_bytes_use_selected_memory_cell_without_inline_edit_focus() {
     let _ = app.update(Message::MemoryBytesPasted(Some("12 15 16".to_owned())));
     settle_backend(&mut app);
 
-    assert_eq!(app.focused_input, None);
-    assert_eq!(app.memory_address_input, "0100");
-    assert_eq!(app.memory_value_input, "12");
-    assert_eq!(app.memory_inline_value_input, "12");
+    assert_eq!(app.interaction.focused_input, None);
+    assert_eq!(app.memory.memory_address_input, "0100");
+    assert_eq!(app.memory.memory_value_input, "12");
+    assert_eq!(app.memory.memory_inline_value_input, "12");
     assert_eq!(
         &app.snapshot.cpu.memory.as_slice()[0x0100..0x0103],
         &[0x12, 0x15, 0x16]
@@ -200,29 +200,29 @@ fn pasted_bytes_use_selected_memory_cell_without_inline_edit_focus() {
 #[test]
 fn pasted_bytes_use_address_zero_when_the_address_field_is_empty() {
     let mut app = app_with_clean_startup();
-    app.memory_address_input.clear();
+    app.memory.memory_address_input.clear();
 
     let _ = app.update(Message::MemoryValueChanged("3E 41".to_owned()));
     settle_backend(&mut app);
 
-    assert_eq!(app.memory_address_input, "0000");
+    assert_eq!(app.memory.memory_address_input, "0000");
     assert_eq!(&app.snapshot.cpu.memory.as_slice()[..2], &[0x3E, 0x41]);
 }
 
 #[test]
 fn invalid_value_does_not_fill_an_empty_address_field() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.memory_address_input.clear();
+    app.memory.memory_address_input.clear();
 
     let _ = app.update(Message::MemoryValueChanged("GG".to_owned()));
 
-    assert!(app.memory_address_input.is_empty());
+    assert!(app.memory.memory_address_input.is_empty());
 }
 
 #[test]
 fn invalid_hex_byte_sequence_does_not_change_memory() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.preferences.lang = crate::i18n::Lang::Ru;
 
     app.change_inline_memory_value(0x0100, "3E nope 76".to_owned());
 
@@ -231,35 +231,35 @@ fn invalid_hex_byte_sequence_does_not_change_memory() {
         &[0x00, 0x00, 0x00]
     );
     assert_eq!(
-        app.status,
+        app.shell.status,
         "Некорректные байты: используйте HEX-пары через пробел"
     );
-    assert!(!app.status.contains("nope"));
+    assert!(!app.shell.status.contains("nope"));
 }
 
 #[test]
 fn invalid_single_pasted_token_reports_a_clear_error() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.preferences.lang = crate::i18n::Lang::Ru;
 
     app.change_inline_memory_value(0x0100, "feature".to_owned());
 
     assert_eq!(
-        app.status,
+        app.shell.status,
         "Некорректные байты: используйте HEX-пары через пробел"
     );
-    assert!(!app.status.contains("feature"));
+    assert!(!app.shell.status.contains("feature"));
 }
 
 #[test]
 fn invalid_short_hex_token_reports_a_clear_error() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.preferences.lang = crate::i18n::Lang::Ru;
 
     app.change_inline_memory_value(0x0100, "GG".to_owned());
 
     assert_eq!(
-        app.status,
+        app.shell.status,
         "Некорректные байты: используйте HEX-пары через пробел"
     );
 }
@@ -267,12 +267,12 @@ fn invalid_short_hex_token_reports_a_clear_error() {
 #[test]
 fn overflowing_hex_byte_sequence_does_not_change_memory() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.lang = crate::i18n::Lang::Ru;
+    app.preferences.lang = crate::i18n::Lang::Ru;
 
     app.change_inline_memory_value(0xFFFE, "3E 41 76".to_owned());
 
     assert_eq!(&app.snapshot.cpu.memory.as_slice()[0xFFFE..], &[0x00, 0x00]);
-    assert_eq!(app.status, "Последовательность не помещается в ОЗУ");
+    assert_eq!(app.shell.status, "Последовательность не помещается в ОЗУ");
 }
 
 #[test]
@@ -282,14 +282,14 @@ fn inline_memory_enter_keeps_replacement_mode_on_next_cell() {
     settle_backend(&mut app);
     app.enter_inline_memory_replacing(0x0010);
 
-    assert!(app.memory_inline_value_input.is_empty());
+    assert!(app.memory.memory_inline_value_input.is_empty());
     assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "3E");
 
     let _ = app.update(Message::ApplyInlineMemoryValue(0x0010));
     settle_backend(&mut app);
 
-    assert_eq!(app.memory_address_input, "0011");
-    assert!(app.memory_inline_value_input.is_empty());
+    assert_eq!(app.memory.memory_address_input, "0011");
+    assert!(app.memory.memory_inline_value_input.is_empty());
     assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "00");
     assert_eq!(app.snapshot.cpu.memory.read(0x0010), 0x3E);
 }
@@ -298,14 +298,14 @@ fn inline_memory_enter_keeps_replacement_mode_on_next_cell() {
 fn memory_cell_replace_action_switches_inline_editor_to_replacement_mode() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
     app.snapshot.cpu.memory.write(0x0010, 0x3E);
-    app.memory_address_input = "0010".to_owned();
-    app.memory_inline_value_input = "41".to_owned();
-    app.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+    app.memory.memory_address_input = "0010".to_owned();
+    app.memory.memory_inline_value_input = "41".to_owned();
+    app.interaction.focused_input = Some(MEMORY_INLINE_INPUT_ID);
 
     let _ = app.update(Message::MemoryCellReplace);
 
-    assert_eq!(app.memory_address_input, "0010");
-    assert!(app.memory_inline_value_input.is_empty());
+    assert_eq!(app.memory.memory_address_input, "0010");
+    assert!(app.memory.memory_inline_value_input.is_empty());
     assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "41");
     assert_eq!(app.snapshot.cpu.memory.read(0x0010), 0x3E);
 }
@@ -314,41 +314,47 @@ fn memory_cell_replace_action_switches_inline_editor_to_replacement_mode() {
 fn memory_cell_replace_action_starts_from_the_selected_row() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
     app.snapshot.cpu.memory.write(0x0000, 0x3E);
-    app.memory_address_input = "0000".to_owned();
-    app.memory_inline_value_input = "3E".to_owned();
+    app.memory.memory_address_input = "0000".to_owned();
+    app.memory.memory_inline_value_input = "3E".to_owned();
 
     let _ = app.update(Message::MemoryCellReplace);
 
-    assert_eq!(app.focused_input, Some(MEMORY_INLINE_INPUT_ID));
-    assert!(app.memory_inline_value_input.is_empty());
+    assert_eq!(app.interaction.focused_input, Some(MEMORY_INLINE_INPUT_ID));
+    assert!(app.memory.memory_inline_value_input.is_empty());
     assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "3E");
 }
 
 #[test]
 fn clearing_a_hex_field_reports_a_localized_status() {
     let mut app = app_with_clean_startup();
-    app.lang = crate::i18n::Lang::Ru;
-    app.memory_address_input = "0100".to_owned();
-    app.memory_value_input = String::new();
+    app.preferences.lang = crate::i18n::Lang::Ru;
+    app.memory.memory_address_input = "0100".to_owned();
+    app.memory.memory_value_input = String::new();
 
     let _ = app.apply_memory();
 
-    assert_eq!(app.status, "Неверное шестнадцатеричное значение байта");
-    assert!(matches!(app.status_kind, StatusKind::InvalidByteHex));
+    assert_eq!(
+        app.shell.status,
+        "Неверное шестнадцатеричное значение байта"
+    );
+    assert!(matches!(app.shell.status_kind, StatusKind::InvalidByteHex));
 
-    app.lang = crate::i18n::Lang::En;
+    app.preferences.lang = crate::i18n::Lang::En;
     app.refresh_localized_status();
-    assert_eq!(app.status, "Invalid hex byte value");
+    assert_eq!(app.shell.status, "Invalid hex byte value");
 }
 
 #[test]
 fn clearing_the_address_field_reports_the_address_status() {
     let mut app = app_with_clean_startup();
-    app.lang = crate::i18n::Lang::Ru;
-    app.memory_address_input = String::new();
+    app.preferences.lang = crate::i18n::Lang::Ru;
+    app.memory.memory_address_input = String::new();
 
     let _ = app.jump_memory_address();
 
-    assert_eq!(app.status, "Неверный шестнадцатеричный адрес");
-    assert!(matches!(app.status_kind, StatusKind::InvalidAddressHex));
+    assert_eq!(app.shell.status, "Неверный шестнадцатеричный адрес");
+    assert!(matches!(
+        app.shell.status_kind,
+        StatusKind::InvalidAddressHex
+    ));
 }

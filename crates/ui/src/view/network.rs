@@ -34,13 +34,13 @@ impl DesktopApp {
         NetworkViewState {
             toolbar: self.device_toolbar(ToolWindowKind::Network),
             network: &self.snapshot.devices.network,
-            settings_open: self.network_settings_open,
-            text_view: self.network_text_view,
-            mode: self.network_mode_draft,
-            host: &self.network_host_input,
-            port: &self.network_port_input,
-            error: self.network_settings_error.as_deref(),
-            lang: self.lang,
+            settings_open: self.panels.network_settings_open,
+            text_view: self.panels.network_text_view,
+            mode: self.panels.network_mode_draft,
+            host: &self.panels.network_host_input,
+            port: &self.panels.network_port_input,
+            error: self.panels.network_settings_error.as_deref(),
+            lang: self.preferences.lang,
         }
     }
 }

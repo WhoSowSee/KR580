@@ -13,24 +13,24 @@ impl DesktopApp {
             Message::OpenAbout => {
                 self.close_top_menu();
                 self.close_open_device_panel();
-                self.about_dialog_open = true;
+                self.shell.about_dialog_open = true;
             }
             Message::CloseAbout => {
-                self.about_dialog_open = false;
+                self.shell.about_dialog_open = false;
             }
             Message::OpenChangelog => {
-                self.changelog_dialog = Some(ChangelogDialog::new(self.lang));
+                self.shell.changelog_dialog = Some(ChangelogDialog::new(self.preferences.lang));
             }
             Message::CloseChangelog => {
-                self.changelog_dialog = None;
+                self.shell.changelog_dialog = None;
             }
             Message::ChangelogReleaseSelected(selected) => {
-                if let Some(dialog) = self.changelog_dialog.as_mut() {
+                if let Some(dialog) = self.shell.changelog_dialog.as_mut() {
                     dialog.select_release(*selected);
                 }
             }
             Message::ChangelogTextAction(action) => {
-                if let Some(dialog) = self.changelog_dialog.as_mut() {
+                if let Some(dialog) = self.shell.changelog_dialog.as_mut() {
                     dialog.perform_text_action(action.clone());
                 }
             }
@@ -38,38 +38,38 @@ impl DesktopApp {
                 self.close_top_menu();
                 self.hide_opcode_dropdown();
                 self.close_open_device_panel();
-                self.help_dialog = Some(HelpDialog::new(self.lang));
+                self.shell.help_dialog = Some(HelpDialog::new(self.preferences.lang));
             }
             Message::CloseHelp => {
-                self.help_dialog = None;
+                self.shell.help_dialog = None;
             }
             Message::HelpNodeSelected(node) => {
-                if let Some(dialog) = self.help_dialog.as_mut() {
-                    dialog.select_node(*node, self.lang);
+                if let Some(dialog) = self.shell.help_dialog.as_mut() {
+                    dialog.select_node(*node, self.preferences.lang);
                 }
             }
             Message::HelpNodeToggled(node) => {
-                if let Some(dialog) = self.help_dialog.as_mut() {
-                    dialog.toggle_expanded(*node, self.lang);
+                if let Some(dialog) = self.shell.help_dialog.as_mut() {
+                    dialog.toggle_expanded(*node, self.preferences.lang);
                 }
             }
             Message::HelpSearchChanged(query) => {
-                if let Some(dialog) = self.help_dialog.as_mut() {
-                    dialog.update_search_input(query.clone(), self.lang);
+                if let Some(dialog) = self.shell.help_dialog.as_mut() {
+                    dialog.update_search_input(query.clone(), self.preferences.lang);
                 }
             }
             Message::HelpSearchFinished(response) => {
-                if let Some(dialog) = self.help_dialog.as_mut() {
-                    dialog.apply_search_response(response.clone(), self.lang);
+                if let Some(dialog) = self.shell.help_dialog.as_mut() {
+                    dialog.apply_search_response(response.clone(), self.preferences.lang);
                 }
             }
             Message::HelpTextAction(action) => {
-                if let Some(dialog) = self.help_dialog.as_mut() {
+                if let Some(dialog) = self.shell.help_dialog.as_mut() {
                     dialog.perform_text_action(action.clone());
                 }
             }
             Message::HelpToggleExpandAll => {
-                if let Some(dialog) = self.help_dialog.as_mut() {
+                if let Some(dialog) = self.shell.help_dialog.as_mut() {
                     if dialog.all_expanded() {
                         dialog.collapse_all();
                     } else {
@@ -91,9 +91,9 @@ impl DesktopApp {
                     self.close_network(),
                     self.close_printer(),
                 ]);
-                self.monitor_open = true;
-                if self.monitor_window.detached
-                    && let Some(id) = self.monitor_window.id
+                self.panels.monitor_open = true;
+                if self.panels.monitor_window.detached()
+                    && let Some(id) = self.panels.monitor_window.id()
                 {
                     return Some(close_storage.chain(iced::window::gain_focus(id)));
                 }
@@ -103,26 +103,26 @@ impl DesktopApp {
                 return Some(self.close_monitor());
             }
             Message::ToggleMonitorSplit => {
-                self.monitor_split = !self.monitor_split;
+                self.panels.monitor_split = !self.panels.monitor_split;
             }
             Message::ToggleMonitorHexPopup => {
-                self.monitor_hex_popup = !self.monitor_hex_popup;
-                if self.monitor_hex_popup {
-                    self.monitor_hex_scroll_offset = 0.0;
-                    self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+                self.panels.monitor_hex_popup = !self.panels.monitor_hex_popup;
+                if self.panels.monitor_hex_popup {
+                    self.panels.monitor_hex_scroll_offset = 0.0;
+                    self.panels.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
                 }
             }
             Message::CycleMonitorHexFilter => {
-                self.monitor_hex_filter = self.monitor_hex_filter.next();
-                self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+                self.panels.monitor_hex_filter = self.panels.monitor_hex_filter.next();
+                self.panels.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }
             Message::MonitorHexScrolled(offset) => {
-                self.monitor_hex_scroll_offset = *offset;
-                self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+                self.panels.monitor_hex_scroll_offset = *offset;
+                self.panels.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
             }
             Message::MonitorHexScrollbarDragged(offset) => {
-                self.monitor_hex_scroll_offset = *offset;
-                self.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+                self.panels.monitor_hex_scroll_offset = *offset;
+                self.panels.monitor_hex_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
                 return Some(scroll_y_to(MONITOR_HEX_SCROLL_ID, *offset));
             }
             Message::ClearMonitorBuffer => {
@@ -143,12 +143,12 @@ impl DesktopApp {
                     self.close_network(),
                     self.close_printer(),
                 ]);
-                self.floppy_open = true;
-                if self.floppy_show_image_contents {
+                self.panels.floppy_open = true;
+                if self.panels.floppy_show_image_contents {
                     self.refresh_floppy_image_contents();
                 }
-                if self.floppy_window.detached
-                    && let Some(id) = self.floppy_window.id
+                if self.panels.floppy_window.detached()
+                    && let Some(id) = self.panels.floppy_window.id()
                 {
                     return Some(close_other.chain(iced::window::gain_focus(id)));
                 }
@@ -158,8 +158,8 @@ impl DesktopApp {
                 return Some(self.close_floppy());
             }
             Message::ToggleFloppyImageContents => {
-                self.floppy_show_image_contents = !self.floppy_show_image_contents;
-                if self.floppy_show_image_contents {
+                self.panels.floppy_show_image_contents = !self.panels.floppy_show_image_contents;
+                if self.panels.floppy_show_image_contents {
                     self.refresh_floppy_image_contents();
                 }
             }
@@ -193,13 +193,13 @@ impl DesktopApp {
                     self.close_network(),
                     self.close_printer(),
                 ]);
-                self.hdd_open = true;
+                self.panels.hdd_open = true;
                 self.refresh_hdd_file_exists();
-                if self.hdd_show_image_contents {
+                if self.panels.hdd_show_image_contents {
                     self.refresh_hdd_image_contents();
                 }
-                if self.hdd_window.detached
-                    && let Some(id) = self.hdd_window.id
+                if self.panels.hdd_window.detached()
+                    && let Some(id) = self.panels.hdd_window.id()
                 {
                     return Some(close_other.chain(iced::window::gain_focus(id)));
                 }
@@ -221,8 +221,8 @@ impl DesktopApp {
                 self.create_hdd_file();
             }
             Message::ToggleHddImageContents => {
-                self.hdd_show_image_contents = !self.hdd_show_image_contents;
-                if self.hdd_show_image_contents {
+                self.panels.hdd_show_image_contents = !self.panels.hdd_show_image_contents;
+                if self.panels.hdd_show_image_contents {
                     self.refresh_hdd_image_contents();
                 }
             }
@@ -244,9 +244,9 @@ impl DesktopApp {
                     self.close_hdd(),
                     self.close_printer(),
                 ]);
-                self.network_open = true;
-                if self.network_window.detached
-                    && let Some(id) = self.network_window.id
+                self.panels.network_open = true;
+                if self.panels.network_window.detached()
+                    && let Some(id) = self.panels.network_window.id()
                 {
                     return Some(close_other.chain(iced::window::gain_focus(id)));
                 }
@@ -257,24 +257,24 @@ impl DesktopApp {
             }
             Message::OpenNetworkSettings => self.open_network_settings(),
             Message::CloseNetworkSettings => {
-                self.network_settings_open = false;
-                self.network_settings_error = None;
+                self.panels.network_settings_open = false;
+                self.panels.network_settings_error = None;
             }
             Message::NetworkModeChanged(mode) => self.select_network_mode(*mode),
             Message::NetworkHostChanged(host) => {
-                self.network_host_input = host.clone();
-                self.network_settings_error = None;
+                self.panels.network_host_input = host.clone();
+                self.panels.network_settings_error = None;
             }
             Message::NetworkPortChanged(port) => {
-                self.network_port_input = port.clone();
-                self.network_settings_error = None;
+                self.panels.network_port_input = port.clone();
+                self.panels.network_settings_error = None;
             }
             Message::ApplyNetworkSettings => self.apply_network_settings(),
             Message::ClearNetworkBuffers => {
                 self.dispatch(crate::backend::AppCommand::ClearNetworkBuffers);
             }
             Message::ToggleNetworkBufferView => {
-                self.network_text_view = !self.network_text_view;
+                self.panels.network_text_view = !self.panels.network_text_view;
             }
             Message::OpenPrinter => {
                 self.close_top_menu();
@@ -285,9 +285,9 @@ impl DesktopApp {
                     self.close_hdd(),
                     self.close_network(),
                 ]);
-                self.printer_open = true;
-                if self.printer_window.detached
-                    && let Some(id) = self.printer_window.id
+                self.panels.printer_open = true;
+                if self.panels.printer_window.detached()
+                    && let Some(id) = self.panels.printer_window.id()
                 {
                     return Some(close_other.chain(iced::window::gain_focus(id)));
                 }
@@ -295,7 +295,7 @@ impl DesktopApp {
             }
             Message::ClosePrinter => return Some(self.close_printer()),
             Message::TogglePrinterBufferView => {
-                self.printer_text_view = !self.printer_text_view;
+                self.panels.printer_text_view = !self.panels.printer_text_view;
             }
             Message::ClearPrinterBuffer => {
                 self.dispatch(crate::backend::AppCommand::ClearPrinterBuffer);

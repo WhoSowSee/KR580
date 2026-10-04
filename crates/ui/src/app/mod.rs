@@ -61,7 +61,7 @@ pub(crate) use constants::{
 pub(crate) use device_keyboard::{DeviceFocus, DeviceToolbar, device_navigation_event};
 pub(crate) use export_modal_state::{
     ExportFlagSelection, ExportMemoryColumns, ExportModalFocus, ExportRegisterSelection,
-    ExportTargetSettings,
+    ExportTarget, ExportTargetSettings,
 };
 pub(crate) use help::{
     HelpDialog, HelpMarkdownHighlight, HelpMarkdownHighlighter, HelpMarkdownLine, HelpNode,
@@ -91,7 +91,9 @@ pub(crate) use settings_modal::{
 };
 pub(crate) use settings_notice::{SettingsNotice, SettingsNoticePresentation};
 pub(crate) use speed::tier_hz;
-pub(crate) use state::DesktopApp;
+pub(crate) use state::{DesktopApp, MemoryView, MemoryViewport, OperandReturn};
 pub(crate) use status::{StatusKind, shorten_status_for_width};
 pub(crate) use subprogram_modal::{SubprogramDialogFocus, SubprogramDialogMode};
 pub(crate) use undo::UndoReplay;
+#[cfg(test)]
+pub(crate) use windows::NativeWindow;

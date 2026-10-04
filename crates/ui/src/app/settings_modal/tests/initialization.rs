@@ -5,30 +5,32 @@ use crate::persistence::NetworkSettings;
 
 #[test]
 fn dialog_starts_on_general_category() {
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
+    let dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: None,
+        hdd_directory: None,
+        network: NetworkSettings::default(),
+        ..Default::default()
+    });
     assert_eq!(dialog.category, SettingsCategory::General);
     assert!(dialog.search.is_empty());
 }
 
 #[test]
 fn search_query_strips_surrounding_whitespace() {
-    let mut dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
+    let mut dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: None,
+        hdd_directory: None,
+        network: NetworkSettings::default(),
+        ..Default::default()
+    });
     dialog.search = "  скорость  ".to_owned();
     assert_eq!(dialog.search_query(), "скорость");
 }
@@ -36,15 +38,16 @@ fn search_query_strips_surrounding_whitespace() {
 #[test]
 fn dialog_copies_floppy_image_path() {
     let path = std::path::PathBuf::from("/tmp/floppy.kpd");
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        Some(path.clone()),
-        None,
-        NetworkSettings::default(),
-    );
+    let dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: Some(path.clone()),
+        hdd_directory: None,
+        network: NetworkSettings::default(),
+        ..Default::default()
+    });
     assert_eq!(dialog.draft_floppy_image_path, Some(path));
 }
 
@@ -57,7 +60,16 @@ fn dialog_copies_client_and_server_network_defaults() {
         bind_port: 7000,
         ..NetworkSettings::default()
     };
-    let dialog = SettingsDialog::new(Lang::Ru, SpeedTier::Medium, true, true, None, None, network);
+    let dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: None,
+        hdd_directory: None,
+        network,
+        ..Default::default()
+    });
 
     assert_eq!(dialog.draft_network_client_host, "client.local");
     assert_eq!(dialog.draft_network_client_port, "6000");

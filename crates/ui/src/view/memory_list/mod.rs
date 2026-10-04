@@ -35,9 +35,9 @@ impl DesktopApp {
     pub(super) fn memory_panel(&self) -> Element<'_, Message> {
         let cpu = &self.snapshot.cpu;
         let (view_start, view_count) = self.memory_view();
-        let selected = parse_hex_u16_preview(&self.memory_address_input);
+        let selected = parse_hex_u16_preview(&self.memory.memory_address_input);
         let render_start =
-            (self.memory_scroll_first_row as usize).saturating_sub(MEMORY_OVERSCAN_ROWS);
+            (self.memory.memory_scroll_first_row as usize).saturating_sub(MEMORY_OVERSCAN_ROWS);
         let render_end = (render_start + MEMORY_RENDER_ROWS).min(view_count);
         let rendered_start = view_start.wrapping_add(render_start as u16);
         let rendered_count = render_end - render_start;
@@ -61,12 +61,12 @@ impl DesktopApp {
                     selected: selected == Some(address),
                     next_selected: selected == Some(address.saturating_add(1)),
                     halted_here,
-                    operand_highlighting: self.memory_operand_highlighting,
+                    operand_highlighting: self.preferences.memory_operand_highlighting,
                     is_address_operand: operand_kinds.addresses.contains(&address),
                     is_data_operand: operand_kinds.data.contains(&address),
                     is_port_operand: operand_kinds.ports.contains(&address),
                 },
-                &self.memory_inline_value_input,
+                &self.memory.memory_inline_value_input,
                 inline_placeholder,
             ));
         }
@@ -75,7 +75,7 @@ impl DesktopApp {
             rows = rows.push(memory_spacer(view_count - render_end));
         }
 
-        let memory_scroll_reveal = self.memory_scroll_visible_ticks > 0;
+        let memory_scroll_reveal = self.memory.memory_scroll_visible_ticks > 0;
         let scrollable_memory: Element<'_, Message> = shortcut_capture(
             scrollable(rows)
                 .id(MEMORY_SCROLL_ID)
@@ -86,11 +86,12 @@ impl DesktopApp {
                 .on_scroll(|viewport| {
                     Message::MemoryScrolled(viewport.absolute_offset().y, viewport.bounds().height)
                 }),
-            &self.shortcut_settings,
+            &self.preferences.shortcut_settings,
             ShortcutAction::MemoryCellReplace,
-            !self.running && shortcut_context(self).allows(ShortcutAction::MemoryCellReplace),
+            !self.execution.running
+                && shortcut_context(self).allows(ShortcutAction::MemoryCellReplace),
         );
-        let memory_scroll_offset = self.memory_scroll_offset;
+        let memory_scroll_offset = self.memory.memory_scroll_offset;
         let memory_scrollbar: Element<'_, Message> = responsive(move |size| {
             compact_scrollbar(
                 memory_scroll_offset,
@@ -105,37 +106,41 @@ impl DesktopApp {
             .height(Length::Fill)
             .into();
 
-        let memory_body: Element<'_, Message> = if let Some(address) = self.opcode_dropdown_address
-        {
-            let row_top = (((address.saturating_sub(view_start) as f32) * MEMORY_ROW_HEIGHT)
-                - self.memory_scroll_offset)
-                .max(0.0);
-            let top = opcode_dropdown_top(row_top, self.memory_viewport_height);
+        let memory_body: Element<'_, Message> =
+            if let Some(address) = self.memory.opcode_dropdown_address {
+                let row_top = (((address.saturating_sub(view_start) as f32) * MEMORY_ROW_HEIGHT)
+                    - self.memory.memory_scroll_offset)
+                    .max(0.0);
+                let top = opcode_dropdown_top(row_top, self.memory.memory_viewport_height);
 
-            stack(vec![
-                scrollable_memory,
-                opcode_dropdown_overlay(
-                    address,
-                    &self.opcode_search_input,
-                    self.opcode_highlight_index,
-                    self.opcode_scroll_offset,
-                    self.opcode_scroll_visible_ticks > 0,
-                    top,
-                    self.lang,
-                ),
-            ])
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .into()
-        } else {
-            scrollable_memory
-        };
+                stack(vec![
+                    scrollable_memory,
+                    opcode_dropdown_overlay(
+                        address,
+                        &self.memory.opcode_search_input,
+                        self.memory.opcode_highlight_index,
+                        self.memory.opcode_scroll_offset,
+                        self.memory.opcode_scroll_visible_ticks > 0,
+                        top,
+                        self.preferences.lang,
+                    ),
+                ])
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+            } else {
+                scrollable_memory
+            };
 
-        let body = column![memory_header(self.lang), memory_body]
+        let body = column![memory_header(self.preferences.lang), memory_body]
             .spacing(8)
             .height(Length::Fill);
 
-        legend_panel(self.lang.t(Key::MemoryListTitle), body, Length::Fill)
+        legend_panel(
+            self.preferences.lang.t(Key::MemoryListTitle),
+            body,
+            Length::Fill,
+        )
     }
 }
 

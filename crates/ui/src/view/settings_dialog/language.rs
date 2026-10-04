@@ -39,7 +39,7 @@ pub(super) fn language_setting_row<'a>(
     .on_press(Message::SettingsLanguageDropdownToggled)
     .padding(0)
     .style(move |_theme, status| {
-        dropdown_anchor_style(status, dialog.language_dropdown_open, keyboard_focused)
+        dropdown_anchor_style(status, dialog.language_dropdown.is_open(), keyboard_focused)
     });
 
     setting_row(

@@ -80,6 +80,9 @@ Both modes share the meta strip (phase, text cursor, pixel count, last command) 
 
 ## Storage inspection windows
 
+`StorageKind::{Floppy,Hdd}` selects an inspection device explicitly in UI image
+operations; callers no longer encode the device with a positional boolean.
+
 Device admission and history have separate budgets. Network TX and storage
 command queues hold at most 64 KiB of byte writes. `try_send` refuses a full
 queue with `DeviceError::Busy` before changing accepted counters or buffers;

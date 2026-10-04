@@ -57,14 +57,15 @@ impl DesktopApp {
         let mut settings = load_settings();
         settings.storage.floppy_path = path.clone();
         if let Err(error) = save_settings(&settings) {
-            let notice = crate::runtime::humanize_error::humanize(&error.into(), self.lang);
+            let notice =
+                crate::runtime::humanize_error::humanize(&error.into(), self.preferences.lang);
             self.show_error_notice(notice);
         }
         self.refresh_hdd_file_exists();
         self.set_status(StatusKind::FloppyImageAttached {
             display: path.display().to_string(),
         });
-        if self.floppy_show_image_contents {
+        if self.panels.floppy_show_image_contents {
             self.refresh_floppy_image_contents();
         }
     }
@@ -102,12 +103,12 @@ impl DesktopApp {
         match save_floppy_buffer_file(&path, &self.snapshot.devices.floppy.visible_buffer) {
             Ok(path) => self.set_status_custom(format!(
                 "{}: {}",
-                self.lang.t(Key::FloppyBufferSaved),
+                self.preferences.lang.t(Key::FloppyBufferSaved),
                 path.display()
             )),
             Err(error) => {
                 tracing::error!("save floppy buffer to {}: {error}", path.display());
-                self.set_status_custom(self.lang.t(Key::ErrCannotWriteFile).to_owned());
+                self.set_status_custom(self.preferences.lang.t(Key::ErrCannotWriteFile).to_owned());
             }
         }
     }
@@ -194,12 +195,12 @@ impl DesktopApp {
             return;
         };
         if !path.exists() {
-            self.hdd_file_exists = false;
+            self.panels.hdd_file_exists = false;
             return;
         }
         if let Err(error) = std::fs::remove_file(&path) {
             tracing::error!("failed to delete HDD file {}: {error}", path.display());
-            self.set_status_custom(self.lang.t(Key::ErrCannotWriteFile).to_owned());
+            self.set_status_custom(self.preferences.lang.t(Key::ErrCannotWriteFile).to_owned());
             return;
         }
         self.dispatch_action(
@@ -223,7 +224,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn refresh_hdd_file_exists(&mut self) {
-        self.hdd_file_exists = self
+        self.panels.hdd_file_exists = self
             .snapshot
             .devices
             .hdd

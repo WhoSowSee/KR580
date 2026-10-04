@@ -52,14 +52,14 @@ fn escape_closes_opcode_picker_without_clearing_memory_selection() {
     app.select_memory(0x1234);
 
     let _task = app.update(Message::OpenOpcodePicker);
-    assert_eq!(app.opcode_dropdown_address, Some(0x1234));
-    assert_eq!(app.focused_input, Some(OPCODE_SEARCH_INPUT_ID));
+    assert_eq!(app.memory.opcode_dropdown_address, Some(0x1234));
+    assert_eq!(app.interaction.focused_input, Some(OPCODE_SEARCH_INPUT_ID));
 
     let _task = app.update(Message::EscPressed);
 
-    assert_eq!(app.opcode_dropdown_address, None);
+    assert_eq!(app.memory.opcode_dropdown_address, None);
     assert_eq!(app.selected_memory_address(), Some(0x1234));
-    assert_eq!(app.focused_input, None);
+    assert_eq!(app.interaction.focused_input, None);
 }
 
 #[test]
@@ -178,23 +178,26 @@ fn tick_refreshes_external_floppy_and_hdd_file_changes() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
     app.snapshot.devices.floppy.path = Some(floppy_path.clone());
     app.snapshot.devices.hdd.path = Some(hdd_path.clone());
-    app.floppy_open = true;
-    app.hdd_open = true;
-    app.floppy_show_image_contents = true;
-    app.hdd_show_image_contents = true;
+    app.panels.floppy_open = true;
+    app.panels.hdd_open = true;
+    app.panels.floppy_show_image_contents = true;
+    app.panels.hdd_show_image_contents = true;
 
     app.refresh_floppy_image_contents();
     app.refresh_hdd_image_contents();
-    assert_eq!(app.floppy_image_contents, b"floppy before");
-    assert_eq!(app.hdd_image_contents, b"hdd before");
+    assert_eq!(app.panels.floppy_image_contents, b"floppy before");
+    assert_eq!(app.panels.hdd_image_contents, b"hdd before");
 
     fs::write(&floppy_path, b"floppy after external edit").unwrap();
     fs::write(&hdd_path, b"hdd after external edit").unwrap();
 
     app.refresh_floppy_image_contents();
     app.refresh_hdd_image_contents();
-    assert_eq!(app.floppy_image_contents, b"floppy after external edit");
-    assert_eq!(app.hdd_image_contents, b"hdd after external edit");
+    assert_eq!(
+        app.panels.floppy_image_contents,
+        b"floppy after external edit"
+    );
+    assert_eq!(app.panels.hdd_image_contents, b"hdd after external edit");
     fs::remove_file(floppy_path).unwrap();
     fs::remove_file(hdd_path).unwrap();
 }

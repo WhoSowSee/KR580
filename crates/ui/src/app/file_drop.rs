@@ -15,7 +15,7 @@ impl DesktopApp {
         event: &Event,
         window: window::Id,
     ) -> Option<Task<Message>> {
-        if self.main_window_id != Some(window) {
+        if self.shell.main_window_id != Some(window) {
             return None;
         }
         if self.handle_import_file_drag_event(event) {
@@ -23,21 +23,21 @@ impl DesktopApp {
         }
         match event {
             Event::Window(window::Event::FileHovered(_)) => {
-                self.file_drag_hovered = true;
+                self.document.file_drag_hovered = true;
                 Some(
                     window::run(window, platform::cursor_position_in_window)
                         .map(Message::FileDragCursorPosition),
                 )
             }
             Event::Window(window::Event::FileDropped(path)) => {
-                self.file_drag_hovered = false;
-                self.file_drag_cursor_position = None;
+                self.document.file_drag_hovered = false;
+                self.document.file_drag_cursor_position = None;
                 self.open_dropped_file(path.clone());
                 Some(Task::none())
             }
             Event::Window(window::Event::FilesHoveredLeft) => {
-                self.file_drag_hovered = false;
-                self.file_drag_cursor_position = None;
+                self.document.file_drag_hovered = false;
+                self.document.file_drag_cursor_position = None;
                 Some(Task::none())
             }
             _ => None,
@@ -45,8 +45,8 @@ impl DesktopApp {
     }
 
     pub(crate) fn update_file_drag_cursor(&mut self, position: Option<iced::Point>) {
-        if self.file_drag_hovered {
-            self.file_drag_cursor_position = position;
+        if self.document.file_drag_hovered {
+            self.document.file_drag_cursor_position = position;
         }
     }
 
@@ -63,13 +63,13 @@ impl DesktopApp {
         if !supports_dropped_program(&path) {
             self.show_error_notice(format!(
                 "{}: {}",
-                self.lang.t(Key::ErrorPrefix),
-                self.lang.t(Key::ErrUnsupportedDroppedFile)
+                self.preferences.lang.t(Key::ErrorPrefix),
+                self.preferences.lang.t(Key::ErrUnsupportedDroppedFile)
             ));
             return;
         }
         self.clear_error_notice();
-        if self.dirty {
+        if self.document.dirty {
             self.open_discard_modal(PendingAction::OpenExternalFile { path, dropped });
         } else {
             self.load_program_from_path(path);
@@ -99,47 +99,47 @@ mod tests {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         let main = window::Id::unique();
         let detached = window::Id::unique();
-        app.main_window_id = Some(main);
+        app.shell.main_window_id = Some(main);
 
         let hovered = Event::Window(window::Event::FileHovered(PathBuf::from("program.580")));
         let _task = app.handle_file_drag_event(&hovered, detached);
-        assert!(!app.file_drag_hovered);
+        assert!(!app.document.file_drag_hovered);
 
         let _task = app.handle_file_drag_event(&hovered, main);
-        assert!(app.file_drag_hovered);
-        assert!(app.file_drag_cursor_position.is_none());
+        assert!(app.document.file_drag_hovered);
+        assert!(app.document.file_drag_cursor_position.is_none());
 
         let left = Event::Window(window::Event::FilesHoveredLeft);
         let _task = app.handle_file_drag_event(&left, main);
-        assert!(!app.file_drag_hovered);
-        assert!(app.file_drag_cursor_position.is_none());
+        assert!(!app.document.file_drag_hovered);
+        assert!(app.document.file_drag_cursor_position.is_none());
     }
 
     #[test]
     fn unsupported_drop_shows_notice_without_entering_dirty_gate() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         let main = window::Id::unique();
-        app.main_window_id = Some(main);
-        app.dirty = true;
-        app.file_drag_hovered = true;
+        app.shell.main_window_id = Some(main);
+        app.document.dirty = true;
+        app.document.file_drag_hovered = true;
 
         let dropped = Event::Window(window::Event::FileDropped(PathBuf::from("program.txt")));
         let _task = app.handle_file_drag_event(&dropped, main);
 
-        assert!(!app.file_drag_hovered);
-        assert!(app.pending_action.is_none());
+        assert!(!app.document.file_drag_hovered);
+        assert!(app.document.pending_action.is_none());
         assert_eq!(
-            app.error_notice.as_deref(),
+            app.shell.error_notice.as_deref(),
             Some(
                 format!(
                     "{}: {}",
-                    app.lang.t(Key::ErrorPrefix),
-                    app.lang.t(Key::ErrUnsupportedDroppedFile)
+                    app.preferences.lang.t(Key::ErrorPrefix),
+                    app.preferences.lang.t(Key::ErrUnsupportedDroppedFile)
                 )
                 .as_str()
             )
         );
-        assert!(app.error_notice_dismiss_at.is_some());
+        assert!(app.shell.error_notice_dismiss_at.is_some());
     }
 
     #[test]
@@ -147,14 +147,14 @@ mod tests {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         let main = window::Id::unique();
         let path = PathBuf::from("program.krs");
-        app.main_window_id = Some(main);
-        app.dirty = true;
+        app.shell.main_window_id = Some(main);
+        app.document.dirty = true;
 
         let dropped = Event::Window(window::Event::FileDropped(path.clone()));
         let _task = app.handle_file_drag_event(&dropped, main);
 
         assert!(matches!(
-            app.pending_action.as_ref(),
+            app.document.pending_action.as_ref(),
             Some(PendingAction::OpenExternalFile {
                 path: pending,
                 dropped: true,
@@ -162,10 +162,13 @@ mod tests {
         ));
 
         let _task = app.confirm_discard();
-        assert!(app.pending_action.is_none());
-        assert!(app.dirty);
+        assert!(app.document.pending_action.is_none());
+        assert!(app.document.dirty);
         assert_eq!(
-            app.subprogram_dialog.as_ref().map(|dialog| &dialog.path),
+            app.document
+                .subprogram_dialog
+                .as_ref()
+                .map(|dialog| &dialog.path),
             Some(&path)
         );
     }

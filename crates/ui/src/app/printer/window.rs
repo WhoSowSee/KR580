@@ -12,9 +12,12 @@ impl DesktopApp {
         if !self.printer_setup_uses_detached_window() {
             return Task::none();
         }
-        self.printer_window.id.map_or_else(Task::none, |id| {
-            window::position(id).map(Message::PrinterSetupWindowPositionLoaded)
-        })
+        self.panels
+            .printer_window
+            .id()
+            .map_or_else(Task::none, |id| {
+                window::position(id).map(Message::PrinterSetupWindowPositionLoaded)
+            })
     }
 
     pub(super) fn open_detached_printer_setup_window(
@@ -24,10 +27,10 @@ impl DesktopApp {
         if !self.printer_setup_uses_detached_window() {
             return Task::none();
         }
-        if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+        if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
             dialog.owner_position = owner_position;
         }
-        if let Some(id) = self.printer_setup_window_id {
+        if let Some(id) = self.printer_setup.printer_setup_window_id {
             return window::gain_focus(id);
         }
         let position = owner_position.map_or(window::Position::Centered, |position| {
@@ -36,25 +39,27 @@ impl DesktopApp {
         let (id, open) = window::open(printer_dialog_window_settings(
             DETACHED_PRINTER_SETUP_SIZE,
             position,
-            self.printer_window.always_on_top,
+            self.panels.printer_window.always_on_top(),
         ));
-        self.printer_setup_window_id = Some(id);
+        self.printer_setup.printer_setup_window_id = Some(id);
         open.map(Message::WindowOpened)
     }
 
     pub(super) fn open_detached_printer_properties_window(&mut self) -> Task<Message> {
         if !self.printer_setup_uses_detached_window()
             || self
+                .printer_setup
                 .printer_setup_dialog
                 .as_ref()
                 .is_none_or(|dialog| dialog.properties.is_none())
         {
             return Task::none();
         }
-        if let Some(id) = self.printer_properties_window_id {
+        if let Some(id) = self.printer_setup.printer_properties_window_id {
             return window::gain_focus(id);
         }
         let owner_position = self
+            .printer_setup
             .printer_setup_dialog
             .as_ref()
             .and_then(|dialog| dialog.owner_position);
@@ -64,9 +69,9 @@ impl DesktopApp {
         let (id, open) = window::open(printer_dialog_window_settings(
             DETACHED_PRINTER_PROPERTIES_SIZE,
             position,
-            self.printer_window.always_on_top,
+            self.panels.printer_window.always_on_top(),
         ));
-        self.printer_properties_window_id = Some(id);
+        self.printer_setup.printer_properties_window_id = Some(id);
         open.map(Message::WindowOpened)
     }
 
@@ -74,10 +79,10 @@ impl DesktopApp {
         &mut self,
         id: window::Id,
     ) -> Task<Message> {
-        if self.printer_setup_window_id != Some(id) {
+        if self.printer_setup.printer_setup_window_id != Some(id) {
             return Task::none();
         }
-        if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+        if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
             dialog.owner_ready = true;
         }
         show_printer_dialog_window(id)
@@ -87,11 +92,11 @@ impl DesktopApp {
         &mut self,
         id: window::Id,
     ) -> Task<Message> {
-        if self.printer_properties_window_id != Some(id) {
+        if self.printer_setup.printer_properties_window_id != Some(id) {
             return Task::none();
         }
-        let Some(dialog) = self.printer_setup_dialog.as_mut() else {
-            self.printer_properties_window_id = None;
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() else {
+            self.printer_setup.printer_properties_window_id = None;
             return window::close(id);
         };
         dialog.properties_surface_ready = true;
@@ -99,11 +104,11 @@ impl DesktopApp {
     }
 
     pub(super) fn close_detached_printer_properties_window(&mut self) -> Task<Message> {
-        let Some(id) = self.printer_properties_window_id.take() else {
+        let Some(id) = self.printer_setup.printer_properties_window_id.take() else {
             return Task::none();
         };
         let close = window::close(id);
-        match self.printer_setup_window_id {
+        match self.printer_setup.printer_setup_window_id {
             Some(setup_id) => close.chain(window::gain_focus(setup_id)),
             None => close,
         }
@@ -111,22 +116,26 @@ impl DesktopApp {
 
     pub(crate) fn request_printer_properties_attention(&mut self) -> Task<Message> {
         if let Some(properties) = self
+            .printer_setup
             .printer_setup_dialog
             .as_mut()
             .and_then(|dialog| dialog.properties.as_mut())
         {
             properties.restart_attention(Instant::now());
         }
-        self.printer_properties_window_id
+        self.printer_setup
+            .printer_properties_window_id
             .map_or_else(Task::none, window::gain_focus)
     }
 
     pub(crate) fn close_detached_printer_setup_window(&mut self) -> Task<Message> {
         let close_properties = self
+            .printer_setup
             .printer_properties_window_id
             .take()
             .map_or_else(Task::none, window::close);
         let close_setup = self
+            .printer_setup
             .printer_setup_window_id
             .take()
             .map_or_else(Task::none, window::close);
@@ -136,6 +145,7 @@ impl DesktopApp {
     pub(crate) fn cancel_detached_printer_setup(&mut self) -> Task<Message> {
         let close = self.close_detached_printer_setup_window();
         if self
+            .printer_setup
             .printer_setup_dialog
             .as_ref()
             .is_some_and(|dialog| dialog.target == PrinterSetupTarget::Session)
@@ -146,19 +156,19 @@ impl DesktopApp {
     }
 
     pub(crate) fn detached_printer_setup_window_closed(&mut self, id: window::Id) -> bool {
-        if self.printer_setup_window_id != Some(id) {
+        if self.printer_setup.printer_setup_window_id != Some(id) {
             return false;
         }
-        self.printer_setup_window_id = None;
+        self.printer_setup.printer_setup_window_id = None;
         self.close_printer_setup_dialog();
         true
     }
 
     pub(crate) fn detached_printer_properties_window_closed(&mut self, id: window::Id) -> bool {
-        if self.printer_properties_window_id != Some(id) {
+        if self.printer_setup.printer_properties_window_id != Some(id) {
             return false;
         }
-        self.printer_properties_window_id = None;
+        self.printer_setup.printer_properties_window_id = None;
         self.close_printer_properties();
         true
     }

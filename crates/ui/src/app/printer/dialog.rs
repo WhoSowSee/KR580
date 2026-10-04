@@ -11,11 +11,12 @@ impl DesktopApp {
         &mut self,
         message: &Message,
     ) -> Option<Task<Message>> {
-        self.printer_setup_dialog.as_ref()?;
+        self.printer_setup.printer_setup_dialog.as_ref()?;
         if let Message::PrinterSetupWindowPositionLoaded(position) = message {
             return Some(self.open_detached_printer_setup_window(*position));
         }
         if self
+            .printer_setup
             .printer_setup_dialog
             .as_ref()
             .is_some_and(|dialog| dialog.properties.is_some())
@@ -27,7 +28,7 @@ impl DesktopApp {
                 Some(self.finish_printer_setup_load(result.clone()))
             }
             Message::PrinterSetupSelected(name) => {
-                if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+                if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
                     dialog.selected_name = Some(name.clone());
                     dialog.configuration = None;
                     dialog.error = None;
@@ -42,6 +43,7 @@ impl DesktopApp {
             }
             Message::PrinterSetupDropdownDismissed(dropdown) => {
                 if self
+                    .printer_setup
                     .printer_setup_dialog
                     .as_ref()
                     .is_some_and(|dialog| dialog.open_dropdown == Some(*dropdown))
@@ -70,6 +72,7 @@ impl DesktopApp {
             Message::PrinterSetupOrientationSelected(orientation) => {
                 self.close_printer_setup_dropdown();
                 if let Some(settings) = self
+                    .printer_setup
                     .printer_setup_dialog
                     .as_mut()
                     .and_then(|dialog| dialog.configuration.as_mut())
@@ -92,6 +95,7 @@ impl DesktopApp {
             }
             Message::EscPressed => {
                 if self
+                    .printer_setup
                     .printer_setup_dialog
                     .as_ref()
                     .is_some_and(|dialog| dialog.open_dropdown.is_some())
@@ -114,7 +118,7 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::MousePressed | Message::MousePressedIgnored => {
-                if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+                if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
                     dialog.focus_visible = false;
                 }
                 if matches!(message, Message::MousePressedIgnored) {
@@ -135,7 +139,7 @@ impl DesktopApp {
         &mut self,
         result: Result<Vec<PrinterInfo>, String>,
     ) -> Task<Message> {
-        let Some(dialog) = self.printer_setup_dialog.as_mut() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() else {
             return Task::none();
         };
         dialog.loading = false;
@@ -158,7 +162,7 @@ impl DesktopApp {
     }
 
     fn load_selected_printer_configuration(&mut self) -> Task<Message> {
-        let Some(dialog) = self.printer_setup_dialog.as_mut() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() else {
             return Task::none();
         };
         let Some(printer) = dialog.selected_printer().cloned() else {
@@ -181,7 +185,7 @@ impl DesktopApp {
         result: Result<PrinterConfiguration, String>,
     ) {
         let preferred = self.preferred_printer_settings(printer_name);
-        let Some(dialog) = self.printer_setup_dialog.as_mut() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() else {
             return;
         };
         if dialog.selected_name.as_deref() != Some(printer_name) {
@@ -204,10 +208,11 @@ impl DesktopApp {
     }
 
     fn preferred_printer_settings(&self, printer_name: &str) -> Option<PrinterSettings> {
-        let target = self.printer_setup_dialog.as_ref()?.target;
+        let target = self.printer_setup.printer_setup_dialog.as_ref()?.target;
         match target {
             PrinterSetupTarget::Session => self.active_printer_settings(),
             PrinterSetupTarget::Settings => self
+                .preferences
                 .settings_dialog
                 .as_ref()
                 .and_then(|dialog| dialog.draft_printer_settings.as_ref()),
@@ -218,6 +223,7 @@ impl DesktopApp {
 
     fn select_printer_paper(&mut self, id: i16) {
         let Some(configuration) = self
+            .printer_setup
             .printer_setup_dialog
             .as_mut()
             .and_then(|dialog| dialog.configuration.as_mut())
@@ -229,6 +235,7 @@ impl DesktopApp {
 
     fn select_printer_source(&mut self, id: i16) {
         let Some(configuration) = self
+            .printer_setup
             .printer_setup_dialog
             .as_mut()
             .and_then(|dialog| dialog.configuration.as_mut())
@@ -239,10 +246,10 @@ impl DesktopApp {
     }
 
     fn confirm_printer_setup_dialog(&mut self) {
-        let Some(dialog) = self.printer_setup_dialog.take() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.take() else {
             return;
         };
-        self.printer_setup_pending = false;
+        self.printer_setup.printer_setup_pending = false;
         let Some(name) = dialog.selected_name else {
             return;
         };
@@ -251,9 +258,11 @@ impl DesktopApp {
             .map(|configuration| configuration.settings)
             .unwrap_or_else(|| PrinterSettings::named(name.clone()));
         match dialog.target {
-            PrinterSetupTarget::Session => self.printer_session_settings = Some(settings),
+            PrinterSetupTarget::Session => {
+                self.printer_setup.printer_session_settings = Some(settings)
+            }
             PrinterSetupTarget::Settings => {
-                if let Some(settings_dialog) = self.settings_dialog.as_mut() {
+                if let Some(settings_dialog) = self.preferences.settings_dialog.as_mut() {
                     settings_dialog.draft_printer_settings = Some(settings);
                 }
             }
@@ -261,8 +270,8 @@ impl DesktopApp {
     }
 
     pub(super) fn close_printer_setup_dialog(&mut self) {
-        self.printer_setup_dialog = None;
-        self.printer_setup_pending = false;
+        self.printer_setup.printer_setup_dialog = None;
+        self.printer_setup.printer_setup_pending = false;
     }
 }
 

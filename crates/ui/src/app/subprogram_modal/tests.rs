@@ -26,14 +26,14 @@ fn loaded_range_and_next_save_follow_the_bytes_read() {
             app.consume_event(event);
         }
         assert_eq!(
-            app.current_subprogram_range,
+            app.document.current_subprogram_range,
             Some((0x1000, 0x1000 + loaded as u16 - 1))
         );
         assert_eq!(
             &app.snapshot.cpu.memory.as_slice()[0x1000..0x1000 + loaded],
             &expected
         );
-        app.memory_inline_value_input.clear();
+        app.memory.memory_inline_value_input.clear();
         let _ = app.save_program();
         settle_backend(&mut app);
         assert_eq!(std::fs::read(&path).unwrap(), expected);
@@ -58,44 +58,44 @@ fn subprogram_saves_preserve_unsaved_memory_and_registers() {
     app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0x42));
     app.dispatch_with_undo(AppCommand::SetRegister(RegisterName::A, 0x12));
     app.open_subprogram_dialog(path.clone(), SubprogramDialogMode::Save);
-    let dialog = app.subprogram_dialog.as_mut().unwrap();
+    let dialog = app.document.subprogram_dialog.as_mut().unwrap();
     dialog.start_input = "0100".into();
     dialog.end_input = "0100".into();
     app.confirm_subprogram();
     settle_backend(&mut app);
-    assert!(app.error_notice.is_none());
-    assert!(app.subprogram_dialog.is_none());
+    assert!(app.shell.error_notice.is_none());
+    assert!(app.document.subprogram_dialog.is_none());
     assert_eq!(std::fs::read(&path).unwrap(), [0x76]);
-    assert!(app.dirty);
-    assert_eq!(app.saved_cpu.memory.read(0x0100), 0x76);
-    assert_eq!(app.saved_cpu.memory.read(0x2000), 0);
-    assert_eq!(app.saved_cpu.registers.a, 0);
+    assert!(app.document.dirty);
+    assert_eq!(app.document.saved_cpu.memory.read(0x0100), 0x76);
+    assert_eq!(app.document.saved_cpu.memory.read(0x2000), 0);
+    assert_eq!(app.document.saved_cpu.registers.a, 0);
 
     app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0));
-    assert!(app.dirty);
+    assert!(app.document.dirty);
     app.dispatch_with_undo(AppCommand::SetRegister(RegisterName::A, 0));
     app.dispatch_with_undo(AppCommand::SetPc(0));
     settle_backend(&mut app);
-    assert!(!app.dirty);
+    assert!(!app.document.dirty);
     app.dispatch_with_undo(AppCommand::SetMemory(0x0100, 0xC9));
     app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0x33));
-    app.memory_inline_value_input.clear();
+    app.memory.memory_inline_value_input.clear();
     let _ = app.save_program();
     settle_backend(&mut app);
     assert_eq!(std::fs::read(&path).unwrap(), [0xC9]);
-    assert!(app.dirty);
+    assert!(app.document.dirty);
     app.dispatch_with_undo(AppCommand::SetMemory(0x2000, 0));
     settle_backend(&mut app);
-    assert!(!app.dirty);
+    assert!(!app.document.dirty);
 
     app.dispatch_with_undo(AppCommand::SetMemory(0x0100, 0xFF));
-    let saved = app.saved_cpu.clone();
-    app.current_snapshot_path = Some(dir.join("missing/partial.krs"));
+    let saved = app.document.saved_cpu.clone();
+    app.document.current_snapshot_path = Some(dir.join("missing/partial.krs"));
     let _ = app.save_program();
     settle_backend(&mut app);
-    assert!(app.error_notice.is_some());
-    assert!(app.dirty);
-    assert_eq!(app.saved_cpu, saved);
+    assert!(app.shell.error_notice.is_some());
+    assert!(app.document.dirty);
+    assert_eq!(app.document.saved_cpu, saved);
     std::fs::remove_file(path).unwrap();
     std::fs::remove_dir(dir).unwrap();
 }
@@ -113,7 +113,7 @@ fn address_edits_accept_only_up_to_four_hex_digits() {
     ] {
         let _ = app.update(Message::SubprogramStartChanged(input.into()));
         let _ = app.update(Message::SubprogramEndChanged(input.into()));
-        let dialog = app.subprogram_dialog.as_ref().unwrap();
+        let dialog = app.document.subprogram_dialog.as_ref().unwrap();
         assert_eq!(dialog.start_input, expected, "start: {input}");
         assert_eq!(dialog.end_input, expected, "end: {input}");
     }
@@ -124,12 +124,12 @@ fn dialogs_start_on_cancel_and_enter_closes_without_loading_or_saving() {
     for mode in [SubprogramDialogMode::Open, SubprogramDialogMode::Save] {
         let (mut app, _) = DesktopApp::with_initial_path(None);
         app.open_subprogram_dialog("unused.krs".into(), mode);
-        let dialog = app.subprogram_dialog.as_ref().unwrap();
+        let dialog = app.document.subprogram_dialog.as_ref().unwrap();
         assert_eq!(dialog.focus, SubprogramDialogFocus::Cancel);
         assert!(!dialog.keyboard_focus_visible);
         let _ = app.update(Message::EnterPressed);
-        assert!(app.subprogram_dialog.is_none());
-        assert!(app.current_snapshot_path.is_none());
+        assert!(app.document.subprogram_dialog.is_none());
+        assert!(app.document.current_snapshot_path.is_none());
     }
 }
 
@@ -155,7 +155,7 @@ fn tab_traverses_visible_controls_in_both_directions_after_mouse_focus() {
                 } else {
                     step % ring.len()
                 };
-                let dialog = app.subprogram_dialog.as_ref().unwrap();
+                let dialog = app.document.subprogram_dialog.as_ref().unwrap();
                 assert_eq!(dialog.focus, ring[index]);
                 assert!(dialog.keyboard_focus_visible);
             }

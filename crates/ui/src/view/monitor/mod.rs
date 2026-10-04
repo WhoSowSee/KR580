@@ -38,10 +38,10 @@ impl DesktopApp {
     pub(in crate::view) fn hex_popup_view_state(&self) -> HexPopupViewState {
         HexPopupViewState {
             toolbar: self.device_toolbar(ToolWindowKind::Monitor),
-            open: self.monitor_hex_popup,
-            filter: self.monitor_hex_filter,
-            scroll_offset: self.monitor_hex_scroll_offset,
-            reveal_scrollbar: self.monitor_hex_scroll_visible_ticks > 0,
+            open: self.panels.monitor_hex_popup,
+            filter: self.panels.monitor_hex_filter,
+            scroll_offset: self.panels.monitor_hex_scroll_offset,
+            reveal_scrollbar: self.panels.monitor_hex_scroll_visible_ticks > 0,
         }
     }
 }
@@ -158,8 +158,8 @@ fn monitor_header<'a>(
     lang: Lang,
     toolbar: DeviceToolbar,
 ) -> Element<'a, Message> {
-    let detached = toolbar.state.detached;
-    let always_on_top = toolbar.state.always_on_top;
+    let detached = toolbar.state.detached();
+    let always_on_top = toolbar.state.always_on_top();
     let toggle_tooltip = if split {
         Key::MonitorViewUnified
     } else {

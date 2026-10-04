@@ -247,9 +247,10 @@ impl PrinterSetupDialog {
 
 impl DesktopApp {
     pub(crate) fn printer_setup_uses_detached_window(&self) -> bool {
-        self.printer_open
-            && self.printer_window.detached
+        self.panels.printer_open
+            && self.panels.printer_window.detached()
             && self
+                .printer_setup
                 .printer_setup_dialog
                 .as_ref()
                 .is_some_and(|dialog| dialog.target == PrinterSetupTarget::Session)
@@ -262,10 +263,10 @@ impl DesktopApp {
     }
 
     pub(crate) fn configure_printer_session(&mut self) -> Task<crate::app::Message> {
-        if self.printer_setup_pending {
+        if self.printer_setup.printer_setup_pending {
             return Task::none();
         }
-        match self.printer_dialog_mode {
+        match self.printer_setup.printer_dialog_mode {
             PrinterDialogMode::Custom => {
                 self.open_printer_setup_dialog(PrinterSetupTarget::Session)
             }
@@ -277,23 +278,24 @@ impl DesktopApp {
         &mut self,
         result: Result<Option<PrinterSettings>, String>,
     ) {
-        self.printer_setup_pending = false;
+        self.printer_setup.printer_setup_pending = false;
         match result {
-            Ok(Some(settings)) => self.printer_session_settings = Some(settings),
+            Ok(Some(settings)) => self.printer_setup.printer_session_settings = Some(settings),
             Ok(None) => {}
             Err(error) => self.show_printer_error(error),
         }
     }
 
     pub(crate) fn configure_printer_settings(&mut self) -> Task<crate::app::Message> {
-        if self.settings_dialog.is_none() || self.printer_setup_pending {
+        if self.preferences.settings_dialog.is_none() || self.printer_setup.printer_setup_pending {
             return Task::none();
         }
         let mode = self
+            .preferences
             .settings_dialog
             .as_ref()
             .map(|dialog| dialog.draft_printer_dialog_mode)
-            .unwrap_or(self.printer_dialog_mode);
+            .unwrap_or(self.printer_setup.printer_dialog_mode);
         match mode {
             PrinterDialogMode::Custom => {
                 self.open_printer_setup_dialog(PrinterSetupTarget::Settings)
@@ -306,10 +308,10 @@ impl DesktopApp {
         &mut self,
         result: Result<Option<PrinterSettings>, String>,
     ) {
-        self.printer_setup_pending = false;
+        self.printer_setup.printer_setup_pending = false;
         match result {
             Ok(Some(settings)) => {
-                if let Some(dialog) = self.settings_dialog.as_mut() {
+                if let Some(dialog) = self.preferences.settings_dialog.as_mut() {
                     dialog.draft_printer_settings = Some(settings);
                 }
             }
@@ -324,27 +326,32 @@ impl DesktopApp {
     }
 
     pub(crate) fn active_printer_settings(&self) -> Option<&PrinterSettings> {
-        self.printer_session_settings
+        self.printer_setup
+            .printer_session_settings
             .as_ref()
-            .or(self.printer_default_settings.as_ref())
+            .or(self.printer_setup.printer_default_settings.as_ref())
     }
 
     pub(crate) fn printer_target_label(&self) -> String {
         self.active_printer_name()
             .map(str::to_owned)
             .unwrap_or_else(|| {
-                self.lang
+                self.preferences
+                    .lang
                     .t(Key::Printer(PrinterKey::SystemDefault))
                     .to_owned()
             })
     }
 
     fn show_printer_error(&mut self, error: String) {
-        self.show_error_notice(format!("{}: {error}", self.lang.t(Key::ErrorPrefix)));
+        self.show_error_notice(format!(
+            "{}: {error}",
+            self.preferences.lang.t(Key::ErrorPrefix)
+        ));
     }
 
     fn configure_printer_session_system(&mut self) -> Task<crate::app::Message> {
-        self.printer_setup_pending = true;
+        self.printer_setup.printer_setup_pending = true;
         Task::perform(
             configure_native_printer_blocking(),
             crate::app::Message::PrinterSessionSetupFinished,
@@ -352,7 +359,7 @@ impl DesktopApp {
     }
 
     fn configure_printer_settings_system(&mut self) -> Task<crate::app::Message> {
-        self.printer_setup_pending = true;
+        self.printer_setup.printer_setup_pending = true;
         Task::perform(
             configure_native_printer_blocking(),
             crate::app::Message::SettingsPrinterSetupFinished,
@@ -366,15 +373,17 @@ impl DesktopApp {
         let selected_name = match target {
             PrinterSetupTarget::Session => self.active_printer_name().map(str::to_owned),
             PrinterSetupTarget::Settings => self
+                .preferences
                 .settings_dialog
                 .as_ref()
                 .and_then(|dialog| dialog.draft_printer_settings.as_ref())
                 .map(|settings| settings.printer_name.clone()),
         };
-        self.printer_setup_pending = true;
-        self.printer_setup_dialog = Some(PrinterSetupDialog::new(target, selected_name));
+        self.printer_setup.printer_setup_pending = true;
+        self.printer_setup.printer_setup_dialog =
+            Some(PrinterSetupDialog::new(target, selected_name));
         if self.printer_setup_uses_detached_window()
-            && let Some(dialog) = self.printer_setup_dialog.as_mut()
+            && let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut()
         {
             dialog.owner_ready = false;
         }

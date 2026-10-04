@@ -65,18 +65,18 @@ impl DesktopApp {
 
     fn enqueue_pending_request(&mut self, command: AppCommand, pending: PendingRequest) -> bool {
         if matches!(pending, PendingRequest::CpuEdit { .. }) && self.cpu_document_pending() {
-            self.show_error_notice(self.lang.t(crate::i18n::Key::ErrDeviceBusy));
+            self.show_error_notice(self.preferences.lang.t(crate::i18n::Key::ErrDeviceBusy));
             return false;
         }
-        if self.pending_requests.len() >= 128 {
-            self.show_error_notice(self.lang.t(crate::i18n::Key::ErrDeviceBusy));
+        if self.requests.pending_requests.len() >= 128 {
+            self.show_error_notice(self.preferences.lang.t(crate::i18n::Key::ErrDeviceBusy));
             return false;
         }
         let Some(id) = self.dispatch_async_request(command) else {
             return false;
         };
         if matches!(pending, PendingRequest::CpuEdit { .. }) {
-            self.edit_epoch = self.edit_epoch.wrapping_add(1);
+            self.document.edit_epoch = self.document.edit_epoch.wrapping_add(1);
         }
         if matches!(
             pending,
@@ -85,19 +85,19 @@ impl DesktopApp {
                 ..
             }
         ) {
-            self.dirty = true;
-            self.undo_stack.reserve_cpu(id);
+            self.document.dirty = true;
+            self.document.undo_stack.reserve_cpu(id);
         }
-        self.pending_requests.insert(id, pending);
+        self.requests.pending_requests.insert(id, pending);
         true
     }
 
     pub(crate) fn toggle_run(&mut self) {
         if self.cpu_document_pending() {
-            self.show_error_notice(self.lang.t(crate::i18n::Key::ErrDeviceBusy));
+            self.show_error_notice(self.preferences.lang.t(crate::i18n::Key::ErrDeviceBusy));
             return;
         }
-        let restarting = self.pending_requests.values().any(|request| {
+        let restarting = self.requests.pending_requests.values().any(|request| {
             matches!(
                 request,
                 PendingRequest::CpuEdit {
@@ -106,20 +106,20 @@ impl DesktopApp {
                 }
             )
         });
-        if self.running || restarting {
-            for request in self.pending_requests.values_mut() {
+        if self.execution.running || restarting {
+            for request in self.requests.pending_requests.values_mut() {
                 if let PendingRequest::CpuEdit { action, .. } = request
                     && matches!(action, crate::app::BackendAction::Restart)
                 {
                     *action = crate::app::BackendAction::None;
                 }
             }
-            self.running = false;
+            self.execution.running = false;
             self.dispatch(AppCommand::Stop);
             return;
         }
 
-        if self.run_blocked_after_halt {
+        if self.execution.run_blocked_after_halt {
             self.raise_halt_notice();
             return;
         }
@@ -134,12 +134,12 @@ impl DesktopApp {
             self.set_status(crate::app::StatusKind::NoProgramAt { pc });
             return;
         }
-        self.running = true;
+        self.execution.running = true;
         self.dispatch(AppCommand::Run);
     }
 
     pub(crate) fn restart_program(&mut self) {
-        if self.run_blocked_after_halt {
+        if self.execution.run_blocked_after_halt {
             self.raise_halt_notice();
             return;
         }
@@ -161,7 +161,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn cpu_document_pending(&self) -> bool {
-        self.pending_requests.values().any(|request| {
+        self.requests.pending_requests.values().any(|request| {
             matches!(
                 request,
                 PendingRequest::LoadProgram { .. }

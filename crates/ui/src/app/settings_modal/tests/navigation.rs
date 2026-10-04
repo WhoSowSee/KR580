@@ -7,15 +7,16 @@ use crate::persistence::NetworkSettings;
 
 #[test]
 fn settings_focus_defaults_to_language_without_visible_ring() {
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
+    let dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: None,
+        hdd_directory: None,
+        network: NetworkSettings::default(),
+        ..Default::default()
+    });
     assert_eq!(dialog.footer_focus, FooterFocus::Cancel);
     assert_eq!(dialog.section, SettingsSection::Content);
     assert_eq!(dialog.content_focus, Some(ContentFocus::LanguageAnchor));
@@ -25,15 +26,16 @@ fn settings_focus_defaults_to_language_without_visible_ring() {
 
 #[test]
 fn general_toggle_segments_are_individually_tab_indexed() {
-    let dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
+    let dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: None,
+        hdd_directory: None,
+        network: NetworkSettings::default(),
+        ..Default::default()
+    });
 
     assert_eq!(
         dialog.next_content_focus(ContentFocus::SpeedMax),
@@ -69,45 +71,53 @@ fn general_toggle_segments_are_individually_tab_indexed() {
 #[test]
 fn sidebar_tab_moves_cursor_without_activating_category() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    let mut dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
+    let mut dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: None,
+        hdd_directory: None,
+        network: NetworkSettings::default(),
+        ..Default::default()
+    });
     dialog.section = SettingsSection::Sidebar;
-    app.settings_dialog = Some(dialog);
+    app.preferences.settings_dialog = Some(dialog);
 
     let _ = app.update(Message::FocusCycle { backward: false });
-    let dialog = app.settings_dialog.as_ref().unwrap();
+    let dialog = app.preferences.settings_dialog.as_ref().unwrap();
     assert_eq!(dialog.category, SettingsCategory::General);
     assert_eq!(dialog.sidebar_focus, SettingsCategory::ExternalDevices);
     assert!(dialog.keyboard_focus_visible);
 
     let _ = app.update(Message::EnterPressed);
-    assert!(!app.settings_dialog.as_ref().unwrap().keyboard_focus_visible);
+    assert!(
+        !app.preferences
+            .settings_dialog
+            .as_ref()
+            .unwrap()
+            .keyboard_focus_visible
+    );
     let _ = app.update(Message::SettingsCategorySelected(
         SettingsCategory::ExternalDevices,
     ));
-    let dialog = app.settings_dialog.as_ref().unwrap();
+    let dialog = app.preferences.settings_dialog.as_ref().unwrap();
     assert_eq!(dialog.category, SettingsCategory::ExternalDevices);
     assert_eq!(dialog.content_focus, Some(ContentFocus::FloppyImage));
 }
 
 #[test]
 fn external_devices_focus_matches_settings_order() {
-    let mut dialog = SettingsDialog::new(
-        Lang::Ru,
-        SpeedTier::Medium,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    );
+    let mut dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: None,
+        hdd_directory: None,
+        network: NetworkSettings::default(),
+        ..Default::default()
+    });
     dialog.category = SettingsCategory::ExternalDevices;
 
     let order = [

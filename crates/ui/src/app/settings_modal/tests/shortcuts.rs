@@ -14,17 +14,18 @@ fn dialog_copies_shortcut_settings() {
         ShortcutBinding::new(true, true, true, ShortcutKey::M),
     );
 
-    let dialog = SettingsDialog::new_with_shortcuts(
-        Lang::Ru,
-        SpeedTier::Medium,
-        ColorScheme::DEFAULT,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-        shortcuts.clone(),
-    );
+    let dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+        lang: Lang::Ru,
+        speed: SpeedTier::Medium,
+        color_scheme: ColorScheme::DEFAULT,
+        follow_pc: true,
+        memory_operand_highlighting: true,
+        floppy_image_path: None,
+        hdd_directory: None,
+        network: NetworkSettings::default(),
+        shortcuts: shortcuts.clone(),
+        ..Default::default()
+    });
 
     assert_eq!(dialog.draft_shortcuts, shortcuts);
     assert_eq!(dialog.original_shortcuts, shortcuts);
@@ -33,17 +34,20 @@ fn dialog_copies_shortcut_settings() {
 #[test]
 fn shortcut_capture_updates_live_preview_and_draft() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.shortcut_settings = ShortcutSettings::default();
-    app.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
-        app.lang,
-        app.default_speed,
-        ColorScheme::DEFAULT,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-        app.shortcut_settings.clone(),
+    app.preferences.shortcut_settings = ShortcutSettings::default();
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            color_scheme: ColorScheme::DEFAULT,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            shortcuts: app.preferences.shortcut_settings.clone(),
+            ..Default::default()
+        },
     ));
 
     let _ = app.update(Message::SettingsShortcutCaptureStarted(
@@ -56,13 +60,15 @@ fn shortcut_capture_updates_live_preview_and_draft() {
         ShortcutKey::M,
     )));
 
-    let dialog = app.settings_dialog.as_ref().unwrap();
+    let dialog = app.preferences.settings_dialog.as_ref().unwrap();
     assert_eq!(
         dialog.draft_shortcuts.binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, true, true, ShortcutKey::M))
     );
     assert_eq!(
-        app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
+        app.preferences
+            .shortcut_settings
+            .binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, true, true, ShortcutKey::M))
     );
     assert_eq!(dialog.recording_shortcut, None);
@@ -70,10 +76,12 @@ fn shortcut_capture_updates_live_preview_and_draft() {
     let _ = app.update(Message::CloseSettings);
 
     assert_eq!(
-        app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
+        app.preferences
+            .shortcut_settings
+            .binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))
     );
-    assert!(app.settings_dialog.is_none());
+    assert!(app.preferences.settings_dialog.is_none());
 }
 
 #[test]
@@ -84,41 +92,48 @@ fn shortcut_reset_updates_live_preview_and_rolls_back_on_cancel() {
         ShortcutAction::OpenMonitor,
         ShortcutBinding::new(true, true, true, ShortcutKey::M),
     );
-    app.shortcut_settings = live_shortcuts.clone();
-    app.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
-        app.lang,
-        app.default_speed,
-        ColorScheme::DEFAULT,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-        live_shortcuts,
+    app.preferences.shortcut_settings = live_shortcuts.clone();
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            color_scheme: ColorScheme::DEFAULT,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            shortcuts: live_shortcuts,
+            ..Default::default()
+        },
     ));
 
     let _ = app.update(Message::SettingsShortcutsReset);
 
-    let dialog = app.settings_dialog.as_ref().unwrap();
+    let dialog = app.preferences.settings_dialog.as_ref().unwrap();
     assert_eq!(
         dialog.draft_shortcuts.binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))
     );
     assert_eq!(
-        app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
+        app.preferences
+            .shortcut_settings
+            .binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))
     );
     assert_eq!(dialog.recording_shortcut, None);
     assert_eq!(
-        app.settings_notice.unwrap().message_key(),
+        app.preferences.settings_notice.unwrap().message_key(),
         Key::SettingsShortcutsResetNotice
     );
 
     let _ = app.update(Message::CloseSettings);
 
     assert_eq!(
-        app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
+        app.preferences
+            .shortcut_settings
+            .binding(ShortcutAction::OpenMonitor),
         Some(ShortcutBinding::new(true, true, true, ShortcutKey::M))
     );
-    assert!(app.settings_dialog.is_none());
+    assert!(app.preferences.settings_dialog.is_none());
 }

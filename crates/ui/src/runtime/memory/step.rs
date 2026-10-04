@@ -6,7 +6,7 @@ use crate::runtime::parse::{parse_hex_u16, scroll_memory_to};
 
 impl DesktopApp {
     pub(crate) fn step_instruction_and_advance(&mut self) -> Task<Message> {
-        if self.run_blocked_after_halt {
+        if self.execution.run_blocked_after_halt {
             self.raise_halt_notice();
             return Task::none();
         }
@@ -25,7 +25,7 @@ impl DesktopApp {
 
     /// PC advances before instruction completion; follow it only at a tact boundary.
     pub(crate) fn step_tact_and_maybe_advance(&mut self) -> Task<Message> {
-        if self.run_blocked_after_halt {
+        if self.execution.run_blocked_after_halt {
             self.raise_halt_notice();
             return Task::none();
         }
@@ -44,7 +44,7 @@ impl DesktopApp {
 
     pub(crate) fn follow_pc_after_execution_boundary(&mut self) -> Task<Message> {
         if self.snapshot.cpu.halted {
-            self.pending_follow_pc = false;
+            self.execution.pending_follow_pc = false;
             self.follow_pc_during_run()
         } else {
             self.follow_pc_into_memory_list()
@@ -55,14 +55,14 @@ impl DesktopApp {
         let pc = self.snapshot.cpu.pc;
         self.select_memory(pc);
 
-        if self.memory_viewport_height <= 0.0 {
+        if self.memory.memory_viewport_height <= 0.0 {
             return Task::none();
         }
         let Some(target_offset) = self.scroll_offset_to_reveal(pc) else {
             return Task::none();
         };
         self.scroll_memory(target_offset);
-        self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+        self.memory.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
         scroll_memory_to(target_offset)
     }
 
@@ -74,7 +74,7 @@ impl DesktopApp {
         } else {
             self.snapshot.cpu.pc
         };
-        let current_address = parse_hex_u16(&self.memory_address_input);
+        let current_address = parse_hex_u16(&self.memory.memory_address_input);
         if current_address == Some(target) {
             return Task::none();
         }
@@ -82,28 +82,30 @@ impl DesktopApp {
         let inline_was_clean = match current_address {
             Some(addr) => {
                 let stored = format!("{:02X}", self.snapshot.cpu.memory.read(addr));
-                self.memory_inline_value_input.eq_ignore_ascii_case(&stored)
+                self.memory
+                    .memory_inline_value_input
+                    .eq_ignore_ascii_case(&stored)
             }
             None => true,
         };
 
-        self.opcode_dropdown_address = None;
-        self.opcode_search_input.clear();
-        self.memory_address_input = format!("{target:04X}");
-        self.memory_value_input = format!("{:02X}", self.snapshot.cpu.memory.read(target));
+        self.memory.opcode_dropdown_address = None;
+        self.memory.opcode_search_input.clear();
+        self.memory.memory_address_input = format!("{target:04X}");
+        self.memory.memory_value_input = format!("{:02X}", self.snapshot.cpu.memory.read(target));
 
         if inline_was_clean {
-            self.memory_inline_value_input = self.memory_value_input.clone();
+            self.memory.memory_inline_value_input = self.memory.memory_value_input.clone();
         }
 
-        if self.memory_viewport_height <= 0.0 {
+        if self.memory.memory_viewport_height <= 0.0 {
             return Task::none();
         }
         let Some(target_offset) = self.scroll_offset_to_reveal(target) else {
             return Task::none();
         };
         self.scroll_memory(target_offset);
-        self.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+        self.memory.memory_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
         scroll_memory_to(target_offset)
     }
 
@@ -113,9 +115,9 @@ impl DesktopApp {
         } else {
             self.snapshot.cpu.pc
         };
-        self.memory_address_input = format!("{target:04X}");
-        self.memory_value_input = format!("{:02X}", self.snapshot.cpu.memory.read(target));
-        self.memory_inline_value_input = self.memory_value_input.clone();
+        self.memory.memory_address_input = format!("{target:04X}");
+        self.memory.memory_value_input = format!("{:02X}", self.snapshot.cpu.memory.read(target));
+        self.memory.memory_inline_value_input = self.memory.memory_value_input.clone();
     }
 }
 
@@ -140,11 +142,11 @@ mod tests {
         settle_backend(&mut app);
         assert!(app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0010);
-        assert_eq!(app.memory_address_input, "0010");
+        assert_eq!(app.memory.memory_address_input, "0010");
 
         let _ = app.update(Message::Tick);
 
-        assert_eq!(app.memory_address_input, "0010");
+        assert_eq!(app.memory.memory_address_input, "0010");
 
         let _ = app.update(Message::ToggleHalt);
         settle_backend(&mut app);
@@ -152,12 +154,12 @@ mod tests {
 
         assert!(!app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0010);
-        assert_eq!(app.memory_address_input, "0010");
+        assert_eq!(app.memory.memory_address_input, "0010");
         let _ = app.update(Message::ToggleHalt);
         let _ = app.update(Message::ToggleHalt);
         settle_backend(&mut app);
         assert!(!app.snapshot.cpu.halted);
-        assert_eq!(app.memory_address_input, "0010");
+        assert_eq!(app.memory.memory_address_input, "0010");
     }
 
     #[test]
@@ -175,7 +177,7 @@ mod tests {
 
         assert!(!app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0000);
-        assert_eq!(app.memory_address_input, "0000");
+        assert_eq!(app.memory.memory_address_input, "0000");
     }
 
     #[test]
@@ -188,11 +190,11 @@ mod tests {
         settle_backend(&mut app);
         assert!(app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0011);
-        assert_eq!(app.memory_address_input, "0010");
+        assert_eq!(app.memory.memory_address_input, "0010");
 
         let _ = app.update(Message::Tick);
 
-        assert_eq!(app.memory_address_input, "0010");
+        assert_eq!(app.memory.memory_address_input, "0010");
     }
 
     #[test]
@@ -208,10 +210,10 @@ mod tests {
         settle_backend(&mut app);
         assert!(app.snapshot.cpu.halted);
         assert_eq!(app.snapshot.cpu.pc, 0x0011);
-        assert_eq!(app.memory_address_input, "0010");
+        assert_eq!(app.memory.memory_address_input, "0010");
 
         let _ = app.update(Message::Tick);
 
-        assert_eq!(app.memory_address_input, "0010");
+        assert_eq!(app.memory.memory_address_input, "0010");
     }
 }

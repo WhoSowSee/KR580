@@ -22,73 +22,79 @@ impl DesktopApp {
     }
 
     fn window_view(&self, window: iced::window::Id) -> Element<'_, Message> {
-        theme::set_active_color_scheme(self.color_scheme);
-        if self.printer_properties_window_id == Some(window) {
+        theme::set_active_color_scheme(self.preferences.color_scheme);
+        if self.printer_setup.printer_properties_window_id == Some(window) {
             return window_drag_surface(
-                printer_properties_window_view(self.printer_setup_dialog.as_ref(), self.lang),
+                printer_properties_window_view(
+                    self.printer_setup.printer_setup_dialog.as_ref(),
+                    self.preferences.lang,
+                ),
                 window,
                 PRINTER_DIALOG_DRAG_HEIGHT,
             );
         }
-        if self.printer_setup_window_id == Some(window) {
+        if self.printer_setup.printer_setup_window_id == Some(window) {
             return window_drag_surface(
-                printer_setup_window_view(self.printer_setup_dialog.as_ref(), self.lang),
+                printer_setup_window_view(
+                    self.printer_setup.printer_setup_dialog.as_ref(),
+                    self.preferences.lang,
+                ),
                 window,
                 PRINTER_DIALOG_DRAG_HEIGHT,
             );
         }
-        if self.monitor_window.id == Some(window) {
-            if !self.monitor_window.detached {
+        if self.panels.monitor_window.id() == Some(window) {
+            if !self.panels.monitor_window.detached() {
                 return Space::new().into();
             }
             return window_drag_surface(
                 monitor_window(
                     &self.snapshot.devices.monitor,
-                    self.monitor_split,
+                    self.panels.monitor_split,
                     self.hex_popup_view_state(),
-                    self.lang,
+                    self.preferences.lang,
                 ),
                 window,
                 TOOL_WINDOW_DRAG_HEIGHT,
             );
         }
-        if self.floppy_window.id == Some(window) {
-            if !self.floppy_window.detached {
+        if self.panels.floppy_window.id() == Some(window) {
+            if !self.panels.floppy_window.detached() {
                 return Space::new().into();
             }
             return window_drag_surface(
                 floppy_window(
                     &self.snapshot.devices.floppy,
-                    self.floppy_show_image_contents,
-                    &self.floppy_image_contents,
-                    self.floppy_image_error.as_deref(),
-                    self.lang,
+                    self.panels.floppy_show_image_contents,
+                    &self.panels.floppy_image_contents,
+                    self.panels.floppy_image_error.as_deref(),
+                    self.preferences.lang,
                     self.device_toolbar(ToolWindowKind::Floppy),
                 ),
                 window,
                 TOOL_WINDOW_DRAG_HEIGHT,
             );
         }
-        if self.hdd_window.id == Some(window) {
-            if !self.hdd_window.detached {
+        if self.panels.hdd_window.id() == Some(window) {
+            if !self.panels.hdd_window.detached() {
                 return Space::new().into();
             }
             return window_drag_surface(
                 hdd_window(
                     &self.snapshot.devices.hdd,
-                    self.hdd_file_exists,
-                    self.hdd_show_image_contents,
-                    &self.hdd_image_contents,
-                    self.hdd_image_error.as_deref(),
-                    self.lang,
+                    self.panels.hdd_file_exists,
+                    self.panels.hdd_show_image_contents,
+                    &self.panels.hdd_image_contents,
+                    self.panels.hdd_image_error.as_deref(),
+                    self.preferences.lang,
                     self.device_toolbar(ToolWindowKind::Hdd),
                 ),
                 window,
                 TOOL_WINDOW_DRAG_HEIGHT,
             );
         }
-        if self.network_window.id == Some(window) {
-            if !self.network_window.detached {
+        if self.panels.network_window.id() == Some(window) {
+            if !self.panels.network_window.detached() {
                 return Space::new().into();
             }
             return window_drag_surface(
@@ -97,23 +103,23 @@ impl DesktopApp {
                 TOOL_WINDOW_DRAG_HEIGHT,
             );
         }
-        if self.printer_window.id == Some(window) {
-            if !self.printer_window.detached {
+        if self.panels.printer_window.id() == Some(window) {
+            if !self.panels.printer_window.detached() {
                 return Space::new().into();
             }
             return window_drag_surface(
                 printer_window(
                     &self.snapshot.devices.printer,
-                    self.printer_text_view,
+                    self.panels.printer_text_view,
                     self.printer_target_label(),
-                    self.lang,
+                    self.preferences.lang,
                     self.device_toolbar(ToolWindowKind::Printer),
                 ),
                 window,
                 TOOL_WINDOW_DRAG_HEIGHT,
             );
         }
-        if self.main_window_id != Some(window) {
+        if self.shell.main_window_id != Some(window) {
             return Space::new().into();
         }
         self.main_view()
@@ -148,8 +154,12 @@ mod tests {
     fn detached_monitor_top_inset_starts_window_drag() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         let window = iced::window::Id::unique();
-        app.monitor_window.id = Some(window);
-        app.monitor_window.detached = true;
+        app.panels
+            .monitor_window
+            .set_native(crate::app::NativeWindow::Opening(window));
+        app.panels
+            .monitor_window
+            .detach(app.panels.monitor_window.native().unwrap());
         let messages = press_messages(app.view(window), Point::new(530.0, 8.0));
 
         assert!(
@@ -165,7 +175,7 @@ mod tests {
     fn attached_monitor_preserves_base_scrollable_states() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         let window = iced::window::Id::unique();
-        app.main_window_id = Some(window);
+        app.shell.main_window_id = Some(window);
         let mut tree = {
             let root = app.view(window);
             widget::Tree::new(&root)
@@ -175,7 +185,7 @@ mod tests {
         let before = state_addresses(&tree, tag);
         assert!(!before.is_empty());
 
-        app.monitor_open = true;
+        app.panels.monitor_open = true;
         {
             let root = app.view(window);
             tree.diff(&root);
@@ -186,7 +196,7 @@ mod tests {
                 .all(|address| state_addresses(&tree, tag).contains(address))
         );
 
-        app.monitor_open = false;
+        app.panels.monitor_open = false;
         {
             let root = app.view(window);
             tree.diff(&root);

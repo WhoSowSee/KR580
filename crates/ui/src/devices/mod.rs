@@ -18,4 +18,4 @@ pub use network::{ConnectionState, NetworkDevice, NetworkMode, NetworkState};
 pub use oem::{decode_oem_byte, decode_oem_text};
 pub use printer::{PrinterDevice, PrinterState};
 pub use status::DeviceStatus;
-pub use storage::{StorageDevice, StorageState};
+pub use storage::{StorageDevice, StorageKind, StorageState};

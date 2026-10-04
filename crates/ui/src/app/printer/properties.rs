@@ -15,7 +15,7 @@ use k580_ui::devices::printer::{PrinterPropertyChange, PrinterPropertySheet};
 
 impl DesktopApp {
     pub(super) fn open_selected_printer_properties(&mut self) -> Task<Message> {
-        let Some(dialog) = self.printer_setup_dialog.as_ref() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_ref() else {
             return Task::none();
         };
         let Some(printer) = dialog.selected_printer().cloned() else {
@@ -36,7 +36,7 @@ impl DesktopApp {
             .collect();
         let preview_text = decode_oem_text(&self.snapshot.devices.printer.spool);
         let detached_surface = self.printer_setup_uses_detached_window();
-        if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+        if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
             dialog.properties_pending = true;
             dialog.properties = Some(PrinterPropertiesDialog::new(preview_text, presets));
             dialog.properties_surface_ready = !detached_surface;
@@ -224,6 +224,7 @@ impl DesktopApp {
         result: Result<PrinterPropertySheet, String>,
     ) {
         if self
+            .printer_setup
             .printer_setup_dialog
             .as_ref()
             .and_then(|dialog| dialog.selected_name.as_deref())
@@ -268,7 +269,7 @@ impl DesktopApp {
     }
 
     fn apply_printer_parameter(&mut self, name: &str) -> Task<Message> {
-        let lang = self.lang;
+        let lang = self.preferences.lang;
         let Some(properties) = self.properties() else {
             return Task::none();
         };
@@ -327,7 +328,7 @@ impl DesktopApp {
             .properties()
             .and_then(|properties| properties.sheet.as_ref())
             .map(|sheet| sheet.configuration.clone());
-        if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+        if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
             if let Some(configuration) = configuration {
                 dialog.configuration = Some(configuration);
             }
@@ -337,7 +338,7 @@ impl DesktopApp {
     }
 
     pub(super) fn close_printer_properties(&mut self) {
-        if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+        if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
             dialog.properties = None;
             dialog.properties_pending = false;
         }
@@ -349,7 +350,7 @@ impl DesktopApp {
         k580_ui::devices::printer::PrinterInfo,
         k580_ui::devices::printer::PrinterSettings,
     )> {
-        let dialog = self.printer_setup_dialog.as_ref()?;
+        let dialog = self.printer_setup.printer_setup_dialog.as_ref()?;
         let printer = dialog.selected_printer()?.clone();
         let settings = dialog
             .properties
@@ -363,11 +364,19 @@ impl DesktopApp {
     }
 
     fn properties(&self) -> Option<&PrinterPropertiesDialog> {
-        self.printer_setup_dialog.as_ref()?.properties.as_ref()
+        self.printer_setup
+            .printer_setup_dialog
+            .as_ref()?
+            .properties
+            .as_ref()
     }
 
     fn properties_mut(&mut self) -> Option<&mut PrinterPropertiesDialog> {
-        self.printer_setup_dialog.as_mut()?.properties.as_mut()
+        self.printer_setup
+            .printer_setup_dialog
+            .as_mut()?
+            .properties
+            .as_mut()
     }
 
     fn close_property_dropdown(&mut self) {

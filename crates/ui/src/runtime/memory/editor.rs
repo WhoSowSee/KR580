@@ -19,32 +19,34 @@ impl DesktopApp {
             return;
         };
 
-        self.memory_search_pattern = None;
-        let before = self.memory_address_input.clone();
-        self.memory_address_input = value;
-        self.undo_stack.push_text(
+        self.memory.memory_search_pattern = None;
+        let before = self.memory.memory_address_input.clone();
+        self.memory.memory_address_input = value;
+        self.document.undo_stack.push_text(
             MEMORY_ADDRESS_INPUT_ID,
             before,
-            self.memory_address_input.clone(),
+            self.memory.memory_address_input.clone(),
         );
-        if let Some(address) = parse_hex_u16(&self.memory_address_input) {
+        if let Some(address) = parse_hex_u16(&self.memory.memory_address_input) {
             self.refresh_memory_value(address);
             self.sync_pc_to_cursor(address);
         } else {
-            self.memory_value_input.clear();
+            self.memory.memory_value_input.clear();
         }
     }
 
     pub(crate) fn change_memory_value(&mut self, value: String) {
-        match parse_hex_byte_sequence_edit(&value, &self.memory_value_input) {
+        match parse_hex_byte_sequence_edit(&value, &self.memory.memory_value_input) {
             Ok(Some(values)) => {
                 self.materialize_input_fallback(MEMORY_ADDRESS_INPUT_ID);
-                if let Some(address) = parse_hex_u16(&self.memory_address_input) {
+                if let Some(address) = parse_hex_u16(&self.memory.memory_address_input) {
                     self.write_memory_block(address, values);
                 }
                 return;
             }
-            Err(()) if is_single_byte_edit_overflow(&value, &self.memory_value_input) => return,
+            Err(()) if is_single_byte_edit_overflow(&value, &self.memory.memory_value_input) => {
+                return;
+            }
             Err(()) => {
                 self.set_status(StatusKind::InvalidMemoryBytes);
                 return;
@@ -55,31 +57,33 @@ impl DesktopApp {
             if !value.is_empty() {
                 self.materialize_input_fallback(MEMORY_ADDRESS_INPUT_ID);
             }
-            let before = self.memory_value_input.clone();
-            self.memory_value_input = value;
-            self.memory_inline_value_input = self.memory_value_input.clone();
-            self.undo_stack.push_text(
+            let before = self.memory.memory_value_input.clone();
+            self.memory.memory_value_input = value;
+            self.memory.memory_inline_value_input = self.memory.memory_value_input.clone();
+            self.document.undo_stack.push_text(
                 MEMORY_VALUE_INPUT_ID,
                 before,
-                self.memory_value_input.clone(),
+                self.memory.memory_value_input.clone(),
             );
         }
     }
 
     pub(crate) fn step_memory_value_input(&mut self, delta: i32) {
         self.commit_replacement(MEMORY_VALUE_INPUT_ID);
-        let current = parse_hex_u8(&self.memory_value_input).unwrap_or(0);
+        let current = parse_hex_u8(&self.memory.memory_value_input).unwrap_or(0);
         let next = saturating_step_u8(current, delta);
-        self.memory_value_input = format!("{next:02X}");
+        self.memory.memory_value_input = format!("{next:02X}");
     }
 
     pub(crate) fn change_inline_memory_value(&mut self, address: u16, value: String) {
-        match parse_hex_byte_sequence_edit(&value, &self.memory_inline_value_input) {
+        match parse_hex_byte_sequence_edit(&value, &self.memory.memory_inline_value_input) {
             Ok(Some(values)) => {
                 self.write_memory_block(address, values);
                 return;
             }
-            Err(()) if is_single_byte_edit_overflow(&value, &self.memory_inline_value_input) => {
+            Err(())
+                if is_single_byte_edit_overflow(&value, &self.memory.memory_inline_value_input) =>
+            {
                 return;
             }
             Err(()) => {
@@ -92,8 +96,8 @@ impl DesktopApp {
             return;
         };
 
-        self.memory_address_input = format!("{address:04X}");
-        self.memory_inline_value_input = value;
+        self.memory.memory_address_input = format!("{address:04X}");
+        self.memory.memory_inline_value_input = value;
         // The inline editor changes RAM addresses, so text undo cannot be bound to this widget ID.
     }
 
@@ -107,7 +111,7 @@ impl DesktopApp {
 
     fn apply_inline_memory_action(&mut self, address: u16, mut action: crate::app::BackendAction) {
         self.commit_replacement(MEMORY_INLINE_INPUT_ID);
-        match parse_hex_u8(&self.memory_inline_value_input) {
+        match parse_hex_u8(&self.memory.memory_inline_value_input) {
             Some(value) => {
                 if let crate::app::BackendAction::Memory {
                     value: submitted, ..
@@ -115,10 +119,10 @@ impl DesktopApp {
                 {
                     *submitted = value;
                 }
-                self.memory_address_input = format!("{address:04X}");
-                self.memory_value_input = format!("{value:02X}");
-                self.memory_inline_value_input = self.memory_value_input.clone();
-                self.undo_stack.break_coalescing();
+                self.memory.memory_address_input = format!("{address:04X}");
+                self.memory.memory_value_input = format!("{value:02X}");
+                self.memory.memory_inline_value_input = self.memory.memory_value_input.clone();
+                self.document.undo_stack.break_coalescing();
                 self.dispatch_edit(
                     AppCommand::SetMemory(address, value),
                     crate::app::UndoPolicy::Record,
@@ -132,13 +136,13 @@ impl DesktopApp {
 
     pub(crate) fn enter_memory_cell_replacement(&mut self, address: u16) -> Task<Message> {
         self.enter_inline_memory_replacing(address);
-        self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+        self.interaction.focused_input = Some(MEMORY_INLINE_INPUT_ID);
         Task::done(Message::RefocusInline)
     }
 
     pub(crate) fn enter_selected_memory_replacement(&mut self) -> Task<Message> {
-        if self.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
-            if self.replacement_input != Some(MEMORY_INLINE_INPUT_ID) {
+        if self.interaction.focused_input == Some(MEMORY_INLINE_INPUT_ID) {
+            if self.interaction.replacement_input != Some(MEMORY_INLINE_INPUT_ID) {
                 self.begin_replacement(MEMORY_INLINE_INPUT_ID);
             }
             return Task::none();
@@ -150,9 +154,9 @@ impl DesktopApp {
     }
 
     pub(crate) fn handle_inline_memory_submit(&mut self, address: u16) -> Task<Message> {
-        let replacing = self.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
-        let backward = self.keyboard_modifiers.shift();
-        let value = parse_hex_u8(&self.memory_inline_value_input).unwrap_or(0);
+        let replacing = self.interaction.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
+        let backward = self.interaction.keyboard_modifiers.shift();
+        let value = parse_hex_u8(&self.memory.memory_inline_value_input).unwrap_or(0);
         self.apply_inline_memory_action(
             address,
             crate::app::BackendAction::Memory {
@@ -168,12 +172,12 @@ impl DesktopApp {
     }
 
     pub(crate) fn cancel_inline_memory_edit(&mut self) -> Task<Message> {
-        if let Some(address) = parse_hex_u16(&self.memory_address_input) {
+        if let Some(address) = parse_hex_u16(&self.memory.memory_address_input) {
             let stored = format!("{:02X}", self.snapshot.cpu.memory.read(address));
-            self.memory_inline_value_input = stored.clone();
-            self.memory_value_input = stored;
+            self.memory.memory_inline_value_input = stored.clone();
+            self.memory.memory_value_input = stored;
         }
-        self.focused_input = None;
+        self.interaction.focused_input = None;
         iced::advanced::widget::operate(crate::runtime::unfocus_except(
             iced::advanced::widget::Id::new("__nothing__"),
         ))
@@ -181,26 +185,26 @@ impl DesktopApp {
     }
 
     pub(crate) fn toggle_opcode_dropdown(&mut self, address: u16) -> Task<Message> {
-        if self.opcode_dropdown_address == Some(address) {
-            self.opcode_dropdown_address = None;
-            self.opcode_search_input.clear();
+        if self.memory.opcode_dropdown_address == Some(address) {
+            self.memory.opcode_dropdown_address = None;
+            self.memory.opcode_search_input.clear();
             return Task::none();
         }
         self.set_memory_address(address);
-        self.opcode_dropdown_address = Some(address);
-        self.opcode_highlight_index = 0;
+        self.memory.opcode_dropdown_address = Some(address);
+        self.memory.opcode_highlight_index = 0;
         self.scroll_opcode_to(0.0)
     }
 
     pub(crate) fn change_opcode_search(&mut self, value: String) -> Task<Message> {
-        self.opcode_search_input = value;
-        self.opcode_highlight_index = 0;
+        self.memory.opcode_search_input = value;
+        self.memory.opcode_highlight_index = 0;
         self.scroll_opcode_to(0.0)
     }
 
     pub(crate) fn handle_opcode_scrolled(&mut self, offset: f32) {
-        self.opcode_scroll_offset = offset;
-        self.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
+        self.memory.opcode_scroll_offset = offset;
+        self.memory.opcode_scroll_visible_ticks = MEMORY_SCROLL_VISIBLE_TICKS;
     }
 
     pub(crate) fn scroll_opcode_to(&mut self, offset: f32) -> Task<Message> {
@@ -209,21 +213,24 @@ impl DesktopApp {
     }
 
     pub(crate) fn step_opcode_highlight(&mut self, delta: i32) -> Task<Message> {
-        let len = filtered_opcode_choices(&self.opcode_search_input).len();
+        let len = filtered_opcode_choices(&self.memory.opcode_search_input).len();
         if len == 0 {
-            self.opcode_highlight_index = 0;
+            self.memory.opcode_highlight_index = 0;
             return Task::none();
         }
 
-        let current = self.opcode_highlight_index.min(len - 1) as i32;
-        self.opcode_highlight_index = (current + delta).rem_euclid(len as i32) as usize;
+        let current = self.memory.opcode_highlight_index.min(len - 1) as i32;
+        self.memory.opcode_highlight_index = (current + delta).rem_euclid(len as i32) as usize;
 
-        let row_top = self.opcode_highlight_index as f32 * OPCODE_OPTION_HEIGHT;
+        let row_top = self.memory.opcode_highlight_index as f32 * OPCODE_OPTION_HEIGHT;
         let min_offset = (row_top + OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT).max(0.0);
         let max_offset =
             row_top.min((len as f32 * OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT).max(0.0));
-        let offset = self.opcode_scroll_offset.clamp(min_offset, max_offset);
-        if offset == self.opcode_scroll_offset {
+        let offset = self
+            .memory
+            .opcode_scroll_offset
+            .clamp(min_offset, max_offset);
+        if offset == self.memory.opcode_scroll_offset {
             Task::none()
         } else {
             self.scroll_opcode_to(offset)
@@ -231,13 +238,13 @@ impl DesktopApp {
     }
 
     pub(crate) fn highlighted_opcode_value(&self) -> Option<u8> {
-        filtered_opcode_choices(&self.opcode_search_input)
-            .get(self.opcode_highlight_index)
+        filtered_opcode_choices(&self.memory.opcode_search_input)
+            .get(self.memory.opcode_highlight_index)
             .map(|choice| choice.value)
     }
 
     pub(crate) fn apply_highlighted_opcode(&mut self) {
-        let Some(address) = self.opcode_dropdown_address else {
+        let Some(address) = self.memory.opcode_dropdown_address else {
             return;
         };
         if let Some(value) = self.highlighted_opcode_value() {
@@ -246,20 +253,20 @@ impl DesktopApp {
     }
 
     pub(crate) fn select_opcode(&mut self, address: u16, value: u8) {
-        self.memory_address_input = format!("{address:04X}");
-        self.memory_value_input = format!("{value:02X}");
-        self.memory_inline_value_input = self.memory_value_input.clone();
-        self.opcode_dropdown_address = None;
-        self.opcode_search_input.clear();
-        self.opcode_highlight_index = 0;
-        self.undo_stack.break_coalescing();
+        self.memory.memory_address_input = format!("{address:04X}");
+        self.memory.memory_value_input = format!("{value:02X}");
+        self.memory.memory_inline_value_input = self.memory.memory_value_input.clone();
+        self.memory.opcode_dropdown_address = None;
+        self.memory.opcode_search_input.clear();
+        self.memory.opcode_highlight_index = 0;
+        self.document.undo_stack.break_coalescing();
         self.dispatch_with_undo(AppCommand::SetMemory(address, value));
     }
 
     pub(crate) fn hide_opcode_dropdown(&mut self) {
-        self.opcode_dropdown_address = None;
-        self.opcode_search_input.clear();
-        self.opcode_highlight_index = 0;
+        self.memory.opcode_dropdown_address = None;
+        self.memory.opcode_search_input.clear();
+        self.memory.opcode_highlight_index = 0;
     }
 
     pub(crate) fn apply_memory(&mut self) -> Task<Message> {
@@ -270,12 +277,12 @@ impl DesktopApp {
         self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         self.commit_replacement(MEMORY_VALUE_INPUT_ID);
         match (
-            parse_hex_u16(&self.memory_address_input),
-            parse_hex_u8(&self.memory_value_input),
+            parse_hex_u16(&self.memory.memory_address_input),
+            parse_hex_u8(&self.memory.memory_value_input),
         ) {
             (Some(address), Some(value)) => {
-                self.memory_inline_value_input = format!("{value:02X}");
-                self.undo_stack.break_coalescing();
+                self.memory.memory_inline_value_input = format!("{value:02X}");
+                self.document.undo_stack.break_coalescing();
                 self.dispatch_edit(
                     AppCommand::SetMemory(address, value),
                     crate::app::UndoPolicy::Record,
@@ -299,8 +306,8 @@ impl DesktopApp {
         self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         self.commit_replacement(MEMORY_VALUE_INPUT_ID);
         let (Some(address), Some(value)) = (
-            parse_hex_u16(&self.memory_address_input),
-            parse_hex_u8(&self.memory_value_input),
+            parse_hex_u16(&self.memory.memory_address_input),
+            parse_hex_u8(&self.memory.memory_value_input),
         ) else {
             return self.apply_memory();
         };
@@ -315,8 +322,8 @@ impl DesktopApp {
         self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         self.commit_replacement(MEMORY_VALUE_INPUT_ID);
         let (Some(address), Some(value)) = (
-            parse_hex_u16(&self.memory_address_input),
-            parse_hex_u8(&self.memory_value_input),
+            parse_hex_u16(&self.memory.memory_address_input),
+            parse_hex_u8(&self.memory.memory_value_input),
         ) else {
             return self.apply_memory();
         };
@@ -335,11 +342,11 @@ impl DesktopApp {
         }
         let first = values[0];
         self.finish_replacement();
-        self.undo_stack.break_coalescing();
+        self.document.undo_stack.break_coalescing();
         self.dispatch_with_undo(AppCommand::SetMemoryBlock { start, values });
-        self.memory_address_input = format!("{start:04X}");
-        self.memory_value_input = format!("{first:02X}");
-        self.memory_inline_value_input = self.memory_value_input.clone();
+        self.memory.memory_address_input = format!("{start:04X}");
+        self.memory.memory_value_input = format!("{first:02X}");
+        self.memory.memory_inline_value_input = self.memory.memory_value_input.clone();
     }
 
     pub(crate) fn finish_memory_completion(
@@ -348,8 +355,8 @@ impl DesktopApp {
         value: u8,
         target: crate::app::MemoryCompletion,
     ) -> Task<Message> {
-        if parse_hex_u16(&self.memory_address_input) != Some(address)
-            || parse_hex_u8(&self.memory_inline_value_input) != Some(value)
+        if parse_hex_u16(&self.memory.memory_address_input) != Some(address)
+            || parse_hex_u8(&self.memory.memory_inline_value_input) != Some(value)
         {
             return Task::none();
         }
@@ -359,13 +366,13 @@ impl DesktopApp {
                 if replacing {
                     self.begin_replacement(MEMORY_INLINE_INPUT_ID);
                 }
-                self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+                self.interaction.focused_input = Some(MEMORY_INLINE_INPUT_ID);
                 Task::batch([step, operation::focus(MEMORY_INLINE_INPUT_ID)])
             }
             crate::app::MemoryCompletion::ValueStep { backward } => {
                 self.step_address_in_input(backward);
                 self.continue_replacement(MEMORY_VALUE_INPUT_ID);
-                self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
+                self.interaction.focused_input = Some(MEMORY_VALUE_INPUT_ID);
                 operation::focus(MEMORY_VALUE_INPUT_ID)
             }
             crate::app::MemoryCompletion::Jump => self.jump_memory_address(),

@@ -91,7 +91,7 @@ pub(super) fn target_selector<'a>(
 
 pub(super) fn target_dropdown_overlay(
     tab: ExportTab,
-    options: &[String],
+    options: &[crate::app::ExportTarget],
     highlighted: Option<usize>,
 ) -> Element<'static, Message> {
     let label_width = target_label_width(tab);
@@ -167,10 +167,16 @@ pub(super) fn dropdown_list_height(count: usize) -> f32 {
     (count as f32 * DROPDOWN_OPTION_HEIGHT).min(DROPDOWN_MAX_LIST_HEIGHT)
 }
 
-fn dropdown(options: &[String], highlighted: Option<usize>) -> Element<'static, Message> {
+fn dropdown(
+    options: &[crate::app::ExportTarget],
+    highlighted: Option<usize>,
+) -> Element<'static, Message> {
     let mut list = column![].spacing(0);
     for (index, option) in options.iter().enumerate() {
-        list = list.push(dropdown_option(option.clone(), highlighted == Some(index)));
+        list = list.push(dropdown_option(
+            option.name.clone(),
+            highlighted == Some(index),
+        ));
     }
     let list = scrollable(list)
         .direction(scrollable::Direction::Vertical(

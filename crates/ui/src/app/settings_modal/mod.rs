@@ -6,7 +6,7 @@ mod scroll;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use dialog::SettingsDialog;
+pub(crate) use dialog::{SettingsDialog, SettingsInitialState};
 pub(crate) use focus::{
     ContentFocus, FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsSection,
 };

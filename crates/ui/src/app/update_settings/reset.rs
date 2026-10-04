@@ -10,7 +10,7 @@ impl DesktopApp {
         let general = defaults.general;
         let color_scheme = defaults.ui.theme;
         let network = defaults.network;
-        if let Some(dialog) = self.settings_dialog.as_mut() {
+        if let Some(dialog) = self.preferences.settings_dialog.as_mut() {
             dialog.draft_lang = default_lang;
             dialog.draft_speed = default_speed;
             dialog.draft_color_scheme = color_scheme;
@@ -32,15 +32,15 @@ impl DesktopApp {
             dialog.reset_confirm_open = false;
             dialog.reset_confirm_keyboard_focus_visible = false;
         }
-        self.follow_pc = general.follow_pc;
-        self.memory_operand_highlighting = general.memory_operand_highlighting;
-        self.show_file_name = general.show_file_name;
-        self.monitor_split = general.monitor_split;
-        self.default_speed = default_speed;
-        self.color_scheme = color_scheme;
+        self.preferences.follow_pc = general.follow_pc;
+        self.preferences.memory_operand_highlighting = general.memory_operand_highlighting;
+        self.preferences.show_file_name = general.show_file_name;
+        self.panels.monitor_split = general.monitor_split;
+        self.preferences.default_speed = default_speed;
+        self.preferences.color_scheme = color_scheme;
         self.apply_speed_tier(default_speed);
         self.apply_language(default_lang);
-        if let Some(dialog) = self.settings_dialog.as_ref()
+        if let Some(dialog) = self.preferences.settings_dialog.as_ref()
             && let Ok(network) = parse_network_defaults(dialog)
         {
             self.save_settings_dialog(dialog, network)?;

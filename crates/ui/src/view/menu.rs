@@ -51,7 +51,7 @@ impl DesktopApp {
                 CaptionKind::Neutral,
             ),
             caption_button(
-                if self.window_maximized {
+                if self.shell.window_maximized {
                     icons::window_restore()
                 } else {
                     icons::window_maximize()
@@ -61,7 +61,8 @@ impl DesktopApp {
             ),
             caption_button(
                 icons::window_close(),
-                self.main_window_id
+                self.shell
+                    .main_window_id
                     .map(Message::WindowCloseRequested)
                     .unwrap_or(Message::WindowClose),
                 CaptionKind::Close
@@ -85,40 +86,40 @@ impl DesktopApp {
 
         let mut bar_children: Vec<Element<'_, Message>> = Vec::with_capacity(8);
         bar_children.push(cpu_toggle);
-        if self.menu_categories_visible {
+        if self.preferences.menu_categories_visible {
             let category_focused = |menu| {
-                self.top_menu_indicator == TopMenuIndicator::TabRing
-                    && self.top_menu_focus == Some(TopMenuFocus::Category(menu))
+                self.shell.top_menu_indicator == TopMenuIndicator::TabRing
+                    && self.shell.top_menu_focus == Some(TopMenuFocus::Category(menu))
             };
             bar_children.push(menu_trigger(
-                self.lang.t(Key::MenuFile),
+                self.preferences.lang.t(Key::MenuFile),
                 MenuId::File,
-                self.open_menu == Some(MenuId::File),
+                self.shell.open_menu == Some(MenuId::File),
                 category_focused(MenuId::File),
             ));
             bar_children.push(menu_trigger(
-                self.lang.t(Key::MenuMp),
+                self.preferences.lang.t(Key::MenuMp),
                 MenuId::Mp,
-                self.open_menu == Some(MenuId::Mp),
+                self.shell.open_menu == Some(MenuId::Mp),
                 category_focused(MenuId::Mp),
             ));
             bar_children.push(menu_trigger(
-                self.lang.t(Key::MenuView),
+                self.preferences.lang.t(Key::MenuView),
                 MenuId::View,
-                self.open_menu == Some(MenuId::View),
+                self.shell.open_menu == Some(MenuId::View),
                 category_focused(MenuId::View),
             ));
             for key in inactive_category_keys() {
-                bar_children.push(menu_label(self.lang.t(key)));
+                bar_children.push(menu_label(self.preferences.lang.t(key)));
             }
             bar_children.push(settings_trigger(
-                self.lang.t(settings_category_key()),
+                self.preferences.lang.t(settings_category_key()),
                 category_focused(MenuId::Settings),
             ));
             bar_children.push(menu_trigger(
-                self.lang.t(Key::MenuHelp),
+                self.preferences.lang.t(Key::MenuHelp),
                 MenuId::Help,
-                self.open_menu == Some(MenuId::Help),
+                self.shell.open_menu == Some(MenuId::Help),
                 category_focused(MenuId::Help),
             ));
         }
@@ -136,8 +137,9 @@ impl DesktopApp {
         .height(Length::Fixed(34.0))
         .style(menu_bar_style);
 
-        let file_name = if self.show_file_name {
-            self.current_snapshot_path
+        let file_name = if self.preferences.show_file_name {
+            self.document
+                .current_snapshot_path
                 .as_ref()
                 .and_then(|path| path.file_name())
                 .map(|name| shorten_middle(&name.to_string_lossy(), TITLE_FILE_NAME_BUDGET))
@@ -179,7 +181,7 @@ impl DesktopApp {
 
         const DIVIDER_GAP_BLEED: f32 = -6.0;
         const ROOT_PADDING_LEFT: f32 = 8.0;
-        let divider: Element<'_, Message> = match self.open_menu {
+        let divider: Element<'_, Message> = match self.shell.open_menu {
             None | Some(MenuId::Settings) => container(Space::new())
                 .width(Length::Fill)
                 .height(Length::Fixed(1.0))
@@ -215,37 +217,38 @@ impl DesktopApp {
     }
 
     pub(super) fn menu_dropdown(&self) -> Option<Element<'_, Message>> {
-        let open_menu = self.open_menu?;
-        let focused_item = match self.top_menu_focus {
+        let open_menu = self.shell.open_menu?;
+        let focused_item = match self.shell.top_menu_focus {
             Some(TopMenuFocus::Item { menu, index })
-                if self.top_menu_indicator != TopMenuIndicator::Hidden && menu == open_menu =>
+                if self.shell.top_menu_indicator != TopMenuIndicator::Hidden
+                    && menu == open_menu =>
             {
-                Some((index, self.top_menu_indicator))
+                Some((index, self.shell.top_menu_indicator))
             }
             _ => None,
         };
         match open_menu {
             MenuId::File => Some(file_dropdown(
-                self.lang,
-                &self.shortcut_settings,
+                self.preferences.lang,
+                &self.preferences.shortcut_settings,
                 focused_item,
             )),
             MenuId::Mp => Some(mp_dropdown(
                 self.snapshot.cpu.halted,
-                self.lang,
-                &self.shortcut_settings,
+                self.preferences.lang,
+                &self.preferences.shortcut_settings,
                 focused_item,
             )),
             MenuId::View => Some(view_dropdown(
-                self.stack_view,
-                self.lang,
-                &self.shortcut_settings,
+                self.memory.view.is_stack(),
+                self.preferences.lang,
+                &self.preferences.shortcut_settings,
                 focused_item,
             )),
             MenuId::Settings => None,
             MenuId::Help => Some(help_dropdown(
-                self.lang,
-                &self.shortcut_settings,
+                self.preferences.lang,
+                &self.preferences.shortcut_settings,
                 focused_item,
             )),
         }

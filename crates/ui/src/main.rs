@@ -55,7 +55,7 @@ fn parse_cli_args(args: &mut impl Iterator<Item = String>) -> Result<Option<Path
 }
 
 fn app_style(state: &DesktopApp, _theme: &Theme) -> theme::Style {
-    view::theme::app_base_style(state.color_scheme)
+    view::theme::app_base_style(state.preferences.color_scheme)
 }
 
 #[cfg(test)]

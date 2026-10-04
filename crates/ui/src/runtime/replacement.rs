@@ -7,24 +7,26 @@ use iced::advanced::mouse;
 impl DesktopApp {
     pub(crate) fn handle_replacement_double_click(&mut self, generation: u64) {
         let click = mouse::Click::new(
-            self.latest_cursor_position,
+            self.interaction.latest_cursor_position,
             mouse::Button::Left,
-            self.previous_left_click,
+            self.interaction.previous_left_click,
         );
-        self.previous_left_click = Some(click);
+        self.interaction.previous_left_click = Some(click);
 
-        if click.kind() != mouse::click::Kind::Double || self.running {
+        if click.kind() != mouse::click::Kind::Double || self.execution.running {
             return;
         }
 
-        match self.focused_input {
+        match self.interaction.focused_input {
             Some(MEMORY_INLINE_INPUT_ID) if self.selected_memory_address().is_some() => {
                 self.begin_replacement(MEMORY_INLINE_INPUT_ID);
-                self.replacement_reconcile_guard = Some((generation, MEMORY_INLINE_INPUT_ID));
+                self.interaction.replacement_reconcile_guard =
+                    Some((generation, MEMORY_INLINE_INPUT_ID));
             }
-            Some(REGISTER_INLINE_INPUT_ID) if self.inline_register_target.is_some() => {
+            Some(REGISTER_INLINE_INPUT_ID) if self.register.inline_register_target.is_some() => {
                 self.begin_replacement(REGISTER_INLINE_INPUT_ID);
-                self.replacement_reconcile_guard = Some((generation, REGISTER_INLINE_INPUT_ID));
+                self.interaction.replacement_reconcile_guard =
+                    Some((generation, REGISTER_INLINE_INPUT_ID));
             }
             _ => {}
         }
@@ -33,37 +35,37 @@ impl DesktopApp {
     pub(crate) fn begin_replacement(&mut self, input: &'static str) {
         self.finish_replacement();
         let original = self.input_value(input).to_owned();
-        self.replacement_placeholder = if original.is_empty() {
+        self.interaction.replacement_placeholder = if original.is_empty() {
             replacement_fallback(input).to_owned()
         } else {
             original.clone()
         };
-        self.replacement_original_value = original;
-        self.replacement_input = Some(input);
+        self.interaction.replacement_original_value = original;
+        self.interaction.replacement_input = Some(input);
         self.input_value_mut(input).clear();
     }
 
     pub(crate) fn continue_replacement(&mut self, input: &'static str) {
-        if self.replacement_input == Some(input) {
+        if self.interaction.replacement_input == Some(input) {
             self.begin_replacement(input);
         }
     }
 
     pub(crate) fn finish_replacement(&mut self) {
-        let Some(input) = self.replacement_input.take() else {
+        let Some(input) = self.interaction.replacement_input.take() else {
             return;
         };
         if self.input_value(input).is_empty() {
-            let original = std::mem::take(&mut self.replacement_original_value);
+            let original = std::mem::take(&mut self.interaction.replacement_original_value);
             *self.input_value_mut(input) = original;
         }
-        self.replacement_placeholder.clear();
-        self.replacement_original_value.clear();
+        self.interaction.replacement_placeholder.clear();
+        self.interaction.replacement_original_value.clear();
     }
 
     pub(crate) fn commit_replacement(&mut self, input: &'static str) {
-        if self.replacement_input == Some(input) && self.input_value(input).is_empty() {
-            *self.input_value_mut(input) = self.replacement_placeholder.clone();
+        if self.interaction.replacement_input == Some(input) && self.input_value(input).is_empty() {
+            *self.input_value_mut(input) = self.interaction.replacement_placeholder.clone();
         }
     }
 
@@ -84,8 +86,8 @@ impl DesktopApp {
         input: &'static str,
         fallback: &'a str,
     ) -> &'a str {
-        if self.replacement_input == Some(input) {
-            &self.replacement_placeholder
+        if self.interaction.replacement_input == Some(input) {
+            &self.interaction.replacement_placeholder
         } else {
             fallback
         }
@@ -93,22 +95,26 @@ impl DesktopApp {
 
     fn input_value(&self, input: &'static str) -> &str {
         match input {
-            MEMORY_ADDRESS_INPUT_ID => &self.memory_address_input,
-            MEMORY_VALUE_INPUT_ID => &self.memory_value_input,
-            MEMORY_INLINE_INPUT_ID => &self.memory_inline_value_input,
-            REGISTER_NAME_INPUT_ID => &self.register_name_input,
-            REGISTER_VALUE_INPUT_ID | REGISTER_INLINE_INPUT_ID => &self.register_value_input,
+            MEMORY_ADDRESS_INPUT_ID => &self.memory.memory_address_input,
+            MEMORY_VALUE_INPUT_ID => &self.memory.memory_value_input,
+            MEMORY_INLINE_INPUT_ID => &self.memory.memory_inline_value_input,
+            REGISTER_NAME_INPUT_ID => &self.register.register_name_input,
+            REGISTER_VALUE_INPUT_ID | REGISTER_INLINE_INPUT_ID => {
+                &self.register.register_value_input
+            }
             _ => "",
         }
     }
 
     fn input_value_mut(&mut self, input: &'static str) -> &mut String {
         match input {
-            MEMORY_ADDRESS_INPUT_ID => &mut self.memory_address_input,
-            MEMORY_VALUE_INPUT_ID => &mut self.memory_value_input,
-            MEMORY_INLINE_INPUT_ID => &mut self.memory_inline_value_input,
-            REGISTER_NAME_INPUT_ID => &mut self.register_name_input,
-            REGISTER_VALUE_INPUT_ID | REGISTER_INLINE_INPUT_ID => &mut self.register_value_input,
+            MEMORY_ADDRESS_INPUT_ID => &mut self.memory.memory_address_input,
+            MEMORY_VALUE_INPUT_ID => &mut self.memory.memory_value_input,
+            MEMORY_INLINE_INPUT_ID => &mut self.memory.memory_inline_value_input,
+            REGISTER_NAME_INPUT_ID => &mut self.register.register_name_input,
+            REGISTER_VALUE_INPUT_ID | REGISTER_INLINE_INPUT_ID => {
+                &mut self.register.register_value_input
+            }
             _ => unreachable!(),
         }
     }
@@ -141,10 +147,10 @@ mod tests {
     fn second_click_replaces_selected_inline_memory_value() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
         app.select_memory(0x0010);
-        app.memory_value_input = "3E".to_owned();
-        app.memory_inline_value_input = "3E".to_owned();
-        app.focused_input = Some(MEMORY_INLINE_INPUT_ID);
-        app.latest_cursor_position = Point::new(10.0, 10.0);
+        app.memory.memory_value_input = "3E".to_owned();
+        app.memory.memory_inline_value_input = "3E".to_owned();
+        app.interaction.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+        app.interaction.latest_cursor_position = Point::new(10.0, 10.0);
 
         let _ = app.update(Message::MousePressed);
         let _ = app.update(Message::MousePressed);
@@ -161,7 +167,7 @@ mod tests {
             hit: None,
         });
 
-        assert!(app.memory_inline_value_input.is_empty());
+        assert!(app.memory.memory_inline_value_input.is_empty());
         assert_eq!(app.input_placeholder(MEMORY_INLINE_INPUT_ID, "00"), "3E");
     }
 
@@ -178,8 +184,8 @@ mod tests {
             let (mut app, _) = DesktopApp::with_initial_path(None);
             app.snapshot.cpu.registers.set(target.register(), 0x41);
             app.enter_inline_register(target);
-            app.focused_input = Some(REGISTER_INLINE_INPUT_ID);
-            app.latest_cursor_position = Point::new(10.0, 10.0);
+            app.interaction.focused_input = Some(REGISTER_INLINE_INPUT_ID);
+            app.interaction.latest_cursor_position = Point::new(10.0, 10.0);
 
             let _ = app.update(Message::MousePressed);
             let _ = app.update(Message::MousePressed);
@@ -192,7 +198,10 @@ mod tests {
                 hit: None,
             });
 
-            assert!(app.register_value_input.is_empty(), "target: {target:?}");
+            assert!(
+                app.register.register_value_input.is_empty(),
+                "target: {target:?}"
+            );
             assert_eq!(
                 app.input_placeholder(REGISTER_INLINE_INPUT_ID, "00"),
                 "41",
@@ -248,50 +257,50 @@ mod tests {
     #[test]
     fn memory_focus_cycle_keeps_initially_empty_fields_empty() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.memory_address_input.clear();
-        app.memory_value_input.clear();
+        app.memory.memory_address_input.clear();
+        app.memory.memory_value_input.clear();
 
         let _ = app.cycle_focus(iced::widget::Id::new(MEMORY_ADDRESS_INPUT_ID), false);
         let _ = app.cycle_focus(iced::widget::Id::new(MEMORY_VALUE_INPUT_ID), true);
         let _ = app.cycle_focus(iced::widget::Id::new(MEMORY_ADDRESS_INPUT_ID), false);
 
-        assert!(app.memory_address_input.is_empty());
-        assert!(app.memory_value_input.is_empty());
+        assert!(app.memory.memory_address_input.is_empty());
+        assert!(app.memory.memory_value_input.is_empty());
     }
 
     #[test]
     fn register_focus_cycle_keeps_initially_empty_fields_empty() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.register_name_input.clear();
-        app.register_value_input.clear();
+        app.register.register_name_input.clear();
+        app.register.register_value_input.clear();
 
         let _ = app.cycle_focus(iced::widget::Id::new(REGISTER_NAME_INPUT_ID), false);
         let _ = app.cycle_focus(iced::widget::Id::new(REGISTER_VALUE_INPUT_ID), true);
         let _ = app.cycle_focus(iced::widget::Id::new(REGISTER_NAME_INPUT_ID), false);
 
-        assert!(app.register_name_input.is_empty());
-        assert!(app.register_value_input.is_empty());
+        assert!(app.register.register_name_input.is_empty());
+        assert!(app.register.register_value_input.is_empty());
     }
 
     #[test]
     fn focusing_another_field_after_escape_keeps_empty_memory_value_empty() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.memory_address_input.clear();
-        app.memory_value_input.clear();
-        app.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
+        app.memory.memory_address_input.clear();
+        app.memory.memory_value_input.clear();
+        app.interaction.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
 
         let _ = app.cycle_focus(iced::widget::Id::new(MEMORY_ADDRESS_INPUT_ID), false);
         let _ = app.handle_esc();
 
-        assert_eq!(app.replacement_input, None);
-        assert!(app.memory_value_input.is_empty());
+        assert_eq!(app.interaction.replacement_input, None);
+        assert!(app.memory.memory_value_input.is_empty());
 
         let _ = app.update(Message::ResolveFocusedTracker(None));
         let _ = app.handle_focus_reconciled(
-            app.mouse_press_generation,
+            app.interaction.mouse_press_generation,
             Some(iced::widget::Id::new(MEMORY_ADDRESS_INPUT_ID)),
         );
 
-        assert!(app.memory_value_input.is_empty());
+        assert!(app.memory.memory_value_input.is_empty());
     }
 }

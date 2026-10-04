@@ -43,8 +43,8 @@ pub(in crate::view) fn window_controls(
     lang: Lang,
 ) -> Element<'static, Message> {
     let kind = toolbar.kind;
-    let detached = toolbar.state.detached;
-    let always_on_top = toolbar.state.always_on_top;
+    let detached = toolbar.state.detached();
+    let always_on_top = toolbar.state.always_on_top();
     let title = Space::new().width(Length::Fill);
     let window_toggle = icon_button(
         if detached {

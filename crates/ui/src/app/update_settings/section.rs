@@ -1,8 +1,7 @@
 use crate::app::settings_modal::{FooterFocus, SettingsDialog, SettingsSection};
 
 pub(super) fn cycle_section(dialog: &mut SettingsDialog, backward: bool) {
-    dialog.language_dropdown_open = false;
-    dialog.dropdown_highlight = None;
+    dialog.language_dropdown.set_open(false);
     dialog.keyboard_focus_visible = true;
     let next = if backward {
         dialog.section.previous()

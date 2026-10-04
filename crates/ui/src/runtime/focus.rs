@@ -13,71 +13,72 @@ impl DesktopApp {
     ) -> Task<Message> {
         if focused == iced::widget::Id::new(MEMORY_ADDRESS_INPUT_ID) {
             self.begin_replacement(MEMORY_VALUE_INPUT_ID);
-            self.focused_input = Some(MEMORY_VALUE_INPUT_ID);
+            self.interaction.focused_input = Some(MEMORY_VALUE_INPUT_ID);
             return operation::focus(MEMORY_VALUE_INPUT_ID);
         }
         if focused == iced::widget::Id::new(MEMORY_VALUE_INPUT_ID) {
             self.begin_replacement(MEMORY_ADDRESS_INPUT_ID);
-            self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
+            self.interaction.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
             return operation::focus(MEMORY_ADDRESS_INPUT_ID);
         }
         if focused == iced::widget::Id::new(REGISTER_NAME_INPUT_ID) {
             self.begin_replacement(REGISTER_VALUE_INPUT_ID);
-            self.focused_input = Some(REGISTER_VALUE_INPUT_ID);
+            self.interaction.focused_input = Some(REGISTER_VALUE_INPUT_ID);
             return operation::focus(REGISTER_VALUE_INPUT_ID);
         }
         if focused == iced::widget::Id::new(REGISTER_VALUE_INPUT_ID) {
             self.begin_replacement(REGISTER_NAME_INPUT_ID);
-            self.focused_input = Some(REGISTER_NAME_INPUT_ID);
+            self.interaction.focused_input = Some(REGISTER_NAME_INPUT_ID);
             return operation::focus(REGISTER_NAME_INPUT_ID);
         }
         if focused == iced::widget::Id::new(REGISTER_INLINE_INPUT_ID) {
             return self.cycle_register_target_focus(backward);
         }
         if focused == iced::widget::Id::new(MEMORY_INLINE_INPUT_ID) {
-            let replacing = self.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
+            let replacing = self.interaction.replacement_input == Some(MEMORY_INLINE_INPUT_ID);
             self.finish_replacement();
             let step = if backward { -1 } else { 1 };
             let scroll_task = self.step_memory_address(step);
             if replacing {
                 self.begin_replacement(MEMORY_INLINE_INPUT_ID);
             }
-            self.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+            self.interaction.focused_input = Some(MEMORY_INLINE_INPUT_ID);
             return scroll_task.chain(operation::focus(MEMORY_INLINE_INPUT_ID));
         }
         Task::none()
     }
 
     pub(crate) fn cycle_selected_focus(&mut self, backward: bool) -> Option<Task<Message>> {
-        if self.focused_input == Some(REGISTER_INLINE_INPUT_ID)
-            || (self.focused_input.is_none() && self.active_register_target.is_some())
+        if self.interaction.focused_input == Some(REGISTER_INLINE_INPUT_ID)
+            || (self.interaction.focused_input.is_none()
+                && self.register.active_register_target.is_some())
         {
             return Some(self.cycle_register_target_focus(backward));
         }
-        if self.focused_input.is_none() && self.selected_memory_address().is_some() {
+        if self.interaction.focused_input.is_none() && self.selected_memory_address().is_some() {
             return Some(self.step_memory_address(if backward { -1 } else { 1 }));
         }
         None
     }
 
     pub(crate) fn cycle_register_target_focus(&mut self, backward: bool) -> Task<Message> {
-        let editing = self.focused_input == Some(REGISTER_INLINE_INPUT_ID);
+        let editing = self.interaction.focused_input == Some(REGISTER_INLINE_INPUT_ID);
         let target = if editing {
-            self.inline_register_target
+            self.register.inline_register_target
         } else {
-            self.active_register_target
+            self.register.active_register_target
         };
         let Some(target) = target else {
             return Task::none();
         };
         let next = target.tab_adjacent(backward);
         if editing {
-            let replacing = self.replacement_input == Some(REGISTER_INLINE_INPUT_ID);
+            let replacing = self.interaction.replacement_input == Some(REGISTER_INLINE_INPUT_ID);
             self.enter_inline_register(next);
             if replacing {
                 self.begin_replacement(REGISTER_INLINE_INPUT_ID);
             }
-            self.focused_input = Some(REGISTER_INLINE_INPUT_ID);
+            self.interaction.focused_input = Some(REGISTER_INLINE_INPUT_ID);
             operation::focus(REGISTER_INLINE_INPUT_ID)
         } else {
             self.select_register_target(next);
@@ -95,13 +96,13 @@ mod tests {
     fn tab_preserves_regular_inline_memory_edit_mode() {
         let (mut app, _) = DesktopApp::with_initial_path(None);
         app.select_memory(0x1234);
-        app.focused_input = Some(MEMORY_INLINE_INPUT_ID);
+        app.interaction.focused_input = Some(MEMORY_INLINE_INPUT_ID);
 
         for (backward, address) in [(false, 0x1235), (true, 0x1234)] {
             let _ = app.cycle_focus(iced::widget::Id::new(MEMORY_INLINE_INPUT_ID), backward);
             assert_eq!(app.selected_memory_address(), Some(address));
-            assert_eq!(app.memory_inline_value_input, "00");
-            assert_eq!(app.replacement_input, None);
+            assert_eq!(app.memory.memory_inline_value_input, "00");
+            assert_eq!(app.interaction.replacement_input, None);
         }
     }
 
@@ -118,16 +119,16 @@ mod tests {
         ] {
             app.select_register_target(current);
             let _ = app.update(Message::FocusCycle { backward });
-            assert_eq!(app.active_register_target, Some(expected));
+            assert_eq!(app.register.active_register_target, Some(expected));
         }
 
         app.select_memory(0x1234);
         let _ = app.update(Message::FocusCycle { backward: false });
-        assert_eq!(app.memory_address_input, "1235");
-        assert_eq!(app.focused_input, None);
+        assert_eq!(app.memory.memory_address_input, "1235");
+        assert_eq!(app.interaction.focused_input, None);
 
         let _ = app.update(Message::FocusCycle { backward: true });
-        assert_eq!(app.memory_address_input, "1234");
-        assert_eq!(app.focused_input, None);
+        assert_eq!(app.memory.memory_address_input, "1234");
+        assert_eq!(app.interaction.focused_input, None);
     }
 }

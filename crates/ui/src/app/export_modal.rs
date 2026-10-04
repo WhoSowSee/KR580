@@ -10,36 +10,34 @@ use iced::advanced::widget::{Id, operate};
 impl DesktopApp {
     pub(crate) fn open_export_modal(&mut self) {
         self.close_import_modal();
-        self.export_modal_open = true;
-        self.export_tab = ExportTab::Xlsx;
-        self.export_modal_focus = ExportModalFocus::TabXlsx;
-        self.export_modal_keyboard_focus_visible = false;
+        self.export.export_modal_open = true;
+        self.export.export_tab = ExportTab::Xlsx;
+        self.export.export_modal_focus = ExportModalFocus::TabXlsx;
+        self.export.export_modal_keyboard_focus_visible = false;
         self.ensure_export_targets();
-        self.export_target_dropdown_open = false;
-        self.export_target_highlight = None;
-        self.export_memory_start_input = "0000".to_owned();
-        self.export_memory_end_input = "FFFF".to_owned();
-        self.export_memory_columns = ExportMemoryColumns::default();
-        self.export_registers = ExportRegisterSelection::default();
-        self.export_flags = ExportFlagSelection::default();
+        self.export.export_target_dropdown.set_open(false);
+        self.export.export_memory_start_input = "0000".to_owned();
+        self.export.export_memory_end_input = "FFFF".to_owned();
+        self.export.export_memory_columns = ExportMemoryColumns::default();
+        self.export.export_registers = ExportRegisterSelection::default();
+        self.export.export_flags = ExportFlagSelection::default();
         self.close_top_menu();
         self.hide_opcode_dropdown();
         self.close_open_device_panel();
     }
 
     pub(crate) fn close_export_modal(&mut self) {
-        self.export_modal_open = false;
-        self.export_modal_focus = ExportModalFocus::TabXlsx;
-        self.export_modal_keyboard_focus_visible = false;
-        self.export_target_dropdown_open = false;
-        self.export_target_highlight = None;
+        self.export.export_modal_open = false;
+        self.export.export_modal_focus = ExportModalFocus::TabXlsx;
+        self.export.export_modal_keyboard_focus_visible = false;
+        self.export.export_target_dropdown.set_open(false);
     }
 
     pub(crate) fn route_export_modal_message(
         &mut self,
         message: &Message,
     ) -> Option<Task<Message>> {
-        if !self.export_modal_open {
+        if !self.export.export_modal_open {
             return None;
         }
 
@@ -53,7 +51,7 @@ impl DesktopApp {
                 | Message::ExportMemoryEndChanged(_)
                 | Message::FocusCycle { .. }
         ) {
-            self.export_modal_keyboard_focus_visible = false;
+            self.export.export_modal_keyboard_focus_visible = false;
         }
 
         match message {
@@ -65,13 +63,13 @@ impl DesktopApp {
             }
             Message::ExportTargetChanged(value) => {
                 self.set_export_target_input(value.clone());
-                self.export_modal_focus = ExportModalFocus::Page;
-                self.export_target_highlight = None;
+                self.export.export_modal_focus = ExportModalFocus::Page;
+                self.export.export_target_dropdown.set_highlight(None);
                 Some(Task::none())
             }
             Message::ExportTargetDropdownToggled => {
                 self.toggle_export_target_dropdown();
-                self.export_modal_focus = ExportModalFocus::TargetDropdown;
+                self.export.export_modal_focus = ExportModalFocus::TargetDropdown;
                 Some(Task::none())
             }
             Message::ExportTargetSelected(value) => {
@@ -87,33 +85,33 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::ExportMemoryStartChanged(value) => {
-                self.export_memory_start_input = hex4_input(value);
+                self.export.export_memory_start_input = hex4_input(value);
                 self.sync_current_export_target_settings();
-                self.export_modal_focus = ExportModalFocus::MemoryStart;
+                self.export.export_modal_focus = ExportModalFocus::MemoryStart;
                 Some(Task::none())
             }
             Message::ExportMemoryEndChanged(value) => {
-                self.export_memory_end_input = hex4_input(value);
+                self.export.export_memory_end_input = hex4_input(value);
                 self.sync_current_export_target_settings();
-                self.export_modal_focus = ExportModalFocus::MemoryEnd;
+                self.export.export_modal_focus = ExportModalFocus::MemoryEnd;
                 Some(Task::none())
             }
             Message::ToggleExportMemoryColumn(column) => {
-                self.export_memory_columns.toggle(*column);
+                self.export.export_memory_columns.toggle(*column);
                 self.sync_current_export_target_settings();
-                self.export_modal_focus = ExportModalFocus::for_column(*column);
+                self.export.export_modal_focus = ExportModalFocus::for_column(*column);
                 Some(Task::none())
             }
             Message::ToggleExportRegister(register) => {
-                self.export_registers.toggle(*register);
+                self.export.export_registers.toggle(*register);
                 self.sync_current_export_target_settings();
-                self.export_modal_focus = ExportModalFocus::for_register(*register);
+                self.export.export_modal_focus = ExportModalFocus::for_register(*register);
                 Some(Task::none())
             }
             Message::ToggleExportFlag(flag) => {
-                self.export_flags.toggle(*flag);
+                self.export.export_flags.toggle(*flag);
                 self.sync_current_export_target_settings();
-                self.export_modal_focus = ExportModalFocus::for_flag(*flag);
+                self.export.export_modal_focus = ExportModalFocus::for_flag(*flag);
                 Some(Task::none())
             }
             Message::ConfirmExport => Some(self.confirm_export()),
@@ -132,14 +130,14 @@ impl DesktopApp {
             Message::MousePressedIgnored => Some(self.clear_export_value_focus_task()),
             Message::FocusCycle { backward } => {
                 self.cycle_export_modal_focus(*backward);
-                self.export_modal_keyboard_focus_visible = true;
+                self.export.export_modal_keyboard_focus_visible = true;
                 Some(Task::none())
             }
-            Message::ArrowKey(direction) if self.export_target_dropdown_open => {
+            Message::ArrowKey(direction) if self.export.export_target_dropdown.is_open() => {
                 self.move_export_target_highlight(*direction);
                 Some(Task::none())
             }
-            Message::EnterPressed if self.export_target_dropdown_open => {
+            Message::EnterPressed if self.export.export_target_dropdown.is_open() => {
                 self.submit_export_target_dropdown();
                 Some(Task::none())
             }
@@ -150,30 +148,33 @@ impl DesktopApp {
 
     pub(crate) fn select_export_tab(&mut self, tab: ExportTab) {
         self.sync_current_export_target_settings();
-        self.export_tab = tab;
-        self.export_target_dropdown_open = false;
-        self.export_target_highlight = None;
+        self.export.export_tab = tab;
+        self.export.export_target_dropdown.set_open(false);
         self.load_current_export_target_settings();
-        self.export_modal_focus = match tab {
+        self.export.export_modal_focus = match tab {
             ExportTab::Xlsx => ExportModalFocus::TabXlsx,
             ExportTab::Text => ExportModalFocus::TabText,
         };
     }
 
     pub(crate) fn cycle_export_modal_focus(&mut self, backward: bool) {
-        self.export_modal_focus = if backward {
-            self.export_modal_focus.previous_for_tab(self.export_tab)
+        self.export.export_modal_focus = if backward {
+            self.export
+                .export_modal_focus
+                .previous_for_tab(self.export.export_tab)
         } else {
-            self.export_modal_focus.next_for_tab(self.export_tab)
+            self.export
+                .export_modal_focus
+                .next_for_tab(self.export.export_tab)
         };
     }
 
     pub(crate) fn submit_export_modal_focus(&mut self) -> Task<Message> {
-        if let Some(tab) = self.export_modal_focus.tab() {
+        if let Some(tab) = self.export.export_modal_focus.tab() {
             self.select_export_tab(tab);
             return Task::none();
         }
-        match self.export_modal_focus {
+        match self.export.export_modal_focus {
             ExportModalFocus::TargetDropdown => {
                 self.toggle_export_target_dropdown();
                 return Task::none();
@@ -188,22 +189,22 @@ impl DesktopApp {
             }
             _ => {}
         }
-        if let Some(column) = self.export_modal_focus.memory_column() {
-            self.export_memory_columns.toggle(column);
+        if let Some(column) = self.export.export_modal_focus.memory_column() {
+            self.export.export_memory_columns.toggle(column);
             self.sync_current_export_target_settings();
             return Task::none();
         }
-        if let Some(register) = self.export_modal_focus.register() {
-            self.export_registers.toggle(register);
+        if let Some(register) = self.export.export_modal_focus.register() {
+            self.export.export_registers.toggle(register);
             self.sync_current_export_target_settings();
             return Task::none();
         }
-        if let Some(flag) = self.export_modal_focus.flag() {
-            self.export_flags.toggle(flag);
+        if let Some(flag) = self.export.export_modal_focus.flag() {
+            self.export.export_flags.toggle(flag);
             self.sync_current_export_target_settings();
             return Task::none();
         }
-        match self.export_modal_focus {
+        match self.export.export_modal_focus {
             ExportModalFocus::Cancel => {
                 self.close_export_modal();
                 Task::none()
@@ -215,24 +216,24 @@ impl DesktopApp {
 
     pub(crate) fn confirm_export(&mut self) -> Task<Message> {
         self.sync_current_export_target_settings();
-        let tab = self.export_tab;
+        let tab = self.export.export_tab;
         let options = self.export_options();
         self.close_export_modal();
         self.export_selected_file(tab, options)
     }
 
     pub(crate) fn export_options(&self) -> ExportOptions {
-        let mut start = parse_hex_u16_or(&self.export_memory_start_input, 0);
-        let mut end = parse_hex_u16_or(&self.export_memory_end_input, u16::MAX);
+        let mut start = parse_hex_u16_or(&self.export.export_memory_start_input, 0);
+        let mut end = parse_hex_u16_or(&self.export.export_memory_end_input, u16::MAX);
         if start > end {
             std::mem::swap(&mut start, &mut end);
         }
-        let xlsx_pages = if self.export_tab == ExportTab::Xlsx {
+        let xlsx_pages = if self.export.export_tab == ExportTab::Xlsx {
             self.export_xlsx_page_options()
         } else {
             Vec::new()
         };
-        let text_sections = if self.export_tab == ExportTab::Text {
+        let text_sections = if self.export.export_tab == ExportTab::Text {
             self.export_text_section_options()
         } else {
             Vec::new()
@@ -241,12 +242,12 @@ impl DesktopApp {
             page_name: self.export_target_input().trim().to_owned(),
             memory_start: start,
             memory_end: end,
-            include_memory_address: self.export_memory_columns.address,
-            include_memory_value: self.export_memory_columns.value,
-            include_memory_command: self.export_memory_columns.command,
-            include_comment_column: self.export_memory_columns.comment,
-            registers: self.export_registers.selected(),
-            flags: self.export_flags.selected(),
+            include_memory_address: self.export.export_memory_columns.address,
+            include_memory_value: self.export.export_memory_columns.value,
+            include_memory_command: self.export.export_memory_columns.command,
+            include_comment_column: self.export.export_memory_columns.comment,
+            registers: self.export.export_registers.selected(),
+            flags: self.export.export_flags.selected(),
             xlsx_pages,
             text_sections,
         }
@@ -261,15 +262,14 @@ impl DesktopApp {
     }
 
     fn clear_export_value_focus(&mut self) -> bool {
-        let should_clear =
-            self.export_target_dropdown_open || self.export_modal_focus.clears_on_escape();
+        let should_clear = self.export.export_target_dropdown.is_open()
+            || self.export.export_modal_focus.clears_on_escape();
         if !should_clear {
             return false;
         }
-        self.export_target_dropdown_open = false;
-        self.export_target_highlight = None;
-        self.focused_input = None;
-        self.export_modal_focus = ExportModalFocus::None;
+        self.export.export_target_dropdown.set_open(false);
+        self.interaction.focused_input = None;
+        self.export.export_modal_focus = ExportModalFocus::None;
         true
     }
 }

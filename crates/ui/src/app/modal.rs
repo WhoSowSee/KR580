@@ -37,9 +37,9 @@ impl DiscardModalButton {
 
 impl DesktopApp {
     pub(crate) fn open_discard_modal(&mut self, action: PendingAction) {
-        self.pending_action = Some(action);
-        self.discard_modal_focus = DiscardModalButton::Cancel;
-        self.discard_modal_keyboard_focus_visible = false;
+        self.document.pending_action = Some(action);
+        self.document.discard_modal_focus = DiscardModalButton::Cancel;
+        self.document.discard_modal_keyboard_focus_visible = false;
         self.close_top_menu();
         self.hide_opcode_dropdown();
     }
@@ -48,7 +48,7 @@ impl DesktopApp {
         &mut self,
         message: &Message,
     ) -> Option<Task<Message>> {
-        self.pending_action.as_ref()?;
+        self.document.pending_action.as_ref()?;
 
         match message {
             Message::Tick
@@ -67,7 +67,7 @@ impl DesktopApp {
             }
             Message::EnterPressed => Some(self.submit_discard_modal_focus()),
             Message::MousePressed | Message::MousePressedIgnored => {
-                self.discard_modal_keyboard_focus_visible = false;
+                self.document.discard_modal_keyboard_focus_visible = false;
                 Some(Task::none())
             }
             _ => Some(Task::none()),
@@ -75,16 +75,16 @@ impl DesktopApp {
     }
 
     pub(crate) fn cycle_discard_modal_focus(&mut self, backward: bool) {
-        self.discard_modal_keyboard_focus_visible = true;
-        self.discard_modal_focus = if backward {
-            self.discard_modal_focus.previous()
+        self.document.discard_modal_keyboard_focus_visible = true;
+        self.document.discard_modal_focus = if backward {
+            self.document.discard_modal_focus.previous()
         } else {
-            self.discard_modal_focus.next()
+            self.document.discard_modal_focus.next()
         };
     }
 
     pub(crate) fn submit_discard_modal_focus(&mut self) -> Task<Message> {
-        match self.discard_modal_focus {
+        match self.document.discard_modal_focus {
             DiscardModalButton::Cancel => {
                 self.cancel_discard();
                 Task::none()
@@ -94,11 +94,11 @@ impl DesktopApp {
     }
 
     pub(crate) fn confirm_discard(&mut self) -> Task<Message> {
-        let Some(action) = self.pending_action.take() else {
+        let Some(action) = self.document.pending_action.take() else {
             return Task::none();
         };
-        self.discard_modal_focus = DiscardModalButton::Cancel;
-        self.discard_modal_keyboard_focus_visible = false;
+        self.document.discard_modal_focus = DiscardModalButton::Cancel;
+        self.document.discard_modal_keyboard_focus_visible = false;
         match action {
             PendingAction::OpenSnapshot => self.open_program(),
             PendingAction::OpenExternalFile { path, .. } => {
@@ -122,17 +122,17 @@ impl DesktopApp {
     }
 
     pub(crate) fn cancel_discard(&mut self) {
-        self.pending_action = None;
-        self.discard_modal_focus = DiscardModalButton::Cancel;
-        self.discard_modal_keyboard_focus_visible = false;
+        self.document.pending_action = None;
+        self.document.discard_modal_focus = DiscardModalButton::Cancel;
+        self.document.discard_modal_keyboard_focus_visible = false;
     }
 
     pub(crate) fn close_titlebar_popup_before_drag(&mut self) -> bool {
-        if self.opcode_dropdown_address.is_some() {
+        if self.memory.opcode_dropdown_address.is_some() {
             self.hide_opcode_dropdown();
             return true;
         }
-        if self.open_menu.is_some() || self.top_menu_focus.is_some() {
+        if self.shell.open_menu.is_some() || self.shell.top_menu_focus.is_some() {
             self.close_top_menu();
             return true;
         }
@@ -148,14 +148,14 @@ mod tests {
     #[test]
     fn discard_modal_blocks_memory_navigation_keys() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
-        app.memory_address_input = "000A".to_owned();
+        app.memory.memory_address_input = "000A".to_owned();
         app.open_discard_modal(PendingAction::OpenSnapshot);
 
         let _task = app.update(Message::ArrowKey(1));
 
-        assert_eq!(app.memory_address_input, "000A");
+        assert_eq!(app.memory.memory_address_input, "000A");
         assert!(matches!(
-            app.pending_action,
+            app.document.pending_action,
             Some(PendingAction::OpenSnapshot)
         ));
     }
@@ -168,9 +168,9 @@ mod tests {
 
         let _task = app.update(Message::ToggleRun);
 
-        assert!(!app.running);
+        assert!(!app.execution.running);
         assert!(matches!(
-            app.pending_action,
+            app.document.pending_action,
             Some(PendingAction::OpenSnapshot)
         ));
     }
@@ -178,14 +178,14 @@ mod tests {
     #[test]
     fn enter_chooses_cancel_by_default_in_discard_modal() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
-        app.dirty = true;
+        app.document.dirty = true;
         app.open_discard_modal(PendingAction::OpenSnapshot);
-        assert!(!app.discard_modal_keyboard_focus_visible);
+        assert!(!app.document.discard_modal_keyboard_focus_visible);
 
         let _task = app.update(Message::EnterPressed);
 
-        assert!(app.pending_action.is_none());
-        assert!(app.dirty);
+        assert!(app.document.pending_action.is_none());
+        assert!(app.document.dirty);
     }
 
     #[test]
@@ -194,76 +194,85 @@ mod tests {
         app.open_discard_modal(PendingAction::OpenSnapshot);
 
         let _task = app.update(Message::FocusCycle { backward: false });
-        assert_eq!(app.discard_modal_focus, DiscardModalButton::Confirm);
-        assert!(app.discard_modal_keyboard_focus_visible);
+        assert_eq!(
+            app.document.discard_modal_focus,
+            DiscardModalButton::Confirm
+        );
+        assert!(app.document.discard_modal_keyboard_focus_visible);
 
         let _task = app.update(Message::FocusCycle { backward: false });
-        assert_eq!(app.discard_modal_focus, DiscardModalButton::Cancel);
+        assert_eq!(app.document.discard_modal_focus, DiscardModalButton::Cancel);
 
         let _task = app.update(Message::FocusCycle { backward: true });
-        assert_eq!(app.discard_modal_focus, DiscardModalButton::Confirm);
+        assert_eq!(
+            app.document.discard_modal_focus,
+            DiscardModalButton::Confirm
+        );
     }
 
     #[test]
     fn enter_confirms_when_confirm_button_is_focused() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
-        app.dirty = true;
+        app.document.dirty = true;
         app.open_discard_modal(PendingAction::NewFile);
 
         let _task = app.update(Message::FocusCycle { backward: false });
         let _task = app.update(Message::EnterPressed);
 
-        assert!(app.pending_action.is_none());
+        assert!(app.document.pending_action.is_none());
         crate::app::test_support::settle_backend(&mut app);
-        assert!(!app.dirty);
+        assert!(!app.document.dirty);
     }
 
     #[test]
     fn cancelled_import_after_discard_confirmation_keeps_dirty_gate() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
-        app.dirty = true;
+        app.document.dirty = true;
         app.open_discard_modal(PendingAction::Import);
 
         let _task = app.update(Message::ConfirmDiscard);
 
-        assert!(app.dirty);
-        assert!(app.import_modal_open);
+        assert!(app.document.dirty);
+        assert!(app.import.import_modal_open);
 
         let _task = app.update(Message::CancelImport);
         let _task = app.update(Message::Import);
 
-        assert!(matches!(app.pending_action, Some(PendingAction::Import)));
+        assert!(matches!(
+            app.document.pending_action,
+            Some(PendingAction::Import)
+        ));
     }
 
     #[test]
     fn esc_closes_open_top_menu() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
-        app.open_menu = Some(MenuId::File);
+        app.shell.open_menu = Some(MenuId::File);
 
         let _task = app.update(Message::EscPressed);
 
-        assert_eq!(app.open_menu, None);
+        assert_eq!(app.shell.open_menu, None);
     }
 
     #[test]
     fn titlebar_empty_press_closes_opcode_dropdown_before_dragging() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
-        app.opcode_dropdown_address = Some(0x0010);
-        app.opcode_search_input = "mov".to_owned();
+        app.memory.opcode_dropdown_address = Some(0x0010);
+        app.memory.opcode_search_input = "mov".to_owned();
 
         let _task = app.update(Message::WindowDragStart);
 
-        assert_eq!(app.opcode_dropdown_address, None);
-        assert!(app.opcode_search_input.is_empty());
+        assert_eq!(app.memory.opcode_dropdown_address, None);
+        assert!(app.memory.opcode_search_input.is_empty());
     }
 
     #[test]
     fn titlebar_empty_press_closes_top_menu_before_dragging() {
         let (mut app, _task) = DesktopApp::with_initial_path(None);
-        app.open_menu = Some(MenuId::Mp);
+        app.shell.open_menu = Some(MenuId::Mp);
 
         let _task = app.update(Message::WindowDragStart);
 
-        assert_eq!(app.open_menu, None);
+        assert_eq!(app.shell.open_menu, None);
     }
 }

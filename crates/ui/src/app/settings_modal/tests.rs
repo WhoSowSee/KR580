@@ -20,95 +20,108 @@ mod shortcuts;
 #[test]
 fn live_speed_change_updates_active_tier_immediately() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.speed_tier = SpeedTier::Slow;
-    app.default_speed = SpeedTier::Slow;
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
+    app.execution.speed_tier = SpeedTier::Slow;
+    app.preferences.default_speed = SpeedTier::Slow;
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            ..Default::default()
+        },
     ));
 
     let _ = app.update(Message::SettingsDraftSpeedChanged(SpeedTier::Max));
 
-    assert_eq!(app.speed_tier, SpeedTier::Max);
-    assert_eq!(app.default_speed, SpeedTier::Max);
+    assert_eq!(app.execution.speed_tier, SpeedTier::Max);
+    assert_eq!(app.preferences.default_speed, SpeedTier::Max);
 }
 
 #[test]
 fn cancel_rolls_back_live_speed_to_pre_open_snapshot() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.speed_tier = SpeedTier::Slow;
-    app.default_speed = SpeedTier::Slow;
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
+    app.execution.speed_tier = SpeedTier::Slow;
+    app.preferences.default_speed = SpeedTier::Slow;
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            ..Default::default()
+        },
     ));
 
     let _ = app.update(Message::SettingsDraftSpeedChanged(SpeedTier::Max));
     let _ = app.update(Message::CloseSettings);
 
-    assert_eq!(app.speed_tier, SpeedTier::Slow);
-    assert_eq!(app.default_speed, SpeedTier::Slow);
-    assert!(app.settings_dialog.is_none());
+    assert_eq!(app.execution.speed_tier, SpeedTier::Slow);
+    assert_eq!(app.preferences.default_speed, SpeedTier::Slow);
+    assert!(app.preferences.settings_dialog.is_none());
 }
 
 #[test]
 fn closing_settings_preserves_active_speed_before_and_after_save() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.default_speed = SpeedTier::High;
-    app.speed_tier = SpeedTier::High;
-    app.follow_pc = false;
+    app.preferences.default_speed = SpeedTier::High;
+    app.execution.speed_tier = SpeedTier::High;
+    app.preferences.follow_pc = false;
 
     let _ = app.update(Message::SpeedTierChanged(SpeedTier::Slow));
     let _ = app.update(Message::OpenSettings);
     let _ = app.update(Message::SettingsDraftFollowPcSet(true));
     let _ = app.update(Message::CloseSettings);
 
-    assert_eq!(app.speed_tier, SpeedTier::Slow);
-    assert_eq!(app.default_speed, SpeedTier::High);
-    assert!(!app.follow_pc);
+    assert_eq!(app.execution.speed_tier, SpeedTier::Slow);
+    assert_eq!(app.preferences.default_speed, SpeedTier::High);
+    assert!(!app.preferences.follow_pc);
 
     let _ = app.update(Message::OpenSettings);
     let _ = app.update(Message::SettingsDraftFollowPcSet(true));
     app.commit_settings_dialog_state();
     let _ = app.update(Message::CloseSettings);
 
-    assert_eq!(app.speed_tier, SpeedTier::Slow);
-    assert_eq!(app.default_speed, SpeedTier::High);
-    assert!(app.follow_pc);
-    assert!(app.settings_dialog.is_none());
+    assert_eq!(app.execution.speed_tier, SpeedTier::Slow);
+    assert_eq!(app.preferences.default_speed, SpeedTier::High);
+    assert!(app.preferences.follow_pc);
+    assert!(app.preferences.settings_dialog.is_none());
 }
 
 #[test]
 fn live_theme_change_updates_active_scheme_immediately() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.color_scheme = ColorScheme::TokyoNight;
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
+    app.preferences.color_scheme = ColorScheme::TokyoNight;
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            ..Default::default()
+        },
     ));
 
     let _ = app.update(Message::SettingsDraftColorSchemeChanged(
         ColorScheme::GruvboxDark,
     ));
 
-    assert_eq!(app.color_scheme, ColorScheme::GruvboxDark);
+    assert_eq!(app.preferences.color_scheme, ColorScheme::GruvboxDark);
     assert_eq!(
-        app.settings_dialog.as_ref().unwrap().draft_color_scheme,
+        app.preferences
+            .settings_dialog
+            .as_ref()
+            .unwrap()
+            .draft_color_scheme,
         ColorScheme::GruvboxDark
     );
 }
@@ -116,17 +129,20 @@ fn live_theme_change_updates_active_scheme_immediately() {
 #[test]
 fn cancel_rolls_back_live_theme_to_pre_open_snapshot() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.color_scheme = ColorScheme::TokyoNight;
-    app.settings_dialog = Some(SettingsDialog::new_with_shortcuts(
-        app.lang,
-        app.default_speed,
-        app.color_scheme,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-        app.shortcut_settings.clone(),
+    app.preferences.color_scheme = ColorScheme::TokyoNight;
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            color_scheme: app.preferences.color_scheme,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            shortcuts: app.preferences.shortcut_settings.clone(),
+            ..Default::default()
+        },
     ));
 
     let _ = app.update(Message::SettingsDraftColorSchemeChanged(
@@ -134,222 +150,77 @@ fn cancel_rolls_back_live_theme_to_pre_open_snapshot() {
     ));
     let _ = app.update(Message::CloseSettings);
 
-    assert_eq!(app.color_scheme, ColorScheme::TokyoNight);
-    assert!(app.settings_dialog.is_none());
+    assert_eq!(app.preferences.color_scheme, ColorScheme::TokyoNight);
+    assert!(app.preferences.settings_dialog.is_none());
 }
 
 #[test]
 fn opening_settings_dismisses_open_device_panel() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.monitor_split = true;
+    app.panels.monitor_split = true;
     let _ = app.update(Message::OpenMonitor);
-    assert!(app.monitor_open);
+    assert!(app.panels.monitor_open);
 
     let _ = app.update(Message::OpenSettings);
-    assert!(app.settings_dialog.as_ref().unwrap().original_monitor_split);
-    assert!(!app.monitor_open);
-
-    let _ = app.update(Message::CloseSettings);
-    assert!(app.settings_dialog.is_none());
-    assert!(!app.monitor_open);
-    assert!(app.monitor_split);
-}
-
-#[test]
-fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = Lang::En;
-    app.default_speed = SpeedTier::Max;
-    app.speed_tier = SpeedTier::Max;
-    app.printer_dialog_mode = PrinterDialogMode::System;
-    app.monitor_split = true;
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    ));
-    let dialog = app.settings_dialog.as_mut().unwrap();
-    dialog.draft_printer_dialog_mode = PrinterDialogMode::System;
-    dialog.original_printer_dialog_mode = PrinterDialogMode::System;
-    dialog.draft_monitor_split = true;
-    dialog.original_monitor_split = true;
-
-    let _ = app.update(Message::SettingsResetRequested);
-    assert!(app.settings_dialog.as_ref().unwrap().reset_confirm_open);
-    let _ = app.update(Message::SettingsResetConfirmed);
-
-    let expected_lang = lang_from_language(default_language());
-    assert_eq!(app.lang, expected_lang);
-    assert_eq!(app.default_speed, SpeedTier::High);
-    assert_eq!(app.speed_tier, SpeedTier::High);
-    let dialog = app.settings_dialog.as_ref().unwrap();
-    assert!(!dialog.reset_confirm_open);
-    assert_eq!(dialog.original_lang, expected_lang);
-    assert_eq!(dialog.original_speed, SpeedTier::High);
-    assert_eq!(dialog.original_active_speed, SpeedTier::High);
-    assert!(!app.follow_pc);
-    assert!(!dialog.original_follow_pc);
-    assert!(app.memory_operand_highlighting);
-    assert!(dialog.original_memory_operand_highlighting);
-    assert!(!app.monitor_split);
-    assert!(!dialog.draft_monitor_split);
-    assert!(!dialog.original_monitor_split);
-    assert_eq!(app.printer_dialog_mode, PrinterDialogMode::Custom);
-    assert_eq!(dialog.draft_printer_dialog_mode, PrinterDialogMode::Custom);
-    assert_eq!(
-        dialog.original_printer_dialog_mode,
-        PrinterDialogMode::Custom
-    );
-    assert_eq!(
-        app.shortcut_settings.binding(ShortcutAction::OpenMonitor),
-        Some(ShortcutBinding::new(true, false, false, ShortcutKey::M))
-    );
-    assert_eq!(
-        app.settings_notice.unwrap().message_key(),
-        Key::SettingsResetNotice
-    );
-}
-
-#[test]
-fn reset_confirm_opens_with_cancel_focused() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    ));
-
-    let _ = app.update(Message::SettingsResetRequested);
-
-    let dialog = app.settings_dialog.as_ref().unwrap();
-    assert!(dialog.reset_confirm_open);
-    assert_eq!(dialog.reset_confirm_focus, ResetConfirmFocus::Cancel);
-    assert!(!dialog.reset_confirm_keyboard_focus_visible);
-}
-
-#[test]
-fn tab_toggles_reset_confirm_focus_in_a_two_button_ring() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    ));
-    let _ = app.update(Message::SettingsResetRequested);
-
-    let _ = app.update(Message::FocusCycle { backward: false });
-    assert_eq!(
-        app.settings_dialog.as_ref().unwrap().reset_confirm_focus,
-        ResetConfirmFocus::Confirm
-    );
     assert!(
-        app.settings_dialog
+        app.preferences
+            .settings_dialog
             .as_ref()
             .unwrap()
-            .reset_confirm_keyboard_focus_visible
+            .original_monitor_split
     );
+    assert!(!app.panels.monitor_open);
 
-    let _ = app.update(Message::FocusCycle { backward: false });
-    assert_eq!(
-        app.settings_dialog.as_ref().unwrap().reset_confirm_focus,
-        ResetConfirmFocus::Cancel
-    );
-
-    let _ = app.update(Message::FocusCycle { backward: true });
-    assert_eq!(
-        app.settings_dialog.as_ref().unwrap().reset_confirm_focus,
-        ResetConfirmFocus::Confirm
-    );
-}
-
-#[test]
-fn enter_in_reset_confirm_activates_focused_button() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = Lang::En;
-    app.default_speed = SpeedTier::Max;
-    app.speed_tier = SpeedTier::Max;
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
-    ));
-
-    let _ = app.update(Message::SettingsResetRequested);
-    assert_eq!(
-        app.settings_dialog.as_ref().unwrap().reset_confirm_focus,
-        ResetConfirmFocus::Cancel
-    );
-    let _ = app.update(Message::SettingsResetCancelled);
-    assert!(!app.settings_dialog.as_ref().unwrap().reset_confirm_open);
-    assert_eq!(app.lang, Lang::En);
-    assert_eq!(app.speed_tier, SpeedTier::Max);
-
-    let _ = app.update(Message::SettingsResetRequested);
-    let _ = app.update(Message::FocusCycle { backward: false });
-    assert_eq!(
-        app.settings_dialog.as_ref().unwrap().reset_confirm_focus,
-        ResetConfirmFocus::Confirm
-    );
-    let _ = app.update(Message::SettingsResetConfirmed);
-    assert_eq!(app.lang, lang_from_language(default_language()));
-    assert_eq!(app.speed_tier, SpeedTier::High);
+    let _ = app.update(Message::CloseSettings);
+    assert!(app.preferences.settings_dialog.is_none());
+    assert!(!app.panels.monitor_open);
+    assert!(app.panels.monitor_split);
 }
 
 #[test]
 fn language_change_re_renders_canonical_status_string() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = Lang::Ru;
+    app.preferences.lang = Lang::Ru;
     app.set_status(StatusKind::Ready);
-    assert_eq!(app.status, "Готов");
+    assert_eq!(app.shell.status, "Готов");
 
-    app.lang = Lang::En;
+    app.preferences.lang = Lang::En;
     app.refresh_localized_status();
-    assert_eq!(app.status, "Ready");
+    assert_eq!(app.shell.status, "Ready");
 
     app.set_status_custom("entity not found".to_owned());
-    app.lang = Lang::Ru;
+    app.preferences.lang = Lang::Ru;
     app.refresh_localized_status();
-    assert_eq!(app.status, "entity not found");
+    assert_eq!(app.shell.status, "entity not found");
 }
 
 #[test]
 fn file_association_task_tracks_pending_state_until_completion() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.settings_dialog = Some(SettingsDialog::new(
-        app.lang,
-        app.default_speed,
-        true,
-        true,
-        None,
-        None,
-        NetworkSettings::default(),
+    app.preferences.settings_dialog = Some(SettingsDialog::new(
+        crate::app::settings_modal::SettingsInitialState {
+            lang: app.preferences.lang,
+            speed: app.preferences.default_speed,
+            follow_pc: true,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            ..Default::default()
+        },
     ));
 
     let task = app.update(Message::SettingsFileAssociationRegister);
     drop(task);
 
-    assert!(app.file_association_pending);
+    assert!(app.preferences.file_association_pending);
     let _ = app.update(Message::CloseSettings);
     let _ = app.update(Message::OpenSettings);
-    assert!(app.file_association_pending);
+    assert!(app.preferences.file_association_pending);
     assert!(app.update(Message::SettingsFileAssociationRegister).units() == 0);
 
     let _ = app.update(Message::SettingsFileAssociationFinished(Ok(())));
-    assert!(!app.file_association_pending);
+    assert!(!app.preferences.file_association_pending);
 }
+
+mod reset;

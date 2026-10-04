@@ -28,7 +28,7 @@ the installer use their main window. Paths return through typed messages;
 cancellation leaves state unchanged.
 
 The main emulator window also accepts files from the OS drag-and-drop
-surface. `DesktopApp::file_drag_hovered` controls a passive 18%-alpha black
+surface. `DesktopApp.document.file_drag_hovered` controls a passive 18%-alpha black
 scrim while `file_drag_cursor_position` keeps the localized
 `Open in emulator` hint beside the cursor. The hint is withheld until a valid
 native position arrives, so it cannot flash in a window corner. It flips left or
@@ -103,7 +103,8 @@ RAM-range dialog. Detached device windows do not accept program drops.
   - `app/read_only_text.rs` – shared selectable-but-non-editable
     `text_editor` action handling used by Help and Changelog readers.
   - `app/state.rs` – the `DesktopApp` state and `with_initial_path` startup
-    construction.
+    construction; `app/state/` owns the component states, dropdown phases,
+    and memory viewport modes.
   - `app/hex_stream_filter.rs` – the monitor hex-popup stream filter.
   - `app/state_helpers.rs` – `DesktopApp` status, dirty-state, new-file, theme, and speed helpers.
   - `app/messages/mod.rs` – the `Message`, `MenuId`, `TopMenuFocus`, and
@@ -204,6 +205,29 @@ RAM-range dialog. Detached device windows do not accept program drops.
   iced window modes so winit's internal visibility state stays synchronized.
 
 ## Event handling
+
+`DesktopApp` has 14 top-level fields: its backend handle/snapshot and twelve
+states in `app/state/components.rs`: `DocumentState`, `MemoryEditorState`,
+`RegisterEditorState`, `InteractionState`, `ExecutionState`, `ExportDialogState`,
+`ImportDialogState`, `PreferencesState`, `PrinterSetupState`, `DevicePanels`,
+`ShellState`, `BackendRequests`. Implementation references use their owning
+prefix (`document.dirty`, `memory.memory_address_input`, `preferences.lang`,
+`panels.monitor_window`, `requests.pending_requests`). Message names, widget IDs
+and keyboard routes keep the same contracts.
+
+`ToolWindowState` keeps either an attached optional cached native window or a
+detached native window with pin preference. Native windows are `Opening(Id)` or
+`Ready(Id)`; ready-without-ID and pinned-attached states cannot be constructed.
+Closing/attaching still hides and reuses the owned Windows ID or closes it on
+Unix. Target dropdowns are `Closed` or `Open { highlight }`, so closed dropdowns
+carry no stale highlight. RAM/stack view uses `MemoryView` with its saved
+viewport inside Stack; repeated enable preserves the original viewport. Operand
+return stores its address and scroll offset together in one `OperandReturn`.
+
+Export session targets are `Vec<ExportTarget { name, settings }>` for each
+format; adding/removing/relocalizing cannot desynchronize settings from names.
+`SettingsDialog::new(SettingsInitialState { ... })` receives named initial/live
+baseline values. Disk inspection selects `StorageKind::Floppy/Hdd` explicitly.
 
 CPU edits, step/tact commands, reset/restart, undo replay and device attachment
 use asynchronous request completions. UI handlers never wait for the actor.
@@ -424,7 +448,7 @@ panel border so it reads as a piece of the frame):
 | reset | `reset-ram.svg`       | `Message::ResetRam`        | red | Сброс ОЗУ | `Ctrl+Shift+R` |
 | reset | `reset-registers.svg` | `Message::ResetCpu`        | magenta | Сброс регистров | `Ctrl+Shift+G` |
 
-The first two buttons are tumblers driven by `DesktopApp::running`.
+The first two buttons are tumblers driven by `DesktopApp.execution.running`.
 
 The leftmost (run/pause) button mirrors the reference KR-580 emulator.
 At rest it paints `play.svg` in the active green token; once armed it
@@ -513,7 +537,7 @@ status register share a 12 px body-text token with button tooltip labels; only
 the secondary keyboard-shortcut suffix remains at 11 px.
 When a button has a keyboard shortcut, `view::tooltips::hover_tooltip`
 adds a same-line `active muted token` shortcut suffix after the action label.
-Configurable actions render that suffix from `DesktopApp::shortcut_settings`,
+Configurable actions render that suffix from `DesktopApp.preferences.shortcut_settings`,
 so tooltips and menu rows track the current shortcut map instead of a
 hard-coded string.
 Snapped hover tips keep `12px` of viewport padding so wide tooltips near
@@ -593,7 +617,7 @@ dialog's fill. There are no device-specific widget trees or focus operations.
 
 ### Окно монитора (Quick-access → Монитор)
 
-`Message::OpenMonitor` flips `DesktopApp::monitor_open`. In attached mode
+`Message::OpenMonitor` flips `DesktopApp.panels.monitor_open`. In attached mode
 `view::monitor::monitor_window_overlay` paints a fullscreen modal over the
 main app. Monitor, floppy, HDD, network, and printer each own a
 `ToolWindowState`; on Windows their top-level iced windows are created lazily
@@ -640,7 +664,7 @@ another display.
 |---|---|---|
 | `panel-detach` / `panel-attach` | «Открепить в отдельное окно» / «Вернуть в окно эмулятора» | Switches the prepared borderless monitor between iced `Windowed` and `Hidden` modes on Windows; other platforms open or close it normally. |
 | `pin` | «Закрепить поверх других окон» / «Не держать поверх других окон» | `Message::ToggleToolWindowAlwaysOnTop(ToolWindowKind::Monitor)` toggles the detached window between `window::Level::AlwaysOnTop` and `window::Level::Normal`. The active state uses a blue border. Attaching or closing the monitor resets the flag. |
-| `square-split-vertical` / `square-merge-vertical` | «Разделить» / «Объединить» | `Message::ToggleMonitorSplit` – flips `DesktopApp::monitor_split` between unified screen and split (graphics + text). The glyph swaps with the mode: in unified the button shows `square-split-vertical` (proposing a split); in split mode it shows `square-merge-vertical` (proposing a merge). |
+| `square-split-vertical` / `square-merge-vertical` | «Разделить» / «Объединить» | `Message::ToggleMonitorSplit` – flips `DesktopApp.panels.monitor_split` between unified screen and split (graphics + text). The glyph swaps with the mode: in unified the button shows `square-split-vertical` (proposing a split); in split mode it shows `square-merge-vertical` (proposing a merge). |
 | `binary` | «Поток байт» | `Message::ToggleMonitorHexPopup` – opens / closes the byte-stream popup that floats *above* the monitor modal; the button is rendered in the active blue state while the popup is open |
 | `brush-cleaning` | «Очистить буфер» | `Message::ClearMonitorBuffer` – dispatches `AppCommand::ClearMonitorBuffer` to wipe pixels, text cells, hex buffer |
 | `image` | «Сохранить изображение» | `Message::SaveMonitorImage` – encodes the current monitor framebuffer as PNG and prompts the user for a save path via `rfd::FileDialog` |
@@ -656,7 +680,7 @@ Body sections (top to bottom):
 
 The byte-stream popup (`hex_buffer: Vec<u8>`) is rendered by
 `hex_popup_overlay` – a centred panel (`430×480 px`) shown only when
-`DesktopApp::monitor_hex_popup` is true. It uses the standard scrim +
+`DesktopApp.panels.monitor_hex_popup` is true. It uses the standard scrim +
 `opaque` pattern so a click on the dim backdrop closes it without
 touching the underlying monitor modal. Its header carries a filter
 button whose icon and tooltip cycle through `binary` (всё), `line-squiggle`
@@ -731,7 +755,7 @@ full-byte bitmap table shared by the Canvas and image exporter.
 
 ### Окно дисковода (Quick-access → Дисковод)
 
-`Message::OpenFloppy` flips `DesktopApp::floppy_open`, closes any
+`Message::OpenFloppy` flips `DesktopApp.panels.floppy_open`, closes any
 other device surface, and `view::storage::floppy_window_overlay` paints a
 compact centred modal over the app. It can also render through
 `view::storage::floppy_window` as a separate movable borderless native window.
@@ -741,7 +765,7 @@ drive buffer is an inspection surface, not a full screen. Detaching therefore
 preserves the popup size exactly. Clicking the attached dim backdrop closes
 it, matching the monitor overlay's direct-close behaviour. The detached title
 band and the outer inset above its controls are draggable outside the emulator
-window, while the pin uses the shared `ToolWindowState.always_on_top`.
+window, while the pin uses the shared `ToolWindowState::always_on_top()`.
 
 The window is a pure view over `AppSnapshot.devices.floppy`
 (`StorageState`, re-exported through the internal backend module). It shows accepted
@@ -1519,7 +1543,7 @@ not fire and the highlight would be left on whichever row the last
 per-instruction snapshot landed on – visibly mid-program even though
 the CPU has actually halted.
 
-`DesktopApp::pending_follow_pc` resolves this:
+`DesktopApp.execution.pending_follow_pc` resolves this:
 
 - `consume_event` sets `pending_follow_pc = true` in every auto-pause
   branch right after clearing `self.running`.
@@ -1685,7 +1709,7 @@ the discard warning. A failed save does not update the baseline.
 
 Discard paths (`Open`, drag-and-drop open, legacy open, `New`, `Import`,
 and window close)
-route through `DesktopApp::pending_action` when `dirty` is set. While
+route through `DesktopApp.document.pending_action` when `dirty` is set. While
 that field is `Some`, the modal layer captures user interaction before
 the main update router sees it: emulator shortcuts, arrow keys, opcode
 picker gestures, menu actions, and title-bar dragging are ignored until
@@ -1737,7 +1761,7 @@ native scrollable. Its 27 px rows and 172 px viewport define the scroll range.
 navigation logic. `scroll_opcode_to` updates the cached position and issues the
 native scroll task for search resets, keyboard navigation, and thumb dragging.
 The shared widget hides the thumb when all matches fit. `OpcodeScrolled(offset)`
-keeps `DesktopApp::opcode_scroll_offset` synchronized with the native list, while
+keeps `DesktopApp.memory.opcode_scroll_offset` synchronized with the native list, while
 `OpcodeScrollbarDragged(offset)` moves it through `OPCODE_SCROLL_ID`.
 
 ## Speed switch (left schematic panel)
@@ -1774,7 +1798,7 @@ the explicit "don't bother animating" opt-in at 1000 Hz.
 
 | Property | Value |
 |---|---|
-| Storage | `DesktopApp::speed_tier: SpeedTier` |
+| Storage | `DesktopApp.execution.speed_tier: SpeedTier` |
 | Default | `DEFAULT_SPEED_TIER = SpeedTier::High` (`120` instructions/sec) |
 | Emit | `Message::SpeedTierChanged(SpeedTier)` from left/right chevron buttons |
 | Resolve | `tier_hz(tier) -> u32` (in `app/mod.rs`) |
@@ -1810,7 +1834,7 @@ executes one CPU instruction per worker tick, while `step_tact` remains
 the separate tact-level debug control. The chevron buttons use the same
 dark `active surface token` hover fill as the other control chips, with the
 panel border colour left unchanged. The handler in `app/mod.rs`
-stashes the tier on `DesktopApp::speed_tier`, resolves it through
+stashes the tier on `DesktopApp.execution.speed_tier`, resolves it through
 `tier_hz`, and ships `SetStepInterval` + `SetRunMode` to the worker.
 The worker clamps once more at `MIN_STEP_INTERVAL = 1ms` (re-exported
 from `backend::actor`) before it overwrites `Emulator::step_interval`.
@@ -2007,10 +2031,9 @@ selections.
 **State:** `export_modal_open: bool`, `export_tab: ExportTab`,
 `export_modal_focus: ExportModalFocus`, `export_modal_keyboard_focus_visible`,
 `export_xlsx_page_input`,
-`export_text_section_input`, `export_xlsx_pages`,
-`export_text_sections`, `export_xlsx_page_settings`,
-`export_text_section_settings`,
-`export_target_dropdown_open`, `export_target_highlight`,
+`export_text_section_input`, `export_xlsx_pages: Vec<ExportTarget>`,
+`export_text_sections: Vec<ExportTarget>`,
+`export_target_dropdown: DropdownState`,
 `export_memory_start_input`, `export_memory_end_input`,
 `export_memory_columns`, `export_registers`, and `export_flags`.
 
@@ -2086,8 +2109,7 @@ source zone, without the field shell border used by editable inputs.
 `import_modal_keyboard_focus_visible`, `import_file_drag_hovered`,
 `import_file_path`,
 `import_file_display`, `import_file_format`, `import_target_options`,
-`import_target_input`, `import_target_dropdown_open`,
-`import_target_highlight`, and `import_error`.
+`import_target_input`, `import_target_dropdown: DropdownState`, and `import_error`.
 
 **Routing:** `app/import_modal.rs` – `route_import_modal_message()`.
 `app/import_modal_state.rs` owns format detection and the focus ring.
@@ -2524,9 +2546,9 @@ false so no white ring is drawn until keyboard navigation starts.
 |---|---|
 | Ctrl+Tab / Ctrl+Shift+Tab | Cycle between sections. The keyboard subscription routes `Ctrl+Tab` to `Message::SettingsSectionCycle { backward }` before `to_latin` runs, so the shortcut does not depend on layout. Entering a section seeds its local focus: Content lands on the first / last interactive item, Footer lands on `Cancel` / `Save`, Sidebar copies the active category into `sidebar_focus`, and Search additionally focuses the text input through `iced::widget::operation::focus(SETTINGS_SEARCH_INPUT_ID)` so typing routes into the field; on every other section the dialog focuses a dummy id no widget owns to blur the search input and keep Tab/Enter from being eaten by it. |
 | Tab / Shift+Tab | Walk **only inside** the current section – never crosses into the neighbouring zone. In `Content` the order on General is `LanguageAnchor → SpeedSlow → SpeedMedium → SpeedFast → SpeedMax → FollowPcOn → FollowPcOff → MemoryOperandHighlightingOn → MemoryOperandHighlightingOff → ShowFileNameOn → ShowFileNameOff → FileAssociation`; on External Devices it is `FloppyImage → HddDirectory → PrinterDefault → PrinterDialogModeCustom → PrinterDialogModeSystem → MonitorLayoutUnified → MonitorLayoutSplit → NetworkDefaults`; on Appearance it is `Theme`; and on Shortcuts it walks every `ShortcutAction` row in table order. Each category wraps at both ends. In `Footer` the normal ring is `Reset → Cancel → Save → Reset`; on Shortcuts it becomes `Reset → ShortcutReset → Cancel → Save → Reset`. In `Sidebar` Tab moves only `sidebar_focus` through `General → External Devices → Appearance → Shortcuts → General`; the content category does not change until Enter. In `Search` it is a no-op since there is only one item. Crossing zones requires `Ctrl+Tab`. |
-| ArrowUp / ArrowDown | Inside `Sidebar` moves `sidebar_focus` through `General ↔ External Devices ↔ Appearance ↔ Shortcuts` without applying the category, stopping at the ends instead of wrapping; Enter applies the cursor. With the language dropdown open the arrows only **highlight** the next/previous option without committing – `dropdown_highlight: Option<Lang>` on `SettingsDialog` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
+| ArrowUp / ArrowDown | Inside `Sidebar` moves `sidebar_focus` through `General ↔ External Devices ↔ Appearance ↔ Shortcuts` without applying the category, stopping at the ends instead of wrapping; Enter applies the cursor. With the language dropdown open the arrows only **highlight** the next/previous option without committing – `SettingsDialog.language_dropdown: DropdownState<Lang>` carries that hover-style preview, and the highlight stops at the ends instead of wrapping. While the highlight is set, the previously-selected (`draft_lang`) row stops painting filled, so only the option under the keyboard cursor reads as active. The draft language only changes once the user presses Enter or clicks an option. Outside those two contexts the dialog swallows the press so it cannot drive the schematic underneath. |
 | ArrowLeft / ArrowRight | Inside the speed segment row of `Content` walks the four chips. Wraps at the ends. Has no effect outside the speed row. |
-| Enter | Clears the visible keyboard ring, then activates the focused item. In `Sidebar` it applies `sidebar_focus` as the active category. When the language dropdown is open, it applies `dropdown_highlight` (or the current draft if nothing was highlighted) and closes the panel. Otherwise it opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier or an individual On/Off segment, starts shortcut capture when a `ShortcutAction` row has focus, and triggers `SettingsResetRequested` / `SettingsShortcutsReset` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
+| Enter | Clears the visible keyboard ring, then activates the focused item. In `Sidebar` it applies `sidebar_focus` as the active category. When the language dropdown is open, it applies `language_dropdown.highlight()` (or the current draft if nothing was highlighted) and closes the panel. Otherwise it opens the language dropdown when `LanguageAnchor` has the cursor, picks a tier or an individual On/Off segment, starts shortcut capture when a `ShortcutAction` row has focus, and triggers `SettingsResetRequested` / `SettingsShortcutsReset` / `CloseSettings` / `SaveSettings` from the footer. Inside the reset-confirm sub-modal Enter follows `reset_confirm_focus`. |
 | Esc | Closes the language dropdown if it is open, otherwise closes the reset-confirm sub-modal if it is open, otherwise closes the dialog. |
 
 The two arrow handlers and the section-aware Tab handler all early-out
@@ -2564,7 +2586,7 @@ width before the setup and clear buttons, so long driver names truncate instead
 of shifting the clear icon. The next row controls `printerDialogMode` with
 separately indexed `ContentFocus::{PrinterDialogModeCustom,
 PrinterDialogModeSystem}` segments placed before the Network defaults row.
-Shortcut edits live-preview through `DesktopApp::shortcut_settings`,
+Shortcut edits live-preview through `DesktopApp.preferences.shortcut_settings`,
 so open menus and button tooltips render the new label immediately; closing the
 dialog without saving restores `original_shortcuts`. The footer `Reset shortcuts`
 button replaces the dialog draft with defaults and previews those defaults
@@ -2586,7 +2608,7 @@ the main settings router and reset handler share that completion policy.
 `original_color_scheme` snapshot the latest committed state, initially
 captured when the modal opens.
 
-- Editing a draft updates **live state** (`DesktopApp::lang`,
+- Editing a draft updates **live state** (`DesktopApp.preferences.lang`,
   `default_speed`, `speed_tier`, `color_scheme`, `show_file_name`, `monitor_split`) immediately so the
   schematic, status bar, and chrome re-render in the new language /
   pacing / theme without waiting for `Save`. The settings router
@@ -2755,7 +2777,7 @@ widget tree cannot cancel replacement after the second click.
 
 The address spinner and the register spinner are wrapped in `mouse_area`
 to surface hover events. Focus state is not exposed by `text_input` in
-iced 0.14, so `DesktopApp::focused_input` is a best-effort cosmetic
+iced 0.14, so `DesktopApp.interaction.focused_input` is a best-effort cosmetic
 marker: it is updated whenever the user types into a known input, when
 they explicitly Tab to one, or when they click an inline memory row. This
 drives the same blue/cyan/border colour scheme that iced applies to the

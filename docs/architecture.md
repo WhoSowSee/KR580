@@ -86,6 +86,13 @@ UI localization. `backend/error/` separates data, categories and conversions.
 
 ## Runtime shape
 
+`DesktopApp` composes document, memory/register editor, interaction, execution,
+export/import dialog, preferences, printer setup, device panels, shell and
+backend-request states from `app/state/`. It coordinates their effects while
+each state retains one concern. Export targets pair names/settings; window,
+dropdown and memory-view modes encode their related data in enums. CPU flags
+and independent export selections remain booleans.
+
 CPU edit requests carry an owned `CpuChange` completion from
 `backend/command/change.rs`. `emulator/changes.rs` captures register/control
 metadata and only affected cells for byte/block/register edits; instruction and
@@ -126,7 +133,7 @@ than blocking the actor or creating another OS thread. Panics in file work becom
 failed completions, so pending UI operations do not remain unresolved.
 
 File-association changes use an iced task backed by Tokio's blocking pool.
-`DesktopApp.file_association_pending` survives closing Settings and prevents
+`DesktopApp.preferences.file_association_pending` survives closing Settings and prevents
 overlapping operations; completion messages bypass modal routing. Only Windows
 polls handler registration, while Settings is open and no operation is pending.
 The dialog keeps that Windows status for both rendering and keyboard actions;

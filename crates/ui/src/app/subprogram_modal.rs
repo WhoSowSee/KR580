@@ -73,12 +73,12 @@ pub(crate) struct SubprogramDialog {
 
 impl DesktopApp {
     pub(crate) fn open_subprogram_dialog(&mut self, path: PathBuf, mode: SubprogramDialogMode) {
-        let start = parse_hex_u16(&self.memory_address_input)
+        let start = parse_hex_u16(&self.memory.memory_address_input)
             .or_else(|| self.selected_memory_address())
             .unwrap_or(0);
         self.close_top_menu();
         self.hide_opcode_dropdown();
-        self.subprogram_dialog = Some(SubprogramDialog {
+        self.document.subprogram_dialog = Some(SubprogramDialog {
             mode,
             path,
             start_input: format!("{start:04X}"),
@@ -93,7 +93,7 @@ impl DesktopApp {
         &mut self,
         message: &Message,
     ) -> Option<Task<Message>> {
-        let dialog = self.subprogram_dialog.as_mut()?;
+        let dialog = self.document.subprogram_dialog.as_mut()?;
 
         match message {
             Message::Tick | Message::CursorMoved(_) | Message::ModifiersChanged(_) => None,
@@ -118,7 +118,7 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::CancelSubprogram | Message::EscPressed => {
-                self.subprogram_dialog = None;
+                self.document.subprogram_dialog = None;
                 Some(Task::none())
             }
             Message::FocusCycle { backward } => {
@@ -136,7 +136,7 @@ impl DesktopApp {
             Message::EnterPressed => {
                 match dialog.focus {
                     SubprogramDialogFocus::Confirm => self.confirm_subprogram(),
-                    SubprogramDialogFocus::Cancel => self.subprogram_dialog = None,
+                    SubprogramDialogFocus::Cancel => self.document.subprogram_dialog = None,
                     SubprogramDialogFocus::Start | SubprogramDialogFocus::End => {}
                 }
                 Some(Task::none())
@@ -160,7 +160,7 @@ impl DesktopApp {
                 dialog.keyboard_focus_visible = false;
                 Some(
                     operate(crate::runtime::find_focusable_at(
-                        self.latest_cursor_position,
+                        self.interaction.latest_cursor_position,
                     ))
                     .map(Message::SubprogramFocusResolved),
                 )
@@ -170,7 +170,7 @@ impl DesktopApp {
     }
 
     fn confirm_subprogram(&mut self) {
-        let Some(dialog) = self.subprogram_dialog.take() else {
+        let Some(dialog) = self.document.subprogram_dialog.take() else {
             return;
         };
         let start = match parse_hex_u16(&dialog.start_input) {
@@ -187,7 +187,7 @@ impl DesktopApp {
                 super::pending::PendingRequest::LoadSubprogram {
                     dialog,
                     start,
-                    edit_epoch: self.edit_epoch,
+                    edit_epoch: self.document.edit_epoch,
                 },
             );
             return;
@@ -222,12 +222,12 @@ impl DesktopApp {
         edit_epoch: Option<u64>,
     ) {
         let display = path.display().to_string();
-        self.current_snapshot_path = Some(path);
-        self.current_subprogram_range = Some((start, end));
-        if edit_epoch.is_some_and(|epoch| epoch != self.edit_epoch) {
+        self.document.current_snapshot_path = Some(path);
+        self.document.current_subprogram_range = Some((start, end));
+        if edit_epoch.is_some_and(|epoch| epoch != self.document.edit_epoch) {
             self.recompute_dirty();
         } else {
-            self.undo_stack.clear();
+            self.document.undo_stack.clear();
             self.mark_saved();
             self.set_memory_address(start);
         }
@@ -235,7 +235,7 @@ impl DesktopApp {
     }
 
     fn restore_subprogram_error(&mut self, dialog: SubprogramDialog, key: Key) {
-        self.restore_subprogram_error_text(dialog, self.lang.t(key).to_owned());
+        self.restore_subprogram_error_text(dialog, self.preferences.lang.t(key).to_owned());
     }
 
     pub(crate) fn restore_subprogram_error_text(
@@ -244,7 +244,7 @@ impl DesktopApp {
         error: String,
     ) {
         dialog.error = Some(error);
-        self.subprogram_dialog = Some(dialog);
+        self.document.subprogram_dialog = Some(dialog);
     }
 }
 

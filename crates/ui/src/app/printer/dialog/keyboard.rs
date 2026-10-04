@@ -5,7 +5,7 @@ use k580_ui::devices::printer::PrinterOrientation;
 
 impl DesktopApp {
     pub(super) fn toggle_printer_setup_dropdown(&mut self, dropdown: PrinterSetupDropdown) {
-        let Some(dialog) = self.printer_setup_dialog.as_mut() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() else {
             return;
         };
         dialog.focus = dropdown_focus(dropdown);
@@ -18,13 +18,13 @@ impl DesktopApp {
     }
 
     pub(super) fn close_printer_setup_dropdown(&mut self) {
-        if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+        if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
             close_dropdown(dialog);
         }
     }
 
     pub(super) fn move_printer_setup_dropdown_highlight(&mut self, direction: i32) {
-        let Some(dialog) = self.printer_setup_dialog.as_mut() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() else {
             return;
         };
         let Some(dropdown) = dialog.open_dropdown else {
@@ -42,7 +42,7 @@ impl DesktopApp {
     }
 
     pub(super) fn cycle_printer_setup_focus(&mut self, backward: bool) {
-        let Some(dialog) = self.printer_setup_dialog.as_mut() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() else {
             return;
         };
         close_dropdown(dialog);
@@ -67,10 +67,10 @@ impl DesktopApp {
     }
 
     pub(super) fn activate_printer_setup_focus(&mut self) -> Task<Message> {
-        if let Some(dialog) = self.printer_setup_dialog.as_mut() {
+        if let Some(dialog) = self.printer_setup.printer_setup_dialog.as_mut() {
             dialog.focus_visible = false;
         }
-        let Some(dialog) = self.printer_setup_dialog.as_ref() else {
+        let Some(dialog) = self.printer_setup.printer_setup_dialog.as_ref() else {
             return Task::none();
         };
         if let Some(message) = highlighted_dropdown_message(dialog) {

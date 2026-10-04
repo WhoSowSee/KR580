@@ -164,12 +164,12 @@ fn memory_replace_and_pattern_search_bindings_are_independent() {
 #[test]
 fn pattern_search_action_uses_memory_editor_focus() {
     let (mut app, _) = DesktopApp::with_initial_path(None);
-    app.memory_address_input = "FF".to_owned();
-    app.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
+    app.memory.memory_address_input = "FF".to_owned();
+    app.interaction.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
 
     let _ = app.update(Message::MemoryPatternSearch);
 
-    assert_eq!(app.memory_address_input, "01FF");
+    assert_eq!(app.memory.memory_address_input, "01FF");
 }
 
 #[test]

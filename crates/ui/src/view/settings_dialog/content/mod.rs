@@ -134,11 +134,12 @@ pub(super) fn settings_content<'a>(
         .height(Length::Fill)
         .into();
 
-    let body: Element<'a, Message> = match (dialog.language_dropdown_open, language_row_index) {
+    let body: Element<'a, Message> = match (dialog.language_dropdown.is_open(), language_row_index)
+    {
         (true, Some(idx)) if !searching => {
             let row_top = CONTENT_PADDING + (idx as f32) * (SETTING_ROW_HEIGHT + 20.0);
             let overlay_top = row_top + SETTING_ROW_HEIGHT - 4.0;
-            let (visible_selection, highlighted) = match dialog.dropdown_highlight {
+            let (visible_selection, highlighted) = match dialog.language_dropdown.highlight() {
                 Some(h) => (None, h),
                 None => (Some(dialog.draft_lang), dialog.draft_lang),
             };

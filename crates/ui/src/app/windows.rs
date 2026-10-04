@@ -1,4 +1,6 @@
 mod events;
+mod state;
+pub(crate) use state::{NativeWindow, ToolWindowState};
 
 use std::path::PathBuf;
 
@@ -9,15 +11,6 @@ use crate::i18n::Key;
 use crate::platform;
 
 const ICON_PNG: &[u8] = include_bytes!("../../assets/icons/icon-64.png");
-#[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct ToolWindowState {
-    pub(crate) focus: super::DeviceFocus,
-    pub(crate) id: Option<iced::window::Id>,
-    pub(crate) ready: bool,
-    pub(crate) detached: bool,
-    pub(crate) always_on_top: bool,
-}
-
 const TOOL_WINDOWS: [ToolWindowKind; 5] = [
     ToolWindowKind::Monitor,
     ToolWindowKind::Floppy,
@@ -29,42 +22,42 @@ const TOOL_WINDOWS: [ToolWindowKind; 5] = [
 impl DesktopApp {
     pub(crate) fn tool_window(&self, kind: ToolWindowKind) -> &ToolWindowState {
         match kind {
-            ToolWindowKind::Monitor => &self.monitor_window,
-            ToolWindowKind::Floppy => &self.floppy_window,
-            ToolWindowKind::Hdd => &self.hdd_window,
-            ToolWindowKind::Network => &self.network_window,
-            ToolWindowKind::Printer => &self.printer_window,
+            ToolWindowKind::Monitor => &self.panels.monitor_window,
+            ToolWindowKind::Floppy => &self.panels.floppy_window,
+            ToolWindowKind::Hdd => &self.panels.hdd_window,
+            ToolWindowKind::Network => &self.panels.network_window,
+            ToolWindowKind::Printer => &self.panels.printer_window,
         }
     }
 
     pub(crate) fn tool_window_mut(&mut self, kind: ToolWindowKind) -> &mut ToolWindowState {
         match kind {
-            ToolWindowKind::Monitor => &mut self.monitor_window,
-            ToolWindowKind::Floppy => &mut self.floppy_window,
-            ToolWindowKind::Hdd => &mut self.hdd_window,
-            ToolWindowKind::Network => &mut self.network_window,
-            ToolWindowKind::Printer => &mut self.printer_window,
+            ToolWindowKind::Monitor => &mut self.panels.monitor_window,
+            ToolWindowKind::Floppy => &mut self.panels.floppy_window,
+            ToolWindowKind::Hdd => &mut self.panels.hdd_window,
+            ToolWindowKind::Network => &mut self.panels.network_window,
+            ToolWindowKind::Printer => &mut self.panels.printer_window,
         }
     }
 
     pub(crate) fn dialog_parent(&self, kind: Option<ToolWindowKind>) -> Option<window::Id> {
         kind.and_then(|kind| {
             let window = self.tool_window(kind);
-            window.id.filter(|_| window.detached && window.ready)
+            window.id().filter(|_| window.detached() && window.ready())
         })
-        .or(self.main_window_id)
+        .or(self.shell.main_window_id)
     }
 
     pub(crate) fn boot(initial: Option<PathBuf>) -> (Self, Task<Message>) {
         let (mut app, startup) = Self::with_initial_path(initial);
         let (id, open) = window::open(main_window_settings());
-        app.main_window_id = Some(id);
+        app.shell.main_window_id = Some(id);
         (app, Task::batch([startup, open.map(Message::WindowOpened)]))
     }
 
     pub(crate) fn title(&self, window: window::Id) -> String {
         self.tool_window_kind(window)
-            .map(|kind| self.lang.t(tool_window_title(kind)).to_owned())
+            .map(|kind| self.preferences.lang.t(tool_window_title(kind)).to_owned())
             .unwrap_or_else(|| "KR580 Emulator".to_owned())
     }
 
@@ -73,8 +66,8 @@ impl DesktopApp {
             Message::WindowOpened(id) => self.window_opened(*id),
             Message::WindowClosed(id) => self.window_closed(*id),
             Message::WindowResized { id, size } => {
-                if self.main_window_id == Some(*id) {
-                    self.main_window_size = *size;
+                if self.shell.main_window_id == Some(*id) {
+                    self.shell.main_window_size = *size;
                 }
                 Task::none()
             }
@@ -82,12 +75,16 @@ impl DesktopApp {
             Message::WindowDragStart => self.drag_main_window(),
             Message::DetachedWindowDragStart(id) => window::drag(*id),
             Message::WindowMinimize => self
+                .shell
                 .main_window_id
                 .map_or_else(Task::none, |id| window::minimize(id, true)),
             Message::WindowToggleMaximize => self.toggle_main_window_maximized(),
-            Message::WindowClose => self.main_window_id.map_or_else(Task::none, window::close),
+            Message::WindowClose => self
+                .shell
+                .main_window_id
+                .map_or_else(Task::none, window::close),
             Message::WindowMaximizedChanged(maximized) => {
-                self.window_maximized = *maximized;
+                self.shell.window_maximized = *maximized;
                 Task::none()
             }
             Message::WindowCloseRequested(id) => self.window_close_requested(*id),
@@ -123,45 +120,32 @@ impl DesktopApp {
 
     fn detach_tool_window(&mut self, kind: ToolWindowKind) -> Task<Message> {
         self.set_tool_window_open(kind, true);
-        let state = self.tool_window_mut(kind);
-        state.detached = true;
-        if let Some(id) = state.id {
-            return if state.ready {
-                self.show_tool_window(kind, id)
-            } else {
-                Task::none()
-            };
+        if let Some(native) = self.tool_window(kind).native() {
+            self.tool_window_mut(kind).detach(native);
+            if self.tool_window(kind).ready() {
+                return self.show_tool_window(kind, native.id());
+            }
+            return Task::none();
         }
-        self.open_tool_window(kind)
+        let (id, open) = window::open(tool_window_settings(kind, self.shell.main_window_size));
+        self.tool_window_mut(kind).detach(NativeWindow::Opening(id));
+        open.map(Message::WindowOpened)
     }
 
     fn attach_tool_window(&mut self, kind: ToolWindowKind) -> Task<Message> {
         self.set_tool_window_open(kind, true);
-        let state = self.tool_window_mut(kind);
-        state.detached = false;
-        state.always_on_top = false;
+        self.tool_window_mut(kind).attach();
         self.hide_or_close_tool_window(kind)
     }
 
-    fn open_tool_window(&mut self, kind: ToolWindowKind) -> Task<Message> {
-        if self.tool_window(kind).id.is_some() {
-            return Task::none();
-        }
-        let (id, open) = window::open(tool_window_settings(kind, self.main_window_size));
-        let state = self.tool_window_mut(kind);
-        state.id = Some(id);
-        state.ready = false;
-        open.map(Message::WindowOpened)
-    }
-
     fn show_tool_window(&self, kind: ToolWindowKind, id: window::Id) -> Task<Message> {
-        window::resize(id, tool_window_size(kind, self.main_window_size))
+        window::resize(id, tool_window_size(kind, self.shell.main_window_size))
             .chain(window::set_mode(id, window::Mode::Windowed))
             .chain(window::gain_focus(id))
     }
 
     fn hide_or_close_tool_window(&mut self, kind: ToolWindowKind) -> Task<Message> {
-        let Some(id) = self.tool_window(kind).id else {
+        let Some(id) = self.tool_window(kind).id() else {
             return Task::none();
         };
         if platform::SUPPORTS_HIDDEN_WINDOW_REUSE {
@@ -169,39 +153,39 @@ impl DesktopApp {
                 .chain(window::set_mode(id, window::Mode::Hidden))
         } else {
             let state = self.tool_window_mut(kind);
-            state.ready = false;
-            state.id = None;
+            state.take_id();
             window::close(id)
         }
     }
 
     fn toggle_tool_window_always_on_top(&mut self, kind: ToolWindowKind) -> Task<Message> {
-        let state = self.tool_window_mut(kind);
-        let Some(id) = state.id else {
+        let Some((id, pinned)) = self.tool_window_mut(kind).toggle_pin() else {
             return Task::none();
         };
-        state.always_on_top = !state.always_on_top;
-        let level = if state.always_on_top {
-            window::Level::AlwaysOnTop
-        } else {
-            window::Level::Normal
-        };
-        window::set_level(id, level)
+        window::set_level(
+            id,
+            if pinned {
+                window::Level::AlwaysOnTop
+            } else {
+                window::Level::Normal
+            },
+        )
     }
 
     fn drag_main_window(&mut self) -> Task<Message> {
         if self.close_titlebar_popup_before_drag() {
             return Task::none();
         }
-        self.main_window_id
+        self.shell
+            .main_window_id
             .map_or_else(Task::none, iced::window::drag)
     }
 
     fn toggle_main_window_maximized(&mut self) -> Task<Message> {
-        let Some(id) = self.main_window_id else {
+        let Some(id) = self.shell.main_window_id else {
             return Task::none();
         };
-        self.window_maximized = !self.window_maximized;
+        self.shell.window_maximized = !self.shell.window_maximized;
         Task::batch([
             iced::window::toggle_maximize(id),
             iced::window::is_maximized(id).map(Message::WindowMaximizedChanged),
@@ -222,41 +206,40 @@ impl DesktopApp {
         self.set_tool_window_open(kind, false);
         let state = self.tool_window_mut(kind);
         state.focus = super::DeviceFocus::default();
-        state.detached = false;
-        state.always_on_top = false;
+        state.attach();
         if kind == ToolWindowKind::Monitor {
-            self.monitor_hex_popup = false;
+            self.panels.monitor_hex_popup = false;
         }
         if kind == ToolWindowKind::Network {
-            self.network_settings_open = false;
-            self.network_settings_error = None;
+            self.panels.network_settings_open = false;
+            self.panels.network_settings_error = None;
         }
     }
 
     fn set_tool_window_open(&mut self, kind: ToolWindowKind, open: bool) {
         match kind {
-            ToolWindowKind::Monitor => self.monitor_open = open,
-            ToolWindowKind::Floppy => self.floppy_open = open,
-            ToolWindowKind::Hdd => self.hdd_open = open,
-            ToolWindowKind::Network => self.network_open = open,
-            ToolWindowKind::Printer => self.printer_open = open,
+            ToolWindowKind::Monitor => self.panels.monitor_open = open,
+            ToolWindowKind::Floppy => self.panels.floppy_open = open,
+            ToolWindowKind::Hdd => self.panels.hdd_open = open,
+            ToolWindowKind::Network => self.panels.network_open = open,
+            ToolWindowKind::Printer => self.panels.printer_open = open,
         }
     }
 
     fn device_open(&self, kind: ToolWindowKind) -> bool {
         match kind {
-            ToolWindowKind::Monitor => self.monitor_open,
-            ToolWindowKind::Floppy => self.floppy_open,
-            ToolWindowKind::Hdd => self.hdd_open,
-            ToolWindowKind::Network => self.network_open,
-            ToolWindowKind::Printer => self.printer_open,
+            ToolWindowKind::Monitor => self.panels.monitor_open,
+            ToolWindowKind::Floppy => self.panels.floppy_open,
+            ToolWindowKind::Hdd => self.panels.hdd_open,
+            ToolWindowKind::Network => self.panels.network_open,
+            ToolWindowKind::Printer => self.panels.printer_open,
         }
     }
 
     /// Closes the open attached device panel; modals and device panels share one overlay slot.
     pub(crate) fn close_open_device_panel(&mut self) {
         for kind in TOOL_WINDOWS {
-            if self.device_open(kind) && !self.tool_window(kind).detached {
+            if self.device_open(kind) && !self.tool_window(kind).detached() {
                 self.reset_tool_window_presentation(kind);
             }
         }
@@ -265,7 +248,7 @@ impl DesktopApp {
     fn tool_window_kind(&self, id: window::Id) -> Option<ToolWindowKind> {
         TOOL_WINDOWS
             .into_iter()
-            .find(|kind| self.tool_window(*kind).id == Some(id))
+            .find(|kind| self.tool_window(*kind).id() == Some(id))
     }
 }
 

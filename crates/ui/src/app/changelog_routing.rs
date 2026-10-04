@@ -7,7 +7,7 @@ impl DesktopApp {
         &mut self,
         message: &Message,
     ) -> Option<Task<Message>> {
-        self.changelog_dialog.as_ref()?;
+        self.shell.changelog_dialog.as_ref()?;
 
         match message {
             Message::Tick

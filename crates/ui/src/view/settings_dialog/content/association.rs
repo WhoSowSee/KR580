@@ -55,15 +55,16 @@ mod tests {
 
     #[test]
     fn cached_status_and_pending_state_update_the_existing_button() {
-        let mut dialog = SettingsDialog::new(
-            Lang::En,
-            crate::app::messages::SpeedTier::High,
-            false,
-            true,
-            None,
-            None,
-            crate::persistence::NetworkSettings::default(),
-        );
+        let mut dialog = SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+            lang: Lang::En,
+            speed: crate::app::messages::SpeedTier::High,
+            follow_pc: false,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: crate::persistence::NetworkSettings::default(),
+            ..Default::default()
+        });
         let renderer = tokio::runtime::Builder::new_current_thread()
             .build()
             .unwrap()

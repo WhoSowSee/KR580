@@ -11,6 +11,12 @@ const QUEUE_CAP: usize = 65_536;
 const HISTORY_CAP: usize = 65_536;
 const DEBUG_BUFFER_CAP: usize = 1_048_576;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StorageKind {
+    Floppy,
+    Hdd,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageState {

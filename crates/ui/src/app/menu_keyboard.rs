@@ -60,7 +60,7 @@ pub(super) fn navigation_key_message(
 
 impl DesktopApp {
     pub(crate) fn route_open_menu_message(&mut self, message: &Message) -> Option<Task<Message>> {
-        if self.open_menu.is_none() && self.top_menu_focus.is_none() {
+        if self.shell.open_menu.is_none() && self.shell.top_menu_focus.is_none() {
             return None;
         }
         match message {
@@ -78,8 +78,8 @@ impl DesktopApp {
             }
             Message::EnterPressed => Some(self.activate_top_menu_focus()),
             Message::MousePressed | Message::MousePressedIgnored => {
-                if self.open_menu.is_some() {
-                    self.top_menu_indicator = TopMenuIndicator::Hidden;
+                if self.shell.open_menu.is_some() {
+                    self.shell.top_menu_indicator = TopMenuIndicator::Hidden;
                 } else {
                     self.close_top_menu();
                 }
@@ -90,7 +90,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn toggle_top_menu(&mut self, menu: MenuId) {
-        if self.open_menu == Some(menu) {
+        if self.shell.open_menu == Some(menu) {
             self.close_top_menu();
         } else {
             self.set_top_menu_focus(TopMenuFocus::Category(menu), TopMenuIndicator::Hidden);
@@ -98,23 +98,26 @@ impl DesktopApp {
     }
 
     pub(crate) fn hover_top_menu(&mut self, menu: MenuId) {
-        if self.open_menu.is_some() && self.open_menu != Some(menu) && menu != MenuId::Settings {
+        if self.shell.open_menu.is_some()
+            && self.shell.open_menu != Some(menu)
+            && menu != MenuId::Settings
+        {
             self.set_top_menu_focus(TopMenuFocus::Category(menu), TopMenuIndicator::Hidden);
         }
     }
 
     pub(crate) fn close_top_menu(&mut self) {
-        self.open_menu = None;
-        self.top_menu_focus = None;
-        self.top_menu_indicator = TopMenuIndicator::Hidden;
+        self.shell.open_menu = None;
+        self.shell.top_menu_focus = None;
+        self.shell.top_menu_indicator = TopMenuIndicator::Hidden;
     }
 
     fn move_top_menu_item(&mut self, direction: i32) {
-        let Some(menu) = self.open_menu else {
+        let Some(menu) = self.shell.open_menu else {
             return;
         };
         let count = top_menu_item_count(menu, self.snapshot.cpu.halted);
-        let current = match self.top_menu_focus {
+        let current = match self.shell.top_menu_focus {
             Some(TopMenuFocus::Item {
                 menu: focused_menu,
                 index,
@@ -133,7 +136,7 @@ impl DesktopApp {
     }
 
     fn move_top_menu_category(&mut self, direction: i32) {
-        let Some(menu) = self.top_menu_focus.map(|focus| match focus {
+        let Some(menu) = self.shell.top_menu_focus.map(|focus| match focus {
             TopMenuFocus::Category(menu) | TopMenuFocus::Item { menu, .. } => menu,
         }) else {
             return;
@@ -143,7 +146,7 @@ impl DesktopApp {
     }
 
     fn cycle_top_menu_focus(&mut self, backward: bool) {
-        let current = match self.top_menu_focus {
+        let current = match self.shell.top_menu_focus {
             Some(TopMenuFocus::Category(menu)) => TopMenuFocus::Category(menu),
             Some(TopMenuFocus::Item { menu, index })
                 if index < top_menu_item_count(menu, self.snapshot.cpu.halted) =>
@@ -196,13 +199,13 @@ impl DesktopApp {
         let menu = match focus {
             TopMenuFocus::Category(menu) | TopMenuFocus::Item { menu, .. } => menu,
         };
-        self.open_menu = (menu != MenuId::Settings).then_some(menu);
-        self.top_menu_focus = Some(focus);
-        self.top_menu_indicator = indicator;
+        self.shell.open_menu = (menu != MenuId::Settings).then_some(menu);
+        self.shell.top_menu_focus = Some(focus);
+        self.shell.top_menu_indicator = indicator;
     }
 
     fn activate_top_menu_focus(&mut self) -> Task<Message> {
-        let (menu, index) = match self.top_menu_focus {
+        let (menu, index) = match self.shell.top_menu_focus {
             Some(TopMenuFocus::Category(MenuId::Settings)) => {
                 self.close_top_menu();
                 return Task::done(Message::OpenSettings);

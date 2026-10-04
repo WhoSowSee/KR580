@@ -7,7 +7,7 @@ use crate::runtime::parse::{parse_hex_u16, scroll_memory_to};
 impl DesktopApp {
     pub(crate) fn jump_memory_address(&mut self) -> Task<Message> {
         self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
-        match parse_hex_u16(&self.memory_address_input) {
+        match parse_hex_u16(&self.memory.memory_address_input) {
             Some(address) => {
                 self.refresh_memory_value(address);
                 if let Some(target_offset) = self.scroll_offset_to_reveal(address) {
@@ -25,7 +25,7 @@ impl DesktopApp {
 
     /// Relocates the view to an address without changing PC.
     pub(crate) fn jump_memory_to(&mut self, address: u16) -> Task<Message> {
-        self.memory_address_input = format!("{address:04X}");
+        self.memory.memory_address_input = format!("{address:04X}");
         self.refresh_memory_value(address);
         if let Some(target_offset) = self.scroll_offset_to_reveal(address) {
             self.scroll_memory(target_offset);
@@ -35,45 +35,43 @@ impl DesktopApp {
     }
 
     pub(crate) fn jump_from_memory_operand(&mut self, origin: u16, target: u16) -> Task<Message> {
-        self.memory_operand_return_address = Some(origin);
-        self.memory_operand_return_scroll_offset = Some(self.memory_scroll_offset);
+        self.memory.operand_return = Some(crate::app::OperandReturn {
+            address: origin,
+            scroll_offset: self.memory.memory_scroll_offset,
+        });
         self.jump_memory_to(target)
     }
 
     pub(crate) fn return_to_memory_operand(&mut self) -> Task<Message> {
-        if let Some(address) = self.memory_operand_return_address.take() {
-            self.memory_address_input = format!("{address:04X}");
-            self.refresh_memory_value(address);
-            if let Some(offset) = self.memory_operand_return_scroll_offset.take() {
-                self.scroll_memory(offset);
-                return scroll_memory_to(self.memory_scroll_offset);
-            }
-            return self.jump_memory_to(address);
-        }
-        self.memory_operand_return_scroll_offset = None;
-        Task::none()
+        let Some(restore) = self.memory.operand_return.take() else {
+            return Task::none();
+        };
+        self.memory.memory_address_input = format!("{:04X}", restore.address);
+        self.refresh_memory_value(restore.address);
+        self.scroll_memory(restore.scroll_offset);
+        scroll_memory_to(self.memory.memory_scroll_offset)
     }
 
     pub(crate) fn advance_memory_address(&mut self, backward: bool) -> Task<Message> {
         self.commit_replacement(MEMORY_ADDRESS_INPUT_ID);
         self.step_address_in_input(backward);
         self.continue_replacement(MEMORY_ADDRESS_INPUT_ID);
-        self.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
+        self.interaction.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
         operation::focus(MEMORY_ADDRESS_INPUT_ID)
     }
 
     pub(super) fn step_address_in_input(&mut self, backward: bool) {
         let (view_start, view_count) = self.memory_view();
-        let current = (parse_hex_u16(&self.memory_address_input)
+        let current = (parse_hex_u16(&self.memory.memory_address_input)
             .unwrap_or(view_start)
             .saturating_sub(view_start)) as i32;
         let total = view_count as i32;
         let delta = if backward { -1 } else { 1 };
         let next = view_start + ((current + delta).rem_euclid(total)) as u16;
 
-        self.memory_address_input = format!("{next:04X}");
+        self.memory.memory_address_input = format!("{next:04X}");
         self.refresh_memory_value(next);
-        self.memory_search_pattern = None;
+        self.memory.memory_search_pattern = None;
     }
 
     /// Each match overwrites the visible address; retain the original query fragment.
@@ -81,16 +79,16 @@ impl DesktopApp {
         &mut self,
         backward: bool,
     ) -> Task<Message> {
-        if self.memory_search_pattern.is_none() {
-            let pattern = self.memory_address_input.trim().to_ascii_uppercase();
+        if self.memory.memory_search_pattern.is_none() {
+            let pattern = self.memory.memory_address_input.trim().to_ascii_uppercase();
             if pattern.is_empty() {
                 self.set_status(crate::app::StatusKind::EnterHexPattern);
                 return Task::none();
             }
-            self.memory_search_pattern = Some(pattern);
+            self.memory.memory_search_pattern = Some(pattern);
         }
 
-        let pattern = match self.memory_search_pattern.as_deref() {
+        let pattern = match self.memory.memory_search_pattern.as_deref() {
             Some(pattern) if !pattern.is_empty() => pattern.to_owned(),
             _ => {
                 self.set_status(crate::app::StatusKind::EnterHexPattern);
@@ -99,7 +97,7 @@ impl DesktopApp {
         };
 
         let (view_start, view_count) = self.memory_view();
-        let start = parse_hex_u16(&self.memory_address_input).unwrap_or(view_start) as i32;
+        let start = parse_hex_u16(&self.memory.memory_address_input).unwrap_or(view_start) as i32;
         let start_idx = (start - view_start as i32).rem_euclid(view_count as i32);
         let total = view_count as i32;
         let direction = if backward { -1 } else { 1 };
@@ -116,7 +114,7 @@ impl DesktopApp {
 
         match next_match {
             Some(address) => {
-                self.memory_address_input = format!("{address:04X}");
+                self.memory.memory_address_input = format!("{address:04X}");
                 self.refresh_memory_value(address);
                 self.set_status(crate::app::StatusKind::PatternFound { pattern, address });
                 let target_offset = (address.saturating_sub(view_start) as f32) * MEMORY_ROW_HEIGHT;
@@ -132,263 +130,4 @@ impl DesktopApp {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::DesktopApp;
-    use crate::app::{MEMORY_ADDRESS_INPUT_ID, MEMORY_INLINE_INPUT_ID, Message};
-    use iced::keyboard;
-
-    fn load_lxi_b_d16(app: &mut DesktopApp) {
-        app.snapshot.cpu.memory.write(0x0000, 0x01);
-        app.snapshot.cpu.memory.write(0x0001, 0x34);
-        app.snapshot.cpu.memory.write(0x0002, 0x12);
-    }
-
-    fn select_address(app: &mut DesktopApp, address: u16) {
-        app.memory_address_input = format!("{address:04X}");
-        app.refresh_memory_value(address);
-    }
-
-    #[test]
-    fn jump_memory_to_first_cell_relocates_view_to_start() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.memory_address_input = "1234".to_owned();
-        app.scroll_memory(0xFFFF as f32);
-
-        let _ = app.update(Message::JumpMemoryTo(0x0000));
-
-        assert_eq!(app.memory_address_input, "0000");
-        assert_eq!(app.memory_scroll_first_row, 0);
-    }
-
-    #[test]
-    fn jump_memory_to_last_cell_relocates_view_to_end() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-
-        let _ = app.update(Message::JumpMemoryTo(0xFFFF));
-
-        assert_eq!(app.memory_address_input, "FFFF");
-        assert_eq!(app.memory_scroll_first_row, u16::MAX);
-    }
-
-    #[test]
-    fn jump_memory_to_first_cell_exits_stack_view() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.enable_stack_view();
-
-        let _ = app.update(Message::JumpMemoryTo(0x0000));
-
-        assert!(!app.stack_view);
-        assert_eq!(app.memory_address_input, "0000");
-    }
-
-    #[test]
-    fn alt_enter_on_low_operand_byte_relocates_view_to_target() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_lxi_b_d16(&mut app);
-        app.memory_address_input = "0001".to_owned();
-        app.refresh_memory_value(0x0001);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-        let _ = app.update(Message::MemoryCellAction);
-
-        assert_eq!(app.memory_address_input, "1234");
-    }
-
-    #[test]
-    fn alt_enter_on_high_operand_byte_relocates_view_to_same_target() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_lxi_b_d16(&mut app);
-        app.memory_address_input = "0002".to_owned();
-        app.refresh_memory_value(0x0002);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-        let _ = app.update(Message::MemoryCellAction);
-
-        assert_eq!(app.memory_address_input, "1234");
-    }
-
-    #[test]
-    fn alt_enter_on_opcode_byte_keeps_current_address() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_lxi_b_d16(&mut app);
-        app.memory_address_input = "0000".to_owned();
-        app.refresh_memory_value(0x0000);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-        let _ = app.update(Message::MemoryCellAction);
-
-        assert_eq!(app.memory_address_input, "0000");
-    }
-
-    #[test]
-    fn alt_shift_enter_returns_to_low_address_operand_after_jump() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_lxi_b_d16(&mut app);
-        select_address(&mut app, 0x0001);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-        let _ = app.update(Message::MemoryCellAction);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
-        let _ = app.update(Message::MemoryCellReturn);
-
-        assert_eq!(app.memory_address_input, "0001");
-    }
-
-    #[test]
-    fn alt_shift_enter_restores_operand_view_position_after_jump() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        let instruction = 0x0104;
-        app.snapshot.cpu.memory.write(instruction, 0x01);
-        app.snapshot.cpu.memory.write(instruction + 1, 0x34);
-        app.snapshot.cpu.memory.write(instruction + 2, 0x12);
-        app.scroll_memory(0x0100 as f32 * crate::app::MEMORY_ROW_HEIGHT);
-        select_address(&mut app, instruction + 1);
-        let original_scroll_offset = app.memory_scroll_offset;
-        let original_first_row = app.memory_scroll_first_row;
-
-        let _ = app.update(Message::MemoryCellAction);
-        let _ = app.update(Message::MemoryCellReturn);
-
-        assert_eq!(app.memory_address_input, "0105");
-        assert_eq!(app.memory_scroll_offset, original_scroll_offset);
-        assert_eq!(app.memory_scroll_first_row, original_first_row);
-    }
-
-    #[test]
-    fn alt_shift_enter_returns_to_high_address_operand_after_jump() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_lxi_b_d16(&mut app);
-        select_address(&mut app, 0x0002);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-        let _ = app.update(Message::MemoryCellAction);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
-        let _ = app.update(Message::MemoryCellReturn);
-
-        assert_eq!(app.memory_address_input, "0002");
-    }
-
-    fn load_out_port(app: &mut DesktopApp, address: u16, port: u8) {
-        app.snapshot.cpu.memory.write(address, 0xD3);
-        app.snapshot.cpu.memory.write(address.wrapping_add(1), port);
-    }
-
-    #[test]
-    fn alt_enter_on_out_port_opens_matching_device() {
-        let cases = [
-            (0x0000u16, 0x00u8, "monitor"),
-            (0x0002, 0x01, "floppy"),
-            (0x0004, 0x02, "hdd"),
-            (0x0006, 0x03, "network"),
-            (0x0008, 0x04, "printer"),
-        ];
-        for (start, port, label) in cases {
-            let (mut app, _) = DesktopApp::with_initial_path(None);
-            load_out_port(&mut app, start, port);
-            let operand = start.wrapping_add(1);
-            app.memory_address_input = format!("{operand:04X}");
-            app.refresh_memory_value(operand);
-            app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-            let _ = app.update(Message::MemoryCellAction);
-
-            match label {
-                "monitor" => assert!(app.monitor_open, "monitor not opened for port 0x{port:02X}"),
-                "floppy" => assert!(app.floppy_open, "floppy not opened for port 0x{port:02X}"),
-                "hdd" => assert!(app.hdd_open, "hdd not opened for port 0x{port:02X}"),
-                "network" => {
-                    assert!(app.network_open, "network not opened for port 0x{port:02X}")
-                }
-                "printer" => {
-                    assert!(app.printer_open, "printer not opened for port 0x{port:02X}")
-                }
-                _ => unreachable!(),
-            }
-        }
-    }
-
-    #[test]
-    fn alt_enter_on_unknown_port_does_not_open_device() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_out_port(&mut app, 0x0000, 0x7F);
-        app.memory_address_input = "0001".to_owned();
-        app.refresh_memory_value(0x0001);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-        let _ = app.update(Message::MemoryCellAction);
-
-        assert!(!app.monitor_open);
-        assert!(!app.floppy_open);
-        assert!(!app.hdd_open);
-        assert!(!app.network_open);
-        assert!(!app.printer_open);
-        assert_eq!(app.memory_address_input, "0001");
-    }
-
-    #[test]
-    fn alt_enter_on_out_opcode_byte_does_not_open_device() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_out_port(&mut app, 0x0000, 0x04);
-        app.memory_address_input = "0000".to_owned();
-        app.refresh_memory_value(0x0000);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-        let _ = app.update(Message::MemoryCellAction);
-
-        assert!(!app.printer_open);
-    }
-
-    #[test]
-    fn alt_enter_on_data_operand_still_falls_through() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.snapshot.cpu.memory.write(0x0000, 0x06);
-        app.snapshot.cpu.memory.write(0x0001, 0x42);
-        app.memory_address_input = "0001".to_owned();
-        app.refresh_memory_value(0x0001);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT;
-
-        let _ = app.update(Message::MemoryCellAction);
-
-        assert!(!app.monitor_open);
-        assert_eq!(app.memory_address_input, "0001");
-    }
-
-    #[test]
-    fn alt_shift_enter_on_port_operand_does_not_open_device() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        load_out_port(&mut app, 0x0000, 0x04);
-        select_address(&mut app, 0x0001);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
-
-        let _ = app.update(Message::MemoryCellReturn);
-
-        assert!(!app.printer_open);
-        assert_eq!(app.memory_address_input, "0001");
-    }
-
-    #[test]
-    fn alt_shift_enter_on_data_operand_does_not_enter_inline_editor() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.snapshot.cpu.memory.write(0x0000, 0x06);
-        app.snapshot.cpu.memory.write(0x0001, 0x42);
-        select_address(&mut app, 0x0001);
-        app.keyboard_modifiers = keyboard::Modifiers::ALT | keyboard::Modifiers::SHIFT;
-
-        let _ = app.update(Message::MemoryCellReturn);
-
-        assert_ne!(app.focused_input, Some(MEMORY_INLINE_INPUT_ID));
-        assert_eq!(app.memory_address_input, "0001");
-    }
-
-    #[test]
-    fn memory_cell_action_from_address_input_jumps_to_typed_cell() {
-        let (mut app, _) = DesktopApp::with_initial_path(None);
-        app.memory_address_input = "1000".to_owned();
-        app.focused_input = Some(MEMORY_ADDRESS_INPUT_ID);
-
-        let _ = app.update(Message::MemoryCellAction);
-
-        assert_eq!(app.memory_address_input, "1000");
-        assert_eq!(app.memory_scroll_first_row, 0x1000);
-    }
-}
+mod tests;

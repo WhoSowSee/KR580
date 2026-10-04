@@ -79,6 +79,21 @@ pub(crate) struct ExportTargetSettings {
     pub(crate) flags: ExportFlagSelection,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ExportTarget {
+    pub(crate) name: String,
+    pub(crate) settings: ExportTargetSettings,
+}
+
+impl ExportTarget {
+    pub(crate) fn named(name: String) -> Self {
+        Self {
+            name,
+            settings: ExportTargetSettings::default(),
+        }
+    }
+}
+
 impl Default for ExportMemoryColumns {
     fn default() -> Self {
         Self {

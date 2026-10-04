@@ -19,6 +19,7 @@ impl DesktopApp {
             return Task::none();
         };
         let Some(printer) = self
+            .printer_setup
             .printer_setup_dialog
             .as_ref()
             .and_then(|dialog| dialog.selected_printer())
@@ -54,7 +55,7 @@ impl DesktopApp {
             return;
         };
         if name.is_empty() {
-            let error = match self.lang {
+            let error = match self.preferences.lang {
                 Lang::Ru => "Введите название профиля".to_owned(),
                 Lang::En => "Enter a profile name".to_owned(),
             };
@@ -128,7 +129,8 @@ impl DesktopApp {
         match save_settings(stored) {
             Ok(()) => true,
             Err(error) => {
-                let notice = crate::runtime::humanize_error::humanize(&error.into(), self.lang);
+                let notice =
+                    crate::runtime::humanize_error::humanize(&error.into(), self.preferences.lang);
                 if let Some(properties) = self.properties_mut() {
                     properties.error = Some(notice);
                 }

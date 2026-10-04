@@ -44,7 +44,7 @@ impl DesktopApp {
         }
         self.clear_error_notice();
         let display = path.display().to_string();
-        self.running = false;
+        self.execution.running = false;
         self.dispatch_pending_request(
             AppCommand::LoadProgram(path.clone()),
             PendingRequest::LoadProgram { path, display },
@@ -53,17 +53,17 @@ impl DesktopApp {
 
     pub(crate) fn save_program(&mut self) -> Task<Message> {
         self.commit_pending_inline_edit();
-        let Some(path) = self.current_snapshot_path.clone() else {
+        let Some(path) = self.document.current_snapshot_path.clone() else {
             return self.save_program_dialog(program_file_dialog());
         };
-        self.save_program_to_path(path, self.current_subprogram_range);
+        self.save_program_to_path(path, self.document.current_subprogram_range);
         Task::none()
     }
 
     pub(crate) fn save_program_as(&mut self) -> Task<Message> {
         self.commit_pending_inline_edit();
         let mut dialog = program_file_dialog();
-        if let Some(current) = &self.current_snapshot_path {
+        if let Some(current) = &self.document.current_snapshot_path {
             if let Some(parent) = current.parent() {
                 dialog = dialog.set_directory(parent);
             }
@@ -115,16 +115,16 @@ impl DesktopApp {
     }
 
     fn commit_pending_inline_edit(&mut self) {
-        let Some(address) = parse_hex_u16(&self.memory_address_input) else {
+        let Some(address) = parse_hex_u16(&self.memory.memory_address_input) else {
             return;
         };
-        let Ok(value) = u8::from_str_radix(self.memory_inline_value_input.trim(), 16) else {
+        let Ok(value) = u8::from_str_radix(self.memory.memory_inline_value_input.trim(), 16) else {
             return;
         };
         if self.snapshot.cpu.memory.read(address) == value {
             return;
         }
-        self.undo_stack.break_coalescing();
+        self.document.undo_stack.break_coalescing();
         self.dispatch_with_undo(AppCommand::SetMemory(address, value));
     }
 
@@ -196,7 +196,7 @@ impl DesktopApp {
             .add_filter("WebP image", &["webp"])
             .add_filter("BMP image", &["bmp"])
             .set_file_name("monitor.png");
-        if let Some(current) = &self.current_snapshot_path
+        if let Some(current) = &self.document.current_snapshot_path
             && let Some(parent) = current.parent()
         {
             dialog = dialog.set_directory(parent);
@@ -231,14 +231,24 @@ impl DesktopApp {
             Ok(b) => b,
             Err(err) => {
                 tracing::error!("save monitor image: render: {err}");
-                self.set_status_custom(self.lang.t(Key::MonitorImageSaveFailed).to_owned());
+                self.set_status_custom(
+                    self.preferences
+                        .lang
+                        .t(Key::MonitorImageSaveFailed)
+                        .to_owned(),
+                );
                 return;
             }
         };
 
         if let Err(err) = std::fs::write(&path, &bytes) {
             tracing::error!("save monitor image to {}: {err}", path.display());
-            self.set_status_custom(self.lang.t(Key::MonitorImageSaveFailed).to_owned());
+            self.set_status_custom(
+                self.preferences
+                    .lang
+                    .t(Key::MonitorImageSaveFailed)
+                    .to_owned(),
+            );
             return;
         }
 

@@ -5,7 +5,7 @@ use super::state::DesktopApp;
 
 impl DesktopApp {
     pub(crate) fn route_help_dialog_message(&mut self, message: &Message) -> Option<Task<Message>> {
-        self.help_dialog.as_ref()?;
+        self.shell.help_dialog.as_ref()?;
 
         match message {
             Message::Tick

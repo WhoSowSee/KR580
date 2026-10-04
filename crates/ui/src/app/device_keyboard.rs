@@ -94,7 +94,7 @@ impl DesktopApp {
         action: Message,
     ) -> Task<Message> {
         let opening_hex =
-            matches!(action, Message::ToggleMonitorHexPopup) && !self.monitor_hex_popup;
+            matches!(action, Message::ToggleMonitorHexPopup) && !self.panels.monitor_hex_popup;
         self.tool_window_mut(kind).focus = DeviceFocus {
             selected: (!opening_hex).then(|| action_key(&action)),
             keyboard: false,
@@ -104,40 +104,41 @@ impl DesktopApp {
 
     pub(crate) fn device_keyboard_owner(&self, window: window::Id) -> Option<ToolWindowKind> {
         let devices = [
-            (ToolWindowKind::Monitor, self.monitor_open),
-            (ToolWindowKind::Hdd, self.hdd_open),
-            (ToolWindowKind::Floppy, self.floppy_open),
-            (ToolWindowKind::Network, self.network_open),
-            (ToolWindowKind::Printer, self.printer_open),
+            (ToolWindowKind::Monitor, self.panels.monitor_open),
+            (ToolWindowKind::Hdd, self.panels.hdd_open),
+            (ToolWindowKind::Floppy, self.panels.floppy_open),
+            (ToolWindowKind::Network, self.panels.network_open),
+            (ToolWindowKind::Printer, self.panels.printer_open),
         ];
-        let kind = if self.main_window_id == Some(window) {
-            if self.pending_action.is_some()
-                || self.export_modal_open
-                || self.import_modal_open
-                || self.subprogram_dialog.is_some()
-                || self.settings_dialog.is_some()
-                || self.about_dialog_open
-                || self.changelog_dialog.is_some()
-                || self.help_dialog.is_some()
-                || self.printer_setup_dialog.is_some()
+        let kind = if self.shell.main_window_id == Some(window) {
+            if self.document.pending_action.is_some()
+                || self.export.export_modal_open
+                || self.import.import_modal_open
+                || self.document.subprogram_dialog.is_some()
+                || self.preferences.settings_dialog.is_some()
+                || self.shell.about_dialog_open
+                || self.shell.changelog_dialog.is_some()
+                || self.shell.help_dialog.is_some()
+                || self.printer_setup.printer_setup_dialog.is_some()
             {
                 return None;
             }
             devices
                 .into_iter()
-                .find(|(kind, open)| *open && !self.tool_window(*kind).detached)?
+                .find(|(kind, open)| *open && !self.tool_window(*kind).detached())?
                 .0
         } else {
             devices
                 .into_iter()
                 .find(|(kind, open)| {
                     let state = self.tool_window(*kind);
-                    *open && state.detached && state.id == Some(window)
+                    *open && state.detached() && state.id() == Some(window)
                 })?
                 .0
         };
-        if (kind == ToolWindowKind::Network && self.network_settings_open)
-            || (kind == ToolWindowKind::Printer && self.printer_setup_dialog.is_some())
+        if (kind == ToolWindowKind::Network && self.panels.network_settings_open)
+            || (kind == ToolWindowKind::Printer
+                && self.printer_setup.printer_setup_dialog.is_some())
         {
             return None;
         }
@@ -146,10 +147,10 @@ impl DesktopApp {
 
     fn device_actions(&self, kind: ToolWindowKind) -> Vec<Message> {
         use Message::*;
-        if kind == ToolWindowKind::Monitor && self.monitor_hex_popup {
+        if kind == ToolWindowKind::Monitor && self.panels.monitor_hex_popup {
             return vec![CycleMonitorHexFilter, ToggleMonitorHexPopup];
         }
-        let detached = self.tool_window(kind).detached;
+        let detached = self.tool_window(kind).detached();
         let mut actions = vec![if detached {
             AttachToolWindow(kind)
         } else {
@@ -199,8 +200,8 @@ impl DesktopApp {
             ],
         });
         actions.retain(|action| match action {
-            DeleteHddFile => self.hdd_file_exists,
-            CreateHddFile => !self.hdd_file_exists,
+            DeleteHddFile => self.panels.hdd_file_exists,
+            CreateHddFile => !self.panels.hdd_file_exists,
             PrintPrinterNative => self.snapshot.devices.printer.status != DeviceStatus::Busy,
             _ => true,
         });

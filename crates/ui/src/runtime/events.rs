@@ -43,8 +43,8 @@ impl DesktopApp {
                 self.set_status(StatusKind::PortWrite { port, value });
             }
             AppEvent::HaltStateChanged(halted) => {
-                self.running = false;
-                self.pending_follow_pc = true;
+                self.execution.running = false;
+                self.execution.pending_follow_pc = true;
                 if halted {
                     self.set_status(StatusKind::CpuHalted);
                 } else {
@@ -52,25 +52,34 @@ impl DesktopApp {
                 }
             }
             AppEvent::ErrorRaised(error) => {
-                self.running = false;
-                self.pending_follow_pc = true;
+                self.execution.running = false;
+                self.execution.pending_follow_pc = true;
                 tracing::error!(%error, "backend command failed");
-                let humanized = humanize_error::humanize(&error, self.lang);
+                let humanized = humanize_error::humanize(&error, self.preferences.lang);
                 self.set_status_custom(humanized.clone());
-                self.error_notice =
-                    Some(format!("{}: {}", self.lang.t(Key::ErrorPrefix), humanized));
-                self.error_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
+                self.shell.error_notice = Some(format!(
+                    "{}: {}",
+                    self.preferences.lang.t(Key::ErrorPrefix),
+                    humanized
+                ));
+                self.shell.error_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
             }
             AppEvent::Stopped => {
-                self.running = false;
-                self.pending_follow_pc = true;
+                self.execution.running = false;
+                self.execution.pending_follow_pc = true;
                 self.set_status(StatusKind::Stopped);
             }
             AppEvent::WorkerStopped => {
-                for id in self.pending_requests.keys().copied().collect::<Vec<_>>() {
-                    self.undo_stack.complete_cpu(id, None, None);
+                for id in self
+                    .requests
+                    .pending_requests
+                    .keys()
+                    .copied()
+                    .collect::<Vec<_>>()
+                {
+                    self.document.undo_stack.complete_cpu(id, None, None);
                 }
-                self.pending_requests.clear();
+                self.requests.pending_requests.clear();
                 self.consume_event(AppEvent::ErrorRaised(
                     crate::backend::AppError::WorkerStopped,
                 ));
@@ -85,7 +94,7 @@ impl DesktopApp {
         id: crate::backend::RequestId,
         result: Result<CommandResult, crate::backend::AppError>,
     ) {
-        let Some(pending) = self.pending_requests.remove(&id) else {
+        let Some(pending) = self.requests.pending_requests.remove(&id) else {
             return;
         };
         let Err(error) = result else {
@@ -127,8 +136,11 @@ impl DesktopApp {
                         action
                     };
                     if matches!(undo, crate::app::UndoPolicy::Record) {
-                        self.undo_stack
-                            .complete_cpu(id, Some(*change), register_selection);
+                        self.document.undo_stack.complete_cpu(
+                            id,
+                            Some(*change),
+                            register_selection,
+                        );
                         self.recompute_dirty();
                     }
                     self.finish_backend_action(action);
@@ -137,11 +149,11 @@ impl DesktopApp {
                     self.finish_backend_action(action);
                 }
                 (PendingRequest::LoadProgram { path, display }, CommandResult::LoadedProgram) => {
-                    self.current_snapshot_path = Some(path);
-                    self.current_subprogram_range = None;
-                    self.undo_stack.clear();
+                    self.document.current_snapshot_path = Some(path);
+                    self.document.current_subprogram_range = None;
+                    self.document.undo_stack.clear();
                     self.mark_saved();
-                    self.speed_tier = self.default_speed;
+                    self.execution.speed_tier = self.preferences.default_speed;
                     self.set_memory_address(self.snapshot.cpu.pc);
                     self.set_status(StatusKind::Opened { display });
                 }
@@ -149,9 +161,9 @@ impl DesktopApp {
                     PendingRequest::SaveProgram { path, display },
                     CommandResult::SavedProgram { state },
                 ) => {
-                    self.current_snapshot_path = Some(path);
-                    self.current_subprogram_range = None;
-                    self.saved_cpu = *state;
+                    self.document.current_snapshot_path = Some(path);
+                    self.document.current_subprogram_range = None;
+                    self.document.saved_cpu = *state;
                     self.recompute_dirty();
                     self.set_status(StatusKind::SavedTo { display });
                 }
@@ -164,10 +176,10 @@ impl DesktopApp {
                     },
                     CommandResult::SavedSubprogram { state },
                 ) => {
-                    self.current_snapshot_path = Some(path);
-                    self.current_subprogram_range = Some((start, end));
+                    self.document.current_snapshot_path = Some(path);
+                    self.document.current_subprogram_range = Some((start, end));
                     let range = usize::from(start)..=usize::from(end);
-                    self.saved_cpu.memory.as_mut_slice()[range.clone()]
+                    self.document.saved_cpu.memory.as_mut_slice()[range.clone()]
                         .copy_from_slice(&state.memory.as_slice()[range]);
                     self.recompute_dirty();
                     self.set_status(StatusKind::SavedTo { display });
@@ -190,8 +202,8 @@ impl DesktopApp {
                     },
                     CommandResult::Imported,
                 ) => {
-                    if edit_epoch == self.edit_epoch {
-                        self.undo_stack.clear();
+                    if edit_epoch == self.document.edit_epoch {
+                        self.document.undo_stack.clear();
                         self.mark_saved();
                     } else {
                         self.recompute_dirty();
@@ -204,17 +216,17 @@ impl DesktopApp {
         };
         match pending {
             PendingRequest::LoadSubprogram { dialog, .. } => {
-                self.error_notice_dismiss_at = None;
+                self.shell.error_notice_dismiss_at = None;
                 self.restore_subprogram_error_text(dialog, error.to_string());
             }
             PendingRequest::Command {
                 action: crate::app::BackendAction::HddAttached(path),
             } if self.snapshot.devices.hdd.path.as_ref() == Some(&path) => {
-                self.hdd_file_exists = false
+                self.panels.hdd_file_exists = false
             }
             _ => {}
         }
-        self.undo_stack.complete_cpu(id, None, None);
+        self.document.undo_stack.complete_cpu(id, None, None);
         self.recompute_dirty();
     }
 
@@ -223,44 +235,50 @@ impl DesktopApp {
             return;
         }
         let register_value_follows_snapshot =
-            crate::app::parse_register_name(&self.register_name_input)
-                == Some(self.selected_register)
-                && self.register_value_input
+            crate::app::parse_register_name(&self.register.register_name_input)
+                == Some(self.register.selected_register)
+                && self.register.register_value_input
                     == format!(
                         "{:02X}",
-                        self.snapshot.cpu.registers.get(self.selected_register)
+                        self.snapshot
+                            .cpu
+                            .registers
+                            .get(self.register.selected_register)
                     );
-        let memory_address = parse_hex_u16(&self.memory_address_input);
+        let memory_address = parse_hex_u16(&self.memory.memory_address_input);
         let old_memory_value =
             memory_address.map(|address| format!("{:02X}", self.snapshot.cpu.memory.read(address)));
         let memory_value_follows_snapshot = old_memory_value
             .as_ref()
-            .is_some_and(|value| self.memory_value_input == *value);
+            .is_some_and(|value| self.memory.memory_value_input == *value);
         let inline_value_follows_snapshot = old_memory_value
             .as_ref()
-            .is_some_and(|value| self.memory_inline_value_input == *value);
+            .is_some_and(|value| self.memory.memory_inline_value_input == *value);
 
         self.snapshot = snapshot;
 
         if !self.snapshot.cpu.halted {
             self.clear_halt_notice();
-            self.run_blocked_after_halt = false;
+            self.execution.run_blocked_after_halt = false;
         }
 
         if register_value_follows_snapshot {
-            self.register_value_input = format!(
+            self.register.register_value_input = format!(
                 "{:02X}",
-                self.snapshot.cpu.registers.get(self.selected_register)
+                self.snapshot
+                    .cpu
+                    .registers
+                    .get(self.register.selected_register)
             );
         }
 
         if let Some(address) = memory_address {
             let value = format!("{:02X}", self.snapshot.cpu.memory.read(address));
             if memory_value_follows_snapshot {
-                self.memory_value_input = value.clone();
+                self.memory.memory_value_input = value.clone();
             }
             if inline_value_follows_snapshot {
-                self.memory_inline_value_input = value;
+                self.memory.memory_inline_value_input = value;
             }
         }
     }

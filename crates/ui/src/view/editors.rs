@@ -40,11 +40,11 @@ impl DesktopApp {
     }
 
     fn memory_editor_panel(&self) -> Element<'_, Message> {
-        let address_focused = self.focused_input == Some(MEMORY_ADDRESS_INPUT_ID);
-        let value_focused = self.focused_input == Some(MEMORY_VALUE_INPUT_ID);
+        let address_focused = self.interaction.focused_input == Some(MEMORY_ADDRESS_INPUT_ID);
+        let value_focused = self.interaction.focused_input == Some(MEMORY_VALUE_INPUT_ID);
         let mut value_text = text_input(
             self.input_placeholder(MEMORY_VALUE_INPUT_ID, "00"),
-            &self.memory_value_input,
+            &self.memory.memory_value_input,
         )
         .id(MEMORY_VALUE_INPUT_ID)
         .font(MONO_FONT)
@@ -58,7 +58,7 @@ impl DesktopApp {
         .align_x(alignment::Horizontal::Center)
         .width(Length::Fill)
         .style(input_borderless_style);
-        if !self.running {
+        if !self.execution.running {
             value_text = value_text
                 .on_input(Message::MemoryValueChanged)
                 .on_submit(Message::ApplyMemory);
@@ -67,12 +67,12 @@ impl DesktopApp {
         }
         let value_input: Element<'_, Message> = container(value_text)
             .width(Length::Fixed(58.0))
-            .style(move |theme| input_shell_style(theme, value_focused && !self.running))
+            .style(move |theme| input_shell_style(theme, value_focused && !self.execution.running))
             .into();
 
         let address_input = spinner_text_input(
             self.input_placeholder(MEMORY_ADDRESS_INPUT_ID, "0000"),
-            &self.memory_address_input,
+            &self.memory.memory_address_input,
             Message::MemoryAddressChanged,
             Message::MemoryAddressNext,
             Message::MemoryAddressPrevious,
@@ -80,14 +80,14 @@ impl DesktopApp {
             Message::JumpMemoryAddress,
             MEMORY_ADDRESS_INPUT_ID,
             address_focused,
-            self.running,
+            self.execution.running,
         );
 
         let controls = shortcut_capture(
             row![
                 address_input,
                 value_input,
-                if self.running {
+                if self.execution.running {
                     enter_button_disabled()
                 } else {
                     enter_button(Message::ApplyMemory)
@@ -95,23 +95,28 @@ impl DesktopApp {
             ]
             .spacing(6)
             .align_y(alignment::Vertical::Center),
-            &self.shortcut_settings,
+            &self.preferences.shortcut_settings,
             ShortcutAction::MemoryPatternSearch,
-            !self.running && shortcut_context(self).allows(ShortcutAction::MemoryPatternSearch),
+            !self.execution.running
+                && shortcut_context(self).allows(ShortcutAction::MemoryPatternSearch),
         );
 
         let content = container(controls)
             .width(Length::Fill)
             .align_x(alignment::Horizontal::Center);
 
-        legend_panel(self.lang.t(Key::MemoryEditorTitle), content, Length::Shrink)
+        legend_panel(
+            self.preferences.lang.t(Key::MemoryEditorTitle),
+            content,
+            Length::Shrink,
+        )
     }
 
     fn register_editor_panel(&self) -> Element<'_, Message> {
-        let value_focused = self.focused_input == Some(REGISTER_VALUE_INPUT_ID);
+        let value_focused = self.interaction.focused_input == Some(REGISTER_VALUE_INPUT_ID);
         let mut value_text = text_input(
             self.input_placeholder(REGISTER_VALUE_INPUT_ID, "00"),
-            &self.register_value_input,
+            &self.register.register_value_input,
         )
         .id(REGISTER_VALUE_INPUT_ID)
         .font(MONO_FONT)
@@ -124,7 +129,7 @@ impl DesktopApp {
         })
         .align_x(alignment::Horizontal::Center)
         .width(Length::Fill);
-        if !self.running {
+        if !self.execution.running {
             value_text = value_text
                 .on_input(Message::RegisterValueChanged)
                 .on_submit(Message::ApplyRegister);
@@ -133,24 +138,24 @@ impl DesktopApp {
         }
         let value_input: Element<'_, Message> = container(value_text.style(input_borderless_style))
             .width(Length::Fixed(58.0))
-            .style(move |theme| input_shell_style(theme, value_focused && !self.running))
+            .style(move |theme| input_shell_style(theme, value_focused && !self.execution.running))
             .into();
 
         let editor = row![
             spinner_text_input(
                 self.input_placeholder(REGISTER_NAME_INPUT_ID, "A"),
-                &self.register_name_input,
+                &self.register.register_name_input,
                 Message::RegisterNameChanged,
                 Message::RegisterNext,
                 Message::RegisterPrevious,
                 Length::Fixed(62.0),
                 Message::ApplyRegister,
                 REGISTER_NAME_INPUT_ID,
-                self.focused_input == Some(REGISTER_NAME_INPUT_ID),
-                self.running,
+                self.interaction.focused_input == Some(REGISTER_NAME_INPUT_ID),
+                self.execution.running,
             ),
             value_input,
-            if self.running {
+            if self.execution.running {
                 enter_button_disabled()
             } else {
                 enter_button(Message::ApplyRegister)
@@ -164,7 +169,7 @@ impl DesktopApp {
             .align_x(alignment::Horizontal::Center);
 
         legend_panel(
-            self.lang.t(Key::RegisterEditorTitle),
+            self.preferences.lang.t(Key::RegisterEditorTitle),
             content,
             Length::Shrink,
         )
@@ -178,35 +183,42 @@ impl DesktopApp {
     fn actions_panel(&self) -> Element<'_, Message> {
         const CHIP_SPACING: f32 = 14.0;
 
-        let (run_icon, run_accent, run_tooltip) = if self.running {
-            (icons::pause(), tokyo_red(), self.lang.t(Key::ActionPause))
+        let (run_icon, run_accent, run_tooltip) = if self.execution.running {
+            (
+                icons::pause(),
+                tokyo_red(),
+                self.preferences.lang.t(Key::ActionPause),
+            )
         } else {
             (
                 icons::play(),
                 tokyo_green(),
-                self.lang.t(Key::ActionRunProgram),
+                self.preferences.lang.t(Key::ActionRunProgram),
             )
         };
-        let (step_icon, step_message, step_tooltip) = if self.running {
+        let (step_icon, step_message, step_tooltip) = if self.execution.running {
             (
                 icons::refresh_ccw(),
                 Message::RestartProgram,
-                self.lang.t(Key::ActionRestartProgram),
+                self.preferences.lang.t(Key::ActionRestartProgram),
             )
         } else {
             (
                 icons::step_forward(),
                 Message::StepInstruction,
-                self.lang.t(Key::ActionStepInstruction),
+                self.preferences.lang.t(Key::ActionStepInstruction),
             )
         };
 
-        let blocked = self.run_blocked_after_halt;
+        let blocked = self.execution.run_blocked_after_halt;
         let gate = |msg: Message| if blocked { None } else { Some(msg) };
-        let step_shortcut = if self.running {
+        let step_shortcut = if self.execution.running {
             None
         } else {
-            shortcut_hint(&self.shortcut_settings, &Message::StepInstruction)
+            shortcut_hint(
+                &self.preferences.shortcut_settings,
+                &Message::StepInstruction,
+            )
         };
 
         let execution_strip = row![
@@ -215,7 +227,7 @@ impl DesktopApp {
                 gate(Message::ToggleRun),
                 tokyo_device_accent(run_accent),
                 run_tooltip,
-                shortcut_hint(&self.shortcut_settings, &Message::ToggleRun),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::ToggleRun),
             ),
             icon_action_button(
                 step_icon,
@@ -228,8 +240,8 @@ impl DesktopApp {
                 icons::redo_dot(),
                 gate(Message::StepTact),
                 tokyo_device_accent(tokyo_yellow()),
-                self.lang.t(Key::ActionStepTact),
-                shortcut_hint(&self.shortcut_settings, &Message::StepTact),
+                self.preferences.lang.t(Key::ActionStepTact),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::StepTact),
             ),
         ]
         .spacing(CHIP_SPACING)
@@ -240,29 +252,29 @@ impl DesktopApp {
                 icons::reset_ram(),
                 Some(Message::ResetRam),
                 tokyo_device_accent(tokyo_red()),
-                self.lang.t(Key::ActionResetRam),
-                shortcut_hint(&self.shortcut_settings, &Message::ResetRam),
+                self.preferences.lang.t(Key::ActionResetRam),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::ResetRam),
             ),
             icon_action_button(
                 icons::reset_registers(),
                 Some(Message::ResetCpu),
                 tokyo_device_accent(tokyo_magenta()),
-                self.lang.t(Key::ActionResetCpu),
-                shortcut_hint(&self.shortcut_settings, &Message::ResetCpu),
+                self.preferences.lang.t(Key::ActionResetCpu),
+                shortcut_hint(&self.preferences.shortcut_settings, &Message::ResetCpu),
             ),
         ]
         .spacing(CHIP_SPACING)
         .align_y(alignment::Vertical::Center);
 
         let execution_panel = legend_panel(
-            self.lang.t(Key::ExecutionPanel),
+            self.preferences.lang.t(Key::ExecutionPanel),
             container(execution_strip)
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center),
             Length::Shrink,
         );
         let reset_panel = legend_panel(
-            self.lang.t(Key::ResetPanel),
+            self.preferences.lang.t(Key::ResetPanel),
             container(reset_strip)
                 .width(Length::Fill)
                 .align_x(alignment::Horizontal::Center),

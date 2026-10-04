@@ -15,12 +15,12 @@ fn pointer_open_starts_on_category_without_keyboard_ring() {
 
     open_menu(&mut app, MenuId::File);
 
-    assert_eq!(app.open_menu, Some(MenuId::File));
+    assert_eq!(app.shell.open_menu, Some(MenuId::File));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Category(MenuId::File))
     );
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::Hidden);
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::Hidden);
 }
 
 #[test]
@@ -28,53 +28,59 @@ fn hover_switches_only_between_open_dropdown_categories() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
 
     let _ = app.update(Message::MenuHovered(MenuId::Mp));
-    assert_eq!(app.open_menu, None);
-    assert_eq!(app.top_menu_focus, None);
+    assert_eq!(app.shell.open_menu, None);
+    assert_eq!(app.shell.top_menu_focus, None);
 
     open_menu(&mut app, MenuId::File);
     press(&mut app, Message::ArrowKey(1));
     let _ = app.update(Message::MenuHovered(MenuId::Mp));
 
-    assert_eq!(app.open_menu, Some(MenuId::Mp));
-    assert_eq!(app.top_menu_focus, Some(TopMenuFocus::Category(MenuId::Mp)));
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::Hidden);
+    assert_eq!(app.shell.open_menu, Some(MenuId::Mp));
+    assert_eq!(
+        app.shell.top_menu_focus,
+        Some(TopMenuFocus::Category(MenuId::Mp))
+    );
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::Hidden);
 }
 
 #[test]
 fn vertical_arrows_stay_in_open_menu_and_horizontal_arrows_switch_categories() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.memory_address_input = "0010".to_owned();
+    app.memory.memory_address_input = "0010".to_owned();
     open_menu(&mut app, MenuId::File);
 
     press(&mut app, Message::ArrowKey(-1));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Item {
             menu: MenuId::File,
             index: 0,
         })
     );
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::ArrowFill);
-    assert_eq!(app.memory_address_input, "0010");
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::ArrowFill);
+    assert_eq!(app.memory.memory_address_input, "0010");
 
     press(&mut app, Message::ArrowKey(-1));
     press(&mut app, Message::HorizontalArrowKey(1));
-    assert_eq!(app.open_menu, Some(MenuId::Mp));
-    assert_eq!(app.top_menu_focus, Some(TopMenuFocus::Category(MenuId::Mp)));
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::Hidden);
-    assert_eq!(app.memory_address_input, "0010");
+    assert_eq!(app.shell.open_menu, Some(MenuId::Mp));
+    assert_eq!(
+        app.shell.top_menu_focus,
+        Some(TopMenuFocus::Category(MenuId::Mp))
+    );
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::Hidden);
+    assert_eq!(app.memory.memory_address_input, "0010");
 
     press(&mut app, Message::HorizontalArrowKey(-1));
-    assert_eq!(app.open_menu, Some(MenuId::File));
+    assert_eq!(app.shell.open_menu, Some(MenuId::File));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Category(MenuId::File))
     );
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::Hidden);
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::Hidden);
 
     press(&mut app, Message::ArrowKey(-1));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Item {
             menu: MenuId::File,
             index: 0,
@@ -91,7 +97,7 @@ fn tab_walks_items_then_opens_the_next_menu_on_its_category() {
         press(&mut app, Message::FocusCycle { backward: false });
     }
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Item {
             menu: MenuId::File,
             index: 5,
@@ -99,13 +105,16 @@ fn tab_walks_items_then_opens_the_next_menu_on_its_category() {
     );
 
     press(&mut app, Message::FocusCycle { backward: false });
-    assert_eq!(app.open_menu, Some(MenuId::Mp));
-    assert_eq!(app.top_menu_focus, Some(TopMenuFocus::Category(MenuId::Mp)));
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::TabRing);
+    assert_eq!(app.shell.open_menu, Some(MenuId::Mp));
+    assert_eq!(
+        app.shell.top_menu_focus,
+        Some(TopMenuFocus::Category(MenuId::Mp))
+    );
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::TabRing);
 
     press(&mut app, Message::FocusCycle { backward: false });
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Item {
             menu: MenuId::Mp,
             index: 0,
@@ -120,15 +129,15 @@ fn shift_tab_reaches_the_previous_menu_last_item() {
 
     press(&mut app, Message::FocusCycle { backward: true });
 
-    assert_eq!(app.open_menu, Some(MenuId::File));
+    assert_eq!(app.shell.open_menu, Some(MenuId::File));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Item {
             menu: MenuId::File,
             index: 5,
         })
     );
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::TabRing);
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::TabRing);
 }
 
 #[test]
@@ -141,7 +150,7 @@ fn tab_skips_disabled_clear_halt_item() {
         press(&mut app, Message::FocusCycle { backward: false });
     }
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Item {
             menu: MenuId::Mp,
             index: 4,
@@ -149,9 +158,9 @@ fn tab_skips_disabled_clear_halt_item() {
     );
 
     press(&mut app, Message::FocusCycle { backward: false });
-    assert_eq!(app.open_menu, Some(MenuId::View));
+    assert_eq!(app.shell.open_menu, Some(MenuId::View));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Category(MenuId::View))
     );
 }
@@ -164,31 +173,31 @@ fn settings_is_a_tab_stop_without_a_dropdown() {
     for _ in 0..7 {
         press(&mut app, Message::FocusCycle { backward: false });
     }
-    assert_eq!(app.open_menu, None);
+    assert_eq!(app.shell.open_menu, None);
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Category(MenuId::Settings))
     );
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::TabRing);
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::TabRing);
 
     press(&mut app, Message::FocusCycle { backward: false });
-    assert_eq!(app.open_menu, Some(MenuId::Help));
+    assert_eq!(app.shell.open_menu, Some(MenuId::Help));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Category(MenuId::Help))
     );
 
     press(&mut app, Message::FocusCycle { backward: true });
-    assert_eq!(app.open_menu, None);
+    assert_eq!(app.shell.open_menu, None);
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Category(MenuId::Settings))
     );
 
     press(&mut app, Message::FocusCycle { backward: true });
-    assert_eq!(app.open_menu, Some(MenuId::View));
+    assert_eq!(app.shell.open_menu, Some(MenuId::View));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Item {
             menu: MenuId::View,
             index: 5,
@@ -202,20 +211,20 @@ fn horizontal_arrows_skip_settings() {
     open_menu(&mut app, MenuId::View);
 
     press(&mut app, Message::HorizontalArrowKey(1));
-    assert_eq!(app.open_menu, Some(MenuId::Help));
+    assert_eq!(app.shell.open_menu, Some(MenuId::Help));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Category(MenuId::Help))
     );
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::Hidden);
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::Hidden);
 
     press(&mut app, Message::HorizontalArrowKey(-1));
-    assert_eq!(app.open_menu, Some(MenuId::View));
+    assert_eq!(app.shell.open_menu, Some(MenuId::View));
     assert_eq!(
-        app.top_menu_focus,
+        app.shell.top_menu_focus,
         Some(TopMenuFocus::Category(MenuId::View))
     );
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::Hidden);
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::Hidden);
 }
 
 #[test]
@@ -226,7 +235,7 @@ fn enter_closes_menu_after_activating_focused_item() {
 
     press(&mut app, Message::EnterPressed);
 
-    assert_eq!(app.open_menu, None);
-    assert_eq!(app.top_menu_focus, None);
-    assert_eq!(app.top_menu_indicator, TopMenuIndicator::Hidden);
+    assert_eq!(app.shell.open_menu, None);
+    assert_eq!(app.shell.top_menu_focus, None);
+    assert_eq!(app.shell.top_menu_indicator, TopMenuIndicator::Hidden);
 }

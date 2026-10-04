@@ -237,8 +237,8 @@ mod tests {
 
         app.select_memory(0x0010);
 
-        assert_eq!(app.active_register_target, None);
-        assert_eq!(app.inline_register_target, None);
+        assert_eq!(app.register.active_register_target, None);
+        assert_eq!(app.register.inline_register_target, None);
     }
 
     #[test]
@@ -270,14 +270,20 @@ mod tests {
 
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         app.enter_inline_register(Schematic(RegisterName::A));
-        app.focused_input = Some(crate::app::REGISTER_INLINE_INPUT_ID);
+        app.interaction.focused_input = Some(crate::app::REGISTER_INLINE_INPUT_ID);
 
         let _task = app.navigate_inline_register_target(Right);
 
-        assert_eq!(app.active_register_target, Some(Schematic(RegisterName::B)));
-        assert_eq!(app.inline_register_target, Some(Schematic(RegisterName::B)));
         assert_eq!(
-            app.focused_input,
+            app.register.active_register_target,
+            Some(Schematic(RegisterName::B))
+        );
+        assert_eq!(
+            app.register.inline_register_target,
+            Some(Schematic(RegisterName::B))
+        );
+        assert_eq!(
+            app.interaction.focused_input,
             Some(crate::app::REGISTER_INLINE_INPUT_ID)
         );
     }
@@ -319,15 +325,21 @@ mod tests {
 
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         app.enter_inline_register(Schematic(RegisterName::A));
-        app.focused_input = Some(crate::app::REGISTER_INLINE_INPUT_ID);
+        app.interaction.focused_input = Some(crate::app::REGISTER_INLINE_INPUT_ID);
         let _task = app.handle_focus_reconciled(0, None);
-        assert_eq!(app.inline_register_target, Some(Schematic(RegisterName::A)));
+        assert_eq!(
+            app.register.inline_register_target,
+            Some(Schematic(RegisterName::A))
+        );
 
         let _task = app.handle_focus_reconciled(0, None);
 
-        assert_eq!(app.inline_register_target, None);
-        assert_eq!(app.focused_input, None);
-        assert_eq!(app.active_register_target, Some(Schematic(RegisterName::A)));
+        assert_eq!(app.register.inline_register_target, None);
+        assert_eq!(app.interaction.focused_input, None);
+        assert_eq!(
+            app.register.active_register_target,
+            Some(Schematic(RegisterName::A))
+        );
     }
 
     #[test]
@@ -336,15 +348,18 @@ mod tests {
 
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         app.enter_inline_register(Mux(RegisterName::B));
-        app.focused_input = Some(crate::app::REGISTER_INLINE_INPUT_ID);
+        app.interaction.focused_input = Some(crate::app::REGISTER_INLINE_INPUT_ID);
         let _task = app.handle_focus_reconciled(0, None);
 
         let hit = iced::widget::Id::new(crate::app::REGISTER_INLINE_INPUT_ID);
         let _task = app.handle_focus_reconciled(0, Some(hit));
 
-        assert_eq!(app.inline_register_target, Some(Mux(RegisterName::B)));
         assert_eq!(
-            app.focused_input,
+            app.register.inline_register_target,
+            Some(Mux(RegisterName::B))
+        );
+        assert_eq!(
+            app.interaction.focused_input,
             Some(crate::app::REGISTER_INLINE_INPUT_ID)
         );
     }
@@ -355,11 +370,14 @@ mod tests {
 
         let (mut app, _task) = DesktopApp::with_initial_path(None);
         app.enter_inline_register(Mux(RegisterName::C));
-        assert!(app.inline_register_just_entered);
+        assert!(app.register.inline_register_just_entered);
 
         let _task = app.handle_focus_reconciled(0, None);
 
-        assert_eq!(app.inline_register_target, Some(Mux(RegisterName::C)));
-        assert!(!app.inline_register_just_entered);
+        assert_eq!(
+            app.register.inline_register_target,
+            Some(Mux(RegisterName::C))
+        );
+        assert!(!app.register.inline_register_just_entered);
     }
 }

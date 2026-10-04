@@ -40,7 +40,7 @@ pub(crate) enum ShortcutContext {
 }
 
 pub(crate) fn shortcut_context(app: &DesktopApp) -> ShortcutContext {
-    match app.focused_input {
+    match app.interaction.focused_input {
         Some(MEMORY_ADDRESS_INPUT_ID | MEMORY_VALUE_INPUT_ID) => ShortcutContext::MemoryEditor,
         Some(MEMORY_INLINE_INPUT_ID) => ShortcutContext::MemoryCell,
         None if app.selected_memory_action_address().is_some() => ShortcutContext::MemoryCell,

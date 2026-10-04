@@ -28,7 +28,7 @@ pub(super) struct ExportModalViewState<'a> {
     pub(super) focus: ExportModalFocus,
     pub(super) keyboard_focus_visible: bool,
     pub(super) target_input: &'a str,
-    pub(super) target_options: &'a [String],
+    pub(super) target_options: &'a [crate::app::ExportTarget],
     pub(super) target_dropdown_open: bool,
     pub(super) target_highlight: Option<usize>,
     pub(super) memory_start: &'a str,

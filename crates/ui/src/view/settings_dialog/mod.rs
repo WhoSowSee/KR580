@@ -333,15 +333,16 @@ mod tests {
     }
 
     fn test_dialog() -> SettingsDialog {
-        SettingsDialog::new(
-            Lang::Ru,
-            SpeedTier::High,
-            false,
-            true,
-            None,
-            None,
-            NetworkSettings::default(),
-        )
+        SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
+            lang: Lang::Ru,
+            speed: SpeedTier::High,
+            follow_pc: false,
+            memory_operand_highlighting: true,
+            floppy_image_path: None,
+            hdd_directory: None,
+            network: NetworkSettings::default(),
+            ..Default::default()
+        })
     }
 
     fn tag_path(tree: &widget::Tree, target: widget::tree::Tag) -> Option<Vec<widget::tree::Tag>> {

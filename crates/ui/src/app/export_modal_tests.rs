@@ -14,62 +14,86 @@ fn export_opens_with_defaults_and_can_switch_to_import() {
 
     let _task = app.update(Message::Export);
 
-    assert!(app.export_modal_open);
-    assert!(!app.monitor_open);
-    assert_eq!(app.export_tab, ExportTab::Xlsx);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::TabXlsx);
-    assert_eq!(app.export_memory_start_input, "0000");
-    assert_eq!(app.export_memory_end_input, "FFFF");
-    assert!(!app.export_registers.accumulator);
-    assert!(!app.export_registers.b);
-    assert!(!app.export_registers.stack_pointer);
-    assert!(!app.export_flags.sign);
-    assert!(!app.export_flags.zero);
-    assert!(!app.export_flags.carry);
+    assert!(app.export.export_modal_open);
+    assert!(!app.panels.monitor_open);
+    assert_eq!(app.export.export_tab, ExportTab::Xlsx);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::TabXlsx);
+    assert_eq!(app.export.export_memory_start_input, "0000");
+    assert_eq!(app.export.export_memory_end_input, "FFFF");
+    assert!(!app.export.export_registers.accumulator);
+    assert!(!app.export.export_registers.b);
+    assert!(!app.export.export_registers.stack_pointer);
+    assert!(!app.export.export_flags.sign);
+    assert!(!app.export.export_flags.zero);
+    assert!(!app.export.export_flags.carry);
 
     let _task = app.update(Message::Import);
-    assert!(!app.export_modal_open);
-    assert!(app.import_modal_open);
-    assert!(!app.monitor_open);
+    assert!(!app.export.export_modal_open);
+    assert!(app.import.import_modal_open);
+    assert!(!app.panels.monitor_open);
 
     let _task = app.update(Message::CancelImport);
 
-    assert!(!app.import_modal_open);
-    assert!(!app.monitor_open);
+    assert!(!app.import.import_modal_open);
+    assert!(!app.panels.monitor_open);
 }
 
 #[test]
 fn language_change_relocalizes_generated_export_targets() {
     let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.lang = Lang::Ru;
-    app.export_xlsx_pages = vec![
-        "Подпрограмма 1".to_owned(),
-        "Подпрограмма 2".to_owned(),
-        "Отчёт".to_owned(),
-    ];
-    app.export_xlsx_page_input = "Подпрограмма 2".to_owned();
-    app.export_text_sections = vec!["Раздел 1".to_owned(), "Данные".to_owned()];
-    app.export_text_section_input = "Данные".to_owned();
+    app.preferences.lang = Lang::Ru;
+    app.export.export_xlsx_pages = ["Подпрограмма 1", "Подпрограмма 2", "Отчёт"]
+        .into_iter()
+        .map(|name| super::ExportTarget::named(name.to_owned()))
+        .collect();
+    app.export.export_xlsx_page_input = "Подпрограмма 2".to_owned();
+    app.export.export_text_sections = ["Раздел 1", "Данные"]
+        .into_iter()
+        .map(|name| super::ExportTarget::named(name.to_owned()))
+        .collect();
+    app.export.export_text_section_input = "Данные".to_owned();
 
     let _task = app.update(Message::SettingsDraftLanguageChanged(Lang::En));
 
     assert_eq!(
-        app.export_xlsx_pages,
+        app.export
+            .export_xlsx_pages
+            .iter()
+            .map(|target| target.name.as_str())
+            .collect::<Vec<_>>(),
         ["Subprogram 1", "Subprogram 2", "Отчёт"]
     );
-    assert_eq!(app.export_xlsx_page_input, "Subprogram 2");
-    assert_eq!(app.export_text_sections, ["Section 1", "Данные"]);
-    assert_eq!(app.export_text_section_input, "Данные");
+    assert_eq!(app.export.export_xlsx_page_input, "Subprogram 2");
+    assert_eq!(
+        app.export
+            .export_text_sections
+            .iter()
+            .map(|target| target.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Section 1", "Данные"]
+    );
+    assert_eq!(app.export.export_text_section_input, "Данные");
 
     let _task = app.update(Message::SettingsDraftLanguageChanged(Lang::Ru));
 
     assert_eq!(
-        app.export_xlsx_pages,
+        app.export
+            .export_xlsx_pages
+            .iter()
+            .map(|target| target.name.as_str())
+            .collect::<Vec<_>>(),
         ["Подпрограмма 1", "Подпрограмма 2", "Отчёт"]
     );
-    assert_eq!(app.export_xlsx_page_input, "Подпрограмма 2");
-    assert_eq!(app.export_text_sections, ["Раздел 1", "Данные"]);
-    assert_eq!(app.export_text_section_input, "Данные");
+    assert_eq!(app.export.export_xlsx_page_input, "Подпрограмма 2");
+    assert_eq!(
+        app.export
+            .export_text_sections
+            .iter()
+            .map(|target| target.name.as_str())
+            .collect::<Vec<_>>(),
+        ["Раздел 1", "Данные"]
+    );
+    assert_eq!(app.export.export_text_section_input, "Данные");
 }
 
 #[test]
@@ -79,14 +103,17 @@ fn tab_cycles_export_modal_focus_through_tabs_and_settings() {
     app.open_export_modal();
 
     let _task = app.update(Message::FocusCycle { backward: false });
-    assert_eq!(app.export_modal_focus, ExportModalFocus::TabText);
-    assert!(app.export_modal_keyboard_focus_visible);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::TabText);
+    assert!(app.export.export_modal_keyboard_focus_visible);
 
     let _task = app.update(Message::FocusCycle { backward: false });
-    assert_eq!(app.export_modal_focus, ExportModalFocus::TargetDropdown);
+    assert_eq!(
+        app.export.export_modal_focus,
+        ExportModalFocus::TargetDropdown
+    );
 
     let _task = app.update(Message::FocusCycle { backward: true });
-    assert_eq!(app.export_modal_focus, ExportModalFocus::TabText);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::TabText);
 }
 
 #[test]
@@ -97,10 +124,10 @@ fn selecting_text_tab_changes_active_tab_without_closing_modal() {
 
     let _task = app.update(Message::ExportTabSelected(ExportTab::Text));
 
-    assert!(app.export_modal_open);
-    assert_eq!(app.export_tab, ExportTab::Text);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::TabText);
-    assert!(!app.export_modal_keyboard_focus_visible);
+    assert!(app.export.export_modal_open);
+    assert_eq!(app.export.export_tab, ExportTab::Text);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::TabText);
+    assert!(!app.export.export_modal_keyboard_focus_visible);
 }
 
 #[test]
@@ -111,8 +138,8 @@ fn toggling_register_updates_export_selection() {
 
     let _task = app.update(Message::ToggleExportRegister(ExportRegister::B));
 
-    assert!(app.export_registers.b);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::RegisterB);
+    assert!(app.export.export_registers.b);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::RegisterB);
 }
 
 #[test]
@@ -123,8 +150,8 @@ fn toggling_flag_updates_export_selection() {
 
     let _task = app.update(Message::ToggleExportFlag(ExportFlag::Zero));
 
-    assert!(app.export_flags.zero);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::FlagZero);
+    assert!(app.export.export_flags.zero);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::FlagZero);
 }
 
 #[test]
@@ -158,8 +185,8 @@ fn esc_clears_export_input_focus_without_closing_modal() {
     let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
     let _task = app.update(Message::EscPressed);
 
-    assert!(app.export_modal_open);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::None);
+    assert!(app.export.export_modal_open);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::None);
 }
 
 #[test]
@@ -171,8 +198,8 @@ fn esc_clears_export_checkbox_focus_without_closing_modal() {
     let _task = app.update(Message::ToggleExportFlag(ExportFlag::Zero));
     let _task = app.update(Message::EscPressed);
 
-    assert!(app.export_modal_open);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::None);
+    assert!(app.export.export_modal_open);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::None);
 }
 
 #[test]
@@ -184,8 +211,8 @@ fn mouse_press_clears_export_value_focus_without_closing_modal() {
     let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
     let _task = app.update(Message::MousePressedIgnored);
 
-    assert!(app.export_modal_open);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::None);
+    assert!(app.export.export_modal_open);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::None);
 }
 
 #[test]
@@ -197,8 +224,8 @@ fn captured_mouse_press_keeps_export_value_focus() {
     let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
     let _task = app.update(Message::MousePressed);
 
-    assert!(app.export_modal_open);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::MemoryStart);
+    assert!(app.export.export_modal_open);
+    assert_eq!(app.export.export_modal_focus, ExportModalFocus::MemoryStart);
 }
 
 #[test]
@@ -209,170 +236,7 @@ fn esc_closes_export_modal_without_value_focus() {
 
     let _task = app.update(Message::EscPressed);
 
-    assert!(!app.export_modal_open);
+    assert!(!app.export.export_modal_open);
 }
 
-#[test]
-fn text_tab_uses_separate_section_list_for_export_target() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
-
-    let _task = app.update(Message::ExportTabSelected(ExportTab::Text));
-    let _task = app.update(Message::ExportTargetChanged("Раздел X".to_owned()));
-    let _task = app.update(Message::ExportTargetAdd);
-
-    assert_eq!(app.export_target_input(), "Раздел X");
-    assert!(app.export_text_sections.contains(&"Раздел X".to_owned()));
-    assert!(!app.export_xlsx_pages.contains(&"Раздел X".to_owned()));
-    assert!(!app.export_target_dropdown_open);
-}
-
-#[test]
-fn adding_existing_export_target_without_open_dropdown_keeps_dropdown_closed() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
-
-    let _task = app.update(Message::ExportTargetAdd);
-
-    assert_eq!(app.export_target_input(), "Подпрограмма 2");
-    assert!(app.export_xlsx_pages.contains(&"Подпрограмма 2".to_owned()));
-    assert!(!app.export_target_dropdown_open);
-    assert_eq!(app.export_target_highlight, None);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::Page);
-}
-
-#[test]
-fn adding_existing_export_target_with_open_dropdown_keeps_dropdown_open() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
-
-    let _task = app.update(Message::ExportTargetDropdownToggled);
-    let _task = app.update(Message::ExportTargetAdd);
-
-    assert_eq!(app.export_target_input(), "Подпрограмма 2");
-    assert!(app.export_xlsx_pages.contains(&"Подпрограмма 2".to_owned()));
-    assert!(app.export_target_dropdown_open);
-    assert_eq!(app.export_target_highlight, Some(1));
-    assert_eq!(app.export_modal_focus, ExportModalFocus::TargetDropdown);
-}
-
-#[test]
-fn deleting_export_target_falls_back_to_remaining_session_entry() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
-
-    let _task = app.update(Message::ExportTargetChanged("Лист 2".to_owned()));
-    let _task = app.update(Message::ExportTargetAdd);
-    let _task = app.update(Message::ExportTargetDelete);
-
-    assert_eq!(app.export_target_input(), "Подпрограмма 1");
-    assert!(!app.export_xlsx_pages.contains(&"Лист 2".to_owned()));
-    assert!(!app.export_target_dropdown_open);
-    assert_eq!(app.export_target_highlight, None);
-    assert_eq!(app.export_modal_focus, ExportModalFocus::Page);
-}
-
-#[test]
-fn deleting_export_target_with_open_dropdown_keeps_dropdown_open() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
-
-    let _task = app.update(Message::ExportTargetChanged("Лист 2".to_owned()));
-    let _task = app.update(Message::ExportTargetAdd);
-    let _task = app.update(Message::ExportTargetDropdownToggled);
-    let _task = app.update(Message::ExportTargetDelete);
-
-    assert_eq!(app.export_target_input(), "Подпрограмма 1");
-    assert!(!app.export_xlsx_pages.contains(&"Лист 2".to_owned()));
-    assert!(app.export_target_dropdown_open);
-    assert_eq!(app.export_target_highlight, Some(0));
-    assert_eq!(app.export_modal_focus, ExportModalFocus::TargetDropdown);
-}
-
-#[test]
-fn export_options_parse_range_and_selected_registers() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
-    app.export_memory_start_input = "0010".to_owned();
-    app.export_memory_end_input = "001F".to_owned();
-    app.export_registers = ExportRegisterSelection {
-        accumulator: true,
-        b: true,
-        ..ExportRegisterSelection::default()
-    };
-    app.export_registers.c = false;
-    app.export_flags = ExportFlagSelection {
-        zero: true,
-        carry: true,
-        ..ExportFlagSelection::default()
-    };
-
-    let options = app.export_options();
-
-    assert_eq!(options.memory_start, 0x0010);
-    assert_eq!(options.memory_end, 0x001F);
-    assert!(options.registers.contains(&ExportRegisterKind::Accumulator));
-    assert!(options.registers.contains(&ExportRegisterKind::B));
-    assert!(!options.registers.contains(&ExportRegisterKind::C));
-    assert!(options.flags.contains(&ExportFlagKind::Zero));
-    assert!(options.flags.contains(&ExportFlagKind::Carry));
-    assert!(!options.flags.contains(&ExportFlagKind::Sign));
-}
-
-#[test]
-fn text_export_options_include_all_session_sections_with_own_ranges() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
-
-    let _task = app.update(Message::ExportTabSelected(ExportTab::Text));
-    let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
-    let _task = app.update(Message::ExportMemoryEndChanged("0101".to_owned()));
-    let _task = app.update(Message::ExportTargetAdd);
-    let _task = app.update(Message::ExportMemoryStartChanged("0200".to_owned()));
-    let _task = app.update(Message::ExportMemoryEndChanged("0202".to_owned()));
-
-    let options = app.export_options();
-
-    assert_eq!(options.text_sections.len(), 2);
-    assert_eq!(options.text_sections[0].name, "Раздел 1");
-    assert_eq!(options.text_sections[0].memory_start, 0x0100);
-    assert_eq!(options.text_sections[0].memory_end, 0x0101);
-    assert_eq!(options.text_sections[1].name, "Раздел 2");
-    assert_eq!(options.text_sections[1].memory_start, 0x0200);
-    assert_eq!(options.text_sections[1].memory_end, 0x0202);
-}
-
-#[test]
-fn xlsx_export_options_include_all_session_pages_with_own_ranges() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
-
-    let _task = app.update(Message::ExportMemoryStartChanged("0100".to_owned()));
-    let _task = app.update(Message::ExportMemoryEndChanged("0101".to_owned()));
-    let _task = app.update(Message::ToggleExportMemoryColumn(
-        ExportMemoryColumn::Comment,
-    ));
-    let _task = app.update(Message::ExportTargetAdd);
-    let _task = app.update(Message::ExportMemoryStartChanged("0200".to_owned()));
-    let _task = app.update(Message::ExportMemoryEndChanged("0202".to_owned()));
-
-    let options = app.export_options();
-
-    assert_eq!(options.xlsx_pages.len(), 2);
-    assert_eq!(options.xlsx_pages[0].name, "Подпрограмма 1");
-    assert_eq!(options.xlsx_pages[0].memory_start, 0x0100);
-    assert_eq!(options.xlsx_pages[0].memory_end, 0x0101);
-    assert!(options.xlsx_pages[0].include_comment_column);
-    assert_eq!(options.xlsx_pages[1].name, "Подпрограмма 2");
-    assert_eq!(options.xlsx_pages[1].memory_start, 0x0200);
-    assert_eq!(options.xlsx_pages[1].memory_end, 0x0202);
-    assert!(options.text_sections.is_empty());
-}
+mod targets;

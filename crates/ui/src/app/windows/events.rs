@@ -6,17 +6,17 @@ use crate::platform;
 
 impl DesktopApp {
     pub(super) fn window_opened(&mut self, id: window::Id) -> Task<Message> {
-        if self.printer_properties_window_id == Some(id) {
+        if self.printer_setup.printer_properties_window_id == Some(id) {
             return self.finish_detached_printer_properties_window_open(id);
         }
-        if self.printer_setup_window_id == Some(id) {
+        if self.printer_setup.printer_setup_window_id == Some(id) {
             return self.finish_detached_printer_setup_window_open(id);
         }
         if let Some(kind) = self.tool_window_kind(id) {
             let detached = {
                 let state = self.tool_window_mut(kind);
-                state.ready = true;
-                state.detached
+                state.mark_ready();
+                state.detached()
             };
             let prepare = window::run(id, platform::set_rounded_corners).discard();
             return if detached {
@@ -25,7 +25,7 @@ impl DesktopApp {
                 prepare
             };
         }
-        if self.main_window_id != Some(id) {
+        if self.shell.main_window_id != Some(id) {
             return Task::none();
         }
         Task::batch([
@@ -39,6 +39,7 @@ impl DesktopApp {
     pub(super) fn window_closed(&mut self, id: window::Id) -> Task<Message> {
         if self.detached_printer_properties_window_closed(id) {
             return self
+                .printer_setup
                 .printer_setup_window_id
                 .map_or_else(Task::none, window::gain_focus);
         }
@@ -50,14 +51,14 @@ impl DesktopApp {
             self.reset_tool_window_presentation(kind);
             return Task::none();
         }
-        if self.main_window_id != Some(id) {
+        if self.shell.main_window_id != Some(id) {
             return Task::none();
         }
-        self.main_window_id = None;
+        self.shell.main_window_id = None;
         let close_setup = self.cancel_detached_printer_setup();
         let close_windows = TOOL_WINDOWS.into_iter().filter_map(|kind| {
             self.reset_tool_window_presentation(kind);
-            self.tool_window_mut(kind).id.take().map(window::close)
+            self.tool_window_mut(kind).take_id().map(window::close)
         });
         Task::batch(close_windows)
             .chain(close_setup)
@@ -65,11 +66,11 @@ impl DesktopApp {
     }
 
     pub(super) fn window_close_requested(&mut self, id: window::Id) -> Task<Message> {
-        if self.printer_properties_window_id == Some(id) {
+        if self.printer_setup.printer_properties_window_id == Some(id) {
             return Task::done(Message::ClosePrinterProperties);
         }
-        if self.printer_setup_window_id == Some(id) {
-            if self.printer_properties_window_id.is_some() {
+        if self.printer_setup.printer_setup_window_id == Some(id) {
+            if self.printer_setup.printer_properties_window_id.is_some() {
                 return self.request_printer_properties_attention();
             }
             return self.cancel_detached_printer_setup();
@@ -77,10 +78,10 @@ impl DesktopApp {
         if let Some(kind) = self.tool_window_kind(id) {
             return self.close_tool_window(kind);
         }
-        if self.main_window_id != Some(id) {
+        if self.shell.main_window_id != Some(id) {
             return Task::none();
         }
-        if self.dirty {
+        if self.document.dirty {
             self.open_discard_modal(PendingAction::CloseWindow);
             Task::none()
         } else {
@@ -89,21 +90,21 @@ impl DesktopApp {
     }
 
     pub(super) fn frame_rendered(&mut self) -> Task<Message> {
-        let sync_drag_cursor = if self.file_drag_hovered {
-            self.main_window_id.map_or_else(Task::none, |id| {
+        let sync_drag_cursor = if self.document.file_drag_hovered {
+            self.shell.main_window_id.map_or_else(Task::none, |id| {
                 window::run(id, platform::cursor_position_in_window)
                     .map(Message::FileDragCursorPosition)
             })
         } else {
             Task::none()
         };
-        if self.startup_frames_seen < u8::MAX {
-            self.startup_frames_seen = self.startup_frames_seen.saturating_add(1);
+        if self.shell.startup_frames_seen < u8::MAX {
+            self.shell.startup_frames_seen = self.shell.startup_frames_seen.saturating_add(1);
         }
-        if self.startup_frames_seen != 2 {
+        if self.shell.startup_frames_seen != 2 {
             return sync_drag_cursor;
         }
-        let reveal = self.main_window_id.map_or_else(Task::none, |id| {
+        let reveal = self.shell.main_window_id.map_or_else(Task::none, |id| {
             window::run(id, |window| platform::cloak_window(window, false)).discard()
         });
         Task::batch([sync_drag_cursor, reveal])
