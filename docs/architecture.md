@@ -4,6 +4,14 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator using only
 
 ## Crates
 
+Both workspace crates share release `4.0.0` through `[workspace.package]`.
+The UI's versioned path dependency on `k580-core` and the two local Cargo.lock
+entries use the same release. CLI/About and native executable metadata derive
+their version from `CARGO_PKG_VERSION`; installer, Debian, DMG and Nix packaging
+read Cargo.toml. Snap derives its package version from Git release metadata.
+The major version reflects incompatible public backend/device Rust APIs; the
+`.580`, `.krs`, TXT/XLSX and settings formats remain compatible.
+
 - `k580-core`: public deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, and the `PortBus` trait. Applications own their command/event contracts and compose them from these processor primitives. Opcode execution is split by instruction family under `ops/`.
 - `kr580`: public installable desktop package. It contains the iced multi-window daemon, launcher, installer, uninstaller, platform shims, and internal `backend`, `devices`, and `persistence` modules. The internal modules own the emulator actor, `IoBus`, monitor, floppy, HDD, network, printer, snapshots, settings, and direct `.txt`/`.xlsx` import/export paths.
 
