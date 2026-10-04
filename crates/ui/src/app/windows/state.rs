@@ -99,11 +99,4 @@ impl ToolWindowState {
             None
         }
     }
-
-    #[cfg(test)]
-    pub(crate) fn pin(&mut self) {
-        if !self.always_on_top() {
-            self.toggle_pin();
-        }
-    }
 }

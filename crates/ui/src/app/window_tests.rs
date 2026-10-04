@@ -138,7 +138,7 @@ fn attaching_monitor_hides_native_window_and_restores_overlay() {
     app.panels
         .monitor_window
         .detach(app.panels.monitor_window.native().unwrap());
-    app.panels.monitor_window.pin();
+    app.panels.monitor_window.toggle_pin();
 
     let _task = app.update(Message::AttachToolWindow(ToolWindowKind::Monitor));
 
