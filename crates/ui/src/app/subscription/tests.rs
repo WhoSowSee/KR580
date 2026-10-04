@@ -108,9 +108,17 @@ fn captured_plain_arrows_are_forwarded_to_register_navigation() {
 #[test]
 fn modified_captured_arrows_keep_text_input_behavior() {
     let key = keyboard::Key::Named(keyboard::key::Named::ArrowRight);
-    assert!(captured_register_arrow(&key, keyboard::Modifiers::SHIFT).is_none());
-    assert!(captured_register_arrow(&key, keyboard::Modifiers::CTRL).is_none());
-    assert!(captured_register_arrow(&key, keyboard::Modifiers::ALT).is_none());
+    for modifiers in [
+        Modifiers::SHIFT,
+        Modifiers::CTRL,
+        Modifiers::ALT,
+        Modifiers::LOGO,
+    ] {
+        assert!(
+            captured_register_arrow(&key, modifiers).is_none(),
+            "{modifiers:?}"
+        );
+    }
 }
 
 #[test]

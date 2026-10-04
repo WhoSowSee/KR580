@@ -2463,11 +2463,13 @@ Enter/Shift+Enter closes only the inline editor and leaves the register
 cell selected. Esc discards the pending byte, closes only the inline
 editor, and also keeps the register cell selected. When a register cell
 is selected but not editing, Enter opens the inline editor.
-Arrow keys inside the inline field move only inside the active visual
+Unmodified arrow keys inside the inline field move only inside the active visual
 group. The schematic buffer row responds to Left/Right (`A/B/C`); the
 mux grid responds to Left/Right between columns and Up/Down between rows
-(`B/C`, `D/E`, `H/L`). Ctrl+Arrow remains an equivalent grid-navigation
-gesture. When replacement mode is active, every arrow transition opens
+(`B/C`, `D/E`, `H/L`). Ctrl+Arrow (⌘+Arrow on macOS) remains an equivalent
+grid-navigation gesture. Captured arrows with other modifiers retain the text
+input's keyboard behavior, including native Control on macOS. When replacement
+mode is active, every arrow transition opens
 the target cell empty and shows its current value as the placeholder.
 All readouts for the active register
 share the same pending

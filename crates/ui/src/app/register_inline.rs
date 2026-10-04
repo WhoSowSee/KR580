@@ -289,8 +289,8 @@ mod tests {
     }
 
     #[test]
-    fn ctrl_arrow_keys_map_to_register_moves() {
-        let modifiers = iced::keyboard::Modifiers::CTRL;
+    fn command_arrow_keys_map_to_register_moves() {
+        let modifiers = iced::keyboard::Modifiers::COMMAND;
 
         assert_eq!(
             super::ctrl_arrow_move(

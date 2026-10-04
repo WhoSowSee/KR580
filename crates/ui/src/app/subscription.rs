@@ -196,7 +196,7 @@ fn runtime_event_message(
 }
 
 fn captured_register_arrow(key: &keyboard::Key, modifiers: keyboard::Modifiers) -> Option<Message> {
-    if modifiers.command() || modifiers.alt() || modifiers.shift() {
+    if !modifiers.is_empty() {
         return None;
     }
     let direction = match key {
