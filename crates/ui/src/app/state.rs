@@ -5,9 +5,9 @@ mod dropdown;
 pub(crate) use dropdown::DropdownState;
 
 use components::{
-    BackendRequests, DevicePanels, DocumentState, ExecutionState, ExportDialogState,
-    ImportDialogState, InteractionState, MemoryEditorState, PreferencesState, PrinterSetupState,
-    RegisterEditorState, ShellState,
+    DevicePanels, DocumentState, ExecutionState, ExportDialogState, ImportDialogState,
+    InteractionState, MemoryEditorState, PreferencesState, PrinterSetupState, RegisterEditorState,
+    RequestState, ShellState,
 };
 
 use super::hex_stream_filter::HexStreamFilter;
@@ -42,7 +42,7 @@ pub(crate) struct DesktopApp {
     pub(crate) printer_setup: PrinterSetupState,
     pub(crate) panels: DevicePanels,
     pub(crate) shell: ShellState,
-    pub(crate) requests: BackendRequests,
+    pub(crate) requests: RequestState,
 }
 
 impl DesktopApp {
@@ -55,7 +55,7 @@ impl DesktopApp {
         let settings = load_settings();
         let lang = lang_from_language(settings.general.language);
         let _ = handle.send(crate::backend::AppCommand::AttachHddFile(
-            crate::runtime::storage_files::hdd_default_path(),
+            crate::runtime::storage_files::hdd_default_path(&settings),
         ));
         if let Some(ref path) = settings.general.floppy_image_path
             && path.is_file()
@@ -162,6 +162,8 @@ impl DesktopApp {
                 export_flags: ExportFlagSelection::default(),
             },
             import: ImportDialogState {
+                generation: 0,
+                loading: false,
                 import_modal_open: false,
                 import_modal_focus: ImportModalFocus::Browse,
                 import_modal_keyboard_focus_visible: false,
@@ -175,6 +177,9 @@ impl DesktopApp {
                 import_error: None,
             },
             preferences: PreferencesState {
+                stored: settings.clone(),
+                dialog_generation: 0,
+                directory_generation: 0,
                 lang,
                 default_speed,
                 color_scheme,
@@ -220,14 +225,11 @@ impl DesktopApp {
                 network_port_input: network_port.to_string(),
                 network_settings_error: None,
                 hdd_file_exists: true,
+                hdd_generation: 0,
                 hdd_show_image_contents: false,
-                hdd_image_contents: Vec::new(),
-                hdd_image_error: None,
-                hdd_image_file_stamp: None,
+                hdd_image: Default::default(),
                 floppy_show_image_contents: false,
-                floppy_image_contents: Vec::new(),
-                floppy_image_error: None,
-                floppy_image_file_stamp: None,
+                floppy_image: Default::default(),
             },
             shell: ShellState {
                 status: initial_status,
@@ -245,9 +247,10 @@ impl DesktopApp {
                 changelog_dialog: None,
                 help_dialog: None,
             },
-            requests: BackendRequests {
+            requests: RequestState {
+                file_worker: None,
                 pending_requests: HashMap::new(),
-                backend_tasks: Vec::new(),
+                tasks: Vec::new(),
             },
         };
         app.apply_speed_tier(default_speed);

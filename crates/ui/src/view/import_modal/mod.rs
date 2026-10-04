@@ -21,6 +21,7 @@ pub(super) struct ImportModalViewState<'a> {
     pub(super) file_drag_hovered: bool,
     pub(super) file_display: &'a str,
     pub(super) format: Option<ImportFileFormat>,
+    pub(super) loading: bool,
     pub(super) target_input: &'a str,
     pub(super) target_options: &'a [String],
     pub(super) target_dropdown_open: bool,
@@ -36,6 +37,7 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
         file_drag_hovered,
         file_display,
         format,
+        loading,
         target_input,
         target_options,
         target_dropdown_open,
@@ -68,7 +70,7 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
         footer(
             focus,
             keyboard_focus_visible,
-            format.is_some() && error.is_none(),
+            format.is_some() && error.is_none() && !loading,
             lang,
         ),
     ]

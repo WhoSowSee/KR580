@@ -3,7 +3,9 @@ use crate::app::state::DesktopApp;
 use crate::settings_storage::{default_settings, lang_from_language, speed_tier_from_preset};
 
 impl DesktopApp {
-    pub(super) fn reset_settings(&mut self) -> Result<(), crate::persistence::SettingsError> {
+    pub(super) fn reset_settings(&mut self) {
+        self.preferences.directory_generation =
+            self.preferences.directory_generation.wrapping_add(1);
         let defaults = default_settings();
         let default_lang = lang_from_language(defaults.general.language);
         let default_speed = speed_tier_from_preset(defaults.general.default_speed);
@@ -38,13 +40,13 @@ impl DesktopApp {
         self.panels.monitor_split = general.monitor_split;
         self.preferences.default_speed = default_speed;
         self.preferences.color_scheme = color_scheme;
+        self.printer_setup.printer_dialog_mode = general.printer_dialog_mode;
         self.apply_speed_tier(default_speed);
         self.apply_language(default_lang);
         if let Some(dialog) = self.preferences.settings_dialog.as_ref()
             && let Ok(network) = parse_network_defaults(dialog)
         {
-            self.save_settings_dialog(dialog, network)?;
+            self.save_settings_dialog(network, crate::i18n::Key::SettingsResetNotice);
         }
-        Ok(())
     }
 }

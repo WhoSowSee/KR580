@@ -159,6 +159,7 @@ impl DesktopApp {
             }
             Message::ToggleFloppyImageContents => {
                 self.panels.floppy_show_image_contents = !self.panels.floppy_show_image_contents;
+                self.invalidate_image_preview(k580_ui::devices::StorageKind::Floppy);
                 if self.panels.floppy_show_image_contents {
                     self.refresh_floppy_image_contents();
                 }
@@ -222,6 +223,7 @@ impl DesktopApp {
             }
             Message::ToggleHddImageContents => {
                 self.panels.hdd_show_image_contents = !self.panels.hdd_show_image_contents;
+                self.invalidate_image_preview(k580_ui::devices::StorageKind::Hdd);
                 if self.panels.hdd_show_image_contents {
                     self.refresh_hdd_image_contents();
                 }

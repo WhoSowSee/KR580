@@ -1,10 +1,9 @@
+mod loading;
 use super::{DesktopApp, ImportFileFormat, ImportModalFocus, Message};
 use crate::backend::AppCommand;
 use crate::i18n::Key;
-use crate::persistence::Importers;
 use crate::runtime::file_dialog;
 use iced::{Event, Task, window};
-use std::path::PathBuf;
 
 impl DesktopApp {
     pub(crate) fn open_import_modal(&mut self) {
@@ -22,6 +21,8 @@ impl DesktopApp {
 
     pub(crate) fn close_import_modal(&mut self) {
         self.import.import_modal_open = false;
+        self.import.generation = self.import.generation.wrapping_add(1);
+        self.import.loading = false;
         self.import.import_modal_focus = ImportModalFocus::Browse;
         self.import.import_modal_keyboard_focus_visible = false;
         self.import.import_file_drag_hovered = false;
@@ -116,56 +117,10 @@ impl DesktopApp {
         }
     }
 
-    pub(crate) fn load_import_file(&mut self, path: PathBuf) {
-        let Some(format) = ImportFileFormat::from_path(&path) else {
-            self.clear_import_file_selection();
-            self.import.import_modal_focus = ImportModalFocus::Browse;
-            self.import.import_error = Some(
-                self.preferences
-                    .lang
-                    .t(Key::ErrUnsupportedImportFile)
-                    .to_owned(),
-            );
-            return;
-        };
-        let targets = match format {
-            ImportFileFormat::Xlsx => Importers::xlsx_sheet_names(&path),
-            ImportFileFormat::Text => Importers::txt_section_names(&path),
-        };
-        self.import.import_file_display = path.display().to_string();
-        self.import.import_file_format = Some(format);
-        self.import.import_file_path = Some(path);
-        self.import.import_error = None;
-        self.import.import_target_dropdown.set_open(false);
-
-        match targets {
-            Ok(targets) => {
-                self.import.import_target_options = targets;
-                self.import.import_target_input = self
-                    .import
-                    .import_target_options
-                    .first()
-                    .cloned()
-                    .unwrap_or_default();
-                self.import.import_modal_focus = if self.import.import_target_options.is_empty() {
-                    ImportModalFocus::Confirm
-                } else {
-                    ImportModalFocus::Target
-                };
-            }
-            Err(err) => {
-                self.import.import_target_options.clear();
-                self.import.import_target_input.clear();
-                self.import.import_modal_focus = ImportModalFocus::Browse;
-                self.import.import_error = Some(crate::runtime::humanize_error::humanize(
-                    &err.into(),
-                    self.preferences.lang,
-                ));
-            }
-        }
-    }
-
     pub(crate) fn confirm_import(&mut self) -> Task<Message> {
+        if self.import.loading || self.import.import_error.is_some() {
+            return Task::none();
+        }
         let (Some(path), Some(format)) = (
             self.import.import_file_path.clone(),
             self.import.import_file_format,
@@ -206,6 +161,8 @@ impl DesktopApp {
     }
 
     fn clear_import_file_selection(&mut self) {
+        self.import.generation = self.import.generation.wrapping_add(1);
+        self.import.loading = false;
         self.import.import_file_path = None;
         self.import.import_file_display.clear();
         self.import.import_file_format = None;
@@ -264,8 +221,10 @@ impl DesktopApp {
             };
             let unavailable_target =
                 self.import.import_target_options.is_empty() && next == ImportModalFocus::Target;
-            let unavailable_confirm =
-                self.import.import_file_path.is_none() && next == ImportModalFocus::Confirm;
+            let unavailable_confirm = (self.import.import_file_path.is_none()
+                || self.import.loading
+                || self.import.import_error.is_some())
+                && next == ImportModalFocus::Confirm;
             if !unavailable_target && !unavailable_confirm {
                 break;
             }

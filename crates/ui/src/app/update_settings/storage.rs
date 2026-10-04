@@ -17,17 +17,20 @@ impl DesktopApp {
             .unwrap_or_else(home_path);
         let mut dialog =
             rfd::FileDialog::new().add_filter("KR580 floppy image", &["kpd", "img", "bin"]);
-        if preferred.exists() && preferred.is_file() {
+        if self
+            .preferences
+            .settings_dialog
+            .as_ref()
+            .is_some_and(|dialog| dialog.draft_floppy_image_path.is_some())
+        {
             if let Some(parent) = preferred.parent() {
                 dialog = dialog.set_directory(parent);
             }
             if let Some(name) = preferred.file_name() {
                 dialog = dialog.set_file_name(name.to_string_lossy().as_ref());
             }
-        } else if preferred.exists() && preferred.is_dir() {
+        } else {
             dialog = dialog.set_directory(&preferred);
-        } else if let Some(parent) = preferred.parent() {
-            dialog = dialog.set_directory(parent);
         }
         file_dialog::run(
             self.dialog_parent(None),
@@ -48,11 +51,7 @@ impl DesktopApp {
             .and_then(|d| d.draft_hdd_directory.clone())
             .unwrap_or_else(home_path);
         let mut dialog = rfd::FileDialog::new();
-        if preferred.exists() && preferred.is_dir() {
-            dialog = dialog.set_directory(&preferred);
-        } else if let Some(parent) = preferred.parent() {
-            dialog = dialog.set_directory(parent);
-        }
+        dialog = dialog.set_directory(&preferred);
         file_dialog::run(
             self.dialog_parent(None),
             dialog,

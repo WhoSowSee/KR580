@@ -1,6 +1,7 @@
 mod dispatch;
 mod events;
 pub(crate) mod file_dialog;
+pub(crate) mod file_work;
 mod files;
 mod focus;
 mod focus_ops;

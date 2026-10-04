@@ -41,12 +41,6 @@ impl DesktopApp {
         }
         match message {
             Message::Tick => return self.handle_tick(),
-            Message::FloppyImageContentsLoaded(path, result) => {
-                self.apply_floppy_image_contents(path, result);
-            }
-            Message::HddImageContentsLoaded(path, result) => {
-                self.apply_hdd_image_contents(path, result);
-            }
             Message::CursorMoved(point) => self.interaction.latest_cursor_position = point,
             Message::FileDragCursorPosition(position) => self.update_file_drag_cursor(position),
             Message::MousePressed | Message::MousePressedIgnored => {

@@ -14,7 +14,6 @@ use super::settings_modal::SettingsDialog;
 use super::settings_modal::{FooterFocus, ResetConfirmFocus, SettingsCategory, SettingsSection};
 use super::state::DesktopApp;
 use crate::i18n::Key;
-use crate::settings_storage::load_settings;
 use iced::Task;
 
 impl DesktopApp {
@@ -24,11 +23,16 @@ impl DesktopApp {
         }
         match message {
             Message::OpenSettings => {
+                if self.settings_save_pending() {
+                    return Some(Task::none());
+                }
+                self.preferences.dialog_generation =
+                    self.preferences.dialog_generation.wrapping_add(1);
                 self.preferences.settings_notice = None;
                 self.close_top_menu();
                 self.hide_opcode_dropdown();
                 self.close_open_device_panel();
-                let settings = load_settings();
+                let settings = self.preferences.stored.clone();
                 let dialog =
                     SettingsDialog::new(crate::app::settings_modal::SettingsInitialState {
                         lang: self.preferences.lang,
@@ -51,6 +55,11 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::CloseSettings => {
+                if self.settings_save_pending() {
+                    return Some(Task::none());
+                }
+                self.preferences.dialog_generation =
+                    self.preferences.dialog_generation.wrapping_add(1);
                 self.preferences.settings_notice = None;
                 if let Some(dialog) = self.preferences.settings_dialog.take() {
                     self.apply_language(dialog.original_lang);
@@ -72,6 +81,9 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SaveSettings => {
+                if self.settings_save_pending() {
+                    return Some(Task::none());
+                }
                 let Some(dialog) = self.preferences.settings_dialog.as_ref() else {
                     return Some(Task::none());
                 };
@@ -92,8 +104,7 @@ impl DesktopApp {
                         return Some(Task::none());
                     }
                 };
-                let result = self.save_settings_dialog(dialog, network);
-                self.finish_settings_save(result, Key::SettingsSavedNotice);
+                self.save_settings_dialog(network, Key::SettingsSavedNotice);
                 Some(Task::none())
             }
             Message::SettingsCategorySelected(category) => {
@@ -192,15 +203,7 @@ impl DesktopApp {
             }
             Message::SettingsHddDirectoryBrowse => Some(self.browse_settings_hdd_directory()),
             Message::SettingsDraftHddDirectorySet(path) => {
-                if !network::is_directory_writable(&path) {
-                    self.show_error_notice(
-                        self.preferences.lang.t(Key::ErrHddDirectoryNotWritable),
-                    );
-                    return Some(Task::none());
-                }
-                if let Some(dialog) = self.preferences.settings_dialog.as_mut() {
-                    dialog.draft_hdd_directory = Some(path);
-                }
+                self.validate_hdd_directory(path);
                 Some(Task::none())
             }
             Message::SettingsPrinterSetup => Some(self.configure_printer_settings()),
@@ -275,6 +278,9 @@ impl DesktopApp {
                 })
             }
             Message::SettingsResetRequested => {
+                if self.settings_save_pending() {
+                    return Some(Task::none());
+                }
                 if let Some(dialog) = self.preferences.settings_dialog.as_mut() {
                     dialog.reset_confirm_open = true;
                     dialog.reset_confirm_focus = ResetConfirmFocus::Cancel;
@@ -292,8 +298,9 @@ impl DesktopApp {
                 Some(Task::none())
             }
             Message::SettingsResetConfirmed => {
-                let result = self.reset_settings();
-                self.finish_settings_save(result, Key::SettingsResetNotice);
+                if !self.settings_save_pending() {
+                    self.reset_settings();
+                }
                 Some(Task::none())
             }
             Message::SettingsFileAssociationRegister => {
@@ -340,23 +347,24 @@ impl DesktopApp {
         )
     }
 
-    pub(super) fn commit_settings_dialog_state(&mut self) {
-        let active_speed = self.execution.speed_tier;
+    pub(super) fn commit_settings_dialog_state(
+        &mut self,
+        saved: &SettingsDialog,
+        active_speed: crate::app::SpeedTier,
+    ) {
         let Some(dialog) = self.preferences.settings_dialog.as_mut() else {
             return;
         };
-        self.preferences.shortcut_settings = dialog.draft_shortcuts.clone();
-        self.printer_setup.printer_default_settings = dialog.draft_printer_settings.clone();
-        self.printer_setup.printer_dialog_mode = dialog.draft_printer_dialog_mode;
-        dialog.original_lang = dialog.draft_lang;
-        dialog.original_speed = dialog.draft_speed;
+        self.printer_setup.printer_default_settings = saved.draft_printer_settings.clone();
+        dialog.original_lang = saved.draft_lang;
+        dialog.original_speed = saved.draft_speed;
         dialog.original_active_speed = active_speed;
-        dialog.original_color_scheme = dialog.draft_color_scheme;
-        dialog.original_follow_pc = dialog.draft_follow_pc;
-        dialog.original_memory_operand_highlighting = dialog.draft_memory_operand_highlighting;
-        dialog.original_show_file_name = dialog.draft_show_file_name;
-        dialog.original_monitor_split = self.panels.monitor_split;
-        dialog.original_printer_dialog_mode = dialog.draft_printer_dialog_mode;
-        dialog.original_shortcuts = dialog.draft_shortcuts.clone();
+        dialog.original_color_scheme = saved.draft_color_scheme;
+        dialog.original_follow_pc = saved.draft_follow_pc;
+        dialog.original_memory_operand_highlighting = saved.draft_memory_operand_highlighting;
+        dialog.original_show_file_name = saved.draft_show_file_name;
+        dialog.original_monitor_split = saved.draft_monitor_split;
+        dialog.original_printer_dialog_mode = saved.draft_printer_dialog_mode;
+        dialog.original_shortcuts = saved.draft_shortcuts.clone();
     }
 }

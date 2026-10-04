@@ -5,7 +5,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) fn write(path: &Path, bytes: &[u8]) -> io::Result<()> {
+/// Atomically replaces a file while preserving its permissions and symlink target.
+pub fn write(path: &Path, bytes: &[u8]) -> io::Result<()> {
     replace_with(path, |file| file.write_all(bytes))
 }
 

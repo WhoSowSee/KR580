@@ -56,6 +56,7 @@ fn confirm_focus_is_available_after_a_valid_file_is_loaded() {
 
     app.open_import_modal();
     app.load_import_file(path.clone());
+    crate::app::test_support::settle_files(&mut app);
     assert_eq!(app.import.import_modal_focus, ImportModalFocus::Confirm);
 
     let _task = app.update(Message::FocusCycle { backward: false });
@@ -104,6 +105,7 @@ fn loading_xlsx_import_file_populates_sheet_targets() {
 
     app.open_import_modal();
     app.load_import_file(path.clone());
+    crate::app::test_support::settle_files(&mut app);
 
     assert_eq!(app.import.import_file_path, Some(path.clone()));
     assert_eq!(app.import.import_file_format, Some(ImportFileFormat::Xlsx));
@@ -133,6 +135,7 @@ fn loading_txt_import_file_populates_section_targets_when_present() {
 
     app.open_import_modal();
     app.load_import_file(path.clone());
+    crate::app::test_support::settle_files(&mut app);
 
     assert_eq!(app.import.import_file_format, Some(ImportFileFormat::Text));
     assert_eq!(
@@ -152,7 +155,9 @@ fn unsupported_import_file_keeps_the_modal_open_with_local_error() {
 
     app.open_import_modal();
     app.load_import_file(path.clone());
+    crate::app::test_support::settle_files(&mut app);
     app.load_import_file(PathBuf::from("program.bin"));
+    crate::app::test_support::settle_files(&mut app);
 
     assert!(app.import.import_modal_open);
     assert!(app.import.import_file_path.is_none());
@@ -189,6 +194,7 @@ fn import_modal_owns_file_drag_hover_and_drop_events() {
 
     let dropped = Event::Window(window::Event::FileDropped(path.clone()));
     let _task = app.handle_file_drag_event(&dropped, main);
+    crate::app::test_support::settle_files(&mut app);
     assert!(!app.import.import_file_drag_hovered);
     assert_eq!(app.import.import_file_path, Some(path.clone()));
     assert_eq!(app.import.import_file_format, Some(ImportFileFormat::Text));
@@ -221,6 +227,7 @@ fn confirming_xlsx_import_applies_selected_sheet() {
 
     app.open_import_modal();
     app.load_import_file(path.clone());
+    crate::app::test_support::settle_files(&mut app);
     app.import.import_target_input = "Подпрограмма 2".to_owned();
     let _task = app.confirm_import();
     settle_backend(&mut app);
@@ -240,6 +247,7 @@ fn confirming_plain_txt_import_applies_whole_file_without_targets() {
 
     app.open_import_modal();
     app.load_import_file(path.clone());
+    crate::app::test_support::settle_files(&mut app);
     let _task = app.confirm_import();
     settle_backend(&mut app);
 
@@ -257,6 +265,7 @@ fn confirming_malformed_txt_import_sets_localized_status() {
 
     app.open_import_modal();
     app.load_import_file(path.clone());
+    crate::app::test_support::settle_files(&mut app);
     let _task = app.confirm_import();
     settle_backend(&mut app);
 

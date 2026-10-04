@@ -117,6 +117,20 @@ ordered `Vec<u8>` representation for inspection.
 the device's error state and fail the matching backend command, so an attachment
 cannot publish a successful completion or update the saved path after an error.
 
+Actor requests open/create on the bounded persistence worker, then call
+`StorageDevice::attach_open_file` with the prepared file. Successful reattachment
+uses the existing writer, flushing preceding accepted bytes before switching
+files. Sixteen reserved queue slots admit file-switch/detach control commands;
+byte admission remains capped at 64 KiB. `detach_file` now returns a typed
+`Result` when its control queue is full. Dropping the sender still drains writes
+and flushes before closing.
+
+Disk inspection reads metadata and at most the first 64 KiB on the UI file
+worker. Its caption states that limit; the stored image itself is unchanged.
+Each device has one pending preview check and a generation. Changing the path
+or switching the preview rejects an older completion, including one from the
+same path. Metadata caching skips unchanged byte reads.
+
 `StorageState` is re-exported from the internal `kr580` backend module for UI rendering. The
 Дисковод quick-access chip opens a modal over
 `AppSnapshot.devices.floppy`; it renders accepted `visible_buffer`

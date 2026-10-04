@@ -98,6 +98,6 @@ impl DesktopApp {
                 return;
             }
         };
-        self.requests.backend_tasks.push(task);
+        self.requests.tasks.push(task);
     }
 }

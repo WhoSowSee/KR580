@@ -6,6 +6,11 @@ Snapshot and settings saves use the same staged replacement as `.krs`. A write,
 flush or replacement failure preserves the previous destination. Existing
 permissions and symbolic links follow the shared `atomic_save` contract below.
 
+`persistence::write_file_atomic(path, bytes)` exposes that contract for raw-byte
+outputs. Monitor image and floppy-buffer exports use it from the UI file worker;
+their success messages follow completed replacement. Encoded image bytes never
+return through the UI completion channel.
+
 The desktop `ProgramSerializer` reads and writes the 65,549-byte original
 format: 65,536 RAM bytes, nine register bytes, little-endian PC at offsets
 65,545–65,546, and little-endian SP at offsets 65,547–65,548. The last two
@@ -54,6 +59,13 @@ headered format.
 
 The application settings writer returns `SettingsError`; callers must handle a
 failed directory creation or atomic replacement before reporting success.
+
+Desktop event handlers use cached confirmed settings. Background changes read
+the current file, apply only their owned change, then save in FIFO order, so a
+path update and a printer-profile update cannot overwrite each other's fields.
+Dialog Save captures its submitted draft; confirmation advances Cancel's
+baseline to those values while preserving edits made after submission. A
+failed write leaves the previous baseline intact.
 
 Settings are UTF-8 JSON with `settingsVersion: 11` and top-level `network`, `storage`, `export`, `ui`, `general`, `shortcuts`, and `recentFiles` fields. Loading version 1 preserves non-network preferences but resets the legacy runtime-written client/server endpoints to `127.0.0.1:5800`; version 2 adds the default shortcut map; version 3 migrates the old `ui.theme: "dark"` value to `tokyoNight`; version 4 stores the selected `ColorScheme`; version 5 adds the printer dialog mode; version 6 adds the selected printer name. Version 7 adds `general.printerSettings`, containing the printer name, paper/source identifiers and labels, orientation, and the validated driver `DEVMODEW` bytes. Version 8 adds `general.printerPresets`; each `{ name, settings }` entry stores a complete validated configuration for one printer, including its driver-private `DEVMODEW`. Version 9 adds `general.showFileName`, which defaults to `false` and controls the optional file name in the custom title bar. Version 10 adds `general.monitorSplit`: `false` (the default) initialises the monitor in unified mode, while `true` starts with separate graphics and text layers. Version 11 adds the customizable memory-address pattern-search and memory-cell replacement actions; both default to `Ctrl+Enter` but are scoped to their respective editor contexts, and migration preserves older custom bindings. A version 6 printer name is migrated to a name-only configuration and resolved against the current driver defaults when setup is opened, while version 7 migrates with an empty profile list. `general.printerSettings` is the runtime source of truth; `general.printerName` remains a synchronized compatibility mirror for older settings files. `tokyoNight` is the default theme, and the retired `monokai` value also falls back to `tokyoNight`. Customizable keyboard shortcut overrides live under `shortcuts.bindings`; an empty list means the built-in Ctrl/Shift/Alt layout is active, including `Ctrl+Enter` for memory-address pattern search and memory-cell replacement, `Alt+Enter` for the selected-cell action, and `Shift+Alt+Enter` for returning to the operand cell.
 

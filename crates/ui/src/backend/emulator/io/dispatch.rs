@@ -1,5 +1,6 @@
-use super::{Emulator, IoJob, IoWorker};
+use super::{Emulator, IoGeneration, IoJob, IoWorker, storage_slot};
 use crate::backend::{AppCommand, AppEvent, RequestId};
+use crate::devices::StorageKind;
 use crate::persistence::ExportOptions;
 
 impl Emulator {
@@ -10,6 +11,14 @@ impl Emulator {
         worker: &IoWorker,
     ) -> Option<Vec<AppEvent>> {
         let job = match command {
+            AppCommand::AttachFloppyImage(path) => IoJob::AttachStorage {
+                kind: StorageKind::Floppy,
+                path: path.clone(),
+            },
+            AppCommand::AttachHddFile(path) => IoJob::AttachStorage {
+                kind: StorageKind::Hdd,
+                path: path.clone(),
+            },
             AppCommand::SaveProgram(path) => IoJob::SaveProgram {
                 path: path.clone(),
                 state: Box::new(self.cpu.clone()),
@@ -74,7 +83,19 @@ impl Emulator {
         let generation = self
             .document_generation
             .wrapping_add(u64::from(replacement));
-        if let Err(error) = worker.enqueue(id, generation, job) {
+        let storage = match command {
+            AppCommand::AttachFloppyImage(_) => Some(StorageKind::Floppy),
+            AppCommand::AttachHddFile(_) => Some(StorageKind::Hdd),
+            _ => None,
+        };
+        let scope = match storage {
+            Some(kind) => IoGeneration::Storage(
+                kind,
+                self.storage_generation[storage_slot(kind)].wrapping_add(1),
+            ),
+            None => IoGeneration::Document(generation),
+        };
+        if let Err(error) = worker.enqueue(id, scope, job) {
             return Some(vec![
                 AppEvent::ErrorRaised(error.clone()),
                 AppEvent::CommandFinished {
@@ -84,6 +105,9 @@ impl Emulator {
             ]);
         }
         let mut events = Vec::new();
+        if let IoGeneration::Storage(kind, generation) = scope {
+            self.storage_generation[storage_slot(kind)] = generation;
+        }
         if replacement {
             self.document_generation = generation;
             if self.running {

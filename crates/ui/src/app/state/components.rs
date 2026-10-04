@@ -20,7 +20,7 @@ use super::super::{
 use super::{DropdownState, MemoryView, OperandReturn};
 use crate::i18n::Lang;
 use crate::persistence::{ColorScheme, PrinterDialogMode, ShortcutSettings};
-use crate::runtime::storage_files::FileStamp;
+use crate::runtime::storage_files::ImagePreview;
 use iced::{Point, Size, Task, keyboard};
 use k580_core::RegisterName;
 use std::path::PathBuf;
@@ -114,6 +114,8 @@ pub(crate) struct ExportDialogState {
 }
 
 pub(crate) struct ImportDialogState {
+    pub(crate) generation: u64,
+    pub(crate) loading: bool,
     pub(crate) import_modal_open: bool,
     pub(crate) import_modal_focus: ImportModalFocus,
     pub(crate) import_modal_keyboard_focus_visible: bool,
@@ -128,6 +130,9 @@ pub(crate) struct ImportDialogState {
 }
 
 pub(crate) struct PreferencesState {
+    pub(crate) stored: crate::persistence::Settings,
+    pub(crate) dialog_generation: u64,
+    pub(crate) directory_generation: u64,
     pub(crate) lang: Lang,
     pub(crate) default_speed: SpeedTier,
     pub(crate) color_scheme: ColorScheme,
@@ -175,14 +180,11 @@ pub(crate) struct DevicePanels {
     pub(crate) network_port_input: String,
     pub(crate) network_settings_error: Option<String>,
     pub(crate) hdd_file_exists: bool,
+    pub(crate) hdd_generation: u64,
     pub(crate) hdd_show_image_contents: bool,
-    pub(crate) hdd_image_contents: Vec<u8>,
-    pub(crate) hdd_image_error: Option<String>,
-    pub(crate) hdd_image_file_stamp: Option<FileStamp>,
+    pub(crate) hdd_image: ImagePreview,
     pub(crate) floppy_show_image_contents: bool,
-    pub(crate) floppy_image_contents: Vec<u8>,
-    pub(crate) floppy_image_error: Option<String>,
-    pub(crate) floppy_image_file_stamp: Option<FileStamp>,
+    pub(crate) floppy_image: ImagePreview,
 }
 
 pub(crate) struct ShellState {
@@ -202,7 +204,8 @@ pub(crate) struct ShellState {
     pub(crate) help_dialog: Option<HelpDialog>,
 }
 
-pub(crate) struct BackendRequests {
+pub(crate) struct RequestState {
+    pub(crate) file_worker: Option<crate::runtime::file_work::FileWorker>,
     pub(crate) pending_requests: PendingRequests,
-    pub(crate) backend_tasks: Vec<Task<Message>>,
+    pub(crate) tasks: Vec<Task<Message>>,
 }

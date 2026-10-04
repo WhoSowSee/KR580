@@ -47,7 +47,10 @@ fn committed_settings_stay_open_and_advance_cancel_snapshot() {
         ShortcutKey::M,
     )));
 
-    app.commit_settings_dialog_state();
+    app.commit_settings_dialog_state(
+        &app.preferences.settings_dialog.as_ref().unwrap().clone(),
+        app.execution.speed_tier,
+    );
 
     let dialog = app.preferences.settings_dialog.as_ref().unwrap();
     assert_eq!(dialog.original_speed, SpeedTier::Max);

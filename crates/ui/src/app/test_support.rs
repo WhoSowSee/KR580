@@ -7,10 +7,28 @@ pub(crate) fn settle_backend(app: &mut DesktopApp) {
     loop {
         app.pull_events();
         let _task = app.update(Message::Tick);
+        settle_files(app);
         if app.requests.pending_requests.is_empty() {
             return;
         }
         assert!(Instant::now() < deadline, "backend requests did not finish");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+pub(crate) fn settle_files(app: &mut DesktopApp) {
+    let deadline = Instant::now() + Duration::from_secs(3);
+    loop {
+        app.pull_file_completions();
+        if app
+            .requests
+            .file_worker
+            .as_ref()
+            .is_none_or(|worker| worker.pending() == 0)
+        {
+            return;
+        }
+        assert!(Instant::now() < deadline, "UI file work did not finish");
         std::thread::sleep(Duration::from_millis(1));
     }
 }

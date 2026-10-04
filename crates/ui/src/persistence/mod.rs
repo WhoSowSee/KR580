@@ -7,6 +7,7 @@ pub mod settings;
 pub mod shortcuts;
 pub mod subprogram;
 
+pub use atomic_save::write as write_file_atomic;
 pub use error::{ExportError, ImportError, PersistenceError, SettingsError};
 pub use export::{
     ExportFlagKind, ExportModel, ExportOptions, ExportRegisterKind, ExportTextSection,

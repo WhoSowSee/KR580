@@ -1,251 +1,194 @@
 use crate::app::{DesktopApp, Message};
+use crate::backend::AppError;
+use crate::backend::error::AppErrorKind;
 use crate::i18n::Key;
+use crate::runtime::file_work::{FileRequest, FileResult};
 use iced::Task;
 use k580_ui::devices::StorageKind;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+const PREVIEW_LIMIT: u64 = 65_536;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct FileStamp {
+struct FileStamp {
     path: PathBuf,
     modified: Option<SystemTime>,
     length: u64,
 }
 
+pub(crate) struct ImageRead {
+    stamp: FileStamp,
+    bytes: Option<Vec<u8>>,
+}
+
+#[derive(Default)]
+pub(crate) struct ImagePreview {
+    pub(crate) contents: Vec<u8>,
+    pub(crate) error: Option<String>,
+    stamp: Option<FileStamp>,
+    generation: u64,
+    pending: Option<(u64, PathBuf)>,
+}
+
+impl ImagePreview {
+    fn invalidate(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+        self.pending = None;
+        self.stamp = None;
+    }
+}
+
 impl DesktopApp {
     pub(crate) fn refresh_open_image_contents(&mut self) -> Task<Message> {
-        let mut tasks = Vec::new();
-        if self.panels.floppy_open
-            && self.panels.floppy_show_image_contents
-            && let Some(task) = self.schedule_image_read(StorageKind::Floppy)
-        {
-            tasks.push(task);
+        if self.panels.floppy_open && self.panels.floppy_show_image_contents {
+            self.schedule_image_read(StorageKind::Floppy);
         }
-        if self.panels.hdd_open
-            && self.panels.hdd_show_image_contents
-            && let Some(task) = self.schedule_image_read(StorageKind::Hdd)
-        {
-            tasks.push(task);
+        if self.panels.hdd_open {
+            self.schedule_image_read(StorageKind::Hdd);
         }
-        Task::batch(tasks)
+        Task::none()
     }
 
-    fn schedule_image_read(&mut self, kind: StorageKind) -> Option<Task<Message>> {
-        let (path, stamp) = if kind == StorageKind::Floppy {
-            (
-                self.snapshot.devices.floppy.path.clone(),
-                &mut self.panels.floppy_image_file_stamp,
-            )
-        } else {
-            (
-                self.snapshot.devices.hdd.path.clone(),
-                &mut self.panels.hdd_image_file_stamp,
-            )
+    fn schedule_image_read(&mut self, kind: StorageKind) {
+        let path = self.image_path(kind).cloned();
+        let read_contents = match kind {
+            StorageKind::Floppy => self.panels.floppy_show_image_contents,
+            StorageKind::Hdd => self.panels.hdd_show_image_contents,
         };
-        let path = path?;
-        let current = match file_stamp(&path) {
-            Ok(stamp) => stamp,
-            Err(error) => {
-                if kind == StorageKind::Floppy {
-                    self.panels.floppy_image_contents.clear();
-                    self.panels.floppy_image_error = Some(error.to_string());
-                    self.panels.floppy_image_file_stamp = None;
-                } else {
-                    self.panels.hdd_image_contents.clear();
-                    self.panels.hdd_image_error = Some(error.to_string());
-                    self.panels.hdd_image_file_stamp = None;
+        let Some(path) = path else {
+            let key = match kind {
+                StorageKind::Floppy => Key::FloppyPathMissing,
+                StorageKind::Hdd => Key::HddPathMissing,
+            };
+            let error = self.preferences.lang.t(key).to_owned();
+            let preview = self.image_preview(kind);
+            preview.invalidate();
+            preview.contents.clear();
+            preview.error = Some(error);
+            if kind == StorageKind::Hdd {
+                self.panels.hdd_file_exists = false;
+            }
+            return;
+        };
+        let preview = self.image_preview(kind);
+        if let Some((_, pending_path)) = &preview.pending {
+            if pending_path == &path {
+                return;
+            }
+            preview.invalidate();
+        }
+        preview.generation = preview.generation.wrapping_add(1);
+        let generation = preview.generation;
+        preview.pending = Some((generation, path.clone()));
+        let stamp = preview.stamp.clone();
+        self.queue_file_work(
+            FileRequest::Image {
+                kind,
+                generation,
+                path: path.clone(),
+            },
+            move || {
+                read_image(&path, stamp.as_ref(), read_contents)
+                    .map(FileResult::Image)
+                    .map_err(Into::into)
+            },
+        );
+    }
+
+    pub(crate) fn apply_image_contents(
+        &mut self,
+        kind: StorageKind,
+        generation: u64,
+        path: PathBuf,
+        result: Result<ImageRead, AppError>,
+    ) {
+        if self.image_path(kind) != Some(&path) {
+            return;
+        }
+        let preview = self.image_preview(kind);
+        if preview.pending.as_ref() != Some(&(generation, path)) {
+            return;
+        }
+        preview.pending = None;
+        if result
+            .as_ref()
+            .is_err_and(|error| error.kind() == AppErrorKind::DeviceBusy)
+        {
+            return;
+        }
+        let exists = result.is_ok();
+        match result {
+            Ok(image) => {
+                if let Some(bytes) = image.bytes {
+                    preview.contents = bytes;
+                    preview.stamp = Some(image.stamp);
                 }
-                return None;
-            }
-        };
-        if stamp.as_ref() == Some(&current) {
-            return None;
-        }
-        *stamp = Some(current);
-        let message_path = path.clone();
-        let message = move |result| {
-            if kind == StorageKind::Floppy {
-                Message::FloppyImageContentsLoaded(message_path.clone(), result)
-            } else {
-                Message::HddImageContentsLoaded(message_path.clone(), result)
-            }
-        };
-        Some(Task::perform(read_file(path), message))
-    }
-
-    pub(crate) fn apply_floppy_image_contents(
-        &mut self,
-        path: PathBuf,
-        result: Result<Vec<u8>, String>,
-    ) {
-        if self.snapshot.devices.floppy.path.as_ref() != Some(&path) {
-            return;
-        }
-        match result {
-            Ok(bytes) => {
-                self.panels.floppy_image_contents = bytes;
-                self.panels.floppy_image_error = None;
+                preview.error = None;
             }
             Err(error) => {
-                self.panels.floppy_image_contents.clear();
-                self.panels.floppy_image_error = Some(error);
-                self.panels.floppy_image_file_stamp = None;
+                preview.contents.clear();
+                preview.stamp = None;
+                preview.error = Some(error.to_string());
             }
+        }
+        if kind == StorageKind::Hdd {
+            self.panels.hdd_file_exists = exists;
         }
     }
 
-    pub(crate) fn apply_hdd_image_contents(
-        &mut self,
-        path: PathBuf,
-        result: Result<Vec<u8>, String>,
-    ) {
-        if self.snapshot.devices.hdd.path.as_ref() != Some(&path) {
-            return;
-        }
-        match result {
-            Ok(bytes) => {
-                self.panels.hdd_image_contents = bytes;
-                self.panels.hdd_image_error = None;
-            }
-            Err(error) => {
-                self.panels.hdd_image_contents.clear();
-                self.panels.hdd_image_error = Some(error);
-                self.panels.hdd_image_file_stamp = None;
-            }
-        }
+    pub(crate) fn invalidate_image_preview(&mut self, kind: StorageKind) {
+        self.image_preview(kind).invalidate();
     }
 
     pub(crate) fn refresh_floppy_image_contents(&mut self) {
-        let Some(path) = self.snapshot.devices.floppy.path.as_ref() else {
-            self.panels.floppy_image_contents.clear();
-            self.panels.floppy_image_file_stamp = None;
-            self.panels.floppy_image_error =
-                Some(self.preferences.lang.t(Key::FloppyPathMissing).into());
-            return;
-        };
-
-        match read_file_if_changed(path, &mut self.panels.floppy_image_file_stamp) {
-            Ok(Some(bytes)) => {
-                self.panels.floppy_image_contents = bytes;
-                self.panels.floppy_image_error = None;
-            }
-            Ok(None) => {}
-            Err(error) => {
-                self.panels.floppy_image_contents.clear();
-                self.panels.floppy_image_file_stamp = None;
-                self.panels.floppy_image_error = Some(format!(
-                    "{}: {error}",
-                    self.preferences.lang.t(Key::ErrCannotReadFile)
-                ));
-            }
-        }
+        self.invalidate_image_preview(StorageKind::Floppy);
+        self.schedule_image_read(StorageKind::Floppy);
     }
     pub(crate) fn refresh_hdd_image_contents(&mut self) {
-        let Some(path) = self.snapshot.devices.hdd.path.as_ref() else {
-            self.panels.hdd_image_contents.clear();
-            self.panels.hdd_image_file_stamp = None;
-            self.panels.hdd_image_error = Some(self.preferences.lang.t(Key::HddPathMissing).into());
-            return;
-        };
+        self.invalidate_image_preview(StorageKind::Hdd);
+        self.schedule_image_read(StorageKind::Hdd);
+    }
+    pub(crate) fn refresh_hdd_file_exists(&mut self) {
+        self.schedule_image_read(StorageKind::Hdd);
+    }
 
-        match read_file_if_changed(path, &mut self.panels.hdd_image_file_stamp) {
-            Ok(Some(bytes)) => {
-                self.panels.hdd_image_contents = bytes;
-                self.panels.hdd_image_error = None;
-            }
-            Ok(None) => {}
-            Err(error) => {
-                self.panels.hdd_image_contents.clear();
-                self.panels.hdd_image_file_stamp = None;
-                self.panels.hdd_image_error = Some(format!(
-                    "{}: {error}",
-                    self.preferences.lang.t(Key::ErrCannotReadFile)
-                ));
-            }
+    fn image_preview(&mut self, kind: StorageKind) -> &mut ImagePreview {
+        match kind {
+            StorageKind::Floppy => &mut self.panels.floppy_image,
+            StorageKind::Hdd => &mut self.panels.hdd_image,
+        }
+    }
+    fn image_path(&self, kind: StorageKind) -> Option<&PathBuf> {
+        match kind {
+            StorageKind::Floppy => self.snapshot.devices.floppy.path.as_ref(),
+            StorageKind::Hdd => self.snapshot.devices.hdd.path.as_ref(),
         }
     }
 }
 
-fn read_file_if_changed(
+fn read_image(
     path: &Path,
-    known_stamp: &mut Option<FileStamp>,
-) -> std::io::Result<Option<Vec<u8>>> {
-    let metadata = std::fs::metadata(path)?;
-    let current_stamp = FileStamp {
+    known: Option<&FileStamp>,
+    read_contents: bool,
+) -> std::io::Result<ImageRead> {
+    let file = std::fs::File::open(path)?;
+    let metadata = file.metadata()?;
+    let stamp = FileStamp {
         path: path.to_path_buf(),
         modified: metadata.modified().ok(),
         length: metadata.len(),
     };
-    if known_stamp.as_ref() == Some(&current_stamp) {
-        return Ok(None);
-    }
-
-    let bytes = std::fs::read(path)?;
-    *known_stamp = Some(current_stamp);
-    Ok(Some(bytes))
-}
-
-async fn read_file(path: PathBuf) -> Result<Vec<u8>, String> {
-    tokio::task::spawn_blocking(move || std::fs::read(path))
-        .await
-        .map_err(|error| error.to_string())?
-        .map_err(|error| error.to_string())
-}
-
-fn file_stamp(path: &Path) -> std::io::Result<FileStamp> {
-    let metadata = std::fs::metadata(path)?;
-    Ok(FileStamp {
-        path: path.to_path_buf(),
-        modified: metadata.modified().ok(),
-        length: metadata.len(),
-    })
+    let bytes = if read_contents && known != Some(&stamp) {
+        let mut bytes = Vec::with_capacity(metadata.len().min(PREVIEW_LIMIT) as usize);
+        file.take(PREVIEW_LIMIT).read_to_end(&mut bytes)?;
+        Some(bytes)
+    } else {
+        None
+    };
+    Ok(ImageRead { stamp, bytes })
 }
 
 #[cfg(test)]
-mod tests {
-    use super::super::save_floppy_buffer_file;
-    use super::read_file_if_changed;
-    use std::fs;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    #[test]
-    fn read_file_if_changed_skips_unchanged_image_and_reads_new_bytes() {
-        let stamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!("kr580-floppy-refresh-{stamp}.kpd"));
-        let mut known_stamp = None;
-        fs::write(&path, b"before").unwrap();
-
-        assert_eq!(
-            read_file_if_changed(&path, &mut known_stamp).unwrap(),
-            Some(b"before".to_vec())
-        );
-        assert_eq!(read_file_if_changed(&path, &mut known_stamp).unwrap(), None);
-
-        fs::write(&path, b"after image").unwrap();
-
-        assert_eq!(
-            read_file_if_changed(&path, &mut known_stamp).unwrap(),
-            Some(b"after image".to_vec())
-        );
-        fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn save_floppy_buffer_file_writes_bytes_and_defaults_to_kpd() {
-        let stamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let base = std::env::temp_dir().join(format!("kr580-floppy-buffer-{stamp}"));
-
-        let path = save_floppy_buffer_file(&base, &[b'A', 0x80]).unwrap();
-
-        let bytes = fs::read(&path).unwrap();
-        fs::remove_file(&path).unwrap();
-        assert_eq!(path.extension().and_then(|ext| ext.to_str()), Some("kpd"));
-        assert_eq!(bytes, [b'A', 0x80]);
-    }
-}
+mod tests;

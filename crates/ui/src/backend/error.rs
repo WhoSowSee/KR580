@@ -61,6 +61,16 @@ impl From<std::io::Error> for AppError {
     }
 }
 
+impl From<image::ImageError> for AppError {
+    fn from(error: image::ImageError) -> Self {
+        let kind = match &error {
+            image::ImageError::IoError(error) => AppErrorKind::io(error, AppErrorKind::Io),
+            _ => AppErrorKind::Generic,
+        };
+        Self::Io(ErrorData::capture(kind, error))
+    }
+}
+
 impl From<crate::devices::DeviceError> for AppError {
     fn from(error: crate::devices::DeviceError) -> Self {
         use crate::devices::DeviceError;

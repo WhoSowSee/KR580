@@ -13,22 +13,26 @@ pub(super) fn settings_footer(dialog: &SettingsDialog, lang: Lang) -> Element<'s
 
     let reset = footer_button(
         lang.t(Key::SettingsReset),
-        Message::SettingsResetRequested,
+        (!dialog.saving).then_some(Message::SettingsResetRequested),
         footer_active && focus == FooterFocus::Reset,
     );
     let reset_shortcuts = footer_button(
         reset_shortcuts_label(lang),
-        Message::SettingsShortcutsReset,
+        Some(Message::SettingsShortcutsReset),
         footer_active && focus == FooterFocus::ShortcutReset,
     );
     let cancel = footer_button(
         lang.t(Key::DiscardCancel),
-        Message::CloseSettings,
+        (!dialog.saving).then_some(Message::CloseSettings),
         footer_active && focus == FooterFocus::Cancel,
     );
     let save = footer_button(
-        lang.t(Key::FileSave),
-        Message::SaveSettings,
+        lang.t(if dialog.saving {
+            Key::SettingsSaving
+        } else {
+            Key::FileSave
+        }),
+        (!dialog.saving).then_some(Message::SaveSettings),
         footer_active && focus == FooterFocus::Save,
     );
 
@@ -63,9 +67,13 @@ fn reset_shortcuts_label(lang: Lang) -> &'static str {
     }
 }
 
-fn footer_button(label: &'static str, action: Message, focused: bool) -> Element<'static, Message> {
+fn footer_button(
+    label: &'static str,
+    action: Option<Message>,
+    focused: bool,
+) -> Element<'static, Message> {
     button(container(ui_text(label, 13, tokyo_text())).padding([6, 16]))
-        .on_press(action)
+        .on_press_maybe(action)
         .padding(0)
         .style(move |_theme, status| footer_button_style(status, focused))
         .into()

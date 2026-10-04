@@ -85,7 +85,10 @@ fn closing_settings_preserves_active_speed_before_and_after_save() {
 
     let _ = app.update(Message::OpenSettings);
     let _ = app.update(Message::SettingsDraftFollowPcSet(true));
-    app.commit_settings_dialog_state();
+    app.commit_settings_dialog_state(
+        &app.preferences.settings_dialog.as_ref().unwrap().clone(),
+        app.execution.speed_tier,
+    );
     let _ = app.update(Message::CloseSettings);
 
     assert_eq!(app.execution.speed_tier, SpeedTier::Slow);

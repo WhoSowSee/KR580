@@ -8,6 +8,7 @@ use tokio::sync::mpsc;
 mod worker;
 
 const QUEUE_CAP: usize = 65_536;
+const CONTROL_RESERVE: usize = 16;
 const HISTORY_CAP: usize = 65_536;
 const DEBUG_BUFFER_CAP: usize = 1_048_576;
 
@@ -44,6 +45,8 @@ pub struct StorageDevice {
 enum StorageCommand {
     Write(u8),
     Flush,
+    Attach(std::fs::File),
+    Detach,
 }
 
 impl StorageDevice {
@@ -72,36 +75,43 @@ impl StorageDevice {
         path: impl AsRef<Path>,
         handle: &tokio::runtime::Handle,
     ) -> Result<(), DeviceError> {
-        self.detach_file();
         let path = path.as_ref().to_path_buf();
-        let file = match OpenOptions::new().create(true).append(true).open(&path) {
-            Ok(file) => file,
-            Err(error) => {
-                let error = DeviceError::from(error);
-                self.state.path = Some(path);
-                self.state.status = DeviceStatus::Error(error.to_string());
-                self.state.last_error = Some(error.to_string());
-                self.state.worker_alive = false;
-                self.tx = None;
-                self.error_rx = None;
-                return Err(error);
-            }
-        };
-        let (tx, rx) = mpsc::channel(QUEUE_CAP);
-        let (error_tx, error_rx) = mpsc::channel(1);
-        handle.spawn(worker::write_file(file, rx, error_tx));
+        match OpenOptions::new().create(true).append(true).open(&path) {
+            Ok(file) => self.attach_open_file(path, file, handle),
+            Err(error) => self.record_attachment_failure(path, error.into()),
+        }
+    }
+
+    /// Installs a prepared file without filesystem work on the calling thread.
+    pub fn attach_open_file(
+        &mut self,
+        path: PathBuf,
+        file: std::fs::File,
+        handle: &tokio::runtime::Handle,
+    ) -> Result<(), DeviceError> {
+        if let Some(tx) = &self.tx {
+            let result = super::queue::enqueue(tx, StorageCommand::Attach(file));
+            self.finish_enqueue(result)?;
+        } else {
+            let (tx, rx) = mpsc::channel(QUEUE_CAP + CONTROL_RESERVE);
+            let (error_tx, error_rx) = mpsc::channel(1);
+            handle.spawn(worker::write_file(file, rx, error_tx));
+            self.tx = Some(tx);
+            self.error_rx = Some(error_rx);
+        }
         self.state.path = Some(path);
         self.state.status = DeviceStatus::Ready;
         self.state.last_error = None;
         self.state.worker_alive = true;
         self.state.debug_buffer = false;
-        self.tx = Some(tx);
-        self.error_rx = Some(error_rx);
         Ok(())
     }
 
-    pub fn detach_file(&mut self) {
-        self.tx = None;
+    pub fn detach_file(&mut self) -> Result<(), DeviceError> {
+        if let Some(tx) = &self.tx {
+            let result = super::queue::enqueue(tx, StorageCommand::Detach);
+            self.finish_enqueue(result)?;
+        }
         self.state.path = None;
         self.state.status = if self.state.debug_buffer {
             DeviceStatus::Ready
@@ -110,11 +120,28 @@ impl StorageDevice {
         };
         self.state.last_error = None;
         self.state.worker_alive = false;
+        Ok(())
+    }
+
+    pub(crate) fn record_attachment_failure(
+        &mut self,
+        path: PathBuf,
+        error: DeviceError,
+    ) -> Result<(), DeviceError> {
+        self.detach_file()?;
+        self.state.path = Some(path);
+        self.state.status = DeviceStatus::Error(error.to_string());
+        self.state.last_error = Some(error.to_string());
+        self.tx = None;
         self.error_rx = None;
+        Err(error)
     }
 
     pub fn write_byte(&mut self, value: u8) -> Result<(), DeviceError> {
-        if let Some(tx) = self.tx.as_ref() {
+        if let Some(tx) = self.tx.as_ref().filter(|_| self.state.path.is_some()) {
+            if tx.capacity() <= CONTROL_RESERVE {
+                return self.finish_enqueue(Err(DeviceError::Busy));
+            }
             let result = super::queue::enqueue(tx, StorageCommand::Write(value));
             self.finish_enqueue(result)?;
             self.accept_visible_byte(value);
@@ -140,7 +167,7 @@ impl StorageDevice {
 
     pub fn set_debug_buffer(&mut self, enabled: bool) {
         self.state.debug_buffer = enabled;
-        self.state.status = match (enabled, self.tx.is_some()) {
+        self.state.status = match (enabled, self.state.path.is_some() && self.tx.is_some()) {
             (true, _) | (false, true) => DeviceStatus::Ready,
             (false, false) => DeviceStatus::NotReady,
         };
@@ -172,11 +199,14 @@ impl StorageDevice {
     }
 
     pub fn flush(&mut self) -> Result<(), DeviceError> {
-        let Some(tx) = self.tx.as_ref() else {
+        let Some(tx) = self.tx.as_ref().filter(|_| self.state.path.is_some()) else {
             self.state.status = DeviceStatus::NotReady;
             self.state.last_error = Some(DeviceError::NotReady.to_string());
             return Err(DeviceError::NotReady);
         };
+        if tx.capacity() <= CONTROL_RESERVE {
+            return self.finish_enqueue(Err(DeviceError::Busy));
+        }
         let result = super::queue::enqueue(tx, StorageCommand::Flush);
         self.finish_enqueue(result)
     }
@@ -217,7 +247,7 @@ impl StorageDevice {
 
     fn accept_visible_byte(&mut self, value: u8) {
         self.visible.push_back(value);
-        if self.tx.is_some() && self.visible.len() > HISTORY_CAP {
+        if self.state.path.is_some() && self.visible.len() > HISTORY_CAP {
             self.visible.pop_front();
         }
         self.tail.push_back(value);

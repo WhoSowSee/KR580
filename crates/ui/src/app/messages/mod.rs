@@ -81,6 +81,7 @@ impl RegisterInlineTarget {
 pub(crate) enum Message {
     DeviceButtonPressed(ToolWindowKind, Box<Message>),
     Tick,
+    FileWorkReady,
     StepInstruction,
     RestartProgram,
     StepTact,
@@ -258,7 +259,6 @@ pub(crate) enum Message {
     ToggleFloppyImageContents,
     OpenFloppyImage,
     FloppyImagePathSelected(PathBuf),
-    FloppyImageContentsLoaded(PathBuf, Result<Vec<u8>, String>),
     DetachFloppyImage,
     SaveFloppyBuffer,
     FloppyBufferPathSelected(PathBuf),
@@ -273,7 +273,6 @@ pub(crate) enum Message {
     DeleteHddFile,
     CreateHddFile,
     ToggleHddImageContents,
-    HddImageContentsLoaded(PathBuf, Result<Vec<u8>, String>),
     OpenNetwork,
     CloseNetwork,
     OpenNetworkSettings,

@@ -8,6 +8,10 @@ use k580_core::Cpu8080State;
 use std::path::PathBuf;
 
 pub(super) enum IoJob {
+    AttachStorage {
+        kind: crate::devices::StorageKind,
+        path: PathBuf,
+    },
     SaveProgram {
         path: PathBuf,
         state: Box<Cpu8080State>,
@@ -60,6 +64,17 @@ pub(super) enum IoJob {
 
 pub(super) fn run(job: IoJob) -> Result<(CommandResult, Option<IoUpdate>), AppError> {
     match job {
+        IoJob::AttachStorage { kind, path } => {
+            let file = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+                .map_err(crate::devices::DeviceError::from);
+            Ok((
+                CommandResult::Completed,
+                Some(IoUpdate::Storage { kind, path, file }),
+            ))
+        }
         IoJob::SaveProgram { path, state } => {
             ProgramSerializer::save_file(path, &state)?;
             Ok((CommandResult::SavedProgram { state }, None))

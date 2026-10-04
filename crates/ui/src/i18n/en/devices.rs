@@ -23,7 +23,7 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
         Key::MonitorClearBuffer => "Clear buffer",
         Key::MonitorSaveImage => "Save image",
         Key::MonitorImageSaved => "Monitor image saved",
-        Key::MonitorImageSaveFailed => "Failed to save monitor image",
+        Key::StorageImagePreviewLimit => "Preview: first 64 KiB of the file",
         Key::MonitorHexFilterAll => "Filter: all",
         Key::MonitorHexFilterGraphics => "Filter: graphics",
         Key::MonitorHexFilterText => "Filter: text",

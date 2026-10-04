@@ -27,6 +27,8 @@ fn parked_workers_refuse_full_queues_without_recording_rejected_bytes() {
     assert_eq!(storage.state().visible_buffer.last(), Some(&0xFF));
     assert_eq!(network.state().tx_buffer, [0xFF]);
     assert_eq!(storage.flush(), Err(DeviceError::Busy));
+    let next_path = path.with_extension("next.kpd");
+    storage.attach_file(&next_path, runtime.handle()).unwrap();
     storage.close().unwrap();
     runtime.block_on(async {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
@@ -45,6 +47,8 @@ fn parked_workers_refuse_full_queues_without_recording_rejected_bytes() {
             .collect::<Vec<_>>()
     );
     std::fs::remove_file(path).unwrap();
+    assert!(std::fs::read(&next_path).unwrap().is_empty());
+    std::fs::remove_file(next_path).unwrap();
 }
 
 #[test]

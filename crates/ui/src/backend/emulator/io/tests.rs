@@ -4,6 +4,38 @@ use crate::persistence::ExportModel;
 use crate::persistence::import::CpuPatch;
 
 #[test]
+fn superseded_storage_open_does_not_restore_old_attachment_or_error() {
+    for kind in [
+        crate::devices::StorageKind::Floppy,
+        crate::devices::StorageKind::Hdd,
+    ] {
+        let mut emulator = Emulator::default();
+        emulator.storage_generation[super::storage_slot(kind)] = 2;
+        let events = emulator.finish_io(IoCompletion {
+            id: RequestId(1),
+            generation: super::IoGeneration::Storage(kind, 1),
+            result: Ok((
+                CommandResult::Completed,
+                Some(IoUpdate::Storage {
+                    kind,
+                    path: "old.kpd".into(),
+                    file: Err(crate::devices::DeviceError::NotReady),
+                }),
+            )),
+        });
+        assert_eq!(
+            events,
+            vec![AppEvent::CommandFinished {
+                id: RequestId(1),
+                result: Ok(CommandResult::Superseded)
+            }]
+        );
+        assert!(emulator.bus().floppy.state().path.is_none());
+        assert!(emulator.bus().hdd.state().path.is_none());
+    }
+}
+
+#[test]
 fn partial_load_completion_keeps_memory_edits_made_after_parsing() {
     let patch = CpuPatch::owned(ExportModel {
         registers: vec![("A".into(), "41".into())],
@@ -27,7 +59,7 @@ fn partial_load_completion_keeps_memory_edits_made_after_parsing() {
         emulator.handle_command(AppCommand::SetMemory(0x1234, 0xAA));
         emulator.finish_io(IoCompletion {
             id: RequestId(1),
-            generation: emulator.document_generation,
+            generation: super::IoGeneration::Document(emulator.document_generation),
             result: Ok((result, Some(update))),
         });
         assert_eq!(emulator.cpu().memory.read(0x1234), 0xAA);
@@ -52,7 +84,7 @@ fn replacement_document_rejects_old_completion_and_error() {
     ] {
         let events = emulator.finish_io(IoCompletion {
             id: RequestId(1),
-            generation,
+            generation: super::IoGeneration::Document(generation),
             result,
         });
         assert_eq!(emulator.cpu(), &replacement);

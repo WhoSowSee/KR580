@@ -102,7 +102,7 @@ fn render_rgb_buffer(state: &MonitorState) -> (Vec<u8>, usize, usize) {
 pub(crate) fn render_monitor_image(
     state: &MonitorState,
     format: MonitorImageFormat,
-) -> Result<Vec<u8>, String> {
+) -> Result<Vec<u8>, image::ImageError> {
     let (buf, width, height) = render_rgb_buffer(state);
 
     match format {
@@ -113,58 +113,50 @@ pub(crate) fn render_monitor_image(
     }
 }
 
-fn encode_png(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String> {
+fn encode_png(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, image::ImageError> {
     let mut out = Vec::new();
-    image::codecs::png::PngEncoder::new(&mut out)
-        .write_image(
-            buf,
-            width as u32,
-            height as u32,
-            image::ExtendedColorType::Rgb8,
-        )
-        .map_err(|e| format!("png: {e}"))?;
+    image::codecs::png::PngEncoder::new(&mut out).write_image(
+        buf,
+        width as u32,
+        height as u32,
+        image::ExtendedColorType::Rgb8,
+    )?;
     Ok(out)
 }
 
-fn encode_jpeg(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String> {
+fn encode_jpeg(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, image::ImageError> {
     let mut out = Vec::new();
     let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 90);
-    encoder
-        .encode(
-            buf,
-            width as u32,
-            height as u32,
-            image::ColorType::Rgb8.into(),
-        )
-        .map_err(|e| format!("jpeg: {e}"))?;
+    encoder.encode(
+        buf,
+        width as u32,
+        height as u32,
+        image::ColorType::Rgb8.into(),
+    )?;
     Ok(out)
 }
 
-fn encode_webp(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String> {
+fn encode_webp(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, image::ImageError> {
     let mut out = Vec::new();
     let encoder = image::codecs::webp::WebPEncoder::new_lossless(&mut out);
-    encoder
-        .encode(
-            buf,
-            width as u32,
-            height as u32,
-            image::ColorType::Rgb8.into(),
-        )
-        .map_err(|e| format!("webp: {e}"))?;
+    encoder.encode(
+        buf,
+        width as u32,
+        height as u32,
+        image::ColorType::Rgb8.into(),
+    )?;
     Ok(out)
 }
 
-fn encode_bmp(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, String> {
+fn encode_bmp(buf: &[u8], width: usize, height: usize) -> Result<Vec<u8>, image::ImageError> {
     let mut out = Vec::new();
     let mut encoder = image::codecs::bmp::BmpEncoder::new(&mut out);
-    encoder
-        .encode(
-            buf,
-            width as u32,
-            height as u32,
-            image::ColorType::Rgb8.into(),
-        )
-        .map_err(|e| format!("bmp: {e}"))?;
+    encoder.encode(
+        buf,
+        width as u32,
+        height as u32,
+        image::ColorType::Rgb8.into(),
+    )?;
     Ok(out)
 }
 

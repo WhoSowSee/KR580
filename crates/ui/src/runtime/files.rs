@@ -1,11 +1,9 @@
 use std::path::PathBuf;
 
 use crate::app::{
-    DesktopApp, ExportTab, Message, PendingRequest, StatusKind, SubprogramDialogMode,
-    ToolWindowKind,
+    DesktopApp, ExportTab, Message, PendingRequest, SubprogramDialogMode, ToolWindowKind,
 };
 use crate::backend::AppCommand;
-use crate::i18n::Key;
 use crate::persistence::{ExportOptions, SubprogramSerializer};
 use crate::view::monitor_image::MonitorImageFormat;
 use iced::Task;
@@ -224,37 +222,15 @@ impl DesktopApp {
 
         let path = normalise_image_path(path, format);
 
-        let bytes = match crate::view::monitor_image::render_monitor_image(
-            &self.snapshot.devices.monitor,
-            format,
-        ) {
-            Ok(b) => b,
-            Err(err) => {
-                tracing::error!("save monitor image: render: {err}");
-                self.set_status_custom(
-                    self.preferences
-                        .lang
-                        .t(Key::MonitorImageSaveFailed)
-                        .to_owned(),
-                );
-                return;
-            }
-        };
-
-        if let Err(err) = std::fs::write(&path, &bytes) {
-            tracing::error!("save monitor image to {}: {err}", path.display());
-            self.set_status_custom(
-                self.preferences
-                    .lang
-                    .t(Key::MonitorImageSaveFailed)
-                    .to_owned(),
-            );
-            return;
-        }
-
-        self.set_status(StatusKind::MonitorImageSaved {
-            display: path.display().to_string(),
-        });
+        let state = self.snapshot.devices.monitor.clone();
+        self.queue_file_work(
+            crate::runtime::file_work::FileRequest::MonitorSaved(path.clone()),
+            move || {
+                let bytes = crate::view::monitor_image::render_monitor_image(&state, format)?;
+                crate::persistence::write_file_atomic(&path, &bytes)?;
+                Ok(crate::runtime::file_work::FileResult::Saved(path))
+            },
+        );
     }
 }
 

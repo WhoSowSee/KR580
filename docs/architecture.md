@@ -132,6 +132,22 @@ jobs; full-queue admission fails immediately through the matching request rather
 than blocking the actor or creating another OS thread. Panics in file work become
 failed completions, so pending UI operations do not remain unresolved.
 
+`runtime/file_work/` owns a second, lazily started FIFO worker for UI file jobs.
+Its budget includes eight running, queued or unconsumed completions. Target
+enumeration, disk metadata/preview reads, monitor encoding, buffer saves,
+directory validation and settings read-modify-write run entirely there. An iced
+`Task` wakes the UI; completions drain before modal routing and on Tick. Import
+and preview generations reject old results even for the same path. Settings
+reads during event handling use the last confirmed cache; initial preferences
+load before the first window is constructed. External settings-file edits are
+picked up at the next background write or application start.
+
+Storage opening also uses the actor's persistence worker. Per-device generations
+invalidate older opens after reattachment or detach independently of CPU document
+replacement. The actor installs an owned open file without filesystem work.
+Each storage device reuses one writer across successful reattachments; file
+switch/detach commands flush preceding accepted bytes in FIFO order.
+
 File-association changes use an iced task backed by Tokio's blocking pool.
 `DesktopApp.preferences.file_association_pending` survives closing Settings and prevents
 overlapping operations; completion messages bypass modal routing. Only Windows

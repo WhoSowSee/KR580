@@ -1,10 +1,10 @@
 use super::jobs::run;
-use super::{IoCompletion, IoJob};
+use super::{IoCompletion, IoGeneration, IoJob};
 use crate::backend::{AppError, RequestId};
 use crossbeam_channel::{Sender, TrySendError, bounded};
 
 pub(crate) struct IoWorker {
-    sender: Sender<(RequestId, u64, IoJob)>,
+    sender: Sender<(RequestId, IoGeneration, IoJob)>,
 }
 
 impl IoWorker {
@@ -37,13 +37,13 @@ impl IoWorker {
     pub(super) fn enqueue(
         &self,
         id: RequestId,
-        generation: u64,
+        generation: IoGeneration,
         job: IoJob,
     ) -> Result<(), AppError> {
         self.sender
             .try_send((id, generation, job))
             .map_err(|error| match error {
-                TrySendError::Full(_) => AppError::Io("persistence queue is full".into()),
+                TrySendError::Full(_) => crate::devices::DeviceError::Busy.into(),
                 TrySendError::Disconnected(_) => AppError::WorkerStopped,
             })
     }

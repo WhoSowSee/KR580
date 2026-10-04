@@ -223,6 +223,11 @@ fn run_worker(
                         publish(&event_tx, &critical_tx, &state_mailbox, event);
                     }
                 } else {
+                    if let Some(events) = emulator.start_io_request(crate::backend::RequestId(0), &command, &io_worker) {
+                        for event in events { publish(&event_tx, &critical_tx, &state_mailbox, event); }
+                        next_run_at = schedule_run_tick(&emulator);
+                        continue;
+                    }
                     for event in emulator.handle_command(command) {
                         if matches!(event, AppEvent::StateChanged(_)) {
                             published_network = network_revision;

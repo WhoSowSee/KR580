@@ -2,7 +2,6 @@ use super::super::tasks::load_native_printer_properties_blocking;
 use crate::app::{DesktopApp, Message};
 use crate::i18n::Lang;
 use crate::persistence::PrinterPreset;
-use crate::settings_storage::{load_settings, save_settings};
 use iced::Task;
 
 impl DesktopApp {
@@ -64,18 +63,24 @@ impl DesktopApp {
             }
             return;
         }
-        let mut stored = load_settings();
-        stored.general.printer_presets.retain(|preset| {
-            preset.name != name || preset.settings.printer_name != settings.printer_name
-        });
-        stored.general.printer_presets.push(PrinterPreset {
-            name: name.clone(),
-            settings,
-        });
-        if !self.persist_printer_presets(&stored) {
-            return;
-        }
-        self.reload_property_presets(Some(name));
+        let printer_name = settings.printer_name.clone();
+        let saved_name = name.clone();
+        self.queue_settings_change(
+            crate::runtime::file_work::SettingsAction::PrinterPresets {
+                printer_name,
+                selected: Some(name),
+            },
+            move |stored| {
+                stored.general.printer_presets.retain(|preset| {
+                    preset.name != saved_name
+                        || preset.settings.printer_name != settings.printer_name
+                });
+                stored.general.printer_presets.push(PrinterPreset {
+                    name: saved_name,
+                    settings,
+                });
+            },
+        );
     }
 
     pub(super) fn delete_printer_preset(&mut self) {
@@ -92,15 +97,18 @@ impl DesktopApp {
         else {
             return;
         };
-        let mut stored = load_settings();
-        stored
-            .general
-            .printer_presets
-            .retain(|preset| preset.name != name || preset.settings.printer_name != printer_name);
-        if !self.persist_printer_presets(&stored) {
-            return;
-        }
-        self.reload_property_presets(None);
+        let saved_printer_name = printer_name.clone();
+        self.queue_settings_change(
+            crate::runtime::file_work::SettingsAction::PrinterPresets {
+                printer_name,
+                selected: None,
+            },
+            move |stored| {
+                stored.general.printer_presets.retain(|preset| {
+                    preset.name != name || preset.settings.printer_name != saved_printer_name
+                });
+            },
+        );
     }
 
     fn reload_property_presets(&mut self, selected: Option<String>) {
@@ -111,11 +119,14 @@ impl DesktopApp {
         else {
             return;
         };
-        let presets = load_settings()
+        let presets = self
+            .preferences
+            .stored
             .general
             .printer_presets
-            .into_iter()
+            .iter()
             .filter(|preset| preset.settings.printer_name == printer_name)
+            .cloned()
             .collect();
         if let Some(properties) = self.properties_mut() {
             properties.presets = presets;
@@ -125,16 +136,28 @@ impl DesktopApp {
         }
     }
 
-    fn persist_printer_presets(&mut self, stored: &crate::persistence::Settings) -> bool {
-        match save_settings(stored) {
-            Ok(()) => true,
+    pub(crate) fn finish_printer_preset_write(
+        &mut self,
+        printer_name: &str,
+        selected: Option<String>,
+        result: Result<(), crate::backend::AppError>,
+    ) {
+        if self
+            .properties()
+            .and_then(|properties| properties.sheet.as_ref())
+            .map(|sheet| sheet.configuration.settings.printer_name.as_str())
+            != Some(printer_name)
+        {
+            return;
+        }
+        match result {
+            Ok(()) => self.reload_property_presets(selected),
             Err(error) => {
                 let notice =
-                    crate::runtime::humanize_error::humanize(&error.into(), self.preferences.lang);
+                    crate::runtime::humanize_error::humanize(&error, self.preferences.lang);
                 if let Some(properties) = self.properties_mut() {
                     properties.error = Some(notice);
                 }
-                false
             }
         }
     }

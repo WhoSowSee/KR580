@@ -1,18 +1,16 @@
 use crate::app::{DesktopApp, Message, StatusKind, ToolWindowKind};
 use crate::backend::AppCommand;
-use crate::i18n::Key;
-use crate::settings_storage::{load_settings, save_settings};
 use iced::Task;
 use std::path::{Path, PathBuf};
 
 use super::file_dialog;
 
 mod images;
-pub(crate) use images::*;
+pub(crate) use images::{ImagePreview, ImageRead};
 
 impl DesktopApp {
     pub(crate) fn open_floppy_image(&self) -> Task<Message> {
-        let settings = load_settings();
+        let settings = &self.preferences.stored;
         let mut dialog =
             rfd::FileDialog::new().add_filter("KR580 floppy image", &["kpd", "img", "bin"]);
 
@@ -54,13 +52,13 @@ impl DesktopApp {
         if self.snapshot.devices.floppy.path.as_ref() != Some(&path) {
             return;
         }
-        let mut settings = load_settings();
-        settings.storage.floppy_path = path.clone();
-        if let Err(error) = save_settings(&settings) {
-            let notice =
-                crate::runtime::humanize_error::humanize(&error.into(), self.preferences.lang);
-            self.show_error_notice(notice);
-        }
+        let saved_path = path.clone();
+        self.queue_settings_change(
+            crate::runtime::file_work::SettingsAction::Quiet,
+            move |settings| {
+                settings.storage.floppy_path = saved_path;
+            },
+        );
         self.refresh_hdd_file_exists();
         self.set_status(StatusKind::FloppyImageAttached {
             display: path.display().to_string(),
@@ -71,7 +69,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn save_floppy_buffer(&self) -> Task<Message> {
-        let settings = load_settings();
+        let settings = &self.preferences.stored;
         let mut dialog = rfd::FileDialog::new().set_file_name("floppy_buffer.kpd");
         for (name, extensions) in floppy_buffer_save_filters() {
             dialog = dialog.add_filter(name, extensions);
@@ -100,17 +98,14 @@ impl DesktopApp {
     }
 
     pub(crate) fn save_floppy_buffer_to_path(&mut self, path: PathBuf) {
-        match save_floppy_buffer_file(&path, &self.snapshot.devices.floppy.visible_buffer) {
-            Ok(path) => self.set_status_custom(format!(
-                "{}: {}",
-                self.preferences.lang.t(Key::FloppyBufferSaved),
-                path.display()
-            )),
-            Err(error) => {
-                tracing::error!("save floppy buffer to {}: {error}", path.display());
-                self.set_status_custom(self.preferences.lang.t(Key::ErrCannotWriteFile).to_owned());
-            }
-        }
+        let bytes = self.snapshot.devices.floppy.visible_buffer.clone();
+        self.queue_file_work(
+            crate::runtime::file_work::FileRequest::FloppySaved,
+            move || {
+                let path = save_floppy_buffer_file(&path, &bytes)?;
+                Ok(crate::runtime::file_work::FileResult::Saved(path))
+            },
+        );
     }
 }
 
@@ -124,13 +119,12 @@ fn floppy_buffer_save_filters() -> [(&'static str, &'static [&'static str]); 3] 
 
 fn save_floppy_buffer_file(path: &Path, bytes: &[u8]) -> std::io::Result<PathBuf> {
     let path = floppy_buffer_save_path(path);
-    std::fs::write(&path, bytes)?;
+    crate::persistence::write_file_atomic(&path, bytes)?;
     Ok(path)
 }
 
-pub(crate) fn hdd_default_path() -> PathBuf {
-    let settings = load_settings();
-    let dir = settings.general.hdd_directory.unwrap_or_else(|| {
+pub(crate) fn hdd_default_path(settings: &crate::persistence::Settings) -> PathBuf {
+    let dir = settings.general.hdd_directory.clone().unwrap_or_else(|| {
         std::env::var("HOME")
             .or_else(|_| std::env::var("USERPROFILE"))
             .map(PathBuf::from)
@@ -165,7 +159,7 @@ impl DesktopApp {
             .path
             .as_ref()
             .cloned()
-            .unwrap_or_else(hdd_default_path);
+            .unwrap_or_else(|| hdd_default_path(&self.preferences.stored));
         if let Some(parent) = preferred
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
@@ -182,6 +176,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn attach_hdd_directory(&mut self, folder: PathBuf) {
+        self.panels.hdd_generation = self.panels.hdd_generation.wrapping_add(1);
         self.clear_error_notice();
         let hdd_path = folder.join("hdd.kpd");
         self.dispatch_action(
@@ -194,42 +189,36 @@ impl DesktopApp {
         let Some(path) = self.snapshot.devices.hdd.path.clone() else {
             return;
         };
-        if !path.exists() {
-            self.panels.hdd_file_exists = false;
-            return;
-        }
-        if let Err(error) = std::fs::remove_file(&path) {
-            tracing::error!("failed to delete HDD file {}: {error}", path.display());
-            self.set_status_custom(self.preferences.lang.t(Key::ErrCannotWriteFile).to_owned());
-            return;
-        }
-        self.dispatch_action(
-            AppCommand::DetachHddFile,
-            crate::app::BackendAction::HddDeleted(path),
+        self.panels.hdd_generation = self.panels.hdd_generation.wrapping_add(1);
+        let generation = self.panels.hdd_generation;
+        self.queue_file_work(
+            crate::runtime::file_work::FileRequest::HddDeleted {
+                path: path.clone(),
+                generation,
+            },
+            move || {
+                match std::fs::remove_file(&path) {
+                    Ok(()) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(error.into()),
+                }
+                Ok(crate::runtime::file_work::FileResult::Deleted)
+            },
         );
     }
 
     pub(crate) fn create_hdd_file(&mut self) {
+        self.panels.hdd_generation = self.panels.hdd_generation.wrapping_add(1);
         let path = self
             .snapshot
             .devices
             .hdd
             .path
             .clone()
-            .unwrap_or_else(hdd_default_path);
+            .unwrap_or_else(|| hdd_default_path(&self.preferences.stored));
         self.dispatch_action(
             AppCommand::AttachHddFile(path.clone()),
             crate::app::BackendAction::HddAttached(path),
         );
-    }
-
-    pub(crate) fn refresh_hdd_file_exists(&mut self) {
-        self.panels.hdd_file_exists = self
-            .snapshot
-            .devices
-            .hdd
-            .path
-            .as_ref()
-            .is_some_and(|p| p.exists());
     }
 }

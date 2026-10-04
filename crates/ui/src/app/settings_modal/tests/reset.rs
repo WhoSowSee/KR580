@@ -35,6 +35,7 @@ fn reset_confirm_restores_defaults_and_clears_dialog_snapshot() {
             .reset_confirm_open
     );
     let _ = app.update(Message::SettingsResetConfirmed);
+    crate::app::test_support::settle_files(&mut app);
 
     let expected_lang = lang_from_language(default_language());
     assert_eq!(app.preferences.lang, expected_lang);
@@ -202,6 +203,7 @@ fn enter_in_reset_confirm_activates_focused_button() {
         ResetConfirmFocus::Confirm
     );
     let _ = app.update(Message::SettingsResetConfirmed);
+    crate::app::test_support::settle_files(&mut app);
     assert_eq!(app.preferences.lang, lang_from_language(default_language()));
     assert_eq!(app.execution.speed_tier, SpeedTier::High);
 }

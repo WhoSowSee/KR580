@@ -12,6 +12,7 @@ use k580_ui::devices::printer::PrinterSettings;
 /// Original values restore immediate previews on Cancel; Save commits only after persistence succeeds.
 #[derive(Clone, Debug)]
 pub(crate) struct SettingsDialog {
+    pub(crate) saving: bool,
     pub(crate) category: SettingsCategory,
     pub(crate) sidebar_focus: SettingsCategory,
     pub(crate) search: String,
@@ -119,6 +120,7 @@ impl SettingsDialog {
         } = initial;
         Self {
             category: SettingsCategory::General,
+            saving: false,
             sidebar_focus: SettingsCategory::General,
             search: String::new(),
             content_can_scroll_up: false,

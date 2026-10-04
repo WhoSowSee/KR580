@@ -2,7 +2,6 @@ use crate::backend::NetworkMode;
 
 use super::DesktopApp;
 use crate::i18n::{Key, NetworkKey};
-use crate::settings_storage::load_settings;
 
 impl DesktopApp {
     pub(crate) fn open_network_settings(&mut self) {
@@ -15,10 +14,13 @@ impl DesktopApp {
     }
 
     pub(crate) fn select_network_mode(&mut self, mode: NetworkMode) {
-        let settings = load_settings();
+        let settings = &self.preferences.stored;
         let (host, port) = match mode {
-            NetworkMode::Client => (settings.network.host, settings.network.port),
-            NetworkMode::Server => (settings.network.bind_host, settings.network.bind_port),
+            NetworkMode::Client => (settings.network.host.clone(), settings.network.port),
+            NetworkMode::Server => (
+                settings.network.bind_host.clone(),
+                settings.network.bind_port,
+            ),
         };
         self.panels.network_mode_draft = mode;
         self.panels.network_host_input = host;

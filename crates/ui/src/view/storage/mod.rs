@@ -206,14 +206,20 @@ fn dialog_body<'a>(
         .style(device_buffer_style)
         .clip(true);
 
-    column![
+    let mut content = column![
         framed_buffer(buffer_frame.into(), label),
         storage_footer(state, lang, keys),
-    ]
-    .spacing(12)
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
+    ];
+    if show_image_contents {
+        let notice: Element<'a, Message> =
+            ui_text(lang.t(Key::StorageImagePreviewLimit), 12, tokyo_muted()).into();
+        content = content.push(notice);
+    }
+    content
+        .spacing(12)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }
 
 fn framed_buffer<'a>(buffer: Element<'a, Message>, title: Option<&'a str>) -> Element<'a, Message> {

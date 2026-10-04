@@ -218,7 +218,8 @@ impl Emulator {
                     .map_err(AppError::from)?;
             }
             AppCommand::DetachFloppyImage => {
-                self.bus.floppy.detach_file();
+                self.bus.floppy.detach_file()?;
+                self.storage_generation[0] = self.storage_generation[0].wrapping_add(1);
             }
             AppCommand::AttachHddFile(path) => {
                 self.bus
@@ -235,7 +236,8 @@ impl Emulator {
                     .set_debug_buffer(!self.bus.hdd.debug_buffer_enabled());
             }
             AppCommand::DetachHddFile => {
-                self.bus.hdd.detach_file();
+                self.bus.hdd.detach_file()?;
+                self.storage_generation[1] = self.storage_generation[1].wrapping_add(1);
             }
             AppCommand::ClearHddBuffer => {
                 self.bus.hdd.clear_visible_buffer();

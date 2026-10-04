@@ -24,6 +24,7 @@ pub struct Emulator {
     pub(super) step_interval: Duration,
     pub(super) run_mode: RunMode,
     document_generation: u64,
+    storage_generation: [u64; 2],
     revision: u64,
 }
 
@@ -38,6 +39,7 @@ impl Default for Emulator {
             step_interval: DEFAULT_STEP_INTERVAL,
             run_mode: RunMode::Paced,
             document_generation: 0,
+            storage_generation: [0; 2],
             revision: 0,
         }
     }
@@ -54,6 +56,7 @@ impl Emulator {
             step_interval: DEFAULT_STEP_INTERVAL,
             run_mode: RunMode::Paced,
             document_generation: 0,
+            storage_generation: [0; 2],
             revision: 0,
         }
     }

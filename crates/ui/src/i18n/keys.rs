@@ -64,7 +64,7 @@ scalar_keys! {
     StatusOpened, StatusSavedTo, StatusExportTo, StatusImportFrom, ErrorPrefix, HaltNotice,
 
     SpeedTitle, SpeedUnit,
-    SettingsTitle, SettingsSavedNotice, SettingsResetNotice, SettingsShortcutsResetNotice,
+    SettingsTitle, SettingsSavedNotice, SettingsSaving, SettingsResetNotice, SettingsShortcutsResetNotice,
     SettingsSearchPlaceholder, SettingsCategoryGeneral,
     SettingsCategoryExternalDevices, SettingsCategoryAppearance, SettingsCategoryShortcuts,
     SettingsLanguageLabel, SettingsLanguageHint, SettingsSpeedLabel, SettingsSpeedHint,
@@ -105,7 +105,7 @@ scalar_keys! {
     QuickAccess, DeviceMonitor, DeviceFloppy, DeviceHdd, DeviceNetwork, DevicePrinter, ViewStackArea,
     MonitorUnifiedScreen, MonitorTextLayer, MonitorPixelLayer, MonitorHexBuffer, MonitorClose,
     MonitorDetach, MonitorAttach, MonitorPin, MonitorUnpin, MonitorViewSplit, MonitorViewUnified,
-    MonitorClearBuffer, MonitorSaveImage, MonitorImageSaved, MonitorImageSaveFailed,
+    MonitorClearBuffer, MonitorSaveImage, MonitorImageSaved, StorageImagePreviewLimit,
     MonitorHexFilterAll, MonitorHexFilterGraphics, MonitorHexFilterText,
     FloppyContent, FloppyImageContent, FloppyStatus, FloppyPath, FloppyPathMissing,
     FloppyImagePathMissing, FloppyBytesQueued, FloppyClearBuffer, FloppyShowImageContents,

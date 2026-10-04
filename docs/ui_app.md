@@ -210,10 +210,29 @@ RAM-range dialog. Detached device windows do not accept program drops.
 states in `app/state/components.rs`: `DocumentState`, `MemoryEditorState`,
 `RegisterEditorState`, `InteractionState`, `ExecutionState`, `ExportDialogState`,
 `ImportDialogState`, `PreferencesState`, `PrinterSetupState`, `DevicePanels`,
-`ShellState`, `BackendRequests`. Implementation references use their owning
+`ShellState`, `RequestState`. Implementation references use their owning
 prefix (`document.dirty`, `memory.memory_address_input`, `preferences.lang`,
 `panels.monitor_window`, `requests.pending_requests`). Message names, widget IDs
 and keyboard routes keep the same contracts.
+
+`RequestState` also owns the lazy `runtime/file_work/` worker and pending effect
+tasks. Its eight-job budget covers active work, queued work and completed results
+waiting for the UI. `Message::FileWorkReady` wakes completion draining before
+any modal can consume it; Tick is an additional drain path. Import target
+enumeration is asynchronous, disables Confirm while loading and rejects results
+from a previous selection or a closed dialog. Disk metadata and preview reads
+carry a per-device generation and read at most the first 64 KiB, stated below
+the inspection buffer. Monitor encoding/writing and floppy-buffer writing are
+background atomic saves; their Saved status appears after replacement succeeds.
+HDD deletion and selected-directory validation also run on the file worker.
+A deletion completion cannot detach a newer attachment of the same HDD path.
+
+Settings and printer-profile handlers use confirmed cached settings. Each
+background write reads the latest file and applies its own change in FIFO order.
+Settings Save displays Saving and disables Save, Reset and Cancel until the
+write finishes; draft controls remain editable. Confirmation advances the
+Cancel baseline from the submitted draft while retaining later live edits.
+Failures preserve the previous baseline and show the typed error notice.
 
 `ToolWindowState` keeps either an attached optional cached native window or a
 detached native window with pin preference. Native windows are `Opening(Id)` or
@@ -708,10 +727,9 @@ formats with a default file name of `monitor.png`; the result returns as
 `Message::MonitorImagePathSelected`. The dialog defaults to the directory of
 the currently loaded `.580` snapshot when one is available. The selected
 format is rendered at the monitor's native logical resolution (no upscaling,
-no antialiasing). On success the absolute path is surfaced through
-`StatusKind::MonitorImageSaved`; on render or write failure the status falls
-back to `Key::MonitorImageSaveFailed` and the error is logged through
-`tracing::error`.
+no antialiasing). Rendering, encoding and atomic writing run on the file worker.
+After successful replacement the absolute path is surfaced through
+`StatusKind::MonitorImageSaved`; render/write failures show an error notice.
 
 Closing the monitor: `Message::CloseMonitor` (close button, attached
 backdrop click, detached Alt+F4/close request) or `Esc` when the popup is
@@ -2281,7 +2299,7 @@ buffer.
 
 **State:** `floppy_open: bool`, `floppy_window: ToolWindowState`,
 `floppy_show_image_contents: bool`,
-`floppy_image_contents: Vec<u8>`, `floppy_image_error: Option<String>`.
+`floppy_image: ImagePreview` with contents, error, stamp and pending generation.
 
 **View:** `view/storage/` – `floppy_window_overlay()` and `floppy_window()`.
 
@@ -2294,8 +2312,8 @@ select the backing directory, switch between buffer and file contents, toggle
 debug mode, clear the buffer, and create or delete `hdd.kpd`.
 
 **State:** `hdd_open: bool`, `hdd_window: ToolWindowState`,
-`hdd_show_image_contents: bool`, `hdd_image_contents: Vec<u8>`,
-`hdd_image_error: Option<String>`.
+`hdd_show_image_contents: bool`, `hdd_image: ImagePreview` with contents, error,
+stamp and pending generation.
 
 **View:** `view/storage/` – `hdd_window_overlay()` and `hdd_window()`.
 
