@@ -62,10 +62,10 @@ RAM-range dialog. Detached device windows do not accept program drops.
   `bin/installer/entry.rs`. `--setup` opens the setup UI; `--uninstall <root>`
   opens the compact GUI uninstaller; and an installed binary named
   `uninstaller` resolves its install root from its own path. Installer
-  operations live under `bin/installer/`: copy layout creation, install
-  manifest writing, platform PATH updates, embedded setup payload extraction,
-  fallback developer binary discovery, Unix executable permissions, system
-  desktop/search integration, and uninstall cleanup. On Windows, System mode
+  operations live under `bin/installer/`: `operations/` owns source discovery,
+  staging, file journaling and native rollback; the final manifest follows
+  successful PATH and desktop/file-type integration. Platform helpers own
+  permissions and uninstall cleanup. On Windows, System mode
   writes Start Menu/Desktop shortcuts and an Apps & Features uninstall entry
   that calls `uninstaller --uninstall <root>`. Both System and Portable mode
   can optionally associate `.580` and `.krs` files with the installed `app/kr580` binary;

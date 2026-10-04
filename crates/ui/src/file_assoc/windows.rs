@@ -25,33 +25,55 @@ pub fn register_for_executable(exe: &Path, scope: InstallScope) -> Result<(), St
     );
     let root = class_root(scope);
     write_association(root, &exe)?;
-    notify_shell();
+    refresh_shell();
     Ok(())
 }
 
 fn write_association(root: HKEY, exe: &Path) -> Result<(), String> {
+    for value in registry_values_for_executable(exe)? {
+        write_string(root, &value.subkey, &value.name, &value.value)?;
+    }
+    Ok(())
+}
+
+pub struct RegistryAssociationValue {
+    pub subkey: String,
+    pub name: String,
+    pub value: String,
+}
+
+/// Returns the exact registry values written by Windows association registration.
+pub fn registry_values_for_executable(exe: &Path) -> Result<Vec<RegistryAssociationValue>, String> {
     let icon_resource = icon_resource_for(exe)?;
     let open_command = open_command_for(exe)?;
-
+    let mut values = Vec::new();
     for extension_key in EXTENSION_KEYS {
-        write_string(root, extension_key, "", PROG_ID)?;
-        write_string(
-            root,
-            &format!("{extension_key}\\OpenWithProgids"),
-            PROG_ID,
-            "",
-        )?;
+        values.push(RegistryAssociationValue {
+            subkey: extension_key.into(),
+            name: String::new(),
+            value: PROG_ID.into(),
+        });
+        values.push(RegistryAssociationValue {
+            subkey: format!("{extension_key}\\OpenWithProgids"),
+            name: PROG_ID.into(),
+            value: String::new(),
+        });
     }
-    write_string(root, PROG_ID_KEY, "", "KR580")?;
-    write_string(
-        root,
-        "Software\\Classes\\K580.Snapshot\\DefaultIcon",
-        "",
-        &icon_resource,
-    )?;
-    write_string(root, OPEN_COMMAND_KEY, "", &open_command)?;
-
-    Ok(())
+    for (subkey, value) in [
+        (PROG_ID_KEY, "KR580".to_owned()),
+        (
+            "Software\\Classes\\K580.Snapshot\\DefaultIcon",
+            icon_resource,
+        ),
+        (OPEN_COMMAND_KEY, open_command),
+    ] {
+        values.push(RegistryAssociationValue {
+            subkey: subkey.into(),
+            name: String::new(),
+            value,
+        });
+    }
+    Ok(values)
 }
 
 pub fn unregister() -> Result<(), String> {
@@ -66,7 +88,7 @@ pub fn unregister_for_executable(exe: &Path, scope: InstallScope) -> Result<(), 
         "kr580.exe",
     );
     if remove_owned_association(class_root(scope), &exe)? {
-        notify_shell();
+        refresh_shell();
     }
     Ok(())
 }
@@ -86,7 +108,13 @@ fn delete_association(root: HKEY) -> Result<(), String> {
         }
         delete_value(root, &format!("{extension_key}\\OpenWithProgids"), PROG_ID)?;
     }
-    delete_tree(root, PROG_ID_KEY)?;
+    for subkey in [
+        PROG_ID_KEY,
+        "Software\\Classes\\K580.Snapshot\\DefaultIcon",
+        OPEN_COMMAND_KEY,
+    ] {
+        delete_value(root, subkey, "")?;
+    }
     Ok(())
 }
 
@@ -259,6 +287,7 @@ fn write_string(root: HKEY, subkey: &str, name: &str, value: &str) -> Result<(),
     Ok(())
 }
 
+#[cfg(test)]
 fn delete_tree(root: HKEY, subkey: &str) -> Result<(), String> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
@@ -304,7 +333,8 @@ fn delete_value(root: HKEY, subkey: &str, name: &str) -> Result<(), String> {
     }
 }
 
-fn notify_shell() {
+/// Refreshes Explorer's association and icon caches after restoring registration values.
+pub fn refresh_shell() {
     use std::ptr;
     use windows_sys::Win32::UI::Shell::{SHCNE_ASSOCCHANGED, SHCNF_IDLIST, SHChangeNotify};
 

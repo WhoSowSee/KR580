@@ -54,6 +54,61 @@ pub fn add_to_path(bin_dir: &Path, scope: InstallScope) -> Result<bool, String> 
     environment::add_to_path(bin_dir, scope)
 }
 
+pub(in crate::installer) fn rollback_files(scope: InstallScope, desktop: bool) -> Vec<PathBuf> {
+    let mut files = vec![system::start_menu_shortcut_path(scope)];
+    if desktop {
+        files.push(system::desktop_shortcut_path(scope));
+    }
+    files
+}
+
+pub(in crate::installer) fn planned_registry_values(
+    request: &crate::installer::operations::InstallRequest,
+) -> Result<Vec<(String, String, winreg::RegValue)>, String> {
+    use winreg::types::ToRegValue;
+    let mut values = Vec::new();
+    if request.add_to_path {
+        let location = environment::env_key(request.scope);
+        let value =
+            match environment::planned_path_value(&request.install_dir.join("bin"), request.scope)?
+            {
+                Some(updated) => {
+                    let mut value = updated.to_reg_value();
+                    value.vtype = winreg::enums::REG_EXPAND_SZ;
+                    value
+                }
+                None => winreg::RegKey::predef(location.root)
+                    .open_subkey_with_flags(location.subkey, winreg::enums::KEY_QUERY_VALUE)
+                    .and_then(|key| key.get_raw_value("Path"))
+                    .map_err(|error| format!("capture existing PATH: {error}"))?,
+            };
+        values.push((location.subkey.to_owned(), "Path".to_owned(), value));
+    }
+    if request.mode == k580_ui::install_mode::InstallMode::System {
+        let gui = request.install_dir.join("app/kr580.exe");
+        let uninstaller = request.install_dir.join("app/uninstaller.exe");
+        let plan = IntegrationRequest {
+            scope: request.scope,
+            install_dir: &request.install_dir,
+            kr580_path: &gui,
+            uninstaller_path: &uninstaller,
+            create_desktop_shortcut: request.create_desktop_shortcut,
+        };
+        values.extend(system::uninstall_values(&plan).into_iter().map(|value| {
+            (
+                system::uninstall_key(request.scope).subkey.to_owned(),
+                value.name.to_owned(),
+                value.value,
+            )
+        }));
+    }
+    Ok(values)
+}
+
+pub(in crate::installer) fn notify_restored_environment() {
+    environment::broadcast_environment_change();
+}
+
 pub fn remove_from_path(bin_dir: &Path, scope: InstallScope) -> Result<bool, String> {
     environment::remove_from_path(bin_dir, scope)
 }

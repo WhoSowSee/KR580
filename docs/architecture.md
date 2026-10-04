@@ -32,6 +32,12 @@ exist on the machine. The installer writes `install.json` at the install root,
 keeps `kr580` under `app/`, keeps the installed maintenance binary as
 `app/uninstaller`, keeps `kr` under `bin/`, and only adds `bin/` to PATH when
 requested.
+`bin/installer/operations/` separates source discovery, the installation
+transaction, file journal and native rollback adapters. It stages all payloads
+before replacement, preserves user data and previous owned files/values on
+failure, and atomically publishes the final manifest after integration succeeds.
+Windows raw registry snapshots use the existing locked `winreg` 0.55.0 package
+as a runtime dependency; no release build commands or artifact roles change.
 macOS releases instead contain the GUI executable directly in
 `KR580.app/Contents/MacOS/kr580`; the surrounding DMG supplies an Applications
 link and relies on normal drag-and-drop installation rather than the setup
@@ -154,7 +160,8 @@ overlapping operations; completion messages bypass modal routing. Only Windows
 polls handler registration, while Settings is open and no operation is pending.
 The dialog keeps that Windows status for both rendering and keyboard actions;
 the pending flag has a single owner in `DesktopApp`. Unix has no unused
-registration-status query or Launch Services default-handler lookup.
+registration-status polling. Installer rollback uses a scoped Launch Services
+default-handler snapshot for each macOS document role.
 
 `kr580` sends commands through a crossbeam channel to its internal backend emulator actor. The actor owns CPU and device state and emits typed events. Persistence requests capture actor state and run file work on a dedicated worker, then return a matching `RequestId` completion before the UI changes paths or dirty state. The event path coalesces full snapshots into a latest-state mailbox while keeping completion and error events separate. `Emulator` owns a Tokio runtime for storage, network, and native printer workers, so file, TCP, GDI printing, and printer-driver calls stay outside the UI thread. The printer settings layer keeps the Windows PrintTicket provider lifecycle inside one blocking MTA task, while the iced state stores only parsed capabilities and the validated `DEVMODEW`. The actor polls network, storage, and printer completion every 50 ms and publishes a snapshot only when device state differs from the last published one. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
 

@@ -343,10 +343,58 @@ The setup writes a split layout under the selected root:
 ```
 
 On Windows the file names include `.exe`.
-When setup reuses an older manifest-owned install root, it unregisters an
-association owned by the legacy `app/k580` executable in the scope recorded by
-that manifest and removes the old file after copying `app/kr580`. A selected
-folder without a valid `install.json` never authorizes legacy-file cleanup.
+When setup reuses an older manifest-owned install root, the managed legacy
+`app/k580` is retired through the same transaction. If associations are selected,
+the new registration replaces its owned values; otherwise legacy association
+cleanup uses the old manifest's scope. A folder without a valid `install.json`
+never authorizes legacy-file cleanup or overwriting existing binary paths.
+
+## Installation transaction
+
+`operations/source.rs` discovers the embedded or adjacent payloads.
+`operations/transaction.rs` validates ownership/layout, captures rollback data,
+and prepares all three executables in unique sibling staging files before
+replacing any installed executable. Symbolic links at managed installation
+paths and unknown manifest versions are rejected. A per-root installation lock
+prevents overlapping commits. Settings and other user files under `data/` are
+never part of the replacement set.
+
+`operations/journal.rs` backs up existing target files beside their destinations,
+streams fingerprints without loading executables into RAM, and records the
+actual post-step state. Each stage observes only its own target set. Registry observations accept only
+the planned write/delete or the unchanged prior value, preserving foreign
+changes to other stages and rejecting unexpected writes.
+Rollback restores bytes and permissions, removes new files and only empty
+directories created by this attempt. A later foreign file
+change is retained and reported as a rollback conflict, with the recovery
+backup's path. Existing profile and metadata symlinks keep their target/link
+relationship. PATH, integration and associations finish before the final
+atomic `install.json` replacement; there is no intermediate manifest.
+
+`operations/native/` owns platform rollback. Windows preserves the original
+raw bytes and registry type of PATH, uninstall values and the seven association
+values. Only changed values are restored or removed; unrelated values,
+subkeys and existing key permissions survive. Empty newly created keys can
+remain inert. `winreg` 0.55.0 supplies owned registry handles and raw-value
+operations; it was already present in Cargo.lock and is also a Windows runtime
+dependency. Registry rollback conflicts retain an original-value recovery JSON.
+
+Linux captures the managed profile, desktop launchers, association metadata,
+default-handler state and relevant MIME preference files; metadata caches are
+rebuilt after restoration. Shared association lock files remain coordination
+objects. On macOS the transaction chooses the Portable/System bundle path
+directly, so registration does not depend on an intermediate manifest. It
+preserves defaults separately for Viewer, Editor and Shell. Roles without a
+prior handler use the bundle's document claims without writing an unrestorable
+explicit preference. Rollback refreshes a restored owned bundle and restores
+only matching defaults; conflicts retain handler recovery JSON.
+
+An error combines the original stage failure with any rollback failures and
+recovery paths. Completed changes are rolled back on ordinary errors; this is
+not a multi-filesystem power-loss transaction. An abrupt process exit may leave
+the installation lock and recovery files for inspection. Tests inject stage
+failures with temporary roots and isolated integration adapters, without real
+installation, PATH or association changes.
 
 ## Modes
 

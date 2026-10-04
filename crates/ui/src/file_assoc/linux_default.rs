@@ -208,6 +208,12 @@ fn mimeapps_paths(data_home: &Path) -> Result<Vec<PathBuf>, String> {
     Ok(files)
 }
 
+pub(super) fn registration_files(data_home: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut files = mimeapps_paths(data_home)?;
+    files.push(state_path(data_home));
+    Ok(files)
+}
+
 fn remove_handler_entries(content: &str) -> String {
     let mut relevant = false;
     let mut output = String::with_capacity(content.len());

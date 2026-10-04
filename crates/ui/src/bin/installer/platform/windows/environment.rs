@@ -6,23 +6,33 @@ use std::path::Path;
 mod tests;
 
 pub fn add_to_path(bin_dir: &Path, scope: InstallScope) -> Result<bool, String> {
+    let Some(updated) = planned_path_value(bin_dir, scope)? else {
+        return Ok(false);
+    };
+    let key = env_key(scope);
+    write_path_value(key.root, key.subkey, &updated)?;
+    broadcast_environment_change();
+    Ok(true)
+}
+
+pub(super) fn planned_path_value(
+    bin_dir: &Path,
+    scope: InstallScope,
+) -> Result<Option<String>, String> {
     let target = bin_dir
         .to_str()
         .ok_or_else(|| "PATH target is not valid UTF-8".to_owned())?;
     let key = env_key(scope);
     let current = read_path_value(key.root, key.subkey)?;
     if contains_path_entry(&current, bin_dir) {
-        return Ok(false);
+        return Ok(None);
     }
     let trimmed = current.trim_end_matches(';');
-    let updated = if trimmed.is_empty() {
+    Ok(Some(if trimmed.is_empty() {
         target.to_owned()
     } else {
         format!("{trimmed};{target}")
-    };
-    write_path_value(key.root, key.subkey, &updated)?;
-    broadcast_environment_change();
-    Ok(true)
+    }))
 }
 
 pub fn remove_from_path(bin_dir: &Path, scope: InstallScope) -> Result<bool, String> {
@@ -49,12 +59,12 @@ pub fn remove_from_path(bin_dir: &Path, scope: InstallScope) -> Result<bool, Str
     Ok(true)
 }
 
-struct EnvKey {
-    root: windows_sys::Win32::System::Registry::HKEY,
-    subkey: &'static str,
+pub(super) struct EnvKey {
+    pub(super) root: windows_sys::Win32::System::Registry::HKEY,
+    pub(super) subkey: &'static str,
 }
 
-fn env_key(scope: InstallScope) -> EnvKey {
+pub(super) fn env_key(scope: InstallScope) -> EnvKey {
     use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
     match scope {
         InstallScope::User => EnvKey {
@@ -200,7 +210,7 @@ fn write_path_value(
     }
 }
 
-fn broadcast_environment_change() {
+pub(super) fn broadcast_environment_change() {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::UI::WindowsAndMessaging::{

@@ -45,7 +45,8 @@ impl InstallManifest {
 
 pub fn write_manifest(root: &Path, manifest: &InstallManifest) -> Result<(), String> {
     let json = serde_json::to_string_pretty(manifest).map_err(|e| format!("manifest json: {e}"))?;
-    std::fs::write(root.join(MANIFEST_FILENAME), json).map_err(|e| format!("write manifest: {e}"))
+    crate::persistence::write_file_atomic(&root.join(MANIFEST_FILENAME), json.as_bytes())
+        .map_err(|e| format!("write manifest: {e}"))
 }
 
 pub fn manifest_for_executable(exe: &Path) -> Result<Option<(PathBuf, InstallManifest)>, String> {

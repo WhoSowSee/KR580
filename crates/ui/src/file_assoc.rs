@@ -10,12 +10,15 @@ mod macos;
 mod windows;
 
 #[cfg(target_os = "linux")]
-pub use linux::{register, register_for_executable, unregister, unregister_for_executable};
+pub use linux::{
+    register, register_for_executable, registration_paths, unregister, unregister_for_executable,
+};
 #[cfg(target_os = "macos")]
 pub use macos::{register, register_for_executable, unregister, unregister_for_executable};
 #[cfg(target_os = "windows")]
 pub use windows::{
-    is_registered, register, register_for_executable, unregister, unregister_for_executable,
+    RegistryAssociationValue, is_registered, refresh_shell, register, register_for_executable,
+    registry_values_for_executable, unregister, unregister_for_executable,
 };
 
 #[cfg(target_os = "linux")]

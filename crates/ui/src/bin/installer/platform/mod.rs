@@ -18,10 +18,10 @@ pub struct SystemIntegrationReport {
 }
 
 #[cfg(windows)]
-mod windows;
+pub(in crate::installer) mod windows;
 
 #[cfg(unix)]
-mod unix;
+pub(in crate::installer) mod unix;
 
 pub fn default_system_install_dir(scope: InstallScope) -> PathBuf {
     platform_default_system_install_dir(scope)

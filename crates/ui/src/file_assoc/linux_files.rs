@@ -1,8 +1,6 @@
 use std::fs::{File, OpenOptions, Permissions};
-use std::io::Write;
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 pub(super) fn acquire_lock(data_home: &Path) -> Result<File, String> {
     let directory = data_home.join("kr580");
@@ -78,33 +76,12 @@ pub(super) fn read_optional(path: &Path) -> Result<Option<Vec<u8>>, String> {
 }
 
 pub(super) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
     let parent = path
         .parent()
         .ok_or_else(|| "file has no parent directory".to_owned())?;
     std::fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
-    let staged = parent.join(format!(
-        ".kr580-{}-{}.tmp",
-        std::process::id(),
-        NEXT.fetch_add(1, Ordering::Relaxed)
-    ));
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&staged)
-        .map_err(|e| format!("create {}: {e}", staged.display()))?;
-    let result = (|| {
-        if let Ok(metadata) = std::fs::metadata(path) {
-            file.set_permissions(metadata.permissions())?;
-        }
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        std::fs::rename(&staged, path)
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&staged);
-    }
-    result.map_err(|e| format!("replace {}: {e}", path.display()))
+    crate::persistence::write_file_atomic(path, bytes)
+        .map_err(|e| format!("replace {}: {e}", path.display()))
 }
 
 pub(super) fn remove_file_if_exists(path: &Path) -> Result<(), String> {

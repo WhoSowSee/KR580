@@ -148,6 +148,17 @@ fn registration_files(paths: &IntegrationPaths) -> [PathBuf; 4] {
     ]
 }
 
+/// Returns writable association metadata and default-handler files for installer rollback.
+pub fn registration_paths() -> Result<Vec<PathBuf>, String> {
+    if !super::is_user_configurable() {
+        return Err("file associations are managed by snapd".into());
+    }
+    let paths = IntegrationPaths::current()?;
+    let mut files = registration_files(&paths).to_vec();
+    files.extend(super::linux_default::registration_files(&paths.data_home)?);
+    Ok(files)
+}
+
 fn rollback_registration(paths: &IntegrationPaths, backup: &Backup) -> Result<(), String> {
     backup.restore()?;
     update_databases(paths)

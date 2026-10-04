@@ -101,6 +101,18 @@ use a private temporary HKCU subtree as their root and never modify the real
 `Software/Classes` association tree. macOS bundle tests verify foreign-bundle
 preservation, legacy launcher upgrades, and owned portable bundle creation
 using temporary directories.
+
+Installer transaction tests use temporary install roots and isolated integration
+adapters. They inject failure after every payload/integration/manifest stage,
+verify restoration of the previous bytes and Unix permissions, preserve user
+data and unmanaged legacy files, and reject unmanaged binary collisions. Fresh
+failure removes only newly created files; a foreign later edit keeps its data
+and retains a recovery backup. Windows raw-value rollback tests use only
+`Software/KR580/Tests/InstallerRollback-*`, preserve registry type and foreign
+values/subkeys, and verify conflict recovery JSON. They do not call real
+installation, PATH mutation, shortcut creation or association registration.
+macOS role-default tests inject query/set adapters and preserve distinct Viewer,
+Editor and Shell defaults without calling Launch Services.
 The association button test sends mouse events through the same iced widget
 tree across registered/pending changes. CLI lifecycle tests cover Linux file
 creation, ownership and rollback; duplicate unit tests of those operations are

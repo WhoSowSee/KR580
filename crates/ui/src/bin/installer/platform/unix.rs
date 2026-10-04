@@ -181,7 +181,7 @@ pub fn schedule_remove_install_dir(install_dir: &Path) -> Result<(), String> {
         .map_err(|e| format!("schedule install directory removal: {e}"))
 }
 
-fn profile_path() -> PathBuf {
+pub(in crate::installer) fn profile_path() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         home_dir().join(".zprofile")
@@ -203,7 +203,7 @@ fn applications_dir() -> Result<PathBuf, String> {
     Ok(k580_ui::desktop_entry::data_home()?.join("applications"))
 }
 
-fn desktop_dir() -> PathBuf {
+pub(in crate::installer) fn desktop_dir() -> PathBuf {
     home_dir().join("Desktop")
 }
 
