@@ -819,7 +819,7 @@ The header buttons are icon-only and mirror the monitor menu chrome:
 | `hard-drive-upload` | «Сохранить текущий буфер в файл» | opens a save picker with separate `.kpd`, `.img`, and `.bin` export filters and writes `visible_buffer` bytes |
 | `hard-drive-x` | «Отключить файл образа дискеты» | dispatches `AppCommand::DetachFloppyImage`, stops using the file-backed worker, and leaves the visible buffer unchanged |
 | `binary` | «Отобразить содержимое файла образа» | toggles the body between the drive buffer and the attached image file contents |
-| `bug` / `bug-off` | «Debug-режим буфера» | toggles `AppCommand::SetFloppyDebugBuffer`; the active state uses the `bug` glyph and blue button chrome |
+| `bug` / `bug-off` | «Режим отладки буфера» / `Debug buffer mode` | toggles `AppCommand::SetFloppyDebugBuffer`; the active state uses the `bug` glyph and blue button chrome |
 | `brush-cleaning` | «Очистить буфер дисковода» | `Message::ClearFloppyBuffer`, which dispatches `AppCommand::ClearFloppyBuffer` |
 | `x` | «Закрыть» / `Close` | `Message::CloseFloppy` |
 
@@ -2309,7 +2309,9 @@ Opened from the HDD quick-access chip. Uses the same fixed `760×340`
 attached/detached storage shell, draggable title band, attach/detach control,
 and detached always-on-top pin as the floppy window. Device-specific controls
 select the backing directory, switch between buffer and file contents, toggle
-debug mode, clear the buffer, and create or delete `hdd.kpd`.
+debug mode, clear the buffer, and create or delete `hdd.kpd`. The debug button
+uses «Режим отладки буфера» in Russian and `Debug buffer mode` in English,
+matching the floppy tooltip without a hyphen.
 
 **State:** `hdd_open: bool`, `hdd_window: ToolWindowState`,
 `hdd_show_image_contents: bool`, `hdd_image: ImagePreview` with contents, error,
