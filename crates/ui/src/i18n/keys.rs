@@ -105,7 +105,7 @@ scalar_keys! {
     QuickAccess, DeviceMonitor, DeviceFloppy, DeviceHdd, DeviceNetwork, DevicePrinter, ViewStackArea,
     MonitorUnifiedScreen, MonitorTextLayer, MonitorPixelLayer, MonitorHexBuffer, MonitorClose,
     MonitorDetach, MonitorAttach, MonitorPin, MonitorUnpin, MonitorViewSplit, MonitorViewUnified,
-    MonitorClearBuffer, MonitorSaveImage, MonitorImageSaved, StorageImagePreviewLimit,
+    MonitorClearBuffer, MonitorSaveImage, MonitorImageSaved,
     MonitorHexFilterAll, MonitorHexFilterGraphics, MonitorHexFilterText,
     FloppyContent, FloppyImageContent, FloppyStatus, FloppyPath, FloppyPathMissing,
     FloppyImagePathMissing, FloppyBytesQueued, FloppyClearBuffer, FloppyShowImageContents,

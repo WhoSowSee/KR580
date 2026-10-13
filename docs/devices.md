@@ -126,7 +126,7 @@ byte admission remains capped at 64 KiB. `detach_file` now returns a typed
 and flushes before closing.
 
 Disk inspection reads metadata and at most the first 64 KiB on the UI file
-worker. Its caption states that limit; the stored image itself is unchanged.
+worker. The stored image itself is unchanged.
 Each device has one pending preview check and a generation. Changing the path
 or switching the preview rejects an older completion, including one from the
 same path. Metadata caching skips unchanged byte reads.

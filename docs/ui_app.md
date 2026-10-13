@@ -221,8 +221,8 @@ waiting for the UI. `Message::FileWorkReady` wakes completion draining before
 any modal can consume it; Tick is an additional drain path. Import target
 enumeration is asynchronous, disables Confirm while loading and rejects results
 from a previous selection or a closed dialog. Disk metadata and preview reads
-carry a per-device generation and read at most the first 64 KiB, stated below
-the inspection buffer. Monitor encoding/writing and floppy-buffer writing are
+carry a per-device generation and read at most the first 64 KiB.
+Monitor encoding/writing and floppy-buffer writing are
 background atomic saves; their Saved status appears after replacement succeeds.
 HDD deletion and selected-directory validation also run on the file worker.
 A deletion completion cannot detach a newer attachment of the same HDD path.
