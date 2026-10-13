@@ -42,6 +42,14 @@ indexes aligned, and verify the publishable workspace archive:
 cargo package --workspace --locked
 ```
 
+The workspace inherits the root Russian `README.md` as the registry README.
+Inspect the normalized `Cargo.toml` and README inside each `.crate` archive to
+confirm the selected language. Language switches and documentation links in
+both root READMEs use absolute GitHub URLs: crates.io resolves relative links
+from the package's repository directory (`crates/ui` or `crates/core`), while
+these documents live at the repository root. An already published version
+cannot be overwritten; registry README corrections require a new version.
+
 For a release, every non-release commit since the previous tag must have
 exactly one bullet in each language. Keep all changes from a mixed commit
 in that single bullet. The `chore(release)` version-bump commit is excluded.

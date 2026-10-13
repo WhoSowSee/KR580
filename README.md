@@ -20,7 +20,7 @@
 </p>
 
 > [!TIP]
-> **English version:** [README-EN.md](README-EN.md)
+> **English version:** [README-EN.md](https://github.com/WhoSowSee/KR580/blob/main/README-EN.md)
 
 KR580 – современный настольный эмулятор системы на КР580 / Intel 8080. Внутри – детерминированное ядро CPU, типизированные внешние устройства через I/O-порты и нативный многооконный интерфейс.
 
@@ -180,14 +180,14 @@ cargo test --workspace
 
 Полезные документы:
 
-- [Архитектура](docs/architecture.md)
-- [Ядро CPU](docs/core.md)
-- [Устройства и IoBus](docs/devices.md)
-- [Сохранение данных](docs/persistence.md)
-- [Приложение и UI](docs/ui_app.md)
-- [Установщик](docs/installer.md)
-- [Тестирование](docs/testing.md)
-- [Ассеты](docs/assets.md)
+- [Архитектура](https://github.com/WhoSowSee/KR580/blob/main/docs/architecture.md)
+- [Ядро CPU](https://github.com/WhoSowSee/KR580/blob/main/docs/core.md)
+- [Устройства и IoBus](https://github.com/WhoSowSee/KR580/blob/main/docs/devices.md)
+- [Сохранение данных](https://github.com/WhoSowSee/KR580/blob/main/docs/persistence.md)
+- [Приложение и UI](https://github.com/WhoSowSee/KR580/blob/main/docs/ui_app.md)
+- [Установщик](https://github.com/WhoSowSee/KR580/blob/main/docs/installer.md)
+- [Тестирование](https://github.com/WhoSowSee/KR580/blob/main/docs/testing.md)
+- [Ассеты](https://github.com/WhoSowSee/KR580/blob/main/docs/assets.md)
 
 ## История звёзд
 

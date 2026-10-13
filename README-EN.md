@@ -20,7 +20,7 @@
 </p>
 
 > [!TIP]
-> **Russian version:** [README.md](README.md)
+> **Russian version:** [README.md](https://github.com/WhoSowSee/KR580/blob/main/README.md)
 
 KR580 is a modern desktop emulator for a KR580 / Intel 8080-style microprocessor system. It keeps the CPU core deterministic, models external devices through typed I/O ports, and presents the machine through a native multi-window GUI.
 
@@ -180,14 +180,14 @@ cargo test --workspace
 
 Useful reference docs:
 
-- [Architecture](docs/architecture.md)
-- [CPU core](docs/core.md)
-- [Devices and IoBus](docs/devices.md)
-- [Persistence](docs/persistence.md)
-- [App and UI](docs/ui_app.md)
-- [Installer](docs/installer.md)
-- [Testing](docs/testing.md)
-- [Assets](docs/assets.md)
+- [Architecture](https://github.com/WhoSowSee/KR580/blob/main/docs/architecture.md)
+- [CPU core](https://github.com/WhoSowSee/KR580/blob/main/docs/core.md)
+- [Devices and IoBus](https://github.com/WhoSowSee/KR580/blob/main/docs/devices.md)
+- [Persistence](https://github.com/WhoSowSee/KR580/blob/main/docs/persistence.md)
+- [App and UI](https://github.com/WhoSowSee/KR580/blob/main/docs/ui_app.md)
+- [Installer](https://github.com/WhoSowSee/KR580/blob/main/docs/installer.md)
+- [Testing](https://github.com/WhoSowSee/KR580/blob/main/docs/testing.md)
+- [Assets](https://github.com/WhoSowSee/KR580/blob/main/docs/assets.md)
 
 ## Star History
 
