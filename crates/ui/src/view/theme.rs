@@ -236,12 +236,10 @@ pub(super) fn mono_text(content: impl Into<String>, size: u32, color: Color) -> 
 }
 
 fn active_tokens() -> UiTokens {
-    scheme_tokens(ColorScheme::from_index(
-        ACTIVE_COLOR_SCHEME.load(Ordering::Relaxed),
-    ))
+    scheme_tokens(active_color_scheme())
 }
 
-fn active_color_scheme() -> ColorScheme {
+pub(super) fn active_color_scheme() -> ColorScheme {
     ColorScheme::from_index(ACTIVE_COLOR_SCHEME.load(Ordering::Relaxed))
 }
 
@@ -252,7 +250,7 @@ fn is_black_white(scheme: ColorScheme) -> bool {
     )
 }
 
-fn scheme_tokens(scheme: ColorScheme) -> UiTokens {
+pub(super) fn scheme_tokens(scheme: ColorScheme) -> UiTokens {
     match scheme {
         ColorScheme::TokyoNight => tokens([
             0x121320, 0x1D2030, 0x2F334D, 0x363B59, 0x414868, 0xC0CAF5, 0x565F89, 0x7AA2F7,

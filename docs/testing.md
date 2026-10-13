@@ -254,6 +254,12 @@ protection, rail recentering and continued dragging, native line/pixel wheel
 behavior for direct and `responsive` layers, hover-cursor restoration and
 covering-overlay isolation, without an OS window or system clipboard.
 
+`view/memory_list/colors/tests.rs` checks monochrome role ordering, shade
+separation and opaque palette contrast against the memory panel's board color
+using iced's `Color::relative_contrast`. It verifies the brighter selected/halted
+dark palette, colored-theme compatibility and disabling highlighting. It does
+not simulate renderer compositing or claim to verify selected-text rendering.
+
 `runtime/memory/editor/tests.rs` checks minimal scrolling and wrapping for
 arrows and Tab, search/cell-change scroll resets, and Enter selection.
 

@@ -401,8 +401,14 @@ order, top to bottom:
    generic immediate operands are `active cyan token`, and the port operand of
    `IN`/`OUT` (used by the monitor, printer, storage, and network
    devices) is `active magenta token`. Opcode bytes themselves stay
-   `active green token`. The scan walks back up to two bytes from the top of
-   the visible window to recover an instruction boundary, so the hint
+   `active green token`. Both black-and-white schemes instead use a dedicated
+   grayscale palette from `memory_list/colors.rs` for opcode, address, data and
+   port values. Address operands have the strongest contrast, followed by ports,
+   immediate data and opcode bytes. The dark scheme uses a wider grayscale range
+   on ordinary rows and brighter values on selected or halted rows to preserve
+   readability over their highlighted backgrounds. Cell layout, backgrounds and
+   editing behavior remain the same. The scan walks back up to two bytes from
+   the top of the visible window to recover an instruction boundary, so the hint
    is accurate even when the list starts in the middle of an instruction.
    The coloring is controlled by the **Highlight memory operands**
    toggle in Settings → General; when the toggle is off, all value

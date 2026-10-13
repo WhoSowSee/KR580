@@ -10,8 +10,10 @@ use iced::{Element, Length, alignment};
 use k580_core::{Cpu8080State, decode_opcode};
 
 mod cells;
+mod colors;
 mod operands;
 use cells::{address_cell, command_cell, memory_value_cell};
+use colors::value_color;
 use operands::classify_operands;
 
 pub(crate) use operands::{operand_jump_target, operand_port_number};
@@ -19,8 +21,7 @@ pub(crate) use operands::{operand_jump_target, operand_port_number};
 use super::opcode_dropdown::{OPCODE_DROPDOWN_HEIGHT, opcode_dropdown_overlay};
 use super::styles::{memory_row_container_style, solid_style, transparent_style};
 use super::theme::{
-    tokyo_blue, tokyo_cyan, tokyo_green, tokyo_magenta, tokyo_muted, tokyo_red, tokyo_subtle_line,
-    tokyo_yellow, ui_text,
+    active_color_scheme, tokyo_blue, tokyo_muted, tokyo_red, tokyo_subtle_line, ui_text,
 };
 use super::widgets::{compact_scrollbar, legend_panel, shortcut_capture};
 use crate::app::shortcuts::shortcut_context;
@@ -225,17 +226,7 @@ fn memory_row<'a>(
     } else {
         tokyo_muted()
     };
-    let value_color = if !visuals.operand_highlighting {
-        tokyo_green()
-    } else if visuals.is_port_operand {
-        tokyo_magenta()
-    } else if visuals.is_address_operand {
-        tokyo_yellow()
-    } else if visuals.is_data_operand {
-        tokyo_cyan()
-    } else {
-        tokyo_green()
-    };
+    let value_color = value_color(&visuals, active_color_scheme());
 
     let cells_row: Element<'a, Message> = container(
         row![
