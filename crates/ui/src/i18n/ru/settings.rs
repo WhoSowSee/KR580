@@ -4,7 +4,6 @@ pub(super) fn translate(key: Key) -> Option<&'static str> {
     let value = match key {
         Key::SettingsTitle => "Настройки",
         Key::SettingsSavedNotice => "Настройки сохранены",
-        Key::SettingsSaving => "Сохранение…",
         Key::SettingsResetNotice => "Настройки сброшены",
         Key::SettingsShortcutsResetNotice => "Сочетания сброшены",
         Key::SettingsSearchPlaceholder => "Поиск настроек",

@@ -27,11 +27,7 @@ pub(super) fn settings_footer(dialog: &SettingsDialog, lang: Lang) -> Element<'s
         footer_active && focus == FooterFocus::Cancel,
     );
     let save = footer_button(
-        lang.t(if dialog.saving {
-            Key::SettingsSaving
-        } else {
-            Key::FileSave
-        }),
+        lang.t(Key::FileSave),
         (!dialog.saving).then_some(Message::SaveSettings),
         footer_active && focus == FooterFocus::Save,
     );

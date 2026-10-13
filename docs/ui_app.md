@@ -229,8 +229,10 @@ A deletion completion cannot detach a newer attachment of the same HDD path.
 
 Settings and printer-profile handlers use confirmed cached settings. Each
 background write reads the latest file and applies its own change in FIFO order.
-Settings Save displays Saving and disables Save, Reset and Cancel until the
-write finishes; draft controls remain editable. Confirmation advances the
+Settings Save keeps its «Сохранить» / `Save` label throughout the write and
+disables Save, Reset and Cancel until it finishes; draft controls remain
+editable. The footer controls keep their positions while saving.
+Confirmation advances the
 Cancel baseline from the submitted draft while retaining later live edits.
 Failures preserve the previous baseline and show the typed error notice.
 
