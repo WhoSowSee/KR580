@@ -5,6 +5,10 @@
 //! PE resource that Windows reads before our process even starts.
 
 fn main() {
+    println!(
+        "cargo:rustc-env=KR580_BUILD_TARGET={}",
+        std::env::var("TARGET").unwrap()
+    );
     write_installer_payload_module();
     embed_windows_resources();
 }

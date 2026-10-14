@@ -241,12 +241,12 @@ fn combine_observation<T>(
     }
 }
 
-struct Lease {
+pub(super) struct Lease {
     file: Option<std::fs::File>,
     path: PathBuf,
 }
 impl Lease {
-    fn acquire(root: &Path) -> Result<Self, String> {
+    pub(super) fn acquire(root: &Path) -> Result<Self, String> {
         let path = root.join(".kr580-install.lock");
         let file = std::fs::OpenOptions::new()
             .create_new(true)

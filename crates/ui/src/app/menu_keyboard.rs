@@ -35,7 +35,11 @@ const VIEW_MENU_ACTIONS: &[Message] = &[
     Message::OpenPrinter,
     Message::ToggleStackView,
 ];
-const HELP_MENU_ACTIONS: &[Message] = &[Message::OpenHelp, Message::OpenAbout];
+const HELP_MENU_ACTIONS: &[Message] = &[
+    Message::OpenHelp,
+    Message::OpenAbout,
+    Message::UpdateActivated,
+];
 
 pub(super) fn navigation_key_message(
     key: &keyboard::Key,
@@ -107,6 +111,7 @@ impl DesktopApp {
     }
 
     pub(crate) fn close_top_menu(&mut self) {
+        self.shell.updates.menu_closed();
         self.shell.open_menu = None;
         self.shell.top_menu_focus = None;
         self.shell.top_menu_indicator = TopMenuIndicator::Hidden;
@@ -199,6 +204,9 @@ impl DesktopApp {
         let menu = match focus {
             TopMenuFocus::Category(menu) | TopMenuFocus::Item { menu, .. } => menu,
         };
+        if self.shell.open_menu == Some(MenuId::Help) && menu != MenuId::Help {
+            self.shell.updates.menu_closed();
+        }
         self.shell.open_menu = (menu != MenuId::Settings).then_some(menu);
         self.shell.top_menu_focus = Some(focus);
         self.shell.top_menu_indicator = indicator;
@@ -217,7 +225,9 @@ impl DesktopApp {
             return Task::none();
         }
         let action = top_menu_action(menu, index).expect("focused menu item must have an action");
-        self.close_top_menu();
+        if !matches!(action, Message::UpdateActivated) {
+            self.close_top_menu();
+        }
         Task::done(action)
     }
 }

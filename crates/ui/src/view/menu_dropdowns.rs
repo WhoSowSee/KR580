@@ -98,6 +98,7 @@ pub(super) fn help_dropdown(
     lang: Lang,
     shortcuts: &ShortcutSettings,
     focused_item: Option<(usize, TopMenuIndicator)>,
+    updates: &crate::app::updates::UpdatePhase,
 ) -> Element<'static, Message> {
     let item = |index, label, icon| {
         menu_item(
@@ -111,8 +112,9 @@ pub(super) fn help_dropdown(
     };
     let items: Vec<Element<'static, Message>> = vec![
         item(0, lang.t(Key::HelpShowDocs), icons::book_marked()),
-        menu_separator(),
         item(1, lang.t(Key::HelpAbout), icons::info()),
+        menu_separator(),
+        super::update_menu::update_menu_item(updates, lang, item_focus(focused_item, 2)),
     ];
 
     container(column(items).spacing(0))

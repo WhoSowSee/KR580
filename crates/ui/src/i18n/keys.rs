@@ -64,6 +64,8 @@ scalar_keys! {
     StatusOpened, StatusSavedTo, StatusExportTo, StatusImportFrom, ErrorPrefix, HaltNotice,
 
     SpeedTitle, SpeedUnit,
+    UpdateCheck, UpdateChecking, UpdateDownload, UpdateDownloading, UpdatePreparing,
+    UpdateRestart, UpdateCurrent, UpdateRetry, UpdateReleasePage,
     SettingsTitle, SettingsSavedNotice, SettingsResetNotice, SettingsShortcutsResetNotice,
     SettingsSearchPlaceholder, SettingsCategoryGeneral,
     SettingsCategoryExternalDevices, SettingsCategoryAppearance, SettingsCategoryShortcuts,

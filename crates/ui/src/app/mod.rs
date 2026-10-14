@@ -43,8 +43,10 @@ pub(crate) mod test_support;
 mod undo;
 mod update;
 mod update_overlays;
+mod update_release;
 mod update_routes;
 mod update_settings;
+pub(crate) mod updates;
 #[cfg(test)]
 mod window_tests;
 mod windows;

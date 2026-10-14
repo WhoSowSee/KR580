@@ -10,6 +10,7 @@ pub(crate) enum PendingAction {
     NewFile,
     Import,
     CloseWindow,
+    RestartForUpdate,
     DeleteHdd,
 }
 
@@ -114,6 +115,7 @@ impl DesktopApp {
                 Task::none()
             }
             PendingAction::CloseWindow => Task::done(Message::WindowClose),
+            PendingAction::RestartForUpdate => self.restart_for_update(),
             PendingAction::DeleteHdd => {
                 self.delete_hdd_file();
                 Task::none()

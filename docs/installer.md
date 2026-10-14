@@ -356,6 +356,16 @@ never authorizes legacy-file cleanup or overwriting existing binary paths.
 
 ## Installation transaction
 
+The setup executable also accepts the internal headless
+`--apply-update <root> <pid> <restart.json>` command. It stages its embedded
+payload under an existing installation lease, reports readiness, waits for
+the emulator to exit, and uses the file journal to replace the GUI, launcher
+and uninstaller with rollback on ordinary errors. The restart marker is
+optional: ordinary exit updates without relaunching, while the Help menu's
+restart action requests a new instance. User data and system integration are
+preserved. See [Application updates](updates.md) for downloads, platform
+limitations and temporary-file cleanup.
+
 `operations/source.rs` discovers the embedded or adjacent payloads.
 `operations/transaction.rs` validates ownership/layout, captures rollback data,
 and prepares all three executables in unique sibling staging files before

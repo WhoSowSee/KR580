@@ -161,3 +161,11 @@ callback can tint a single source file at any accent at runtime – no
 per-colour duplicates. Files are embedded with `include_bytes!` at build
 time via the macros in `icons.rs` and `bin/installer/mod.rs`; replacing a
 glyph is a recompile, not a runtime asset reload.
+
+The update menu embeds `actions/download.svg` directly through
+`view/update_menu/icon.rs`, using the [Lucide Download glyph](https://github.com/lucide-icons/lucide/blob/main/icons/download.svg).
+Its checking animation wraps the canonical `actions/refresh-ccw.svg` in cached
+rotation frames, so the idle and checking states share the same artwork.
+These vector assets require no PNG/ICO regeneration.
+The update error glyph uses a filled dot with a clear gap below the exclamation
+stem so it remains visible at the menu's 16 px icon size.

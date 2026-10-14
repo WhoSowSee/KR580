@@ -39,6 +39,7 @@ mod styles;
 mod subprogram_modal;
 pub(crate) mod theme;
 mod tooltips;
+mod update_menu;
 mod utils;
 mod widgets;
 mod windows;

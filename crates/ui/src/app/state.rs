@@ -232,6 +232,7 @@ impl DesktopApp {
                 floppy_image: Default::default(),
             },
             shell: ShellState {
+                updates: Default::default(),
                 status: initial_status,
                 status_kind: initial_status_kind,
                 startup_frames_seen: 0,

@@ -215,6 +215,14 @@ prefix (`document.dirty`, `memory.memory_address_input`, `preferences.lang`,
 `panels.monitor_window`, `requests.pending_requests`). Message names, widget IDs
 and keyboard routes keep the same contracts.
 
+`ShellState.updates` owns the update phase and operation generation.
+`app/updates.rs` manages transitions; `app/update_release.rs` handles activation
+and the `UpdateChecked`, `UpdateDownloaded`, `UpdateRestartReady` completion
+messages before modal routing. `UpdateActivated` is the third Help action;
+`UpdateAnimationTick` refreshes the spinner/progress only while Help is open.
+`PendingAction::RestartForUpdate` uses the existing unsaved-change confirmation.
+`view/update_menu.rs` and its cached SVG icon module render the fixed-size row.
+
 `RequestState` also owns the lazy `runtime/file_work/` worker and pending effect
 tasks. Its eight-job budget covers active work, queued work and completed results
 waiting for the UI. `Message::FileWorkReady` wakes completion draining before
@@ -344,8 +352,15 @@ action remains click- or keyboard-activated instead of opening on hover.
 The visible top-level categories are localized as `Файл`,
 `МП-Система`, `Вид`, `Настройки`, and `Справка`. `Файл` and
 `МП-Система` open dropdowns; `Справка` opens a dropdown with
-«Вызвать справку» (Ctrl+H – opens the Help dialog) and «О программе»
-(opens the About dialog). The About card exposes GitHub and Changelog
+«Вызвать справку» (Ctrl+H – opens the Help dialog), «О программе»
+(opens the About dialog), and a separated «Проверить обновления» row.
+That row checks, offers a separate download action, shows circular progress,
+and becomes «Перезапустить и обновить» after preparation. All feedback stays
+inside the menu; closing it preserves the update operation. «Обновлений нет»
+expires after three seconds or immediately on menu close. Prepared updates
+also apply on ordinary application exit without relaunching. See
+[Application updates](updates.md) for platform behavior and recovery.
+The About card exposes GitHub and Changelog
 actions; Changelog opens a second modal layer with an all-releases view
 and direct release selection. `Вид` now opens a dropdown with the five
 peripheral windows (Monitor, Floppy, HDD, Network, Printer) and a

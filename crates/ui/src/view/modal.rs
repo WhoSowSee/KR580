@@ -125,7 +125,9 @@ fn discard_modal_keys(action: &PendingAction) -> (Key, Option<Key>, Key) {
         }
         PendingAction::NewFile => (Key::DiscardTitleNew, None, Key::DiscardBody),
         PendingAction::Import => (Key::DiscardTitleImport, None, Key::DiscardBody),
-        PendingAction::CloseWindow => (Key::DiscardTitleClose, None, Key::DiscardBody),
+        PendingAction::CloseWindow | PendingAction::RestartForUpdate => {
+            (Key::DiscardTitleClose, None, Key::DiscardBody)
+        }
         PendingAction::DeleteHdd => (Key::DiscardTitleDeleteHdd, None, Key::DiscardBodyDeleteHdd),
     }
 }
@@ -137,7 +139,7 @@ fn discard_confirm_label_key(action: &PendingAction) -> Key {
         }
         PendingAction::NewFile => Key::DiscardConfirmNew,
         PendingAction::Import => Key::DiscardConfirmImport,
-        PendingAction::CloseWindow => Key::DiscardConfirmClose,
+        PendingAction::CloseWindow | PendingAction::RestartForUpdate => Key::DiscardConfirmClose,
         PendingAction::DeleteHdd => Key::DiscardConfirmDeleteHdd,
     }
 }

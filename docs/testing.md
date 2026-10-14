@@ -202,6 +202,47 @@ current selected option without submitting a physical print job.
 
 ## Current coverage
 
+Update regressions cover SemVer precedence, exact target/URL/digest selection,
+three-second menu feedback and close/reopen persistence, stale completions,
+HTTP streaming with size/digest rejection, Deflate installer extraction with
+escaping/ambiguous entry rejection, fixed row dimensions/click routing
+in both languages and visible icons at 100%, 125% and 200% display scaling.
+Installer fixtures verify waiting for process exit,
+preserving user data and rolling back preceding replacements after an injected
+failure. They use temporary roots and a local HTTP fixture, never a live
+installation or GitHub download. New update dependencies are `reqwest` with
+rustls, `semver`, `ring` 0.17 reused from TLS, `tempfile` and `zip` 8.6 shared with XLSX dependencies.
+The updater enables only the flate2/zlib-rs Deflate codec, with no ZIP default
+features, and declares its direct ZIP dependency only outside macOS. SemVer
+uses no optional `std` integration; the direct `ring` dependency enables no
+additional features. The download fixture streams HTTP chunks and compares
+against a fixed SHA-256 reference rather than computing the expected value
+with the implementation under test. TLS and temporary-name randomness remain
+enabled. Windows process waiting enables the `windows-sys` threading API.
+
+Two opt-in checks exercise real external inputs without adding network access
+to the default suite:
+
+```powershell
+cargo test -p kr580 --bin kr580 runtime::updates::release::tests::live_release_check_completes_with_a_valid_result -- --ignored --exact
+$env:KR580_UPDATE_TEST_ARCHIVE = 'C:\path\KR580-Setup-v4.0.0-x86_64-pc-windows-msvc.zip'
+$env:KR580_UPDATE_TEST_VERSION = '4.0.0'
+cargo test -p kr580 --bin kr580 runtime::updates::install::tests::official_release_zip_extracts_installer -- --ignored --exact
+```
+
+The archive must be downloaded from the official release and its size/digest
+verified first. The second test checks the real inner executable name rather
+than assuming the unversioned staging name. The ordinary Deflate fixture uses
+the same version/target naming and rejects escaping or ambiguous entries.
+On 2026-10-14, the Windows v4.0.0 ZIP passed extraction after reproducing and
+correcting the unversioned-name mismatch. A separate temporary process harness
+ran the current helper with the Windows GUI subsystem and small embedded PE
+payloads: both normal exit and explicit restart preserved user files, replaced
+all three binaries after exit, removed the lease/cache, and reopened the saved
+document path for restart. This verifies the helper with controlled payloads;
+it does not constitute a full GUI update against a newer published release or
+native Linux/macOS validation.
+
 `k580-core`'s `metadata_execution` regression counts allocations on the executing
 test thread and verifies a 20,000-instruction INR/JMP loop has zero allocations,
 the expected register result and exact T-state total.
@@ -306,6 +347,16 @@ When a Windows host cross-checks Linux or macOS, the build script skips PE
 resource compilation for the non-Windows target.
 
 ## Manual smoke checks for the UI
+
+- In Help, check for updates in both languages; confirm the spinner stays in
+  the menu and `Up to date` lasts three seconds. Close Help before/during that
+  result and confirm reopening starts idle. Use a disposable installed build
+  with an older version to check the separate download action, progress while
+  Help is reopened, preparation and the check-mark restart action. Cancel the
+  unsaved-change confirmation and confirm readiness persists. Then test both
+  restart and ordinary exit: the former relaunches the updated app, the latter
+  updates without reopening it. Repeat on Windows, Linux installer layouts
+  and macOS bundles; check that manager/source builds offer the release page.
 
 - In each external device (Monitor, Floppy, HDD, Network, Printer), use Tab and
   Shift+Tab to traverse the toolbar in each direction, including wrapping at both

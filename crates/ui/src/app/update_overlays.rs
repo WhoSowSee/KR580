@@ -314,7 +314,7 @@ impl DesktopApp {
 }
 
 #[cfg(target_os = "windows")]
-fn open_external_url(url: &str) -> std::io::Result<()> {
+pub(super) fn open_external_url(url: &str) -> std::io::Result<()> {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -326,13 +326,13 @@ fn open_external_url(url: &str) -> std::io::Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-fn open_external_url(url: &str) -> std::io::Result<()> {
+pub(super) fn open_external_url(url: &str) -> std::io::Result<()> {
     std::process::Command::new("open").arg(url).spawn()?;
     Ok(())
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn open_external_url(url: &str) -> std::io::Result<()> {
+pub(super) fn open_external_url(url: &str) -> std::io::Result<()> {
     std::process::Command::new("xdg-open").arg(url).spawn()?;
     Ok(())
 }

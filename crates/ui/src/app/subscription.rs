@@ -32,6 +32,12 @@ impl DesktopApp {
         {
             subscriptions.push(iced::window::frames().map(|_| Message::FrameRendered));
         }
+        if self.shell.open_menu == Some(super::MenuId::Help) && self.shell.updates.phase.busy() {
+            subscriptions.push(
+                time::every(std::time::Duration::from_millis(16))
+                    .map(|_| Message::UpdateAnimationTick),
+            );
+        }
 
         Subscription::batch(subscriptions)
     }

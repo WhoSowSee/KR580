@@ -1,6 +1,27 @@
 pub fn run() -> iced::Result {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
+        Some("--apply-update") => {
+            let parsed = (|| {
+                let root = std::path::PathBuf::from(args.next()?);
+                let pid = args.next()?.parse().ok()?;
+                let restart = std::path::PathBuf::from(args.next()?);
+                if args.next().is_some() {
+                    return None;
+                }
+                Some((root, pid, restart))
+            })();
+            let result = parsed
+                .ok_or_else(|| "invalid update arguments".to_owned())
+                .and_then(|(root, pid, restart)| {
+                    super::operations::apply_update(root, pid, restart)
+                });
+            if let Err(error) = result {
+                eprintln!("ERROR {error}");
+                std::process::exit(1);
+            }
+            Ok(())
+        }
         Some("--setup") => {
             if args.next().is_some() {
                 eprintln!("error: too many arguments");

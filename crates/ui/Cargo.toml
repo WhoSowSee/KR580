@@ -37,6 +37,13 @@ tracing-subscriber.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 roxmltree = "0.21"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+semver = { version = "1", default-features = false }
+ring = { version = "0.17", default-features = false }
+tempfile = "3"
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -60,6 +67,7 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Com",
     "Win32_System_Memory",
     "Win32_System_Registry",
+    "Win32_System_Threading",
     "Win32_UI_Controls_Dialogs",
     "Win32_UI_HiDpi",
     "Win32_UI_Shell",

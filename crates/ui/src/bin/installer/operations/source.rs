@@ -17,6 +17,9 @@ pub(super) enum SourceBinary {
 }
 
 impl SourceBundle {
+    pub(super) fn for_update() -> Result<Self, String> {
+        Self::embedded()?.ok_or_else(|| "update requires an embedded installer payload".to_owned())
+    }
     pub(super) fn discover() -> Result<Self, String> {
         if let Some(bundle) = Self::embedded()? {
             return Ok(bundle);

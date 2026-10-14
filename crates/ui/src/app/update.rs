@@ -12,7 +12,10 @@ impl DesktopApp {
         if matches!(message, Message::Tick) {
             self.pull_events();
         }
-        let task = if matches!(message, Message::FileWorkReady) {
+        self.shell.updates.tick(std::time::Instant::now());
+        let task = if let Some(task) = self.update_release_message(&message) {
+            task
+        } else if matches!(message, Message::FileWorkReady) {
             Task::none()
         } else {
             self.update_inner(message)

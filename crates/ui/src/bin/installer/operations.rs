@@ -2,10 +2,12 @@ mod journal;
 mod native;
 mod source;
 mod transaction;
+mod update;
 use super::platform;
 use k580_ui::install_mode::{InstallManifest, InstallMode, InstallScope};
 use source::SourceBundle;
 use std::path::{Path, PathBuf};
+pub(super) use update::run as apply_update;
 
 pub(super) struct InstallRequest {
     pub(super) mode: InstallMode,

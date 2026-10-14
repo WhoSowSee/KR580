@@ -188,6 +188,7 @@ pub(crate) struct DevicePanels {
 }
 
 pub(crate) struct ShellState {
+    pub(crate) updates: super::super::updates::UpdateState,
     pub(crate) status: String,
     pub(crate) status_kind: StatusKind,
     pub(crate) startup_frames_seen: u8,

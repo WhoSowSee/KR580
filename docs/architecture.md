@@ -22,6 +22,7 @@ The major version reflects incompatible public backend/device Rust APIs; the
 - `crates/ui/src/file_assoc/linux_default.rs`: owns the saved Linux default-handler state, `mimeapps.list` cleanup, and restoration of the handler that preceded KR580. `linux_files.rs` supplies process locking, atomic writes, and file backups used for rollback.
 - `crates/ui/assets/linux/`: canonical freedesktop launcher, file-handler, package, and shared-MIME templates consumed by runtime registration and native packages.
 - `crates/ui/assets/macos/Info.plist`: canonical macOS application metadata used by runtime integration and release packaging.
+- `crates/ui/src/runtime/updates/`: GitHub release discovery, verified downloads and platform-specific staging. `ShellState.updates` owns UI state; the setup executable applies staged files after application exit. See [Application updates](updates.md).
 - `macos_launch_services`: narrow Core Services bridge for registering the installed application bundle and managing its document handlers.
 - `platform/macos_open_documents`: Foundation event bridge that forwards Finder document activation into the normal application file-loading path.
 - `prompt/`: the implementation source of truth.

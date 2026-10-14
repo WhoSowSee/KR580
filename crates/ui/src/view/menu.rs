@@ -250,6 +250,7 @@ impl DesktopApp {
                 self.preferences.lang,
                 &self.preferences.shortcut_settings,
                 focused_item,
+                &self.shell.updates.phase,
             )),
         }
     }
