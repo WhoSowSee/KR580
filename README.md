@@ -172,6 +172,28 @@ cargo run -p kr580 --bin kr -- --help
 
 ## Разработка
 
+В корне есть `justfile` с командами разработки. Нужен
+[just](https://github.com/casey/just#installation) версии 1.56.0 или новее
+(`cargo install just --locked`), а на Windows также PowerShell 7.4+
+с `pwsh.exe` в `PATH`.
+
+```bash
+just
+just check-all
+just run --help
+just build
+just package
+```
+
+`just` показывает доступные команды, `just check-all` проверяет форматирование
+justfile и Rust, запускает Clippy и тесты workspace, затем собирает release GUI
+и launcher. `just package` выбирает Windows setup, Linux setup или macOS DMG,
+а `just icons` перегенерирует иконки после изменения исходных изображений.
+Подробности и передача аргументов описаны в
+[документации по проверкам](https://github.com/WhoSowSee/KR580/blob/main/docs/testing.md#just-recipes).
+
+Прямые команды Cargo также доступны:
+
 ```bash
 cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings

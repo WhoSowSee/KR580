@@ -75,6 +75,8 @@ The scripts read `crates/ui/assets/icons/icon.png`,
 `crates/ui/assets/icons/installer-uninstall.png`, then rewrite every derived
 PNG/ICO/ICNS in one go.
 
+`just icons` runs the appropriate generator on Windows or Unix/macOS.
+
 ### PowerShell (Windows)
 
 ```powershell

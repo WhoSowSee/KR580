@@ -27,6 +27,7 @@ The major version reflects incompatible public backend/device Rust APIs; the
 - `platform/macos_open_documents`: Foundation event bridge that forwards Finder document activation into the normal application file-loading path.
 - `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
+- `justfile`: cross-platform developer entry points for workspace checks, GUI/launcher builds and runs, native packaging, icon generation, and metadata smoke checks. See [Testing](testing.md#just-recipes).
 - `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
 - `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts, while `build_macos_dmg.sh` packages the native GUI as a drag-and-drop application image under `dist/`. The verification scripts exercise Linux metadata, macOS images, and release artifact names; `version_release_artifacts.sh` adds the release tag only to unversioned setup packages.
 - `target/`: cargo build artefacts (gitignored).

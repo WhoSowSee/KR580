@@ -172,6 +172,28 @@ After installation, `kr` can open `.580` snapshots and `.krs` subprograms from t
 
 ## Development
 
+The root `justfile` provides developer commands. Install
+[just](https://github.com/casey/just#installation) 1.56.0 or newer
+(`cargo install just --locked`); Windows also requires PowerShell 7.4+
+with `pwsh.exe` on `PATH`.
+
+```bash
+just
+just check-all
+just run --help
+just build
+just package
+```
+
+`just` lists available commands; `just check-all` checks justfile and Rust
+formatting, runs Clippy and workspace tests, then builds the release GUI and
+launcher. `just package` selects Windows setup, Linux setup, or a macOS DMG,
+and `just icons` regenerates icons after the master artwork changes.
+See [Testing](https://github.com/WhoSowSee/KR580/blob/main/docs/testing.md#just-recipes)
+for the full command list and argument forwarding.
+
+Direct Cargo commands remain available:
+
 ```bash
 cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings

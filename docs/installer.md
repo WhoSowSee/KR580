@@ -224,6 +224,22 @@ value and stays visible in red with its error text.
 
 ## Build Distribution Packages
 
+`just package` selects the native builder: Windows setup executable, Linux
+setup executable, or macOS DMG. Extra arguments use the selected script's
+existing syntax:
+
+```powershell
+just package -Profile debug -Target x86_64-pc-windows-msvc
+```
+
+```sh
+just package release --target x86_64-unknown-linux-gnu
+just package release --target aarch64-apple-darwin
+```
+
+The two Unix examples require Linux and macOS respectively. The direct script
+commands remain available:
+
 Windows:
 
 ```powershell

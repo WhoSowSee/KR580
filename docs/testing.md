@@ -1,5 +1,54 @@
 # Testing
 
+## Just recipes
+
+The root `justfile` provides the developer commands. Install
+[just](https://github.com/casey/just#installation) 1.56.0 or newer, for example
+with `cargo install just --locked`. Windows recipes require PowerShell 7.4 or
+newer (`pwsh.exe` on `PATH`); Unix recipes use `sh`, and the existing asset and
+packaging scripts use Bash. The platform-specific shell settings require
+just 1.56.0, and PowerShell's `-CommandWithArgs` preserves positional arguments.
+
+Run `just` to list the available recipes. Recipes run from the repository root
+even when invoked from a subdirectory. Relative program paths and script
+arguments are therefore resolved from the repository root.
+
+| Command | What it does |
+|---|---|
+| `just check-all` | Check the justfile, then run `just check`. |
+| `just check` | Check Rust formatting, Clippy, workspace tests, then build the release GUI and launcher. |
+| `just fmt` | Format the justfile and all Rust crates. |
+| `just fmt-just` / `just check-just` | Format the justfile or check its syntax and formatting without edits. |
+| `just fmt-check` | Check Rust formatting without edits. |
+| `just lint` | Run Clippy on every workspace target with warnings treated as errors. |
+| `just test [args...]` | Run workspace tests, forwarding Cargo options and a test filter. |
+| `just build` | Build `kr580` and `kr` in the release profile. |
+| `just run [args...]` | Run the `kr` launcher, forwarding application arguments after Cargo's `--`. |
+| `just run-gui` | Run `kr580` directly with debug logs in the terminal. |
+| `just package [args...]` | Build Windows setup, Linux setup, or a macOS DMG with the existing native script. |
+| `just icons` | Regenerate the derived PNG/ICO/ICNS assets from the master artwork. |
+| `just test-packaging` | Check release artifact naming on Unix in a disposable directory. |
+| `just test-linux-metadata` | Check desktop and MIME metadata on Linux with the tools listed below. |
+
+Cargo build, lint, test, and run recipes use `--locked`. The aggregate checks
+stop on the first failing command; native metadata and packaging smoke checks
+remain separate because they have platform-specific prerequisites.
+
+```sh
+just check-all
+just test -p k580-core
+just test -p kr580 --test persistence_formats
+just run --help
+just run "path/to/program with spaces.580"
+```
+
+The Windows variadic recipes forward arguments as an array and propagate the
+native command's exit code. Unix recipes forward `"$@"`; paths with spaces and
+shell metacharacters must be quoted by the calling shell. Packaging options
+follow the selected script's native syntax; see [Installer](installer.md).
+
+## Workspace checks
+
 Run the same checks from the repository root:
 
 The `loaded_range_and_next_save_follow_the_bytes_read` UI regression test covers
@@ -8,9 +57,9 @@ the real backend completion events; ordinary Save must retain exactly the loaded
 range. Event delivery is explicit, without sleeps or timing-dependent file changes.
 
 ```sh
-cargo fmt --all --manifest-path /d/kr-580/Cargo.toml
-cargo clippy --workspace --all-targets --manifest-path /d/kr-580/Cargo.toml -- -D warnings
-cargo test --workspace --manifest-path /d/kr-580/Cargo.toml
+cargo fmt --all -- --check
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo test --locked --workspace
 ```
 
 `cargo test -p kr580 --test persistence_formats` checks desktop `.580`
@@ -339,6 +388,8 @@ artwork:
 - Windows: `powershell -File scripts/generate_icons.ps1`
 - Unix/macOS: `./scripts/generate_icons.sh` (requires ImageMagick and either
   Apple `iconutil` or Python 3 for ICNS encoding)
+
+`just icons` selects the matching script for the host platform.
 
 The Windows build script does not regenerate `icon.ico` automatically –
 it only embeds it. A stale `icon.ico` will be silently shipped if you
