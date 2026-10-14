@@ -1,0 +1,11 @@
+* text=auto eol=lf
+*.rs diff=rust
+*.png binary
+*.ico binary
+*.icns binary
+*.580 binary
+*.krs binary
+*.kpd binary
+*.img binary
+*.bin binary
+*.xlsx binary

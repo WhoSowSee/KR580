@@ -37,6 +37,7 @@ parts:
     plugin: rust
     source: .
     rust-channel: "1.88.0"
+    rust-ignore-toolchain-file: true
     rust-path: [crates/ui]
     rust-cargo-parameters: [--bin, kr580]
     build-packages:

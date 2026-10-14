@@ -19,6 +19,47 @@ separately. Keep the PR template's links and instructions aligned with the
 contributor guides. Rust checks are unnecessary when only documentation or
 issue/PR templates change.
 
+## Repository configuration
+
+The root configuration files apply to the workspace and are included in Git:
+
+| File | Purpose |
+|---|---|
+| [.editorconfig](../.editorconfig) | Set editor encoding, LF, indentation, and save-time whitespace rules with Markdown and binary exceptions. |
+| [.gitattributes](../.gitattributes) | Normalize text to LF, use Rust-aware diffs, and preserve binary bytes. |
+| [rustfmt.toml](../rustfmt.toml) | Use Rust/style edition 2024, 100-column width, field initialization shorthand, and Unix line endings. |
+| [rust-toolchain.toml](../rust-toolchain.toml) | Select the rustup `stable` channel with the `minimal` profile plus `rustfmt` and `clippy`. |
+
+The Git binary rules cover PNG/ICO/ICNS assets, `.580` snapshots, `.krs`
+subprograms, `.kpd`/`.img`/`.bin` storage images, and `.xlsx` workbooks. They
+disable text conversion, text diffs, and text merges, including for small
+program or CP866 storage samples that Git might otherwise classify as text.
+SVG, Rust, documentation, shell scripts, and PowerShell scripts use LF.
+
+Editors with EditorConfig support use UTF-8, spaces, a final newline, and
+trailing-whitespace removal for text files. YAML, Bash, Nix, XML, and SVG use
+two-space indentation; Rust, TOML, PowerShell, and justfile use four spaces.
+Markdown retains trailing spaces so hard line breaks survive saving. Binary
+extensions matching the Git rules unset the text properties, including encoding
+for CP866 `.kpd` samples. The editor settings complement `rustfmt.toml`; Rust
+formatting is still verified with `just fmt-check`.
+
+Use `just fmt` to apply both justfile and Rust formatting, then
+`just check-all` to verify it. For Git rules, inspect representative paths:
+
+```sh
+git check-attr text eol diff merge -- crates/core/src/flags.rs examples/floppy_sample.kpd crates/ui/assets/icons/icon.png
+git ls-files --eol
+```
+
+`stable` is a moving development channel; it does not change the workspace's
+Rust 1.88.0 minimum. Check the selected compiler with `rustup show active-toolchain`.
+Explicit `cargo +1.88.0` commands override the root file.
+The release workflow's Linux integration job sets `RUSTUP_TOOLCHAIN=1.88.0`.
+Snap's Rust part uses `rust-ignore-toolchain-file: true` so its existing
+`rust-channel: "1.88.0"` remains effective for both native architectures.
+Nix uses the compiler provided by its package set rather than rustup.
+
 ## Just recipes
 
 The root `justfile` provides the developer commands. Install

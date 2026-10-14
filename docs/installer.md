@@ -287,7 +287,10 @@ names, stages the dynamically loaded X11/Wayland/font/dialog libraries, and
 uses the GPU extension for driver-compatible graphics. Build dependencies stay
 minimal because the graphics crates load those libraries at runtime.
 The Rust plugin uses the workspace's tested Rust 1.88.0 MSRV and builds only
-`crates/ui`'s `kr580` binary. Its override calls the
+`crates/ui`'s `kr580` binary. `rust-ignore-toolchain-file: true` preserves the
+configured Rust 1.88.0 compiler when the root development toolchain selects
+`stable`; the plugin supplies `RUSTUP_TOOLCHAIN=1.88.0` for the build.
+Its override calls the
 plugin's default build before installing the application icon and rendering the
 canonical package Desktop Entry. The Snap-specific rendering uses the staged
 256 px PNG's absolute path, so Snapcraft does not resolve the icon through the

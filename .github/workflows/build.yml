@@ -16,6 +16,8 @@ jobs:
   linux-integration:
     name: Linux desktop integration
     runs-on: ubuntu-latest
+    env:
+      RUSTUP_TOOLCHAIN: "1.88.0"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v7

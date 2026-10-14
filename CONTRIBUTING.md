@@ -35,10 +35,19 @@ and a screenshot if useful. On Linux, also identify Wayland or X11.
 
 ## Working locally
 
-Install Rust through [rustup](https://rustup.rs/) with the `rustfmt` and `clippy`
-components. The minimum supported Rust version is declared in
+Install Rust through [rustup](https://rustup.rs/).
+[rust-toolchain.toml](rust-toolchain.toml) selects `stable` with the `minimal`
+profile and the `rustfmt` and `clippy` components. The minimum supported Rust
+version is declared in
 [Cargo.toml](Cargo.toml); see [Testing](docs/testing.md#workspace-checks) for
 MSRV verification.
+
+[.editorconfig](.editorconfig) supplies editor defaults for encoding, indentation,
+and whitespace, with exceptions for Markdown and binary files.
+[rustfmt.toml](rustfmt.toml) defines the shared formatter settings, and
+[.gitattributes](.gitattributes) defines LF and binary-file handling. See
+[Repository configuration](docs/testing.md#repository-configuration) for their
+validation and explicit compiler overrides used by packaging.
 
 Fork [KR580](https://github.com/WhoSowSee/KR580), then:
 

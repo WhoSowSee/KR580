@@ -28,6 +28,10 @@ The major version reflects incompatible public backend/device Rust APIs; the
 - `docs/`: reference documentation (this directory).
 - `CONTRIBUTING.md` and `AI_POLICY.md`: contributor workflow, verification requirements, and AI-assistance disclosure policy.
 - `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md`: GitHub bug/feature forms and the pull request template, aligned with the contributor guides.
+- `.gitattributes`: LF text checkouts, Rust-aware diffs, and byte-preserving binary asset/program-image rules.
+- `.editorconfig`: editor defaults for UTF-8, LF, spaces, and final newlines; format-specific indentation plus Markdown and binary exceptions. See [Repository configuration](testing.md#repository-configuration).
+- `rustfmt.toml`: shared Rust 2024 formatting with 100-column width, field initialization shorthand, and LF output.
+- `rust-toolchain.toml`: rustup's stable development toolchain with the minimal profile, rustfmt, and Clippy. Explicit Rust 1.88 overrides keep integration and Snap builds on their configured compiler. See [Repository configuration](testing.md#repository-configuration).
 - `justfile`: cross-platform developer entry points for workspace checks, GUI/launcher builds and runs, native packaging, icon generation, and metadata smoke checks. See [Testing](testing.md#just-recipes).
 - `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
 - `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts, while `build_macos_dmg.sh` packages the native GUI as a drag-and-drop application image under `dist/`. The verification scripts exercise Linux metadata, macOS images, and release artifact names; `version_release_artifacts.sh` adds the release tag only to unversioned setup packages.
