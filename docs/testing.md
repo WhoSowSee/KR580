@@ -19,6 +19,35 @@ separately. Keep the PR template's links and instructions aligned with the
 contributor guides. Rust checks are unnecessary when only documentation or
 issue/PR templates change.
 
+## Pull request CI
+
+[Workspace quality](../.github/workflows/quality.yml) runs on branch pushes,
+pull requests, and manual dispatch. It keeps three stable check names:
+
+| Required check | Coverage |
+|---|---|
+| `Workspace ubuntu-latest` | Formatting, strict all-target Clippy, workspace tests, Linux desktop/MIME metadata, release artifact naming, release GUI/launcher build, `kr --version`, and Rust 1.88.0 compatibility. |
+| `Workspace windows-latest` | Formatting, strict all-target Clippy, and workspace tests on Windows. |
+| `Workspace macos-latest` | Formatting, strict all-target Clippy, and workspace tests on macOS. |
+
+Each matrix job has a 45-minute timeout. New runs cancel older runs for the
+same pull request or branch. Cargo caches are restored on all events and saved
+on pushes. Checkout does not persist credentials. The existing three-OS matrix
+continues to compile each platform's conditional code natively.
+
+The Linux row installs the minimal Rust 1.88.0 toolchain without changing the
+default, then runs `cargo +1.88.0 check --locked --workspace --all-targets`.
+The explicit selector takes precedence over the development toolchain file.
+Metadata and artifact-name checks use disposable directories. The launcher
+smoke check prints its version without opening the GUI.
+
+The repository's [GitHub rules](https://github.com/WhoSowSee/KR580/rules)
+include the active `CI checks for main` ruleset. It requires all three statuses
+from GitHub Actions for ordinary updates to `main`; administrators retain a
+maintenance bypass. Required contexts are configured in GitHub separately from
+the workflow. Keep their names synchronized when changing job names or the OS
+matrix. Release packaging remains in its separate tag/manual workflow.
+
 ## Repository configuration
 
 The root configuration files apply to the workspace and are included in Git:
@@ -250,6 +279,7 @@ does not enable another operating system's `cfg` branches.
 `Workspace quality` runs on branch pushes, pull requests and manual dispatch.
 Its native Windows, Linux and macOS rows check formatting, strict all-target
 workspace Clippy and the complete workspace suite with the checked-in lockfile.
+The Linux row also runs the checks described in [Pull request CI](#pull-request-ci).
 The toolchain action records the resolved compiler version. Release packaging
 keeps its separate tag/manual workflow and its existing target matrix.
 CPU conditional return/call regressions build short programs directly in

@@ -167,3 +167,8 @@ ran. Link the related issue; include a minimal program or before/after state for
 CPU changes and screenshots with window size and display scaling for visual UI
 changes. Explain any checks you could not run. Push review fixes to the same
 branch.
+
+Wait for the required `Workspace` checks on Linux, Windows, and macOS before
+merging. The Linux check also verifies MSRV, a release build, and packaging
+metadata. See [Pull request CI](docs/testing.md#pull-request-ci) for the workflow
+and the GitHub ruleset that enforces these statuses on `main`.

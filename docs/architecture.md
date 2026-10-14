@@ -28,6 +28,7 @@ The major version reflects incompatible public backend/device Rust APIs; the
 - `docs/`: reference documentation (this directory).
 - `CONTRIBUTING.md` and `AI_POLICY.md`: contributor workflow, verification requirements, and AI-assistance disclosure policy.
 - `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md`: GitHub bug/feature forms and the pull request template, aligned with the contributor guides.
+- `.github/workflows/quality.yml`: cached native checks on Linux, Windows, and macOS, plus Linux MSRV/release/metadata checks. The three `Workspace` statuses are required by the repository's `main` ruleset. See [Pull request CI](testing.md#pull-request-ci).
 - `.gitattributes`: LF text checkouts, Rust-aware diffs, and byte-preserving binary asset/program-image rules.
 - `.editorconfig`: editor defaults for UTF-8, LF, spaces, and final newlines; format-specific indentation plus Markdown and binary exceptions. See [Repository configuration](testing.md#repository-configuration).
 - `rustfmt.toml`: shared Rust 2024 formatting with 100-column width, field initialization shorthand, and LF output.

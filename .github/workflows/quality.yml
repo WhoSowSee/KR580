@@ -10,9 +10,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: "1"
+
 jobs:
   workspace:
     name: Workspace ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -21,11 +29,18 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push' }}
 
       - name: Install Linux desktop test tools
         if: runner.os == 'Linux'
@@ -39,3 +54,27 @@ jobs:
 
       - name: Test workspace
         run: cargo test --locked --workspace
+
+      - name: Validate Linux desktop metadata
+        if: runner.os == 'Linux'
+        run: bash scripts/verify_linux_metadata.sh
+
+      - name: Validate release artifact naming
+        if: runner.os == 'Linux'
+        run: bash scripts/verify_release_artifact_names.sh
+
+      - name: Build release GUI and launcher
+        if: runner.os == 'Linux'
+        run: cargo build --locked --release -p kr580 --bin kr580 --bin kr
+
+      - name: Verify release launcher
+        if: runner.os == 'Linux'
+        run: ./target/release/kr --version
+
+      - name: Install MSRV toolchain
+        if: runner.os == 'Linux'
+        run: rustup toolchain install 1.88.0 --profile minimal --no-self-update
+
+      - name: Check MSRV
+        if: runner.os == 'Linux'
+        run: cargo +1.88.0 check --locked --workspace --all-targets
