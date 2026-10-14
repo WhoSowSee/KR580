@@ -200,6 +200,11 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+Правила участия и оформления issue/PR описаны в
+[CONTRIBUTING.md](https://github.com/WhoSowSee/KR580/blob/main/CONTRIBUTING.md).
+Для изменений с помощью AI действует
+[AI Policy](https://github.com/WhoSowSee/KR580/blob/main/AI_POLICY.md).
+
 Полезные документы:
 
 - [Архитектура](https://github.com/WhoSowSee/KR580/blob/main/docs/architecture.md)

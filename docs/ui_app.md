@@ -1453,7 +1453,7 @@ core фиксирует в трёх точках (`step_instruction` атома�
 
 #### Источник раскладок M-циклов
 
-Таблица расклада M-циклов лежит в `core/src/machine_cycle.rs`. Для
+Таблица расклада M-циклов лежит в [crates/core/src/machine_cycle/tables.rs](../crates/core/src/machine_cycle/tables.rs). Для
 каждого документированного опкода известна последовательность
 длин M-циклов (`&[4, 3, 3]` = M1=4T, MR_lo=3T, MR_hi=3T = 10T
 всего). Для условных инструкций (Rcond / Ccond / Jcond)
@@ -2789,7 +2789,7 @@ each file under the 400-line ceiling:
   styles}.rs` – the view layer split per zone. `mod.rs` composes the
   four-zone modal and stacks the reset-confirm overlay on top when armed.
 - `i18n/{mod,keys,ru,en,help_ru,help_en}.rs` – translation registry
-  split out of the monolithic `i18n.rs`. `Lang::t(Key)` thin-wraps
+  split into focused modules. `Lang::t(Key)` thin-wraps
   `ru::translate(key)` / `en::translate(key)`; adding a short string
   adds one variant in `keys.rs` and one row in each of `ru.rs` /
   `en.rs`. Long `Key::Hc*` help articles live as included markdown under

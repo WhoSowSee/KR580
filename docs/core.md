@@ -2,12 +2,12 @@
 
 `Cpu8080State` owns registers, flags, `PC`, `SP`, 64 KiB RAM, interrupt state, halt state, total T-state count, and optional tact phase. The UI never mutates these fields directly.
 
-Implemented behavior follows standard Intel 8080/KR580 semantics from `prompt/`:
+Implemented behavior follows standard Intel 8080/KR580 semantics:
 
 - all documented opcodes decode and execute;
-- undocumented slots from `opcode_dispatch.md` return `DecodeError::UndocumentedOpcode`;
+- undocumented opcode slots return `DecodeError::UndocumentedOpcode`;
 - PSW materialization forces bit 1 to `1` and bits 3/5 to `0`;
-- prompt-specific subtract auxiliary-carry behavior is tested (`1-0 => AC=1`, `0-1 => AC=0`);
+- subtract auxiliary-carry behavior is tested (`1-0 => AC=1`, `0-1 => AC=0`);
 - conditional branches use normal 8080 meanings;
 - `EI` enables interrupts after the following instruction boundary;
 - accepted interrupt vectors are modeled as single-byte `RST n` opcodes.
@@ -33,8 +33,8 @@ through `InstructionMetadata` and `InstructionStep`. Burst execution, tact setup
 and `run_until_halt` use this allocation-free path. The existing `decode_opcode`
 and `step_instruction` contracts retain owned `String` mnemonics; their carrier
 types use a default `String` generic parameter for source compatibility.
-The checked-in `decode/table.rs` contains sizes/timing and static labels aligned
-with `prompt/opcode_dispatch.md`; it adds no runtime or build-time generator.
+The checked-in `decode/table.rs` contains instruction sizes, timing, and static
+labels; it adds no runtime or build-time generator.
 
 - `step_instruction(bus)` executes one instruction boundary or accepts one pending `RST n` interrupt vector.
 - `step_tact(bus)` advances exactly one T-state in the debug tact model, keeps `cycle_count` exact, and commits the instruction only on its boundary.

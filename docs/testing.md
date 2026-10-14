@@ -1,5 +1,24 @@
 # Testing
 
+## Contributor validation
+
+See [Contributing](../CONTRIBUTING.md) for the issue and pull request workflow,
+and [AI Policy](../AI_POLICY.md) for review and disclosure requirements.
+Code contributions use `just check-all` plus the applicable platform or manual
+checks described here. Report only commands actually run and identify the
+tested OS and architecture.
+
+For documentation-only changes, verify links, examples, and consistency with
+the implementation and tests. Changes to `.github/ISSUE_TEMPLATE/*.yml`
+also require YAML parsing and checking the
+[GitHub issue-form syntax](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms)
+and [field schema](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema):
+unique form names and field IDs, supported field types, and correctly typed
+attributes and validations. The chooser's `config.yml` controls blank issues
+separately. Keep the PR template's links and instructions aligned with the
+contributor guides. Rust checks are unnecessary when only documentation or
+issue/PR templates change.
+
 ## Just recipes
 
 The root `justfile` provides the developer commands. Install
@@ -192,8 +211,8 @@ Its native Windows, Linux and macOS rows check formatting, strict all-target
 workspace Clippy and the complete workspace suite with the checked-in lockfile.
 The toolchain action records the resolved compiler version. Release packaging
 keeps its separate tag/manual workflow and its existing target matrix.
-CPU conditional return/call regressions build short programs in memory from
-`prompt/`; they need no external fixture directory. Export/import UI tests set
+CPU conditional return/call regressions build short programs directly in
+memory; they need no external fixture directory. Export/import UI tests set
 their language explicitly. Attach tests expect Windows to retain a hidden
 window ID and Unix to close it. Parallel Windows association tests reserve
 different private registry roots with a process-local counter.
@@ -328,7 +347,7 @@ generation races deterministic without oversized files or sleeps.
   the 28-pixel outline of an 8×8 square (corners included, interior
   untouched, every pixel at colour `0x7F`) – a smoke check that
   `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
-  the documented 3-byte graphics command (`prompt/03_peripherals.md`).
+  the [documented 3-byte graphics command](devices.md#monitor-command-protocol).
 - `kr580` UI and installer: pure view helpers, printer HEX and CP866 text formatting,
   printer view-mode toggling, printer target/settings updates, memory-cell action and return shortcut
   rebinding, main-window file drag/drop hover routing, supported-extension

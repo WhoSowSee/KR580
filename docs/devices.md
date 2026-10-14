@@ -53,7 +53,7 @@ Native printing creates the GDI device context with the validated `DEVMODEW`, so
 
 ## Monitor command protocol
 
-The monitor on port `00h` consumes 2- or 3-byte commands. The first byte's bit 7 selects the destination layer; bits 0..6 carry a 7-bit colour intensity (`rgb = 0xFFFFFF / 127 * intensity`). This matches the original KP580 emulator's documented protocol (`KP580_Help.chm` → `Prog_Wrk_Peref.htm`).
+The monitor on port `00h` consumes 2- or 3-byte commands. The first byte's bit 7 selects the destination layer; bits 0..6 carry a 7-bit colour intensity (`rgb = 0xFFFFFF / 127 * intensity`).
 
 ```
 text command (2 bytes):     [0 ccccccc] [char_oem]
@@ -76,7 +76,7 @@ The window has two visual modes, toggled from the header button:
 - **unified** (default) – one 256×256 canvas with the pixel layer and the rasterised text layer composited on top, mirroring the original KP580 emulator's single-display behaviour. The text renderer indexes a bundled 8×8 bold CP866 bitmap directly by the original byte and places each glyph in an 8×12 cell, so Cyrillic, box drawing, blocks, and OEM symbols render identically on every platform.
 - **split** – separate graphics and text blocks, each 1:1 with its source buffer. Text bytes are decoded as CP866 for the Unicode text view. Useful when debugging a program that mixes layers and you need to see exactly which command wrote what.
 
-Both modes share the meta strip (phase, text cursor, pixel count, last command) and the raw byte stream (`hex_buffer`). The window never writes back to the device – it is strictly a debug surface, matching `prompt/03_peripherals.md`'s rule that the hex buffer is a debug surface, not the primary state. See `docs/ui_app.md` for the rendering details.
+Both modes share the meta strip (phase, text cursor, pixel count, last command) and the raw byte stream (`hex_buffer`). The window never writes back to the device. The raw stream is a debug view; the text and graphics buffers remain authoritative. See [UI App](ui_app.md) for the rendering details.
 
 ## Storage inspection windows
 

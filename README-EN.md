@@ -200,6 +200,10 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
+See [Contributing](https://github.com/WhoSowSee/KR580/blob/main/CONTRIBUTING.md)
+for participation and issue/PR guidelines. AI-assisted contributions follow the
+[AI Policy](https://github.com/WhoSowSee/KR580/blob/main/AI_POLICY.md).
+
 Useful reference docs:
 
 - [Architecture](https://github.com/WhoSowSee/KR580/blob/main/docs/architecture.md)

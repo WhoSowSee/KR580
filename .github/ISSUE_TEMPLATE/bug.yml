@@ -1,0 +1,63 @@
+name: Bug report
+description: Report a problem with emulation, the desktop app, files, devices, or installation
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search [existing issues](https://github.com/WhoSowSee/KR580/issues) for the same bug before opening a new report.
+        See [Contributing](https://github.com/WhoSowSee/KR580/blob/main/CONTRIBUTING.md#reporting-a-bug) for useful reproduction details.
+        AI-assisted reports must follow the [AI Policy](https://github.com/WhoSowSee/KR580/blob/main/AI_POLICY.md).
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Describe the actual result and what you expected. Include any errors.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce
+      description: Include exact steps, relevant settings, and device state. For launcher or installation problems, include the command.
+    validations:
+      required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: KR580 version
+      description: Paste `kr --version` or the GUI's About version. For a source build, include the commit; if it cannot start, give the installed release or package version.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and architecture
+      description: Include the OS version and x64 or ARM64. On Linux, identify Wayland or X11 when relevant.
+    validations:
+      required: true
+
+  - type: input
+    id: installation
+    attributes:
+      label: Installation method
+      description: Standalone setup, macOS DMG, package manager (name it), or source build. Include the package version if relevant.
+    validations:
+      required: true
+
+  - type: textarea
+    id: sample
+    attributes:
+      label: Minimal program or input
+      description: For CPU bugs, paste instruction bytes, load address, initial registers/flags, relevant RAM, and expected/actual state or T-state count. Attach small binary samples as a ZIP.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, logs, or device details
+      description: For UI bugs, include window size, display scaling, theme, and language. For device bugs, include ports and configuration. Attach screenshots or paste relevant logs.

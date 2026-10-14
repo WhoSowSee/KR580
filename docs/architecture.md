@@ -1,6 +1,6 @@
 # Architecture
 
-This workspace implements a layered KR580/Intel 8080 desktop emulator using only the `prompt/` documents as product source.
+This workspace implements a layered KR580/Intel 8080 desktop emulator. The documents under `docs/` describe the CPU, device, file-format, and application contracts covered by the workspace tests.
 
 ## Crates
 
@@ -25,8 +25,9 @@ The major version reflects incompatible public backend/device Rust APIs; the
 - `crates/ui/src/runtime/updates/`: GitHub release discovery, verified downloads and platform-specific staging. `ShellState.updates` owns UI state; the setup executable applies staged files after application exit. See [Application updates](updates.md).
 - `macos_launch_services`: narrow Core Services bridge for registering the installed application bundle and managing its document handlers.
 - `platform/macos_open_documents`: Foundation event bridge that forwards Finder document activation into the normal application file-loading path.
-- `prompt/`: the implementation source of truth.
 - `docs/`: reference documentation (this directory).
+- `CONTRIBUTING.md` and `AI_POLICY.md`: contributor workflow, verification requirements, and AI-assistance disclosure policy.
+- `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md`: GitHub bug/feature forms and the pull request template, aligned with the contributor guides.
 - `justfile`: cross-platform developer entry points for workspace checks, GUI/launcher builds and runs, native packaging, icon generation, and metadata smoke checks. See [Testing](testing.md#just-recipes).
 - `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
 - `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts, while `build_macos_dmg.sh` packages the native GUI as a drag-and-drop application image under `dist/`. The verification scripts exercise Linux metadata, macOS images, and release artifact names; `version_release_artifacts.sh` adds the release tag only to unversioned setup packages.
@@ -93,7 +94,7 @@ original error with its `source()` chain. Cloning an event preserves the cause;
 variant and `io::ErrorKind`, so OS codes with different meanings cannot change
 UI localization. `backend/error/` separates data, categories and conversions.
 
-- `prompt/` is the source of truth for behavior, file formats, and quality gates.
+- Behavior and file-format changes keep the relevant documentation and regression tests aligned.
 - CPU state is owned by `k580-core` and the internal backend actor, never by UI widgets.
 - Device state is owned by the internal `devices` module; `IN`/`OUT` route through `PortBus`.
 - The internal `persistence` module reads from `Cpu8080State` or explicit export view models, never from UI labels or grids.
