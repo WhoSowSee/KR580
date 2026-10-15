@@ -5,7 +5,10 @@ mod release;
 pub(crate) use install::PreparedUpdate;
 pub(crate) use release::{Asset, Release, check};
 
+use std::sync::Once;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+
+static RUSTLS_PROVIDER: Once = Once::new();
 
 #[derive(Default, Debug)]
 pub(crate) struct TransferProgress {
@@ -25,7 +28,14 @@ impl TransferProgress {
 
 pub(crate) use download::download;
 
+pub(crate) fn ensure_tls_provider() {
+    RUSTLS_PROVIDER.call_once(|| {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    });
+}
+
 fn client() -> Result<reqwest::Client, String> {
+    ensure_tls_provider();
     reqwest::Client::builder()
         .user_agent(concat!("KR580/", env!("CARGO_PKG_VERSION")))
         .https_only(true)

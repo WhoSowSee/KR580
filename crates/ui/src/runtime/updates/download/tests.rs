@@ -1,10 +1,11 @@
 use super::receive;
-use crate::runtime::updates::{Asset, TransferProgress};
+use crate::runtime::updates::{Asset, TransferProgress, ensure_tls_provider};
 use std::io::{Read, Write};
 use std::sync::atomic::Ordering;
 
 #[tokio::test]
 async fn streamed_download_validates_size_digest_and_progress() {
+    ensure_tls_provider();
     let directory = tempfile::tempdir().unwrap();
     let bytes = b"a verified update fixture";
     let verified_digest = "sha256:f36290a67e59123e8e93ce630593770f687a296d70936a40475e6f48352fcd55";

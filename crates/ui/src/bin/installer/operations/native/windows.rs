@@ -12,10 +12,10 @@ struct SavedValue {
     phase: InstallStep,
     subkey: String,
     name: String,
-    original: Option<RegValue>,
-    expected: Option<RegValue>,
+    original: Option<RegValue<'static>>,
+    expected: Option<RegValue<'static>>,
     observation_failed: bool,
-    planned: Option<RegValue>,
+    planned: Option<RegValue<'static>>,
 }
 
 #[derive(Default)]
@@ -42,7 +42,15 @@ impl RegistryJournal {
         if request.associate_program_files {
             let targets = k580_ui::file_assoc::registry_values_for_executable(gui)?
                 .into_iter()
-                .map(|value| (value.subkey, value.name, Some(value.value.to_reg_value())))
+                .map(|value| {
+                    (
+                        value.subkey,
+                        value.name,
+                        Some(platform::windows::owned_reg_value(
+                            value.value.to_reg_value(),
+                        )),
+                    )
+                })
                 .collect();
             journal.capture_values(request.scope, targets, InstallStep::Association)?;
         } else if let Some(scope) = legacy_scope {
@@ -58,7 +66,7 @@ impl RegistryJournal {
     fn capture_values(
         &mut self,
         scope: InstallScope,
-        targets: Vec<(String, String, Option<RegValue>)>,
+        targets: Vec<(String, String, Option<RegValue<'static>>)>,
         phase: InstallStep,
     ) -> Result<(), String> {
         for (subkey, name, planned) in targets {
@@ -209,7 +217,11 @@ fn root_key(scope: InstallScope) -> RegKey {
     })
 }
 
-fn read(scope: InstallScope, subkey: &str, name: &str) -> Result<Option<RegValue>, String> {
+fn read(
+    scope: InstallScope,
+    subkey: &str,
+    name: &str,
+) -> Result<Option<RegValue<'static>>, String> {
     let key = match root_key(scope).open_subkey_with_flags(subkey, KEY_QUERY_VALUE) {
         Ok(key) => key,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -222,7 +234,7 @@ fn read(scope: InstallScope, subkey: &str, name: &str) -> Result<Option<RegValue
     }
 }
 
-fn copy_value(value: &Option<RegValue>) -> Option<RegValue> {
+fn copy_value(value: &Option<RegValue<'static>>) -> Option<RegValue<'static>> {
     value.as_ref().map(|value| RegValue {
         bytes: value.bytes.clone(),
         vtype: value.vtype.clone(),

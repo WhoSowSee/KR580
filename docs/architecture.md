@@ -55,7 +55,7 @@ requested.
 transaction, file journal and native rollback adapters. It stages all payloads
 before replacement, preserves user data and previous owned files/values on
 failure, and atomically publishes the final manifest after integration succeeds.
-Windows raw registry snapshots use the existing locked `winreg` 0.55.0 package
+Windows raw registry snapshots use the locked `winreg` 0.56.0 package
 as a runtime dependency; no release build commands or artifact roles change.
 macOS releases instead contain the GUI executable directly in
 `KR580.app/Contents/MacOS/kr580`; the surrounding DMG supplies an Applications

@@ -418,7 +418,7 @@ atomic `install.json` replacement; there is no intermediate manifest.
 raw bytes and registry type of PATH, uninstall values and the seven association
 values. Only changed values are restored or removed; unrelated values,
 subkeys and existing key permissions survive. Empty newly created keys can
-remain inert. `winreg` 0.55.0 supplies owned registry handles and raw-value
+remain inert. `winreg` 0.56.0 supplies owned registry handles and raw-value
 operations; it was already present in Cargo.lock and is also a Windows runtime
 dependency. Registry rollback conflicts retain an original-value recovery JSON.
 

@@ -106,7 +106,7 @@ fn powershell_command(script: &str) -> Command {
 
 pub(super) struct UninstallValue {
     pub(super) name: &'static str,
-    pub(super) value: winreg::RegValue,
+    pub(super) value: winreg::RegValue<'static>,
 }
 
 pub(super) fn uninstall_values(request: &IntegrationRequest<'_>) -> Vec<UninstallValue> {
@@ -131,7 +131,7 @@ pub(super) fn uninstall_values(request: &IntegrationRequest<'_>) -> Vec<Uninstal
     .into_iter()
     .map(|(name, value)| UninstallValue {
         name,
-        value: value.to_reg_value(),
+        value: super::owned_reg_value(value.to_reg_value()),
     })
     .collect::<Vec<_>>();
     values.extend(["NoModify", "NoRepair"].map(|name| UninstallValue {

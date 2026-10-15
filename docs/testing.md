@@ -402,8 +402,11 @@ in both languages and visible icons at 100%, 125% and 200% display scaling.
 Installer fixtures verify waiting for process exit,
 preserving user data and rolling back preceding replacements after an injected
 failure. They use temporary roots and a local HTTP fixture, never a live
-installation or GitHub download. New update dependencies are `reqwest` with
-rustls, `semver`, `ring` 0.17 reused from TLS, `tempfile` and `zip` 8.6 shared with XLSX dependencies.
+installation or GitHub download. New update dependencies are `reqwest` 0.13 with
+`rustls-no-provider`, direct `rustls` 0.23 configured for the `ring` provider,
+`semver`, `tempfile` and direct `zip` 9.0. The same `ring` 0.17 package handles
+hashing.
+XLSX retains a separate transitive `zip` 8.6 dependency.
 The updater enables only the flate2/zlib-rs Deflate codec, with no ZIP default
 features, and declares its direct ZIP dependency only outside macOS. SemVer
 uses no optional `std` integration; the direct `ring` dependency enables no

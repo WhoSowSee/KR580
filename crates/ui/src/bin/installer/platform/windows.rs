@@ -4,7 +4,15 @@ mod system;
 pub use system::{IntegrationReport, IntegrationRequest};
 
 use k580_ui::install_mode::InstallScope;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
+
+pub(crate) fn owned_reg_value(value: winreg::RegValue<'_>) -> winreg::RegValue<'static> {
+    winreg::RegValue {
+        bytes: Cow::Owned(value.bytes.into_owned()),
+        vtype: value.vtype,
+    }
+}
 
 pub fn default_system_install_dir(scope: InstallScope) -> PathBuf {
     match scope {
@@ -64,7 +72,7 @@ pub(in crate::installer) fn rollback_files(scope: InstallScope, desktop: bool) -
 
 pub(in crate::installer) fn planned_registry_values(
     request: &crate::installer::operations::InstallRequest,
-) -> Result<Vec<(String, String, winreg::RegValue)>, String> {
+) -> Result<Vec<(String, String, winreg::RegValue<'static>)>, String> {
     use winreg::types::ToRegValue;
     let mut values = Vec::new();
     if request.add_to_path {
@@ -73,7 +81,7 @@ pub(in crate::installer) fn planned_registry_values(
             match environment::planned_path_value(&request.install_dir.join("bin"), request.scope)?
             {
                 Some(updated) => {
-                    let mut value = updated.to_reg_value();
+                    let mut value = owned_reg_value(updated.to_reg_value());
                     value.vtype = winreg::enums::REG_EXPAND_SZ;
                     value
                 }
