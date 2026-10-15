@@ -6,14 +6,14 @@ use iced::{Element, Length, alignment};
 use super::styles::{input_borderless_style, opcode_dropdown_style, opcode_option_style};
 use super::theme::{MONO_FONT, mono_text, tokyo_green, tokyo_text};
 use super::utils::row_separator;
-use super::widgets::compact_scrollbar;
+use super::widgets::{compact_scrollbar, row_scrollable};
 use crate::app::{
     Message, OPCODE_LIST_HEIGHT, OPCODE_OPTION_HEIGHT, OPCODE_SCROLL_ID, OPCODE_SEARCH_INPUT_ID,
     OpcodeChoice, filtered_opcode_choices,
 };
 use crate::i18n::{Key, Lang};
 
-pub(super) const OPCODE_DROPDOWN_HEIGHT: f32 = 224.0;
+pub(super) const OPCODE_DROPDOWN_HEIGHT: f32 = 228.0;
 
 pub(super) fn opcode_dropdown_overlay<'a>(
     address: u16,
@@ -54,6 +54,7 @@ fn opcode_dropdown<'a>(
     lang: Lang,
 ) -> Element<'a, Message> {
     let choices = filtered_opcode_choices(search);
+    let overflowing = choices.len() as f32 * OPCODE_OPTION_HEIGHT > OPCODE_LIST_HEIGHT;
     let max_offset = choices.len() as f32 * OPCODE_OPTION_HEIGHT - OPCODE_LIST_HEIGHT;
     let options = column(
         choices
@@ -62,13 +63,20 @@ fn opcode_dropdown<'a>(
             .map(|(index, choice)| opcode_option(address, choice, index == highlighted)),
     );
 
-    let options = scrollable(options)
-        .id(OPCODE_SCROLL_ID)
-        .height(Length::Fixed(OPCODE_LIST_HEIGHT))
-        .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::hidden(),
-        ))
-        .on_scroll(|viewport| Message::OpcodeScrolled(viewport.absolute_offset().y));
+    let options: Element<'_, Message> = if overflowing {
+        row_scrollable(
+            scrollable(options)
+                .id(OPCODE_SCROLL_ID)
+                .height(Length::Fixed(OPCODE_LIST_HEIGHT))
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::hidden(),
+                ))
+                .on_scroll(|viewport| Message::OpcodeScrolled(viewport.absolute_offset().y)),
+            OPCODE_OPTION_HEIGHT,
+        )
+    } else {
+        options.into()
+    };
     let options = stack![
         options,
         compact_scrollbar(
@@ -185,6 +193,19 @@ mod tests {
                 OPCODE_SCROLL_ID.into(),
                 iced::widget::scrollable::AbsoluteOffset { x: 0.0, y: target }.into(),
             ));
+            scene.messages.clear();
+            scene.event(
+                Event::Mouse(mouse::Event::WheelScrolled {
+                    delta: mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 },
+                }),
+                grab,
+            );
+            let target = target + OPCODE_OPTION_HEIGHT;
+            assert!(
+                matches!(scene.messages.as_slice(), [Message::OpcodeScrolled(actual)] if *actual == target),
+                "unexpected wheel offset: {:?}",
+                scene.messages
+            );
             scene.messages.clear();
             scene.event(
                 Event::Mouse(mouse::Event::WheelScrolled {

@@ -136,6 +136,7 @@ fn dropdown(
         label,
         items,
         DropdownControl {
+            max_visible_options: 4,
             opened,
             enabled,
             focused,

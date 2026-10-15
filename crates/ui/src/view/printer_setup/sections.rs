@@ -37,6 +37,7 @@ pub(super) fn printer_section<'a>(
         }),
         options,
         DropdownControl {
+            max_visible_options: 4,
             opened: dialog.open_dropdown == Some(PrinterSetupDropdown::Printer),
             enabled: !dialog.loading,
             focused: dialog.focus_is_visible(PrinterSetupFocus::Printer),
@@ -219,6 +220,7 @@ fn paper_dropdown(
         label,
         items,
         DropdownControl {
+            max_visible_options: 5,
             opened: dialog.open_dropdown == Some(PrinterSetupDropdown::Paper),
             enabled: !dialog.configuration_loading,
             focused: dialog.focus_is_visible(PrinterSetupFocus::Paper),
@@ -252,6 +254,7 @@ fn source_dropdown(
         label,
         items,
         DropdownControl {
+            max_visible_options: 6,
             opened: dialog.open_dropdown == Some(PrinterSetupDropdown::Source),
             enabled: !dialog.configuration_loading,
             focused: dialog.focus_is_visible(PrinterSetupFocus::Source),

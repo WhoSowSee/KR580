@@ -6,7 +6,9 @@ use iced::{Element, Length, Padding, alignment};
 use super::super::icons;
 use super::super::styles::input_borderless_style;
 use super::super::theme::{tokyo_muted, tokyo_text, ui_text};
-use super::super::widgets::{modal_icon_button_focused_with_color, shorten_middle};
+use super::super::widgets::{
+    dropdown_height, modal_icon_button_focused_with_color, row_scrollable, shorten_middle,
+};
 use super::controls::label;
 use super::local_icons;
 use super::styles::{
@@ -24,7 +26,6 @@ pub(super) const DROPDOWN_OFFSET: f32 = TARGET_HEIGHT + 6.0;
 const ARROW_WIDTH: f32 = 28.0;
 const ICON_SIZE: f32 = TARGET_HEIGHT;
 const DROPDOWN_OPTION_HEIGHT: f32 = 28.0;
-const DROPDOWN_MAX_LIST_HEIGHT: f32 = 6.0 * DROPDOWN_OPTION_HEIGHT;
 const DROPDOWN_OPTION_CHARS: usize = 20;
 
 pub(super) fn target_selector<'a>(
@@ -164,7 +165,7 @@ fn combo_box<'a>(value: &'a str, open: bool, focused: bool) -> Element<'a, Messa
 }
 
 pub(super) fn dropdown_list_height(count: usize) -> f32 {
-    (count as f32 * DROPDOWN_OPTION_HEIGHT).min(DROPDOWN_MAX_LIST_HEIGHT)
+    dropdown_height(count, 6, DROPDOWN_OPTION_HEIGHT)
 }
 
 fn dropdown(
@@ -178,11 +179,18 @@ fn dropdown(
             highlighted == Some(index),
         ));
     }
-    let list = scrollable(list)
-        .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::hidden(),
-        ))
-        .height(Length::Fixed(dropdown_list_height(options.len())));
+    let list: Element<'static, Message> = if options.len() > 6 {
+        row_scrollable(
+            scrollable(list)
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::hidden(),
+                ))
+                .height(Length::Fixed(dropdown_list_height(options.len()))),
+            DROPDOWN_OPTION_HEIGHT,
+        )
+    } else {
+        list.into()
+    };
 
     container(list)
         .padding(4)
@@ -211,4 +219,63 @@ fn dropdown_option(label_text: String, highlighted: bool) -> Element<'static, Me
     .width(Length::Fill)
     .style(move |_theme, status| dropdown_option_style(status, highlighted))
     .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use iced::advanced::{Layout, Shell, clipboard, layout, renderer::Headless, widget};
+    use iced::{Event, Point, Rectangle, Size, mouse};
+
+    #[test]
+    fn target_wheel_step_reveals_the_next_full_option() {
+        let renderer = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap()
+            .block_on(iced::Renderer::new(
+                iced::Font::DEFAULT,
+                13.0.into(),
+                Some("tiny-skia"),
+            ))
+            .unwrap();
+        let options: Vec<_> = (0..10)
+            .map(|index| {
+                crate::app::ExportTarget::named(format!(
+                    "Full worksheet name with a long hidden suffix {index}"
+                ))
+            })
+            .collect();
+        let mut root = dropdown(&options, Some(0));
+        let mut tree = widget::Tree::new(&root);
+        let viewport = Rectangle::with_size(Size::new(FIELD_WIDTH, 200.0));
+        let node = root.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, viewport.size()),
+        );
+        let cursor = mouse::Cursor::Available(Point::new(20.0, 4.0 + DROPDOWN_OPTION_HEIGHT / 2.0));
+        let mut messages = Vec::new();
+        for event in [
+            mouse::Event::WheelScrolled {
+                delta: mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 },
+            },
+            mouse::Event::ButtonPressed(mouse::Button::Left),
+            mouse::Event::ButtonReleased(mouse::Button::Left),
+        ] {
+            root.as_widget_mut().update(
+                &mut tree,
+                &Event::Mouse(event),
+                Layout::new(&node),
+                cursor,
+                &renderer,
+                &mut clipboard::Null,
+                &mut Shell::new(&mut messages),
+                &viewport,
+            );
+        }
+        assert!(
+            matches!(messages.as_slice(), [Message::ExportTargetSelected(name)] if name == &options[1].name),
+            "unexpected selection: {messages:?}"
+        );
+    }
 }

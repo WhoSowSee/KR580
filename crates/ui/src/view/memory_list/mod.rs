@@ -320,6 +320,6 @@ mod tests {
 
     #[test]
     fn opcode_dropdown_top_clamps_to_viewport_bottom() {
-        assert_eq!(opcode_dropdown_top(500.0, 320.0), 96.0);
+        assert_eq!(opcode_dropdown_top(500.0, 320.0), 92.0);
     }
 }

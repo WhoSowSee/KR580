@@ -19,7 +19,7 @@ use crate::app::{
 use crate::i18n::{Key, Lang};
 
 const DIALOG_WIDTH: f32 = 660.0;
-const GROUP_HEIGHT: f32 = 258.0;
+const GROUP_HEIGHT: f32 = 268.0;
 const FLAGS_GROUP_HEIGHT: f32 = 72.0;
 const TAB_HEIGHT: f32 = 34.0;
 
@@ -205,9 +205,9 @@ mod tests {
     }
 
     #[test]
-    fn long_target_list_is_capped_at_six_rows_so_it_scrolls() {
-        assert_eq!(dropdown_list_height(7), 168.0);
-        assert_eq!(dropdown_list_height(64), 168.0);
+    fn long_target_list_shows_six_full_rows_and_a_preview() {
+        assert_eq!(dropdown_list_height(7), 182.0);
+        assert_eq!(dropdown_list_height(64), 182.0);
     }
 
     #[test]

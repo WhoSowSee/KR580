@@ -2,11 +2,9 @@ mod controls;
 mod styles;
 
 use iced::widget::{Space, column, container, mouse_area, opaque, row, stack};
-use iced::{Element, Length, Padding};
+use iced::{Element, Length};
 
-use controls::{
-    SourceGroupState, TARGET_DROPDOWN_OVERLAY_HEIGHT, footer, source_group, target_dropdown_overlay,
-};
+use controls::{SourceGroupState, footer, source_group};
 use styles::{modal_backdrop_style, modal_dialog_style};
 
 use crate::app::{ImportFileFormat, ImportModalFocus, Message};
@@ -63,6 +61,8 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
             format,
             target_input,
             target_options,
+            target_dropdown_open,
+            target_highlight,
             error,
             lang,
         }),
@@ -77,31 +77,8 @@ pub(super) fn import_modal_overlay<'a>(state: ImportModalViewState<'a>) -> Eleme
     .spacing(8)
     .width(Length::Fixed(DIALOG_WIDTH))
     .height(Length::Fixed(BODY_HEIGHT));
-    let body_frame = container(body_content).height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT));
-
-    let mut body_stack = stack![body_frame];
-    if target_dropdown_open && format.is_some() && !target_options.is_empty() {
-        let close_layer = mouse_area(
-            container(Space::new())
-                .width(Length::Fill)
-                .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT)),
-        )
-        .on_press(Message::ImportTargetDropdownToggled);
-        body_stack = body_stack
-            .push(close_layer)
-            .push(target_dropdown_overlay(target_options, target_highlight));
-    }
-    let body_content = body_stack
-        .width(Length::Fixed(DIALOG_WIDTH))
-        .height(Length::Fixed(TARGET_DROPDOWN_OVERLAY_HEIGHT));
-
     let body = container(body_content)
-        .padding(Padding {
-            top: 18.0,
-            right: 20.0,
-            bottom: 18.0 - (TARGET_DROPDOWN_OVERLAY_HEIGHT - BODY_HEIGHT),
-            left: 20.0,
-        })
+        .padding([18, 20])
         .style(modal_dialog_style);
 
     let centred = column![

@@ -951,6 +951,16 @@ side.
 
 Properties opens a second emulator-styled modal instead of the driver window. Its Favorites, General, Paper, Graphics, and Advanced tabs are built from the driver's PrintCapabilities XML; changes are merged into the current PrintTicket with `PTMergeAndValidatePrintTicket` and converted back to a validated `DEVMODEW`. Standard and vendor-defined features, constrained options, numeric/string parameters, named per-printer profiles, and a live paper preview are supported. Feature, option, and parameter labels follow the application's selected locale rather than the Windows or driver locale. Both languages resolve canonical QNames through the shared `localization/tables.rs` entries. Russian localization covers the known HP names, preserves useful driver-provided Cyrillic, and falls back to readable QName splitting. English localization maps the same canonical QNames and looks recognized Russian driver values up in the shared `driver_locale` table; an unknown Cyrillic driver label falls back to its readable QName, or to a neutral numbered option for opaque vendor names, so mixed-language rows cannot appear. Opaque internal values such as `PageDevmodeSnapshot` remain hidden. Property selectors use the same anchored overlay as top-level setup: a 6 px gap separates the panel, 4 px inner padding preserves the final option's bottom border, and long lists scroll without a visible scrollbar. Because the panel is an iced overlay instead of an inline column, opening it never moves adjacent property rows or the preview panel; clicking elsewhere inside Properties closes it. Arrow keys move the controlled highlight, `Enter` commits it, and `Esc` closes the list first. The property body remains scrollable by wheel or touchpad but does not draw a scrollbar. The profiles/preview side column is fixed rather than scrollable, with a compact paper preview that fits the dialog body in both orientations. Properties starts with logical focus on Favorites but suppresses every control outline until `Tab` or `Shift+Tab` is used. Keyboard traversal enables the blue outline through `PrinterPropertiesDialog::focus_visible`; `Enter` and mouse input clear it before activation. Active tabs therefore draw only their bottom indicator, active selectors use their normal fill, and selected radios do not keep a blue border. PrintTicket provider open/use/close stays on one MTA worker thread, and every driver call runs through `tokio::task::spawn_blocking`, so the iced update loop remains responsive. If `general.printerDialogMode` is `system`, top-level setup uses `PrintDlgW` instead.
 
+Setup and Properties selectors share `view/widgets/row_scrollable.rs` with the
+other scrollable dropdowns. Each wheel line moves one 32-logical-pixel option;
+touchpad pixel deltas keep their original distance.
+Setup shows at most four printers or five paper sizes; every Properties
+selector, including profiles, shows at most four options. Short lists render
+as a plain column without scroll behavior. Longer lists scroll and reveal a
+visible fragment of the next option.
+The anchored overlay constrains the panel to the window and opens above the
+field when needed; limited window space can reduce the visible row count.
+
 On the Properties Paper tab, Size, Source, and Orientation form an unframed
 column. Their labels and controls align with the driver-specific fields
 below, including the first orientation radio. This shared layout applies
@@ -1797,7 +1807,10 @@ opcode into the selected memory cell. Tab returns focus to the search field;
 arrow navigation leaves the current input focus unchanged.
 
 The opcode list uses the RAM viewer's shared compact scrollbar over a hidden
-native scrollable. Its 27 px rows and 172 px viewport define the scroll range.
+native scrollable. Its 27 px rows and 182 px viewport show six full rows plus a
+visible fragment of the next option and define the scroll range.
+The shared `row_scrollable` wrapper maps each wheel line to one 27 px row and
+preserves touchpad pixel deltas, native scroll commands, and thumb dragging.
 `OPCODE_OPTION_HEIGHT` and `OPCODE_LIST_HEIGHT` are shared by the view and
 navigation logic. `scroll_opcode_to` updates the cached position and issues the
 native scroll task for search resets, keyboard navigation, and thumb dragging.
@@ -2009,7 +2022,7 @@ target buttons are icon-only controls with localized hover tooltips; adding
 while the current name already exists creates the next numbered page or section without opening
 a closed dropdown. Add and delete actions keep an already open dropdown
 open and highlight the selected entry after the list changes. The option
-list is capped at six rows (`6 × 28 px` – `target::dropdown_list_height`)
+list is capped at six full rows plus a visible fragment of the next option (`target::dropdown_list_height`)
 and scrolls beyond that, so a
 long page/section list stays inside the RAM group instead of growing past
 its lower border. It scrolls with the wheel or touchpad and draws **no
@@ -2020,6 +2033,10 @@ this small reads better without a rail, and because nothing is painted
 there is no reveal state to keep – no scroll message, no tick counter, no
 `scroll_reveal` flag threaded through the view. The import target list
 uses the same rail-less scrolling.
+When all targets fit, the list is a plain column; otherwise the shared
+`row_scrollable` wrapper moves one 28 px option per wheel line and
+leaves a visible fragment of the next option; touchpad pixel deltas retain
+their original distance.
 Option labels never wrap:
 they are shortened from the middle to 20 characters with `…`, rendered
 with `text::Wrapping::None`, and their row clips. 20 is the measured fit
@@ -2114,21 +2131,32 @@ file name has a slightly larger gap before the action. Empty and selected
 states both keep eight logical pixels between Choose file and the format
 hint. The zone does not repeat the drop instruction or show a format badge.
 
-The target selector is a fixed stacked dialog overlay anchored to the
-source group, so opening it does not reflow the source rows or footer.
-The 244-logical-pixel body remains the first child of a persistent
-251-logical-pixel stack. Opening only appends dismiss and popup layers, so the
-footer geometry and iced button state stay unchanged. The anchor uses the same
+The target selector uses the shared `anchored_overlay` widget, like the printer
+selectors. Only its anchor participates in the form layout; the popup is a
+separate overlay positioned relative to that field. The fixed
+244-logical-pixel body keeps the footer close to the selector without reserving
+blank space for the popup. Its anchor and panel keep the same widget-tree
+structure when opened or closed, preserving geometry and button state.
+The anchor uses the same
 fill while hovered and pressed, keeping one continuous highlight during clicks.
 Long target lists scroll with the wheel or touchpad through
 `Vertical(Scrollbar::hidden())`; neither a rail nor a scroller is painted.
+When all targets fit, the list is a plain column without scroll behavior.
+For longer lists, the shared `row_scrollable` wrapper moves the list by one option (34 logical
+pixels) per wheel line, replacing iced's default 60-pixel step. A visible
+fragment of the next option remains at the viewport edge. Pixel deltas from
+touchpads retain their original distance for smooth scrolling.
 Selected and listed target names are shortened from the middle to 39
 characters, rendered with `text::Wrapping::None`, and clipped inside their
-fixed-height rows. The two-row popup vertically centres both labels with a
-single-em line box and optical bottom inset. It uses the same four-logical-pixel
+fixed-height rows. Each option matches the closed selector's 34-logical-pixel
+height and uses ordinary line spacing with symmetric padding and vertical
+centering, like the other selectors. The list viewport is capped at two full
+rows plus a visible fragment of the next option. It uses the same four-logical-pixel
 inner panel spacing as the language selector, keeps a separate
-eight-logical-pixel gap below its closed selector, and remains inside the modal
-overlay. Selection messages
+eight-logical-pixel gap from its closed selector. The popup floats over the
+footer and may extend beyond the dialog frame; it stays within the window and
+opens above the selector when there is insufficient room below. Clicking
+elsewhere dismisses it. Selection messages
 retain the full target name. Confirm dispatches the
 specific worker command for the selected target: `ImportXlsxSheet`,
 `ImportTxtSection`, `ImportXlsx`, or `ImportTxt`. Successful import

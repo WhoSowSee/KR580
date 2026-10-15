@@ -571,6 +571,13 @@ actions. `cargo test -p kr580 --bin kr580 device_` also runs the shared capture
 test, which checks that these keys cannot edit a focused input underneath the
 device while Ctrl+Tab remains outside the device ring.
 
+`cargo test -p kr580 --bin kr580 wheel_step` checks that one wheel step in the
+Export and Printer selectors reveals the next option and preserves its full
+selection value. The import popup tests cover both directions, boundaries,
+outside input, and fractional touchpad deltas. The opcode picker's
+`scrollbar_drag_and_wheel_work_after_search_focus` test checks row-sized wheel
+steps and pixel scrolling after focus changes and thumb dragging.
+
 Some UI behavior cannot be unit-tested directly with iced 0.14, so it is
 worth eyeballing after touching `crates/ui`:
 
@@ -748,6 +755,18 @@ worth eyeballing after touching `crates/ui`:
   cancellation returns to the main app instead of restoring it; while Export
   is open invoke Import, then invoke Export from Import, and confirm each
   command replaces the current modal;
+- overflow the Import, Export, printer setup, printer properties, and opcode
+  dropdowns; confirm each wheel line moves one option in either direction
+  (34, 28, 32, 32, and 27 logical pixels respectively), touchpad scrolling stays
+  smooth, and the first and last options remain reachable; confirm the opcode
+  thumb and keyboard navigation still work after wheel scrolling, with a
+  visible fragment of the next opcode when the list overflows;
+- in printer setup, confirm the printer list shows at most four options and
+  paper sizes at most five; in Properties, every selector including profiles
+  shows at most four. Short lists fit their contents, longer lists show a
+  readable fragment of the next option and scroll, and
+  panels near window edges stay inside the window, opening above or shrinking
+  when necessary;
 - open Export and Import and use Tab/Shift+Tab from their native text inputs and
   buttons; confirm captured keyboard events still traverse each custom wrapping
   focus ring in both directions, draw a white outline on the active tab,
@@ -776,12 +795,20 @@ worth eyeballing after touching `crates/ui`:
   extension and confirm the modal remains open with a localized inline error;
   load an import file with enough long target names to overflow the two-row
   dropdown, confirm the dialog height stays fixed, the wheel/touchpad still
-  scrolls the list without painting a scrollbar, the options keep the same
+  scrolls the list without painting a scrollbar; each wheel line moves exactly
+  one 34-logical-pixel row in either direction, the first and last rows stay
+  reachable, and touchpad pixel scrolling remains smooth; the options keep the same
   four-pixel inner panel spacing as the language dropdown, the popup keeps a
   separate eight-pixel gap below its closed selector, both visible options are
-  fully rendered and vertically centred in their highlight, and every target
+  fully rendered and vertically centred in their 34-logical-pixel highlight,
+  matching the closed selector's height, with a readable fragment of the next
+  option visible when more targets exist, and every target
   stays on one clipped, middle-shortened row; toggle the selector repeatedly
   and verify neither the footer geometry nor the anchor highlight changes;
+  with the popup closed, confirm the footer stays close to the selector;
+  with it open, confirm the panel floats over the following controls without
+  reserving blank space or resizing the dialog, and opens above the selector
+  when the window has insufficient room below;
 - in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
   and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`; assign different
   shortcuts to pattern search and cell replacement and confirm each remains

@@ -1,14 +1,16 @@
 use super::super::icons;
 use super::super::theme::{tokyo_muted, tokyo_red, tokyo_text, ui_text};
-use super::super::widgets::{modal_footer_button_focused, shorten_middle};
+use super::super::widgets::{
+    anchored_overlay, dropdown_height, modal_footer_button_focused, row_scrollable, shorten_middle,
+};
 use super::styles::{
     drop_zone_style, dropdown_option_style, dropdown_panel_style, field_button_style_focused,
     footer_button_style, target_anchor_style_focused,
 };
 use crate::app::{ImportFileFormat, ImportModalFocus, Message};
 use crate::i18n::{Key, Lang};
-use iced::widget::{Space, button, column, container, opaque, row, scrollable, svg, text};
-use iced::{Element, Length, Padding, alignment};
+use iced::widget::{Space, button, column, container, row, scrollable, svg, text};
+use iced::{Element, Length, alignment};
 
 const FIELD_WIDTH: f32 = 420.0;
 const LABEL_WIDTH: f32 = 72.0;
@@ -18,14 +20,8 @@ const SELECTED_DROP_ZONE_HEIGHT: f32 = 144.0;
 const SOURCE_TO_TARGET_GAP: f32 = 16.0;
 const DROPDOWN_ANCHOR_GAP: f32 = 8.0;
 const DROPDOWN_PANEL_PADDING: f32 = 4.0;
-const DROPDOWN_TOP: f32 =
-    SELECTED_DROP_ZONE_HEIGHT + SOURCE_TO_TARGET_GAP + ROW_HEIGHT + DROPDOWN_ANCHOR_GAP;
-const DROPDOWN_LEFT: f32 = 80.0;
-const DROPDOWN_OPTION_HEIGHT: f32 = 20.0;
-const DROPDOWN_MAX_LIST_HEIGHT: f32 = 40.0;
+const DROPDOWN_OPTION_HEIGHT: f32 = ROW_HEIGHT;
 const DROPDOWN_OPTION_CHARS: usize = 39;
-pub(super) const TARGET_DROPDOWN_OVERLAY_HEIGHT: f32 =
-    DROPDOWN_TOP + DROPDOWN_MAX_LIST_HEIGHT + DROPDOWN_PANEL_PADDING * 2.0 + 1.0;
 
 pub(super) struct SourceGroupState<'a> {
     pub(super) focus: ImportModalFocus,
@@ -35,6 +31,8 @@ pub(super) struct SourceGroupState<'a> {
     pub(super) format: Option<ImportFileFormat>,
     pub(super) target_input: &'a str,
     pub(super) target_options: &'a [String],
+    pub(super) target_dropdown_open: bool,
+    pub(super) target_highlight: Option<usize>,
     pub(super) error: Option<&'a str>,
     pub(super) lang: Lang,
 }
@@ -48,6 +46,8 @@ pub(super) fn source_group<'a>(state: SourceGroupState<'a>) -> Element<'a, Messa
         format,
         target_input,
         target_options,
+        target_dropdown_open,
+        target_highlight,
         error,
         lang,
     } = state;
@@ -72,8 +72,16 @@ pub(super) fn source_group<'a>(state: SourceGroupState<'a>) -> Element<'a, Messa
         } else if !target_options.is_empty() {
             content = content.push(target_row(
                 format,
-                target_input,
-                focus == ImportModalFocus::Target && keyboard_focus_visible,
+                anchored_overlay(
+                    target_anchor(
+                        target_input,
+                        focus == ImportModalFocus::Target && keyboard_focus_visible,
+                    ),
+                    dropdown(target_options, target_highlight),
+                    target_dropdown_open,
+                    DROPDOWN_ANCHOR_GAP,
+                    Message::ImportTargetDropdownToggled,
+                ),
                 lang,
             ));
         }
@@ -193,18 +201,14 @@ fn browse_button(focused: bool, lang: Lang) -> Element<'static, Message> {
 
 fn target_row<'a>(
     format: ImportFileFormat,
-    target_input: &'a str,
-    focused: bool,
+    target: Element<'a, Message>,
     lang: Lang,
 ) -> Element<'a, Message> {
-    row![
-        row_label(lang.t(format.target_label_key())),
-        target_anchor(target_input, focused),
-    ]
-    .spacing(8)
-    .align_y(alignment::Vertical::Center)
-    .height(Length::Fixed(ROW_HEIGHT))
-    .into()
+    row![row_label(lang.t(format.target_label_key())), target,]
+        .spacing(8)
+        .align_y(alignment::Vertical::Center)
+        .height(Length::Fixed(ROW_HEIGHT))
+        .into()
 }
 
 fn no_targets_row(lang: Lang) -> Element<'static, Message> {
@@ -257,35 +261,24 @@ fn target_anchor<'a>(value: &'a str, focused: bool) -> Element<'a, Message> {
     .into()
 }
 
-pub(super) fn target_dropdown_overlay(
-    options: &[String],
-    highlighted: Option<usize>,
-) -> Element<'static, Message> {
-    column![
-        Space::new().height(Length::Fixed(DROPDOWN_TOP)),
-        row![
-            Space::new().width(Length::Fixed(DROPDOWN_LEFT)),
-            opaque(dropdown(options, highlighted)),
-        ]
-        .width(Length::Fill),
-        Space::new().height(Length::Fill),
-    ]
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
-}
-
 fn dropdown(options: &[String], highlighted: Option<usize>) -> Element<'static, Message> {
     let mut list = column![].spacing(0);
     for (index, option) in options.iter().enumerate() {
         list = list.push(dropdown_option(option.clone(), highlighted == Some(index)));
     }
-    let list_height = (options.len() as f32 * DROPDOWN_OPTION_HEIGHT).min(DROPDOWN_MAX_LIST_HEIGHT);
-    let list = scrollable(list)
-        .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::hidden(),
-        ))
-        .height(Length::Fixed(list_height));
+    let list: Element<'static, Message> = if options.len() > 2 {
+        let list_height = dropdown_height(options.len(), 2, DROPDOWN_OPTION_HEIGHT);
+        row_scrollable(
+            scrollable(list)
+                .direction(scrollable::Direction::Vertical(
+                    scrollable::Scrollbar::hidden(),
+                ))
+                .height(Length::Fixed(list_height)),
+            DROPDOWN_OPTION_HEIGHT,
+        )
+    } else {
+        list.into()
+    };
 
     container(list)
         .padding(DROPDOWN_PANEL_PADDING)
@@ -300,16 +293,10 @@ fn dropdown_option(label_text: String, highlighted: bool) -> Element<'static, Me
         13,
         tokyo_text(),
     )
-    .line_height(1.0)
     .wrapping(text::Wrapping::None);
     button(
         container(label)
-            .padding(Padding {
-                top: 0.0,
-                right: 10.0,
-                bottom: 5.0,
-                left: 10.0,
-            })
+            .padding([6, 10])
             .width(Length::Fill)
             .height(Length::Fixed(DROPDOWN_OPTION_HEIGHT))
             .align_y(alignment::Vertical::Center)
@@ -329,3 +316,6 @@ fn row_label(value: &'static str) -> Element<'static, Message> {
         .align_y(alignment::Vertical::Center)
         .into()
 }
+
+#[cfg(test)]
+mod tests;
