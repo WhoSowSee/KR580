@@ -581,6 +581,12 @@ outside input, and fractional touchpad deltas. The opcode picker's
 `scrollbar_drag_and_wheel_work_after_search_focus` test checks row-sized wheel
 steps and pixel scrolling after focus changes and thumb dragging.
 
+The import popup geometry test gives its baseline an explicit collection type.
+On macOS, `objc2` adds a recursive `IntoIterator` implementation for references
+to `Retained<T>`; leaving the baseline as an untyped `None` can overflow trait
+resolution before its later assignment supplies the concrete types. Native
+macOS all-target Clippy and workspace tests cover this compilation path.
+
 Some UI behavior cannot be unit-tested directly with iced 0.14, so it is
 worth eyeballing after touching `crates/ui`:
 

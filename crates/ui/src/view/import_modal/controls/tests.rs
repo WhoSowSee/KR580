@@ -74,7 +74,7 @@ fn target_popup_keeps_the_dialog_and_existing_widget_states_stationary() {
                     let root = modal(&options, false, lang);
                     widget::Tree::new(&root)
                 };
-                let mut baseline = None;
+                let mut baseline: Option<(BTreeMap<_, _>, Vec<_>)> = None;
                 for open in [false, true, false, true, false] {
                     let mut root = modal(&options, open, lang);
                     tree.diff(&root);
