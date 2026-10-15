@@ -554,7 +554,7 @@ resource compilation for the non-Windows target.
 
 - In each external device (Monitor, Floppy, HDD, Network, Printer), use Tab and
   Shift+Tab to traverse the toolbar in each direction, including wrapping at both
-  ends. Check the blue outline, first/last entry, and Enter/Space activation. After activation,
+  ends. Check the thin one-pixel blue outline, first/last entry, and Enter/Space activation. After activation,
   the selected button must retain the same background fill as the default button
   in file confirmation dialogs, including after repeated Enter/Space presses.
   Tab/Shift+Tab must remove that focus fill and outline the next target. Repeat after

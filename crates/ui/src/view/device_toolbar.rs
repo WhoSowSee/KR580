@@ -25,7 +25,7 @@ pub(super) fn toolbar_button<'a>(
             if focused {
                 if keyboard {
                     appearance.border.color = tokyo_device_accent(tokyo_blue());
-                    appearance.border.width = 2.0;
+                    appearance.border.width = 1.0;
                 } else {
                     appearance.background =
                         super::modal::modal_button_style(status, true, false).background;

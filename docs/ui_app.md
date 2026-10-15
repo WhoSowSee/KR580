@@ -627,7 +627,8 @@ Monitor, floppy, HDD, network, and printer toolbars support a closed
 the detached window's pin, and Close. The first Tab selects the first enabled
 button; the first Shift+Tab selects the last. Disabled actions (for example,
 Create/Delete for the current HDD file or Print while busy) are skipped.
-The focused button has a blue border, adapted to the active color scheme.
+The focused button has a one-logical-pixel blue border, adapted to the active
+color scheme and matching the rest of the application's keyboard focus ring.
 `Enter` or `Space` invokes its existing action and replaces the keyboard outline
 with a persistent `tokyo_surface()` fill, matching the initially selected button
 in file confirmation dialogs. Repeated activation keeps that fill visible until
