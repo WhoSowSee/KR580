@@ -29,6 +29,7 @@ The major version reflects incompatible public backend/device Rust APIs; the
 - `CONTRIBUTING.md` and `AI_POLICY.md`: contributor workflow, verification requirements, and AI-assistance disclosure policy.
 - `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md`: GitHub bug/feature forms and the pull request template, aligned with the contributor guides.
 - `.github/workflows/quality.yml`: cached native checks on Linux, Windows, and macOS, plus Linux MSRV/release/metadata checks. The three `Workspace` statuses are required by the repository's `main` ruleset. See [Pull request CI](testing.md#pull-request-ci).
+- `.github/workflows/star-history.yml`, `.github/scripts/`, and `.github/assets/`: scheduled README chart generation and publication through a dedicated GitHub App. Four SVGs cover both languages and color schemes. See [Assets](assets.md#readme-star-history).
 - `.github/workflows/build-linux.yml`: reusable release jobs for the seven Linux setup targets plus native RPM and Arch packages; called by `build.yml` before release publication.
 - `scripts/linux_packages.py`, `scripts/linux_packaging/`, and `scripts/packaging/`: native distribution payload rendering, ELF/metadata/content verification, and RPM/PKGBUILD templates. See [RPM and Arch Linux packages](linux_packages.md).
 - `.gitattributes`: LF text checkouts, Rust-aware diffs, and byte-preserving binary asset/program-image rules.

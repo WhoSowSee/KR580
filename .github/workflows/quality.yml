@@ -67,6 +67,10 @@ jobs:
         if: runner.os == 'Linux'
         run: python3 -B -m unittest discover -s scripts -p test_linux_packages.py -v
 
+      - name: Test star-history charts
+        if: runner.os == 'Linux'
+        run: python3 -B .github/scripts/test_gen_star_history.py
+
       - name: Build release GUI and launcher
         if: runner.os == 'Linux'
         run: cargo build --locked --release -p kr580 --bin kr580 --bin kr

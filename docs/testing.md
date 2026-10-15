@@ -26,7 +26,7 @@ pull requests, and manual dispatch. It keeps three stable check names:
 
 | Required check | Coverage |
 |---|---|
-| `Workspace ubuntu-latest` | Formatting, strict all-target Clippy, workspace tests, Linux desktop/MIME metadata, native package validation tests, release artifact naming, release GUI/launcher build, `kr --version`, and Rust 1.88.0 compatibility. |
+| `Workspace ubuntu-latest` | Formatting, strict all-target Clippy, workspace tests, Linux desktop/MIME metadata, native package and star-history tests, release artifact naming, release GUI/launcher build, `kr --version`, and Rust 1.88.0 compatibility. |
 | `Workspace windows-latest` | Formatting, strict all-target Clippy, and workspace tests on Windows. |
 | `Workspace macos-latest` | Formatting, strict all-target Clippy, and workspace tests on macOS. |
 
@@ -47,6 +47,46 @@ from GitHub Actions for ordinary updates to `main`; administrators retain a
 maintenance bypass. Required contexts are configured in GitHub separately from
 the workflow. Keep their names synchronized when changing job names or the OS
 matrix. Release packaging remains in its separate tag/manual workflow.
+
+## Star-history publisher
+
+[Update star history](../.github/workflows/star-history.yml) runs on a schedule
+and by manual dispatch on a branch. It tests the generator, fetches history with
+the read-only `GITHUB_TOKEN`, and stages only the four chart SVGs. A changed
+chart is committed by a dedicated GitHub App using a token limited to this
+repository with `Contents: write`. The App's own bot name and noreply address
+identify the commit. Its push triggers the existing workspace quality checks.
+
+Configure the publisher in GitHub:
+
+1. Create a dedicated GitHub App for KR580 with repository `Contents: read and
+   write`, then install it only on `WhoSowSee/KR580`.
+2. Set repository Actions variable `STAR_HISTORY_APP_CLIENT_ID` to its client ID
+   and Actions secret `STAR_HISTORY_APP_PRIVATE_KEY` to its PEM private key.
+3. Add this App as an `Always allow` bypass actor in the existing
+   [CI checks for main ruleset](https://github.com/WhoSowSee/KR580/rules).
+   Keep all three required `Workspace` checks for ordinary updates.
+
+This repository uses the dedicated `kr580-star-history-whosowsee` App, installed
+only on KR580. Its repository permissions are `Contents: write` and the mandatory
+`Metadata: read`.
+
+The regular `GITHUB_TOKEN` does not publish chart commits: its pushes do not
+trigger the push-based checks, and it has no publisher bypass. GitHub App
+authentication follows the same approach as mdv. The workflow creates an App
+token only after finding changed charts and revokes it at job completion.
+
+Chart tests run in Linux branch/PR quality CI and before every scheduled refresh:
+
+```sh
+python3 -B .github/scripts/test_gen_star_history.py
+```
+
+They cover pagination, chronological cumulative counts, sampling endpoints,
+empty/single-day SVGs, XML escaping, deterministic output, and matching
+English/Russian geometry. Generated assets and the regeneration command are
+documented in [Assets](assets.md#readme-star-history). Verify the first publisher
+run in GitHub Actions after the App and repository settings are configured.
 
 ## Repository configuration
 

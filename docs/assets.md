@@ -3,6 +3,35 @@
 Documentation assets live under `assets/`. Application icons live inside the
 UI crate under `crates/ui/assets/icons/`.
 
+## README star history
+
+`.github/assets/star-history-{light,dark}.svg` contains the English charts;
+`star-history-{light,dark}-ru.svg` contains the Russian charts. Both READMEs
+select the matching language and color scheme through absolute raw GitHub URLs,
+including when displayed on crates.io. The charts link to the repository's
+stargazers page.
+
+`.github/scripts/gen_star_history.py` fetches GitHub's weekly star history,
+orders the daily counts chronologically, and renders the cumulative series.
+It uses Python's standard library and deterministic SVG output without a
+generation timestamp. Unchanged history produces no new commit. Empty history
+and a single day are supported; long series retain their first and last points.
+The chart heading aligns with the left edge of the vertical-axis numbers.
+
+Regenerate all four charts from the repository root:
+
+```sh
+python3 .github/scripts/gen_star_history.py --repo WhoSowSee/KR580
+python3 -B .github/scripts/test_gen_star_history.py
+```
+
+`GITHUB_TOKEN` is optional for local public-repository requests. The scheduled
+[workflow](../.github/workflows/star-history.yml) refreshes the charts every
+Monday and Thursday at 06:17 UTC (09:17 Moscow), or by manual dispatch on a
+branch. It fetches history with a read-only token and publishes changed SVGs
+with a dedicated GitHub App. See [publisher setup](testing.md#star-history-publisher)
+for repository configuration and protected-branch permissions.
+
 ## `assets/brand/`
 
 | File | Purpose |

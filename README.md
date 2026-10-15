@@ -240,19 +240,20 @@ cargo test --workspace
 ## История звёзд
 
 <p align="center">
-  <a href="https://starchart.cc/WhoSowSee/KR580">
+  <a href="https://github.com/WhoSowSee/KR580/stargazers">
     <picture>
       <source
         media="(prefers-color-scheme: dark)"
-        srcset="https://starchart.cc/WhoSowSee/KR580.svg?variant=custom&background=%230d1117&axis=%238b949e&line=%232f81f7"
+        srcset="https://raw.githubusercontent.com/WhoSowSee/KR580/main/.github/assets/star-history-dark-ru.svg"
       />
       <source
         media="(prefers-color-scheme: light)"
-        srcset="https://starchart.cc/WhoSowSee/KR580.svg?variant=custom&background=%23ffffff&axis=%2357606a&line=%230969da"
+        srcset="https://raw.githubusercontent.com/WhoSowSee/KR580/main/.github/assets/star-history-light-ru.svg"
       />
       <img
         alt="История звёзд KR580"
-        src="https://starchart.cc/WhoSowSee/KR580.svg?variant=custom&background=%23ffffff&axis=%2357606a&line=%230969da"
+        src="https://raw.githubusercontent.com/WhoSowSee/KR580/main/.github/assets/star-history-light-ru.svg"
+        width="820"
       />
     </picture>
   </a>
