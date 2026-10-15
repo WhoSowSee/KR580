@@ -56,7 +56,7 @@ pub(crate) async fn check() -> Result<Option<Release>, String> {
 }
 
 fn install_supported() -> bool {
-    if std::env::var_os("SNAP").is_some() {
+    if std::env::var_os("SNAP").is_some() || crate::package_kind::is_managed() {
         return false;
     }
     let Ok(exe) = std::env::current_exe() else {

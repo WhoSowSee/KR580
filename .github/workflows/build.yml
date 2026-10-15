@@ -56,70 +56,8 @@ jobs:
         run: bash scripts/verify_release_artifact_names.sh
 
   linux:
-    name: Linux installer ${{ matrix.target }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - aarch64-unknown-linux-gnu
-          - aarch64-unknown-linux-musl
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - i686-unknown-linux-gnu
-          - riscv64gc-unknown-linux-gnu
-          - sparc64-unknown-linux-gnu
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v7
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
-
-      - name: Cache cargo build artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-targets: false
-          save-if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
-
-      - name: Clean target before cross build
-        run: rm -rf target
-
-      - name: Install packaging tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y fakeroot dpkg-dev zip
-
-      - name: Install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross --locked
-
-      - name: Build installer
-        env:
-          KR580_CARGO: cross
-        run: bash scripts/build_installer.sh release --target ${{ matrix.target }} --dist-dir dist
-
-      - name: Package installer zip
-        run: |
-          mkdir -p artifacts
-          installer=$(ls dist/KR580-Setup-*-${{ matrix.target }})
-          zip -j "artifacts/${PROJECT_NAME}-${{ matrix.target }}.zip" "$installer"
-
-      - name: Build deb package
-        run: |
-          installer=$(ls dist/KR580-Setup-*-${{ matrix.target }})
-          bash scripts/package_installer_deb.sh \
-            --installer "$installer" \
-            --target ${{ matrix.target }} \
-            --output "artifacts/${PROJECT_NAME}-${{ matrix.target }}.deb"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: kr580-linux-${{ matrix.target }}
-          path: artifacts/*
+    name: Linux packages
+    uses: ./.github/workflows/build-linux.yml
 
   macos:
     name: macOS application image ${{ matrix.target }}

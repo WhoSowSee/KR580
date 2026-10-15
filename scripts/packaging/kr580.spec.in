@@ -1,0 +1,43 @@
+%global debug_package %{nil}
+%global __brp_strip %{nil}
+%global __brp_strip_comment_note %{nil}
+%global _build_id_links none
+%global _rpmformat 4
+
+Name: @NAME@
+Version: @PACKAGE_VERSION@
+Release: 1
+Summary: @DESCRIPTION@
+License: @LICENSE@
+URL: @REPOSITORY@
+ExclusiveArch: x86_64 aarch64
+Source0: payload.tar
+Requires: glibc >= @GLIBC_MINIMUM@
+Requires: @DEPENDENCIES@
+Requires(postun): desktop-file-utils, shared-mime-info
+
+%description
+@DESCRIPTION@
+
+%install
+mkdir -p "%{buildroot}"
+tar -xf "%{SOURCE0}" -C "%{buildroot}"
+
+%postun
+if [ "$1" -eq 0 ]; then
+  update-desktop-database -q /usr/share/applications || :
+  update-mime-database /usr/share/mime || :
+fi
+
+%files
+/usr/bin/kr
+/usr/bin/kr580
+%dir /usr/lib/kr580
+/usr/lib/kr580/kr
+/usr/lib/kr580/kr580
+/usr/share/applications/kr580.desktop
+/usr/share/icons/hicolor/256x256/apps/kr580.png
+/usr/share/icons/hicolor/256x256/mimetypes/application-x-kr580.png
+/usr/share/mime/packages/application-x-kr580.xml
+%dir /usr/share/licenses/kr580
+%license /usr/share/licenses/kr580/LICENSE

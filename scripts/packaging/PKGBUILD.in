@@ -1,0 +1,15 @@
+pkgname=@NAME@
+pkgver=@PACKAGE_VERSION@
+pkgrel=1
+pkgdesc=@DESCRIPTION@
+arch=('x86_64')
+url=@REPOSITORY@
+license=(@LICENSE@)
+depends=(@DEPENDENCIES@)
+options=('!strip' '!debug')
+source=('payload.tar')
+sha256sums=('@PAYLOAD_SHA256@')
+
+package() {
+  cp -a "$srcdir/usr" "$pkgdir/"
+}

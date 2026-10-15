@@ -56,10 +56,8 @@ fn packaged_settings_path(exe: &Path) -> Option<PathBuf> {
 
 #[cfg(all(unix, not(target_os = "macos")))]
 fn packaged_settings_path(_exe: &Path) -> Option<PathBuf> {
-    snap_settings_path(std::env::var_os("SNAP_USER_COMMON")).or_else(|| {
-        (std::env::var_os("KR580_PACKAGE_KIND").as_deref() == Some(std::ffi::OsStr::new("nix")))
-            .then(system_settings_path)
-    })
+    snap_settings_path(std::env::var_os("SNAP_USER_COMMON"))
+        .or_else(|| crate::package_kind::is_managed().then(system_settings_path))
 }
 
 #[cfg(any(test, all(unix, not(target_os = "macos"))))]

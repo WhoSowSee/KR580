@@ -74,7 +74,7 @@ Device operations return typed statuses and errors. The CPU core talks to them o
 
 ### Requirements
 
-- Rust `1.88.0` or newer.
+- Rust `1.88.0` or newer for source builds.
 - A desktop environment capable of running native iced windows.
 
 ### Install from crates.io
@@ -93,6 +93,26 @@ nix profile install github:WhoSowSee/KR580
 ```
 
 The NixOS package installs ready-to-run `kr580` and `kr` binaries, the desktop entry, icons, and the `.580` / `.krs` MIME types directly through the Nix store. The standalone setup wizard is not used for this path.
+
+### Fedora and Arch Linux
+
+Download the matching package from [GitHub Releases](https://github.com/WhoSowSee/KR580/releases)
+and replace `<version>` with the downloaded file's version:
+
+```bash
+sudo dnf install "./KR580-<version>-x86_64-unknown-linux-gnu.rpm"
+```
+
+On Arch Linux, update the system and install the package:
+
+```bash
+sudo pacman -Syu
+sudo pacman -U "./KR580-<version>-x86_64-unknown-linux-gnu.pkg.tar.zst"
+```
+
+RPMs are available for x86_64 and aarch64; the Arch package targets x86_64.
+Requires glibc 2.39 or newer.
+See [RPM and Arch Linux](https://github.com/WhoSowSee/KR580/blob/main/docs/linux_packages.md).
 
 ### Run from source
 
@@ -212,6 +232,7 @@ Useful reference docs:
 - [Persistence](https://github.com/WhoSowSee/KR580/blob/main/docs/persistence.md)
 - [App and UI](https://github.com/WhoSowSee/KR580/blob/main/docs/ui_app.md)
 - [Installer](https://github.com/WhoSowSee/KR580/blob/main/docs/installer.md)
+- [RPM and Arch Linux](https://github.com/WhoSowSee/KR580/blob/main/docs/linux_packages.md)
 - [Testing](https://github.com/WhoSowSee/KR580/blob/main/docs/testing.md)
 - [Assets](https://github.com/WhoSowSee/KR580/blob/main/docs/assets.md)
 

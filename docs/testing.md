@@ -26,7 +26,7 @@ pull requests, and manual dispatch. It keeps three stable check names:
 
 | Required check | Coverage |
 |---|---|
-| `Workspace ubuntu-latest` | Formatting, strict all-target Clippy, workspace tests, Linux desktop/MIME metadata, release artifact naming, release GUI/launcher build, `kr --version`, and Rust 1.88.0 compatibility. |
+| `Workspace ubuntu-latest` | Formatting, strict all-target Clippy, workspace tests, Linux desktop/MIME metadata, native package validation tests, release artifact naming, release GUI/launcher build, `kr --version`, and Rust 1.88.0 compatibility. |
 | `Workspace windows-latest` | Formatting, strict all-target Clippy, and workspace tests on Windows. |
 | `Workspace macos-latest` | Formatting, strict all-target Clippy, and workspace tests on macOS. |
 
@@ -56,6 +56,7 @@ The root configuration files apply to the workspace and are included in Git:
 |---|---|
 | [.editorconfig](../.editorconfig) | Set editor encoding, LF, indentation, and save-time whitespace rules with Markdown and binary exceptions. |
 | [.gitattributes](../.gitattributes) | Normalize text to LF, use Rust-aware diffs, and preserve binary bytes. |
+| [.gitignore](../.gitignore) | Exclude build/package outputs, tool caches, editor files, logs, and OS metadata. |
 | [rustfmt.toml](../rustfmt.toml) | Use Rust/style edition 2024, 100-column width, field initialization shorthand, and Unix line endings. |
 | [rust-toolchain.toml](../rust-toolchain.toml) | Select the rustup `stable` channel with the `minimal` profile plus `rustfmt` and `clippy`. |
 
@@ -64,6 +65,10 @@ subprograms, `.kpd`/`.img`/`.bin` storage images, and `.xlsx` workbooks. They
 disable text conversion, text diffs, and text merges, including for small
 program or CP866 storage samples that Git might otherwise classify as text.
 SVG, Rust, documentation, shell scripts, and PowerShell scripts use LF.
+
+Ignore rules cover Cargo outputs, release artifacts, Snapcraft work directories,
+and Nix `result` links. Package filename patterns apply at the repository root;
+program samples, test sources, Cargo.lock, and flake.lock remain eligible for Git.
 
 Editors with EditorConfig support use UTF-8, spaces, a final newline, and
 trailing-whitespace removal for text files. YAML, Bash, Nix, XML, and SVG use
@@ -116,7 +121,7 @@ arguments are therefore resolved from the repository root.
 | `just run-gui` | Run `kr580` directly with debug logs in the terminal. |
 | `just package [args...]` | Build Windows setup, Linux setup, or a macOS DMG with the existing native script. |
 | `just icons` | Regenerate the derived PNG/ICO/ICNS assets from the master artwork. |
-| `just test-packaging` | Check release artifact naming on Unix in a disposable directory. |
+| `just test-packaging` | Run native package validation tests with Python 3.11+, then check release artifact naming on Unix. |
 | `just test-linux-metadata` | Check desktop and MIME metadata on Linux with the tools listed below. |
 
 Cargo build, lint, test, and run recipes use `--locked`. The aggregate checks
@@ -238,7 +243,15 @@ Both DMG staging and mounted-image checks put the binary before `-verify_arch`:
 `lipo "$binary" -verify_arch "$architecture"`. All arguments after the flag
 are architecture names. Validate both `arm64` and `x86_64` on macOS.
 The DMG check expands both ICNS files with `iconutil`. The release-name test
-covers a mixed ZIP/DEB/DMG/Snap set, repeated execution, and mismatched versions.
+covers a mixed ZIP/DEB/RPM/Arch/DMG/Snap set, repeated execution, and mismatched versions.
+RPM and Arch release jobs additionally verify ELF/glibc requirements, exact
+payload bytes and permissions, package metadata and runtime dependencies.
+Disposable Fedora/Arch containers test installation, the launcher, GUI startup
+under Xvfb, desktop/MIME caches, removal and user-data preservation. See
+[RPM and Arch Linux packages](linux_packages.md#verification-and-release-wiring)
+for commands and platform coverage. These native package jobs run in the
+tag/manual release workflow; branch/PR quality CI runs the portable validator
+unit tests, without publishing or installing a package on the runner host.
 Linux association lifecycle tests launch the real CLI in isolated child
 environments with deterministic desktop-tool fixtures. They cover foreign
 ownership, changed external defaults, repeated registration, errors before

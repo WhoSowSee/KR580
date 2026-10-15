@@ -74,7 +74,7 @@ KR580 – современный настольный эмулятор сист�
 
 ### Требования
 
-- Rust `1.88.0` или новее.
+- Rust `1.88.0` или новее для сборки из исходников.
 - Desktop-окружение, способное запускать нативные iced-окна.
 
 ### Установка из crates.io
@@ -93,6 +93,26 @@ nix profile install github:WhoSowSee/KR580
 ```
 
 NixOS-пакет ставит готовые `kr580` и `kr`, desktop entry, иконки и MIME-типы `.580` / `.krs` напрямую через Nix store. Standalone-установщик для этого сценария не используется.
+
+### Fedora и Arch Linux
+
+Скачайте подходящий пакет из [GitHub Releases](https://github.com/WhoSowSee/KR580/releases)
+и замените `<version>` в команде на версию файла:
+
+```bash
+sudo dnf install "./KR580-<version>-x86_64-unknown-linux-gnu.rpm"
+```
+
+На Arch Linux обновите систему и установите пакет:
+
+```bash
+sudo pacman -Syu
+sudo pacman -U "./KR580-<version>-x86_64-unknown-linux-gnu.pkg.tar.zst"
+```
+
+RPM доступен для x86_64 и aarch64, Arch-пакет — для x86_64.
+Требуется glibc 2.39 или новее.
+Подробности: [RPM и Arch Linux](https://github.com/WhoSowSee/KR580/blob/main/docs/linux_packages.md).
 
 ### Запуск из исходников
 
@@ -213,6 +233,7 @@ cargo test --workspace
 - [Сохранение данных](https://github.com/WhoSowSee/KR580/blob/main/docs/persistence.md)
 - [Приложение и UI](https://github.com/WhoSowSee/KR580/blob/main/docs/ui_app.md)
 - [Установщик](https://github.com/WhoSowSee/KR580/blob/main/docs/installer.md)
+- [RPM и Arch Linux](https://github.com/WhoSowSee/KR580/blob/main/docs/linux_packages.md)
 - [Тестирование](https://github.com/WhoSowSee/KR580/blob/main/docs/testing.md)
 - [Ассеты](https://github.com/WhoSowSee/KR580/blob/main/docs/assets.md)
 

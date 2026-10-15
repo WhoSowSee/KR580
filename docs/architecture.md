@@ -7,7 +7,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator. The docum
 Both workspace crates share release `4.0.0` through `[workspace.package]`.
 The UI's versioned path dependency on `k580-core` and the two local Cargo.lock
 entries use the same release. CLI/About and native executable metadata derive
-their version from `CARGO_PKG_VERSION`; installer, Debian, DMG and Nix packaging
+their version from `CARGO_PKG_VERSION`; installer, Debian, RPM, Arch, DMG and Nix packaging
 read Cargo.toml. Snap derives its package version from Git release metadata.
 The major version reflects incompatible public backend/device Rust APIs; the
 `.580`, `.krs`, TXT/XLSX and settings formats remain compatible.
@@ -29,6 +29,8 @@ The major version reflects incompatible public backend/device Rust APIs; the
 - `CONTRIBUTING.md` and `AI_POLICY.md`: contributor workflow, verification requirements, and AI-assistance disclosure policy.
 - `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md`: GitHub bug/feature forms and the pull request template, aligned with the contributor guides.
 - `.github/workflows/quality.yml`: cached native checks on Linux, Windows, and macOS, plus Linux MSRV/release/metadata checks. The three `Workspace` statuses are required by the repository's `main` ruleset. See [Pull request CI](testing.md#pull-request-ci).
+- `.github/workflows/build-linux.yml`: reusable release jobs for the seven Linux setup targets plus native RPM and Arch packages; called by `build.yml` before release publication.
+- `scripts/linux_packages.py`, `scripts/linux_packaging/`, and `scripts/packaging/`: native distribution payload rendering, ELF/metadata/content verification, and RPM/PKGBUILD templates. See [RPM and Arch Linux packages](linux_packages.md).
 - `.gitattributes`: LF text checkouts, Rust-aware diffs, and byte-preserving binary asset/program-image rules.
 - `.editorconfig`: editor defaults for UTF-8, LF, spaces, and final newlines; format-specific indentation plus Markdown and binary exceptions. See [Repository configuration](testing.md#repository-configuration).
 - `rustfmt.toml`: shared Rust 2024 formatting with 100-column width, field initialization shorthand, and LF output.
@@ -67,8 +69,12 @@ and uninstall cleanup where the platform supports them. See
 Executables inside a macOS application bundle use Application Support even
 without an installer manifest. Strict Snap executions use the writable,
 revision-independent `SNAP_USER_COMMON` directory.
-Nix wrappers mark the packaged GUI so it also uses the writable XDG config
-directory and expose the wrapped GUI path to file-association code.
+Nix, RPM and Arch wrappers mark the packaged GUI so it uses the writable XDG
+config directory and expose the wrapped GUI path to file-association code.
+`crates/ui/src/package_kind.rs` recognizes the shared package markers for
+settings storage and updater policy. RPM and Arch install public wrappers
+under `/usr/bin`, executables under `/usr/lib/kr580`, and desktop/MIME/icon
+metadata under `/usr/share`; their package managers own updates and removal.
 The Snap exposes `kr580` itself as its only app command; snapd owns its lifecycle
 and exported desktop entry, so no nested installer, uninstaller, PATH writer,
 or private desktop database is involved.

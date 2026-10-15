@@ -54,9 +54,12 @@ integration; `tempfile` retains random-name generation. Cargo may still enable s
 features needed by XLSX, and lockfile entries can include optional packages
 that are not compiled for the current target.
 
-Snap, Nix-store executables, source/Cargo builds without `install.json`, and
-targets without a matching package instead expose `Open release page` when a
+Snap, Nix/RPM/Arch package wrappers, Nix-store executables, source/Cargo builds
+without `install.json`, and targets without a matching package expose `Open release page` when a
 new version is found. These distributions retain their existing update method.
+The known `KR580_PACKAGE_KIND=nix`, `rpm` and `arch` markers explicitly disable
+installer updates, preserving package-manager ownership even if an installer
+manifest is present nearby. See [RPM and Arch Linux packages](linux_packages.md).
 The application does not request elevated privileges: preparing an update to
 a protected installation can fail with a permissions error.
 

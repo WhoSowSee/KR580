@@ -2,6 +2,7 @@
 
 mod app;
 mod i18n;
+mod package_kind;
 use k580_ui::{backend, persistence};
 mod platform;
 mod runtime;

@@ -1,0 +1,175 @@
+name: Build Linux packages
+
+on:
+  workflow_call:
+
+env:
+  PROJECT_NAME: KR580-Setup
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Native packages ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: x86_64
+            runner: ubuntu-24.04
+          - target: aarch64-unknown-linux-gnu
+            arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: native-${{ matrix.target }}
+
+      - name: Build GUI and launcher
+        run: |
+          cargo build --locked --release -p kr580 --bin kr580 --bin kr --target ${{ matrix.target }}
+          "target/${{ matrix.target }}/release/kr" --version
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y rpm libarchive-tools binutils file
+          rpmbuild --version
+          rpm --version
+          python3 --version
+          ldd --version | head -1
+
+      - name: Test packaging validation
+        run: python3 -B -m unittest discover -s scripts -p test_linux_packages.py -v
+
+      - name: Build and verify RPM
+        run: |
+          python3 scripts/linux_packages.py prepare rpm "${{ matrix.target }}" "$RUNNER_TEMP/kr580-rpm"
+          rpmbuild -bb --target "${{ matrix.arch }}" \
+            --define "_topdir $RUNNER_TEMP/kr580-rpm" "$RUNNER_TEMP/kr580-rpm/SPECS/kr580.spec"
+          packages=("$RUNNER_TEMP/kr580-rpm/RPMS/${{ matrix.arch }}"/*.rpm)
+          test "${#packages[@]}" -eq 1
+          test -f "${packages[0]}"
+          python3 scripts/linux_packages.py verify rpm "${{ matrix.target }}" "${packages[0]}"
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+          mkdir -p artifacts
+          cp "${packages[0]}" "artifacts/KR580-${version}-${{ matrix.target }}.rpm"
+
+      - name: Install, launch and remove RPM on Fedora
+        run: |
+          docker pull fedora:44
+          docker image inspect fedora:44 --format '{{json .RepoDigests}}'
+          packages=("$PWD/artifacts/"*.rpm)
+          test "${#packages[@]}" -eq 1
+          docker run --rm --volume "$PWD:/repo:ro" --workdir /repo fedora:44 \
+            bash scripts/smoke_linux_package.sh rpm "/repo/artifacts/$(basename "${packages[0]}")"
+
+      - name: Build, verify, launch and remove Arch package
+        if: matrix.arch == 'x86_64'
+        run: |
+          python3 scripts/linux_packages.py prepare arch "${{ matrix.target }}" "$RUNNER_TEMP/kr580-arch"
+          docker pull archlinux:base-devel
+          docker image inspect archlinux:base-devel --format '{{json .RepoDigests}}'
+          docker run --rm --volume "$PWD:/repo:ro" --volume "$RUNNER_TEMP/kr580-arch:/package" \
+            --workdir /repo archlinux:base-devel bash -euo pipefail -c '
+              pacman -Syu --noconfirm --needed python
+              makepkg --version
+              pacman -Q pacman
+              useradd --create-home builder
+              chown -R builder:builder /package
+              runuser -u builder -- bash -euo pipefail -c "cd /package; PKGEXT=.pkg.tar.zst makepkg --nodeps --noconfirm"
+              packages=(/package/*.pkg.tar.zst)
+              test "${#packages[@]}" -eq 1
+              test -f "${packages[0]}"
+              python3 scripts/linux_packages.py verify arch x86_64-unknown-linux-gnu "${packages[0]}"
+              bash scripts/smoke_linux_package.sh arch "${packages[0]}"
+            '
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+          cp "$RUNNER_TEMP/kr580-arch/"*.pkg.tar.zst "artifacts/KR580-${version}-${{ matrix.target }}.pkg.tar.zst"
+
+      - name: Upload native packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: kr580-native-${{ matrix.target }}
+          path: artifacts/*
+          if-no-files-found: error
+          compression-level: 0
+
+  linux:
+    name: Linux installer ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - aarch64-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - i686-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
+          - sparc64-unknown-linux-gnu
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache cargo build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: false
+          save-if: ${{ matrix.target == 'x86_64-unknown-linux-gnu' }}
+
+      - name: Clean target before cross build
+        run: rm -rf target
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg-dev zip
+
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross --locked
+
+      - name: Build installer
+        env:
+          KR580_CARGO: cross
+        run: bash scripts/build_installer.sh release --target ${{ matrix.target }} --dist-dir dist
+
+      - name: Package installer zip
+        run: |
+          mkdir -p artifacts
+          installer=$(ls dist/KR580-Setup-*-${{ matrix.target }})
+          zip -j "artifacts/${PROJECT_NAME}-${{ matrix.target }}.zip" "$installer"
+
+      - name: Build deb package
+        run: |
+          installer=$(ls dist/KR580-Setup-*-${{ matrix.target }})
+          bash scripts/package_installer_deb.sh \
+            --installer "$installer" \
+            --target ${{ matrix.target }} \
+            --output "artifacts/${PROJECT_NAME}-${{ matrix.target }}.deb"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: kr580-linux-${{ matrix.target }}
+          path: artifacts/*
+

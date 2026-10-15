@@ -23,7 +23,7 @@ for file in "$artifact_dir"/*; do
       fi
       mv "$file" "$target"
       ;;
-    KR580-*.dmg|KR580-*.snap)
+    KR580-*.dmg|KR580-*.snap|KR580-*.rpm|KR580-*.pkg.tar.zst)
       if [[ "$base" != KR580-"$package_version"-* ]]; then
         echo "release artifact version does not match $version: $base" >&2
         exit 1

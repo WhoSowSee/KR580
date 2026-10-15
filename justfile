@@ -99,9 +99,10 @@ icons:
 icons:
     bash scripts/generate_icons.sh
 
-[doc('Verify release artifact naming in a disposable directory')]
+[doc('Verify native package validation and release artifact naming')]
 [unix]
 test-packaging:
+    python3 -B -m unittest discover -s scripts -p test_linux_packages.py -v
     bash scripts/verify_release_artifact_names.sh
 
 [doc('Verify Linux desktop and MIME metadata; requires native desktop tools')]

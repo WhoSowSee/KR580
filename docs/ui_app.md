@@ -2732,8 +2732,11 @@ Settings path resolution checks an installer manifest first. Without one, a
 macOS executable inside an `.app` uses
 `~/Library/Application Support/KR580/settings.json`, while a confined Snap uses
 `$SNAP_USER_COMMON/settings.json`. Only unpackaged developer binaries retain
-the adjacent-file fallback. Nix wrappers set `KR580_PACKAGE_KIND=nix` and use
-the platform XDG configuration path even without an installer manifest.
+the adjacent-file fallback. Nix, RPM and Arch wrappers set
+`KR580_PACKAGE_KIND=nix`, `rpm` or `arch` and use the platform XDG configuration
+path even without an installer manifest. The same package markers disable
+installer updates; package installation and removal are described in
+[RPM and Arch Linux packages](linux_packages.md).
 
 `StatusKind` (in `app/status.rs`) tags every canonical status string
 with its provenance (`Ready`, `Stopped`, `SavedTo { display, legacy }`,
@@ -2974,7 +2977,7 @@ so file-manager Open With lists do not expose an `Emulator` suffix.
 spawns it, and returns without waiting.
 File-association code shares the manifest-aware companion resolver with the
 launcher, so a Cargo installation in `.cargo/bin` points to its adjacent GUI.
-Nix provides `KR580_GUI_EXECUTABLE` so associations launch the GUI wrapper
+Nix, RPM and Arch provide `KR580_GUI_EXECUTABLE` so associations launch the GUI wrapper
 with its runtime library paths and configuration settings intact.
 
 On Windows, registering from either `kr.exe` or `kr580.exe` maps both `.580`

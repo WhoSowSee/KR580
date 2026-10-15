@@ -336,10 +336,19 @@ GitHub release is published. The derivation installs from Cargo's
 target-specific output directory because the nixpkgs Cargo hook passes
 `--target` even for native Linux builds.
 
+## RPM and Arch Linux packages
+
+The reusable Linux release workflow also builds native application RPMs for
+x86_64/aarch64 and an Arch Linux package for x86_64. They install `kr580`, `kr`,
+desktop/MIME metadata and icons through the package manager, with no nested
+setup executable or installer manifest. See [RPM and Arch Linux packages](linux_packages.md)
+for installation commands, layout, dependencies, build recipes and CI checks.
+The seven existing setup ZIP/DEB targets remain available separately.
+
 ## GitHub Release Notes
 
 `scripts/version_release_artifacts.sh` adds the tag version only to setup
-ZIP/DEB names that still need it. Already-versioned DMG and Snap names remain
+ZIP/DEB names that still need it. Already-versioned RPM, Arch, DMG and Snap names remain
 unchanged and their package version must match the tag. A repeated invocation
 is harmless; an existing destination is rejected. The mixed-artifact test
 `scripts/verify_release_artifact_names.sh` runs before publication.
@@ -470,7 +479,7 @@ A standalone macOS application bundle follows the same Application Support
 path even though it has no `install.json`. A confined Snap stores settings in
 `$SNAP_USER_COMMON/settings.json`, so refreshes share one writable settings
 file instead of attempting to modify the read-only mounted package.
-The Nix GUI wrapper uses `$XDG_CONFIG_HOME/kr580/settings.json`, falling back
+The Nix, RPM and Arch GUI wrappers use `$XDG_CONFIG_HOME/kr580/settings.json`, falling back
 to `~/.config/kr580/settings.json` for unset, empty, or relative XDG paths.
 
 Portable mode defaults to `%USERPROFILE%\KR580` on Windows and `$HOME/KR580`
