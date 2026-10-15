@@ -1,5 +1,35 @@
 # Changelog
 
+## [4.1.0] - 2026-10-15
+
+### Features
+
+- Added: manual update checks, downloads verified by size and SHA-256, and application of prepared updates on exit or restart
+- Added: native RPM and Arch Linux packages
+
+### Bug Fixes
+
+- Fixed: storage debug-mode tooltips are localized
+- Fixed: the obsolete storage preview-limit notice is removed
+- Fixed: the Settings save button keeps its Save label while writing
+- Fixed: memory operands remain distinguishable in monochrome color schemes
+- Fixed: mouse-wheel scrolling moves dropdowns one row at a time, a visible fragment of the next option indicates more content, and the import target selector does not move adjacent dialog controls
+- Fixed: device toolbar buttons use a one-logical-pixel keyboard focus border matching the rest of the interface
+
+### Documentation
+
+- Fixed: packaging uses the Russian README and corrected crates.io links
+- Added: an AI policy, contribution guide, and GitHub templates
+
+### Build and Packaging
+
+- Added: a justfile for checks, builds, and packaging
+- Added: shared editor, Git, and Rust configuration
+- Added: MSRV, release, and metadata checks in CI for pull requests
+- Added: automated star-history updates through a dedicated GitHub App
+- Updated: Rust dependencies and Windows installer and update-client compatibility code
+- Fixed: macOS compilation of the import dropdown test, where type inference caused `E0275`
+
 ## [4.0.0] - 2026-10-04
 
 ### Breaking Changes

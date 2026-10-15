@@ -4,7 +4,7 @@ This workspace implements a layered KR580/Intel 8080 desktop emulator. The docum
 
 ## Crates
 
-Both workspace crates share release `4.0.0` through `[workspace.package]`.
+Both workspace crates share release `4.1.0` through `[workspace.package]`.
 The UI's versioned path dependency on `k580-core` and the two local Cargo.lock
 entries use the same release. CLI/About and native executable metadata derive
 their version from `CARGO_PKG_VERSION`; installer, Debian, RPM, Arch, DMG and Nix packaging

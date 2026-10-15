@@ -420,8 +420,8 @@ to the default suite:
 
 ```powershell
 cargo test -p kr580 --bin kr580 runtime::updates::release::tests::live_release_check_completes_with_a_valid_result -- --ignored --exact
-$env:KR580_UPDATE_TEST_ARCHIVE = 'C:\path\KR580-Setup-v4.0.0-x86_64-pc-windows-msvc.zip'
-$env:KR580_UPDATE_TEST_VERSION = '4.0.0'
+$env:KR580_UPDATE_TEST_ARCHIVE = 'C:\path\KR580-Setup-v4.1.0-x86_64-pc-windows-msvc.zip'
+$env:KR580_UPDATE_TEST_VERSION = '4.1.0'
 cargo test -p kr580 --bin kr580 runtime::updates::install::tests::official_release_zip_extracts_installer -- --ignored --exact
 ```
 

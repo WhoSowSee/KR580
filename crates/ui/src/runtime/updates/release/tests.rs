@@ -41,29 +41,29 @@ fn release_comparison_uses_semver_and_ignores_build_metadata() {
         )
         .is_err()
     );
-    assert!(parse(b"invalid json", "4.0.0", "target", false).is_err());
+    assert!(parse(b"invalid json", "4.1.0", "target", false).is_err());
 }
 
 #[test]
 fn assets_match_the_target_and_require_a_trusted_url_and_digest() {
-    let url = "https://github.com/WhoSowSee/KR580/releases/download/v4.1.0/KR580-Setup-v4.1.0-x86_64-pc-windows-msvc.zip";
-    let bytes = response("v4.1.0", false, url);
+    let url = "https://github.com/WhoSowSee/KR580/releases/download/v4.2.0/KR580-Setup-v4.2.0-x86_64-pc-windows-msvc.zip";
+    let bytes = response("v4.2.0", false, url);
     assert!(
-        parse(&bytes, "4.0.0", "x86_64-pc-windows-msvc", true)
+        parse(&bytes, "4.1.0", "x86_64-pc-windows-msvc", true)
             .unwrap()
             .unwrap()
             .asset
             .is_some()
     );
     assert!(
-        parse(&bytes, "4.0.0", "aarch64-pc-windows-msvc", true)
+        parse(&bytes, "4.1.0", "aarch64-pc-windows-msvc", true)
             .unwrap()
             .unwrap()
             .asset
             .is_none()
     );
     assert!(
-        parse(&bytes, "4.0.0", "x86_64-pc-windows-msvc", false)
+        parse(&bytes, "4.1.0", "x86_64-pc-windows-msvc", false)
             .unwrap()
             .unwrap()
             .asset
@@ -71,8 +71,8 @@ fn assets_match_the_target_and_require_a_trusted_url_and_digest() {
     );
     assert!(
         parse(
-            &response("v4.1.0", false, "https://example.com/setup.exe"),
-            "4.0.0",
+            &response("v4.2.0", false, "https://example.com/setup.exe"),
+            "4.1.0",
             "x86_64-pc-windows-msvc",
             true
         )
@@ -83,7 +83,7 @@ fn assets_match_the_target_and_require_a_trusted_url_and_digest() {
     assert!(
         parse(
             &serde_json::to_vec(&value).unwrap(),
-            "4.0.0",
+            "4.1.0",
             "x86_64-pc-windows-msvc",
             true
         )
