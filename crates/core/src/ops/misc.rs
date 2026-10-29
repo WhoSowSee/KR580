@@ -28,10 +28,14 @@ impl Cpu8080State {
             0xD3 => {
                 let port = self.fetch_byte(1);
                 bus.output(port, self.registers.a)?;
+                self.last_address_bus = u16::from_le_bytes([port, port]);
+                self.last_data_bus_byte = self.registers.a;
             }
             0xDB => {
                 let port = self.fetch_byte(1);
                 self.registers.a = bus.input(port)?;
+                self.last_address_bus = u16::from_le_bytes([port, port]);
+                self.last_data_bus_byte = self.registers.a;
             }
             0xF3 => {
                 self.interrupt_enable = false;

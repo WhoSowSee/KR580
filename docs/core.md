@@ -50,6 +50,13 @@ labels; it adds no runtime or build-time generator.
 - `run_for_t_states(bus, n)` calls `step_tact` exactly `n` times, so it never overshoots the requested T-state quantum.
 - `run_until_halt(bus, max_instructions)` executes instruction boundaries until `HLT` or the explicit safety cap.
 
+After a successful `IN` or `OUT`, `last_address_bus` holds the port number on
+both halves of the address bus (`03h` becomes `0303h`), and
+`last_data_bus_byte` holds the byte read from or written to the device.
+`last_fetched_opcode` retains the instruction opcode. `PortBus` receives only
+the 8-bit port number. These latches update at the instruction boundary,
+including the final T-state of a tact walk.
+
 `k580-core` exposes processor primitives rather than desktop actor messages.
 The internal UI backend owns `AppCommand` and `AppEvent`.
 

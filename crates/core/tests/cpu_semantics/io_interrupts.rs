@@ -2,14 +2,36 @@ use super::*;
 
 #[test]
 fn in_and_out_route_through_bus() {
-    let mut cpu = Cpu8080State::default();
-    put_program(&mut cpu, &[0xDB, 0x03, 0xD3, 0x04]);
-    let mut bus = NullBus::default();
-    bus.set_input(0x03, 0x77);
-    cpu.step_instruction(&mut bus).unwrap();
-    assert_eq!(cpu.get_register(RegisterName::A), 0x77);
-    cpu.step_instruction(&mut bus).unwrap();
-    assert_eq!(bus.writes(), &[(0x04, 0x77)]);
+    for tact_steps in [false, true] {
+        for (input_port, output_port, value) in [(0x03, 0x04, 0xA5), (0x00, 0xFF, 0x5A)] {
+            let mut cpu = Cpu8080State::default();
+            put_program(&mut cpu, &[0xDB, input_port, 0xD3, output_port]);
+            let mut bus = NullBus::default();
+            bus.set_input(input_port, value);
+
+            for (opcode, port) in [(0xDB, input_port), (0xD3, output_port)] {
+                if tact_steps {
+                    for _ in 0..10 {
+                        cpu.step_tact(&mut bus).unwrap();
+                    }
+                } else {
+                    cpu.step_instruction(&mut bus).unwrap();
+                }
+                assert_eq!(
+                    (
+                        cpu.last_fetched_opcode,
+                        cpu.last_address_bus,
+                        cpu.last_data_bus_byte
+                    ),
+                    (opcode, u16::from_le_bytes([port, port]), value),
+                    "opcode={opcode:02X}, tact_steps={tact_steps}"
+                );
+                assert_eq!(cpu.get_register(RegisterName::A), value);
+            }
+            assert_eq!(bus.writes(), &[(output_port, value)]);
+            assert_eq!((cpu.pc, cpu.cycle_count), (4, 20));
+        }
+    }
 }
 
 #[test]
