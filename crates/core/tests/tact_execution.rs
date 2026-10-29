@@ -75,6 +75,39 @@ fn step_instruction_completes_active_tact_walk_once() {
 }
 
 #[test]
+fn interrupt_during_tact_walk_waits_for_the_next_instruction_boundary() {
+    for finish_instruction in [false, true] {
+        for split in 1..5 {
+            let mut cpu = Cpu8080State::default();
+            put_program(&mut cpu, &[0x3C]);
+            cpu.sp = 0x9000;
+            cpu.interrupt_enable = true;
+            let mut bus = NullBus::default();
+            step_tacts(&mut cpu, &mut bus, split);
+            cpu.request_interrupt(0xCF);
+            if finish_instruction {
+                cpu.step_instruction(&mut bus).unwrap();
+            } else {
+                step_tacts(&mut cpu, &mut bus, 5 - split);
+            }
+            assert_eq!(
+                (cpu.registers.a, cpu.pc, cpu.cycle_count, cpu.sp),
+                (1, 1, 5, 0x9000),
+                "split={split}, finish_instruction={finish_instruction}",
+            );
+            assert!(cpu.interrupt_request_pending);
+            let interrupt = cpu.step_instruction_metadata(&mut bus).unwrap();
+            assert!(interrupt.interrupt_accepted);
+            assert_eq!(interrupt.t_states, 11);
+            assert_eq!(
+                (cpu.pc, cpu.cycle_count, cpu.memory.read_word(cpu.sp)),
+                (8, 16, 1),
+            );
+        }
+    }
+}
+
+#[test]
 fn interrupt_tact_walk_matches_step_instruction() {
     let mut atomic = Cpu8080State::default();
     atomic.sp = 0x9000;
@@ -88,9 +121,12 @@ fn interrupt_tact_walk_matches_step_instruction() {
     walked.pc = 0x1234;
     walked.interrupt_enable = true;
     walked.request_interrupt(0xCF);
-    step_tacts(&mut walked, &mut NullBus::default(), 11);
+    step_tacts(&mut walked, &mut NullBus::default(), 4);
+    let mut restored = Cpu8080State::default();
+    restored.apply_metadata(walked.metadata());
+    step_tacts(&mut restored, &mut NullBus::default(), 7);
 
-    assert_eq!(walked, atomic);
+    assert_eq!(restored, atomic);
 }
 
 #[test]

@@ -13,8 +13,34 @@ impl Cpu8080State {
         bus: &mut B,
     ) -> Result<InstructionStep, CoreError> {
         if self.can_accept_interrupt() {
-            return self.accept_interrupt();
+            let vector = self
+                .interrupt_vector_byte
+                .take()
+                .expect("checked by can_accept_interrupt");
+            return self.execute_interrupt(vector);
         }
+        self.execute_program_instruction(bus)
+    }
+
+    pub(crate) fn complete_tact_walk<B: PortBus>(
+        &mut self,
+        bus: &mut B,
+    ) -> Result<InstructionStep, CoreError> {
+        if self.active_interrupt_ack {
+            let vector = self
+                .active_opcode
+                .expect("interrupt tact walks latch their vector");
+            self.interrupt_vector_byte = None;
+            self.execute_interrupt(vector)
+        } else {
+            self.execute_program_instruction(bus)
+        }
+    }
+
+    fn execute_program_instruction<B: PortBus>(
+        &mut self,
+        bus: &mut B,
+    ) -> Result<InstructionStep, CoreError> {
         if self.halted {
             return Ok(self.outcome(None, "HALTED", self.pc, 0, false));
         }
@@ -30,11 +56,7 @@ impl Cpu8080State {
         Ok(outcome)
     }
 
-    fn accept_interrupt(&mut self) -> Result<InstructionStep, CoreError> {
-        let vector = self
-            .interrupt_vector_byte
-            .take()
-            .expect("checked by can_accept_interrupt");
+    fn execute_interrupt(&mut self, vector: u8) -> Result<InstructionStep, CoreError> {
         if vector & 0xC7 != 0xC7 {
             return Err(DecodeError::InvalidInterruptVector(vector).into());
         }

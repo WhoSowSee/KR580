@@ -22,6 +22,7 @@ pub struct Cpu8080State<M = Memory64K> {
     pub(crate) active_tacts_remaining: u8,
     pub(crate) active_tacts_total: u8,
     pub(crate) active_opcode: Option<u8>,
+    pub(crate) active_interrupt_ack: bool,
     pub(crate) active_branch_taken: bool,
     /// Last opcode latched on M1, retained until the next M1 including after HLT.
     pub last_fetched_opcode: u8,
@@ -52,6 +53,7 @@ impl Default for Cpu8080State {
             active_tacts_remaining: 0,
             active_tacts_total: 0,
             active_opcode: None,
+            active_interrupt_ack: false,
             active_branch_taken: true,
             last_fetched_opcode: 0,
             last_data_bus_byte: 0,
@@ -113,6 +115,7 @@ impl Cpu8080State {
             active_tacts_remaining: self.active_tacts_remaining,
             active_tacts_total: self.active_tacts_total,
             active_opcode: self.active_opcode,
+            active_interrupt_ack: self.active_interrupt_ack,
             active_branch_taken: self.active_branch_taken,
             last_fetched_opcode: self.last_fetched_opcode,
             last_data_bus_byte: self.last_data_bus_byte,
@@ -136,6 +139,7 @@ impl Cpu8080State {
         self.active_tacts_remaining = metadata.active_tacts_remaining;
         self.active_tacts_total = metadata.active_tacts_total;
         self.active_opcode = metadata.active_opcode;
+        self.active_interrupt_ack = metadata.active_interrupt_ack;
         self.active_branch_taken = metadata.active_branch_taken;
         self.last_fetched_opcode = metadata.last_fetched_opcode;
         self.last_data_bus_byte = metadata.last_data_bus_byte;
@@ -230,7 +234,7 @@ impl Cpu8080State {
         if self.active_tacts_remaining > 0 {
             let remaining = self.active_tacts_remaining;
             let total = self.active_tacts_total;
-            let outcome = self.execute_instruction_boundary(bus)?;
+            let outcome = self.complete_tact_walk(bus)?;
             self.cycle_count += u64::from(remaining);
             if total > 0 {
                 self.last_completed_tact_phase = Some(total - 1);
@@ -251,6 +255,7 @@ impl Cpu8080State {
         self.active_tacts_remaining = 0;
         self.active_tacts_total = 0;
         self.active_opcode = None;
+        self.active_interrupt_ack = false;
         self.active_branch_taken = true;
         self.tact_phase = None;
     }

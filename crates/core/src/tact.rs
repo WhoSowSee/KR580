@@ -19,8 +19,8 @@ impl Cpu8080State {
 
         let boundary = self.active_tacts_remaining == 0;
         if boundary {
-            if self.active_opcode.is_some() || self.can_accept_interrupt() {
-                self.execute_instruction_boundary(bus)?;
+            if self.active_opcode.is_some() {
+                self.complete_tact_walk(bus)?;
             }
             self.clear_active_tact();
         } else {
@@ -39,6 +39,7 @@ impl Cpu8080State {
         self.active_tacts_total = setup.t_states;
         self.active_tacts_remaining = setup.t_states;
         self.active_opcode = setup.opcode;
+        self.active_interrupt_ack = self.can_accept_interrupt();
         self.active_branch_taken = setup.branch_taken;
         self.tact_phase = Some(0);
 

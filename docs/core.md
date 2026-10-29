@@ -22,6 +22,15 @@ instruction-boundary executor on the final T-state. This keeps
 `StepTact` faithful to the original emulator's one-tact control flow
 while preserving the stable `StepInstruction` / `Run` execution path.
 
+The walk latches whether it is executing a program instruction or an interrupt
+acknowledge, including the interrupt vector. An IRQ arriving between its T-states
+stays pending while the current instruction completes; it cannot replace that
+instruction or borrow its timing budget. This also applies when
+`step_instruction` or `step_instruction_metadata` finishes a partial walk.
+The next instruction boundary accepts an eligible IRQ with its separate 11T
+budget. `CpuMetadata` preserves the acknowledge latch when restoring a partial
+walk, so undo/restore cannot change the selected operation.
+
 ## Execution API
 
 `CpuMetadata` is the control/register/tact state without RAM. `metadata()` captures
