@@ -316,30 +316,48 @@ fn importers_round_trip_txt_and_xlsx() {
     cpu.memory.write(3, 0x10);
     cpu.cycle_count = 4242;
 
-    let model = ExportModel::from_cpu(&cpu);
     let dir = unique_temp_dir();
     std::fs::create_dir_all(&dir).unwrap();
     let txt = dir.join("state.txt");
     let xlsx = dir.join("state.xlsx");
 
-    Exporters::write_txt(&txt, &model).unwrap();
-    Exporters::write_xlsx(&xlsx, &model).unwrap();
+    for (start, end) in [(0, u16::MAX), (0, 3), (2, 2), (u16::MAX, u16::MAX)] {
+        let options = ExportOptions {
+            memory_start: start,
+            memory_end: end,
+            ..ExportOptions::default()
+        };
+        let model = ExportModel::from_cpu_with_options(&cpu, &options);
+        Exporters::write_txt(&txt, &model).unwrap();
+        Exporters::write_xlsx_with_options(&xlsx, &model, &options).unwrap();
 
-    let from_txt = Importers::read_txt(&txt).unwrap();
-    assert_eq!(from_txt, model);
-
-    let from_xlsx = Importers::read_xlsx(&xlsx).unwrap();
-    assert_eq!(from_xlsx, model);
-
-    let mut restored = Cpu8080State::default();
-    from_txt.apply_to(&mut restored).unwrap();
-    assert_eq!(restored.registers, cpu.registers);
-    assert_eq!(restored.flags, cpu.flags);
-    assert_eq!(restored.pc, cpu.pc);
-    assert_eq!(restored.sp, cpu.sp);
-    assert_eq!(restored.cycle_count, cpu.cycle_count);
-    assert_eq!(restored.memory.read(0), 0x76);
-    assert_eq!(restored.memory.read(3), 0x10);
+        for (format, imported) in [
+            ("txt", Importers::read_txt(&txt).unwrap()),
+            ("xlsx", Importers::read_xlsx(&xlsx).unwrap()),
+        ] {
+            assert_eq!(imported, model);
+            let mut restored = Cpu8080State::default();
+            restored.memory.as_mut_slice().fill(0xAA);
+            imported.apply_to(&mut restored).unwrap();
+            assert_eq!(restored.registers, cpu.registers);
+            assert_eq!(restored.flags, cpu.flags);
+            assert_eq!(restored.pc, cpu.pc);
+            assert_eq!(restored.sp, cpu.sp);
+            assert_eq!(restored.cycle_count, cpu.cycle_count);
+            for address in 0..=u16::MAX {
+                let expected = if (start..=end).contains(&address) {
+                    cpu.memory.read(address)
+                } else {
+                    0xAA
+                };
+                assert_eq!(
+                    restored.memory.read(address),
+                    expected,
+                    "{format}, range={start:04X}..={end:04X}, address={address:04X}"
+                );
+            }
+        }
+    }
 
     std::fs::remove_file(txt).ok();
     std::fs::remove_file(xlsx).ok();

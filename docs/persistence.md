@@ -93,6 +93,12 @@ ignores the comment column and, when section entries are present, writes
 each entry as `[Section name]` followed by its own `[Registers]`,
 `[Flags]`, and `[Memory]` block.
 
+Every address in the selected inclusive RAM range is exported, including `00`
+cells. With address and value columns included, importing that data into an
+existing session restores the complete range and preserves memory outside it.
+This applies to each XLSX page and TXT section. Older sparse files remain
+readable; addresses omitted from any imported file keep their current values.
+
 The UI exposes both export actions, and the internal `kr580` backend routes them through the same `ExportModel` built from core state.
 
 ## Imports

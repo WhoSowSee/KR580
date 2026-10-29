@@ -150,13 +150,12 @@ impl ExportTextSection {
 }
 
 impl ExportModel {
-    /// Memory is emitted sparsely – only non-zero cells. Importing
-    /// zero-fills any address not in the export, so the round-trip
-    /// stays exact.
+    /// Captures the default register and flag selections and all 64 KiB of memory.
     pub fn from_cpu(state: &Cpu8080State) -> Self {
         Self::from_cpu_with_options(state, &ExportOptions::default())
     }
 
+    /// Captures selected registers, flags, and the inclusive memory range, including zero cells.
     pub fn from_cpu_with_options(state: &Cpu8080State, options: &ExportOptions) -> Self {
         let registers = options
             .registers
@@ -170,10 +169,7 @@ impl ExportModel {
             .collect();
         let (start, end) = ordered_range(options.memory_start, options.memory_end);
         let memory = (start..=end)
-            .filter_map(|address| {
-                let value = state.memory.read(address);
-                (value != 0).then_some((address, value))
-            })
+            .map(|address| (address, state.memory.read(address)))
             .collect();
         Self {
             registers,
