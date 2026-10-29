@@ -214,11 +214,11 @@ impl Exporters {
 
     pub fn to_text_sections(sections: &[(String, ExportModel)]) -> String {
         let mut out = String::new();
-        for (index, (name, model)) in sections.iter().enumerate() {
+        let names = text_section_names(sections.iter().map(|(name, _)| name.as_str()));
+        for (index, ((_, model), name)) in sections.iter().zip(names).enumerate() {
             if index > 0 {
                 out.push('\n');
             }
-            let name = text_section_name(name, index);
             out.push_str(&format!("[{name}]\n"));
             out.push_str(&Self::to_text(model));
         }
@@ -263,13 +263,30 @@ fn command_for(value: u8) -> String {
         .unwrap_or_else(|_| "-".to_owned())
 }
 
-fn text_section_name(name: &str, index: usize) -> String {
-    let trimmed = name.trim();
-    if trimmed.is_empty() {
-        format!("Section {}", index + 1)
-    } else {
-        trimmed.to_owned()
-    }
+/// Normalizes TXT section names into unique, single-line headers.
+/// Reserved data-section names gain ` (section)`; duplicates gain numeric suffixes.
+/// Blank names use `Section N`; CR/LF become spaces and outer whitespace is trimmed.
+pub fn text_section_names<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    let mut used = std::collections::HashSet::new();
+    names
+        .into_iter()
+        .enumerate()
+        .map(|(index, name)| {
+            let name = name.trim().replace(['\r', '\n'], " ");
+            let base = match name.as_str() {
+                "" => format!("Section {}", index + 1),
+                "Memory" | "Registers" | "Flags" => format!("{name} (section)"),
+                _ => name,
+            };
+            let mut candidate = base.clone();
+            let mut suffix = 2;
+            while !used.insert(candidate.clone()) {
+                candidate = format!("{base} ({suffix})");
+                suffix += 1;
+            }
+            candidate
+        })
+        .collect()
 }
 
 pub(crate) fn hex8(value: u8) -> String {

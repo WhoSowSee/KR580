@@ -2,28 +2,38 @@ use super::*;
 
 #[test]
 fn text_tab_uses_separate_section_list_for_export_target() {
-    let (mut app, _task) = DesktopApp::with_initial_path(None);
-    app.apply_language(Lang::Ru);
-    app.open_export_modal();
+    for (typed, name) in [
+        ("Раздел X", "Раздел X"),
+        ("Memory", "Memory (section)"),
+        ("Line\nName", "Line Name"),
+    ] {
+        let (mut app, _task) = DesktopApp::with_initial_path(None);
+        app.apply_language(Lang::Ru);
+        app.open_export_modal();
 
-    let _task = app.update(Message::ExportTabSelected(ExportTab::Text));
-    let _task = app.update(Message::ExportTargetChanged("Раздел X".to_owned()));
-    let _task = app.update(Message::ExportTargetAdd);
+        let _task = app.update(Message::ExportTabSelected(ExportTab::Text));
+        let _task = app.update(Message::ExportTargetChanged(typed.to_owned()));
+        assert_eq!(
+            app.export_options().text_sections.last().unwrap().name,
+            name
+        );
+        let _task = app.update(Message::ExportTargetAdd);
 
-    assert_eq!(app.export_target_input(), "Раздел X");
-    assert!(
-        app.export
-            .export_text_sections
-            .iter()
-            .any(|target| target.name == "Раздел X")
-    );
-    assert!(
-        !app.export
-            .export_xlsx_pages
-            .iter()
-            .any(|target| target.name == "Раздел X")
-    );
-    assert!(!app.export.export_target_dropdown.is_open());
+        assert_eq!(app.export_target_input(), name);
+        assert!(
+            app.export
+                .export_text_sections
+                .iter()
+                .any(|target| target.name == name)
+        );
+        assert!(
+            !app.export
+                .export_xlsx_pages
+                .iter()
+                .any(|target| target.name == name)
+        );
+        assert!(!app.export.export_target_dropdown.is_open());
+    }
 }
 
 #[test]

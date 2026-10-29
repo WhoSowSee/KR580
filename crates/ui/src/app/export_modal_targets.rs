@@ -1,6 +1,7 @@
 use super::export_modal_state::parse_hex_u16_or;
 use super::{DesktopApp, ExportModalFocus, ExportTab, ExportTarget, ExportTargetSettings};
 use crate::i18n::Key;
+use crate::persistence::export::text_section_names;
 use crate::persistence::{ExportTextSection, ExportXlsxPage};
 
 impl DesktopApp {
@@ -72,7 +73,7 @@ impl DesktopApp {
         self.sync_current_export_target_settings();
         let was_open = self.export.export_target_dropdown.is_open();
         let typed = self.export_target_input().trim().to_owned();
-        let name = if typed.is_empty()
+        let mut name = if typed.is_empty()
             || self
                 .export_target_options()
                 .iter()
@@ -82,6 +83,16 @@ impl DesktopApp {
         } else {
             typed
         };
+        if self.export.export_tab == ExportTab::Text {
+            name = text_section_names(
+                self.export_target_options()
+                    .iter()
+                    .map(|target| target.name.as_str())
+                    .chain(std::iter::once(name.as_str())),
+            )
+            .pop()
+            .expect("the appended text target always has a normalized name");
+        }
         let target = ExportTarget {
             name: name.clone(),
             settings: self.current_export_target_settings(),
@@ -229,6 +240,10 @@ impl DesktopApp {
                 .any(|target| target.name.trim() == current)
         {
             sections.push(text_section_from_settings(current.to_owned(), &settings));
+        }
+        let names = text_section_names(sections.iter().map(|section| section.name.as_str()));
+        for (section, name) in sections.iter_mut().zip(names) {
+            section.name = name;
         }
         sections
     }

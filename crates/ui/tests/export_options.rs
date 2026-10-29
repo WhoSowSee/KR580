@@ -211,38 +211,40 @@ fn xlsx_sheet_names_and_selected_sheet_import_are_available() {
 
 #[test]
 fn txt_section_names_and_selected_section_import_are_available() {
-    let first = ExportModel {
-        registers: Vec::new(),
-        flags: Vec::new(),
-        memory: vec![(0x0100, 0xAA)],
-    };
-    let second = ExportModel {
-        registers: Vec::new(),
-        flags: Vec::new(),
-        memory: vec![(0x0200, 0xBB)],
-    };
+    let cases = [
+        ("Memory", "Memory (section)"),
+        ("Registers", "Registers (section)"),
+        ("Flags", "Flags (section)"),
+        ("Раздел 2", "Раздел 2"),
+        (" \r\nLine\r\n[Injected]\n ", "Line  [Injected]"),
+        ("Memory (section)", "Memory (section) (2)"),
+        ("  ", "Section 7"),
+        ("Section 7", "Section 7 (2)"),
+    ];
+    let sections: Vec<_> = cases
+        .iter()
+        .enumerate()
+        .map(|(index, (name, _))| {
+            (
+                name.to_string(),
+                ExportModel {
+                    registers: Vec::new(),
+                    flags: Vec::new(),
+                    memory: vec![(0x0100 + index as u16, 0xA0 + index as u8)],
+                },
+            )
+        })
+        .collect();
     let dir = unique_temp_dir();
     std::fs::create_dir_all(&dir).unwrap();
     let txt = dir.join("sections.txt");
-    std::fs::write(
-        &txt,
-        Exporters::to_text_sections(&[
-            ("Раздел 1".to_owned(), first),
-            ("Раздел 2".to_owned(), second),
-        ]),
-    )
-    .unwrap();
+    Exporters::write_txt_sections(&txt, &sections).unwrap();
 
-    assert_eq!(
-        Importers::txt_section_names(&txt).unwrap(),
-        vec!["Раздел 1", "Раздел 2"]
-    );
-    assert_eq!(
-        Importers::read_txt_section(&txt, "Раздел 2")
-            .unwrap()
-            .memory,
-        vec![(0x0200, 0xBB)]
-    );
+    let names = Importers::txt_section_names(&txt).unwrap();
+    assert_eq!(names, cases.map(|(_, expected)| expected));
+    for (name, (_, expected)) in names.iter().zip(&sections) {
+        assert_eq!(Importers::read_txt_section(&txt, name).unwrap(), *expected);
+    }
 
     std::fs::remove_file(txt).ok();
     std::fs::remove_dir(dir).ok();

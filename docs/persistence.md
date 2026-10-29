@@ -93,6 +93,13 @@ ignores the comment column and, when section entries are present, writes
 each entry as `[Section name]` followed by its own `[Registers]`,
 `[Flags]`, and `[Memory]` block.
 
+The UI and TXT exporter share `persistence::export::text_section_names`: names are trimmed,
+each CR/LF character becomes a space, and the reserved names `Memory`,
+`Registers`, and `Flags` gain ` (section)`. Blank names use `Section N`.
+Names that coincide after normalization gain numeric suffixes starting at
+` (2)`, so every section remains selectable on import. Ordinary names and
+the TXT header syntax stay compatible with existing files.
+
 Every address in the selected inclusive RAM range is exported, including `00`
 cells. With address and value columns included, importing that data into an
 existing session restores the complete range and preserves memory outside it.
