@@ -115,6 +115,18 @@ UI localization. `backend/error/` separates data, categories and conversions.
 
 ## Runtime shape
 
+Application exit is coordinated by `app/shutdown.rs` through
+`ShellState.shutdown`. UI-owned file work and request completions finish before
+the shell sends `Shutdown`. `backend/actor/shutdown.rs` places a FIFO barrier on
+the persistence worker and applies its preceding completions;
+`backend/emulator/shutdown.rs` then joins storage and printer work before
+acknowledging exit. A successful explicit shutdown returns immediately after its
+receipt; the post-loop drain is reserved for channel disconnection. Device
+workers remain owned until completion, with finished
+handles harvested by `devices/workers.rs`. Main-window destruction and
+`iced::exit()` follow the successful receipt. A final write error leaves the UI
+and actor available instead of reporting a successful close.
+
 `DesktopApp` composes document, memory/register editor, interaction, execution,
 export/import dialog, preferences, printer setup, device panels, shell and
 backend-request states from `app/state/`. It coordinates their effects while

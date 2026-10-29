@@ -5,6 +5,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+mod shutdown;
+
 pub struct EmulatorHandle {
     command_tx: Sender<AppCommand>,
     event_rx: Receiver<AppEvent>,
@@ -207,37 +209,51 @@ fn run_worker(
         select! {
             recv(command_rx) -> command => {
                 let Ok(command) = command else { break };
-                let shutdown = matches!(&command, AppCommand::Shutdown);
-                if let AppCommand::Request { id, command } = command {
-                    if let Some(events) = emulator.start_io_request(id, &command, &io_worker) {
-                        for event in events {
-                            publish(&event_tx, &critical_tx, &state_mailbox, event);
+                let (id, inner) = match &command {
+                    AppCommand::Request { id, command } => (*id, command.as_ref()),
+                    command => (crate::backend::RequestId(0), command),
+                };
+                let shutdown = matches!(inner, AppCommand::Shutdown);
+                if shutdown {
+                    let events = match shutdown::drain_pending(&mut emulator, &io_worker, &io_rx) {
+                        Ok(events) => events,
+                        Err(error) => {
+                            publish(
+                                &event_tx, &critical_tx, &state_mailbox,
+                                AppEvent::ErrorRaised(error.clone()),
+                            );
+                            if let AppCommand::Request { id, .. } = &command {
+                                publish(
+                                    &event_tx, &critical_tx, &state_mailbox,
+                                    AppEvent::CommandFinished { id: *id, result: Err(error) },
+                                );
+                            }
+                            continue;
                         }
-                        next_run_at = schedule_run_tick(&emulator);
-                        continue;
-                    }
-                    for event in emulator.handle_command(AppCommand::Request { id, command }) {
-                        if matches!(event, AppEvent::StateChanged(_)) {
-                            published_network = network_revision;
-                        }
-                        publish(&event_tx, &critical_tx, &state_mailbox, event);
-                    }
-                } else {
-                    if let Some(events) = emulator.start_io_request(crate::backend::RequestId(0), &command, &io_worker) {
-                        for event in events { publish(&event_tx, &critical_tx, &state_mailbox, event); }
-                        next_run_at = schedule_run_tick(&emulator);
-                        continue;
-                    }
-                    for event in emulator.handle_command(command) {
-                        if matches!(event, AppEvent::StateChanged(_)) {
-                            published_network = network_revision;
-                        }
+                    };
+                    for event in events {
                         publish(&event_tx, &critical_tx, &state_mailbox, event);
                     }
                 }
+                if let Some(events) = emulator.start_io_request(id, inner, &io_worker) {
+                    for event in events {
+                        publish(&event_tx, &critical_tx, &state_mailbox, event);
+                    }
+                    next_run_at = schedule_run_tick(&emulator);
+                    continue;
+                }
+                let events = emulator.handle_command(command);
+                let succeeded = !events.iter()
+                    .any(|event| matches!(event, AppEvent::ErrorRaised(_)));
+                for event in events {
+                    if matches!(event, AppEvent::StateChanged(_)) {
+                        published_network = network_revision;
+                    }
+                    publish(&event_tx, &critical_tx, &state_mailbox, event);
+                }
                 next_run_at = schedule_run_tick(&emulator);
-                if shutdown {
-                    break;
+                if shutdown && succeeded {
+                    return;
                 }
             }
             recv(run_tick) -> _ => {
@@ -270,6 +286,27 @@ fn run_worker(
                 next_run_at = schedule_run_tick(&emulator);
             }
         }
+    }
+    match shutdown::drain_pending(&mut emulator, &io_worker, &io_rx) {
+        Ok(events) => {
+            for event in events {
+                publish(&event_tx, &critical_tx, &state_mailbox, event);
+            }
+        }
+        Err(error) => publish(
+            &event_tx,
+            &critical_tx,
+            &state_mailbox,
+            AppEvent::ErrorRaised(error),
+        ),
+    }
+    if let Err(error) = emulator.shutdown_devices() {
+        publish(
+            &event_tx,
+            &critical_tx,
+            &state_mailbox,
+            AppEvent::ErrorRaised(error),
+        );
     }
 }
 

@@ -52,6 +52,9 @@ impl DesktopApp {
                 }
             }
             AppEvent::ErrorRaised(error) => {
+                if self.shell.shutdown == crate::app::shutdown::ShutdownState::Draining {
+                    self.shell.shutdown = crate::app::shutdown::ShutdownState::Idle;
+                }
                 self.execution.running = false;
                 self.execution.pending_follow_pc = true;
                 tracing::error!(%error, "backend command failed");
@@ -70,6 +73,10 @@ impl DesktopApp {
                 self.set_status(StatusKind::Stopped);
             }
             AppEvent::WorkerStopped => {
+                if self.shell.shutdown == crate::app::shutdown::ShutdownState::Ready {
+                    return;
+                }
+                self.shell.shutdown = crate::app::shutdown::ShutdownState::Ready;
                 for id in self
                     .requests
                     .pending_requests
@@ -215,6 +222,9 @@ impl DesktopApp {
             return;
         };
         match pending {
+            PendingRequest::Command {
+                action: crate::app::BackendAction::Shutdown,
+            } => self.shell.shutdown = crate::app::shutdown::ShutdownState::Idle,
             PendingRequest::LoadSubprogram { dialog, .. } => {
                 self.shell.error_notice_dismiss_at = None;
                 self.restore_subprogram_error_text(dialog, error.to_string());

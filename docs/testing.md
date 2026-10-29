@@ -196,6 +196,21 @@ cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
 ```
 
+Confirmed-shutdown regressions park device tasks on a current-thread runtime,
+enqueue a full 64 KiB for both storage devices plus a printer export, and assert
+exact file contents after their shared `Shutdown` receipt. They also cover close/reattach,
+write failure without skipping other devices, preceding persistence jobs and
+actor termination. UI tests hold a real file job behind a channel and verify
+that close waits, rejects new work, preserves the dirty gate, and stays open on
+file/flush errors. Success and file failure share one parameterized UI test;
+backend flush failure remains a separate case. These tests use completion
+signals rather than fixed sleeps.
+
+```sh
+cargo test --locked -p kr580 --lib shutdown -j 1
+cargo test --locked -p kr580 --bin kr580 app::shutdown::tests -j 1
+```
+
 `cargo test -p kr580 --test persistence_formats` checks desktop `.580`
 save/load byte layout, independent PC/SP fixtures, and invalid file rejection.
 `cargo test -p kr580 --test program_registers` checks all nine register slots

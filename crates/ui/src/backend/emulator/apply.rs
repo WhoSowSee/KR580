@@ -268,6 +268,7 @@ impl Emulator {
             }
             AppCommand::Shutdown => {
                 self.running = false;
+                self.shutdown_devices()?;
                 events.push(AppEvent::Stopped);
             }
         }

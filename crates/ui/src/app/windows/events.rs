@@ -62,7 +62,7 @@ impl DesktopApp {
         });
         Task::batch(close_windows)
             .chain(close_setup)
-            .chain(iced::exit())
+            .chain(self.request_shutdown())
     }
 
     pub(super) fn window_close_requested(&mut self, id: window::Id) -> Task<Message> {
@@ -81,11 +81,14 @@ impl DesktopApp {
         if self.shell.main_window_id != Some(id) {
             return Task::none();
         }
+        if self.shell.shutdown != super::super::shutdown::ShutdownState::Idle {
+            return self.request_shutdown();
+        }
         if self.document.dirty {
             self.open_discard_modal(PendingAction::CloseWindow);
             Task::none()
         } else {
-            window::close(id)
+            self.request_shutdown()
         }
     }
 

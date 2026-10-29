@@ -5,6 +5,10 @@ impl DesktopApp {
     pub(super) fn finish_backend_action(&mut self, action: BackendAction) {
         let task = match action {
             BackendAction::None => return,
+            BackendAction::Shutdown => {
+                self.shell.shutdown = crate::app::shutdown::ShutdownState::Ready;
+                Task::done(crate::app::Message::WindowClose)
+            }
             BackendAction::Instruction => self.follow_pc_after_execution_boundary(),
             BackendAction::KeepCursor => {
                 self.execution.pending_follow_pc = false;

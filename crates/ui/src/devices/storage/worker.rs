@@ -8,7 +8,7 @@ pub(super) async fn write_file(
     file: std::fs::File,
     mut commands: mpsc::Receiver<StorageCommand>,
     errors: mpsc::Sender<DeviceError>,
-) {
+) -> Result<(), DeviceError> {
     let result = async {
         let mut file = Some(BufWriter::new(tokio::fs::File::from_std(file)));
         let mut batch = Vec::with_capacity(4096);
@@ -32,10 +32,12 @@ pub(super) async fn write_file(
         }
         flush(&mut file, &mut bytes).await
     }
-    .await;
-    if let Err(error) = result {
-        let _ = errors.try_send(DeviceError::from(error));
+    .await
+    .map_err(DeviceError::from);
+    if let Err(error) = &result {
+        let _ = errors.try_send(error.clone());
     }
+    result
 }
 
 async fn flush(file: &mut Option<Output>, bytes: &mut Vec<u8>) -> std::io::Result<()> {

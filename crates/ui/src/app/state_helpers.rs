@@ -58,6 +58,9 @@ impl DesktopApp {
     }
 
     pub(crate) fn show_error_notice(&mut self, message: impl Into<String>) {
+        if self.shell.shutdown == super::shutdown::ShutdownState::Draining {
+            self.shell.shutdown = super::shutdown::ShutdownState::Idle;
+        }
         self.shell.error_notice = Some(message.into());
         self.shell.error_notice_dismiss_at = Some(Instant::now() + Duration::from_secs(8));
     }

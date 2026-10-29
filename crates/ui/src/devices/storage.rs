@@ -39,6 +39,8 @@ pub struct StorageDevice {
     visible: VecDeque<u8>,
     tx: Option<mpsc::Sender<StorageCommand>>,
     error_rx: Option<mpsc::Receiver<DeviceError>>,
+    workers: Vec<tokio::task::JoinHandle<Result<(), DeviceError>>>,
+    shutdown_error: Option<DeviceError>,
 }
 
 #[derive(Debug)]
@@ -67,6 +69,8 @@ impl StorageDevice {
             visible: VecDeque::new(),
             tx: None,
             error_rx: None,
+            workers: Vec::new(),
+            shutdown_error: None,
         }
     }
 
@@ -95,7 +99,8 @@ impl StorageDevice {
         } else {
             let (tx, rx) = mpsc::channel(QUEUE_CAP + CONTROL_RESERVE);
             let (error_tx, error_rx) = mpsc::channel(1);
-            handle.spawn(worker::write_file(file, rx, error_tx));
+            self.workers
+                .push(handle.spawn(worker::write_file(file, rx, error_tx)));
             self.tx = Some(tx);
             self.error_rx = Some(error_rx);
         }
@@ -184,6 +189,14 @@ impl StorageDevice {
     }
 
     pub fn poll(&mut self) -> bool {
+        for result in super::workers::completed(&mut self.workers) {
+            let result = result
+                .map_err(|error| DeviceError::Io(error.to_string()))
+                .and_then(|result| result);
+            if let Err(error) = result {
+                self.shutdown_error.get_or_insert(error);
+            }
+        }
         let Some(error_rx) = self.error_rx.as_mut() else {
             return false;
         };
@@ -211,11 +224,37 @@ impl StorageDevice {
         self.finish_enqueue(result)
     }
 
+    /// Closes admission; call [`Self::shutdown`] to await accepted writes and flush errors.
     pub fn close(&mut self) -> Result<(), DeviceError> {
         self.tx = None;
         self.state.status = DeviceStatus::NotReady;
         self.state.worker_alive = false;
         Ok(())
+    }
+
+    /// Closes admission and waits for every accepted file write to be flushed.
+    ///
+    /// The runtime supplied at attachment must keep running until this completes.
+    ///
+    /// # Errors
+    /// Returns the first writer or task failure after all writers have completed.
+    pub async fn shutdown(&mut self) -> Result<(), DeviceError> {
+        self.close()?;
+        let mut result = self.shutdown_error.take().map_or(Ok(()), Err);
+        for worker in std::mem::take(&mut self.workers) {
+            let completed = worker
+                .await
+                .map_err(|error| DeviceError::Io(error.to_string()))
+                .and_then(|result| result);
+            if result.is_ok() {
+                result = completed;
+            }
+        }
+        if let Err(error) = &result {
+            self.state.status = DeviceStatus::Error(error.to_string());
+            self.state.last_error = Some(error.to_string());
+        }
+        result
     }
 
     pub fn input_byte(&self) -> u8 {

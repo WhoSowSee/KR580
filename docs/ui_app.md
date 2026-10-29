@@ -43,6 +43,23 @@ same pink-border, eight-second error notice used for runtime file errors.
 `.580` loads through the normal snapshot path, while `.krs` opens the existing
 RAM-range dialog. Detached device windows do not accept program drops.
 
+## Confirmed application exit
+
+`app/shutdown.rs` owns `ShellState.shutdown`: `Idle`, `Draining`, `Pending`, and
+`Ready`. Main-window close and updater restart retain the existing unsaved-change
+confirmation, then stop execution and enter `Draining`. New editing/device work
+is rejected while the UI continues delivering completions and window events.
+Periodic ticks do not start new previews during shutdown.
+
+The shell first waits for accepted UI file work, backend requests and a pending
+file-association change. It then sends a correlated `Shutdown` with
+`BackendAction::Shutdown`. Only a successful receipt moves it to `Ready` and
+allows the main window to close and `iced::exit()` to run. The normal actor-stop
+notification after that receipt is expected. File-work or final device-flush
+errors cancel exit and use the existing error notice while the main window stays
+open; the user can inspect/export retained buffers and request close again.
+`WindowClosed` also enters this protocol if the main window has already closed.
+
 ## UI module split
 
 - `main.rs` initializes tracing, starts the iced daemon, and sets the

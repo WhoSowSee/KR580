@@ -4,7 +4,12 @@ use crate::backend::{AppError, RequestId};
 use crossbeam_channel::{Sender, TrySendError, bounded};
 
 pub(crate) struct IoWorker {
-    sender: Sender<(RequestId, IoGeneration, IoJob)>,
+    sender: Sender<Work>,
+}
+
+enum Work {
+    Request(Box<(RequestId, IoGeneration, IoJob)>),
+    Barrier(Sender<()>),
 }
 
 impl IoWorker {
@@ -13,7 +18,14 @@ impl IoWorker {
         std::thread::Builder::new()
             .name("kr580-persistence".into())
             .spawn(move || {
-                for (id, generation, job) in receiver {
+                for work in receiver {
+                    let (id, generation, job) = match work {
+                        Work::Request(request) => *request,
+                        Work::Barrier(done) => {
+                            let _ = done.send(());
+                            continue;
+                        }
+                    };
                     let result =
                         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(job)))
                             .unwrap_or_else(|_| {
@@ -34,6 +46,14 @@ impl IoWorker {
         Ok(Self { sender })
     }
 
+    pub(crate) fn finish_pending(&self) -> Result<(), AppError> {
+        let (done, waiting) = bounded(0);
+        self.sender
+            .send(Work::Barrier(done))
+            .map_err(|_| AppError::WorkerStopped)?;
+        waiting.recv().map_err(|_| AppError::WorkerStopped)
+    }
+
     pub(super) fn enqueue(
         &self,
         id: RequestId,
@@ -41,7 +61,7 @@ impl IoWorker {
         job: IoJob,
     ) -> Result<(), AppError> {
         self.sender
-            .try_send((id, generation, job))
+            .try_send(Work::Request(Box::new((id, generation, job))))
             .map_err(|error| match error {
                 TrySendError::Full(_) => crate::devices::DeviceError::Busy.into(),
                 TrySendError::Disconnected(_) => AppError::WorkerStopped,

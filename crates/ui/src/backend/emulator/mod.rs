@@ -3,6 +3,7 @@ mod changes;
 mod devices;
 mod export_model;
 pub(crate) mod io;
+mod shutdown;
 mod tick;
 
 use crate::backend::{AppCommand, AppError, AppEvent, AppSnapshot, RunMode};

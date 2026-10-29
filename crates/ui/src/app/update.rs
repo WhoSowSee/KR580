@@ -13,13 +13,16 @@ impl DesktopApp {
             self.pull_events();
         }
         self.shell.updates.tick(std::time::Instant::now());
-        let task = if let Some(task) = self.update_release_message(&message) {
+        let task = if !self.accepts_shutdown_message(&message) {
+            Task::none()
+        } else if let Some(task) = self.update_release_message(&message) {
             task
         } else if matches!(message, Message::FileWorkReady) {
             Task::none()
         } else {
             self.update_inner(message)
         };
+        self.advance_shutdown();
         Task::batch(std::iter::once(task).chain(std::mem::take(&mut self.requests.tasks)))
     }
 }

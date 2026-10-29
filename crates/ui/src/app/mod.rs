@@ -32,6 +32,7 @@ mod register_inline;
 pub(crate) mod settings_modal;
 mod settings_notice;
 pub(crate) mod shortcuts;
+pub(crate) mod shutdown;
 mod speed;
 mod state;
 mod state_helpers;

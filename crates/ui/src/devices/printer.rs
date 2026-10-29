@@ -127,6 +127,8 @@ pub struct PrinterDevice {
     tx: Option<mpsc::Sender<Vec<u8>>>,
     completion_tx: mpsc::Sender<PrintCompletion>,
     completion_rx: mpsc::Receiver<PrintCompletion>,
+    workers: Vec<tokio::task::JoinHandle<()>>,
+    shutdown_error: Option<DeviceError>,
 }
 
 #[derive(Debug)]
@@ -148,6 +150,8 @@ impl Default for PrinterDevice {
             tx: None,
             completion_tx,
             completion_rx,
+            workers: Vec::new(),
+            shutdown_error: None,
         }
     }
 }
@@ -167,11 +171,11 @@ impl PrinterDevice {
     pub fn attach_export_path(&mut self, path: impl AsRef<Path>, handle: &tokio::runtime::Handle) {
         let path = path.as_ref().to_path_buf();
         let (tx, rx) = mpsc::channel(1);
-        handle.spawn(export::write_spools(
+        self.workers.push(handle.spawn(export::write_spools(
             path.clone(),
             rx,
             self.completion_tx.clone(),
-        ));
+        )));
         self.state.target_path = Some(path);
         self.tx = Some(tx);
     }
@@ -203,11 +207,31 @@ impl PrinterDevice {
         let completion_tx = self.completion_tx.clone();
         self.state.status = DeviceStatus::Busy;
         self.state.last_error = None;
-        handle.spawn_blocking(move || {
+        self.workers.push(handle.spawn_blocking(move || {
             let result = native::print(settings.as_ref(), &spool);
             let _ = completion_tx.try_send(PrintCompletion { result });
-        });
+        }));
         Ok(())
+    }
+
+    pub(crate) async fn shutdown(&mut self) -> Result<(), DeviceError> {
+        self.tx = None;
+        let workers = std::mem::take(&mut self.workers);
+        let mut result = self.shutdown_error.take().map_or(Ok(()), Err);
+        for worker in workers {
+            if let Err(error) = worker.await
+                && result.is_ok()
+            {
+                result = Err(DeviceError::Io(error.to_string()));
+            }
+        }
+        self.poll();
+        if let Some(error) = self.shutdown_error.take()
+            && result.is_ok()
+        {
+            result = Err(error);
+        }
+        result
     }
 
     pub fn poll(&mut self) -> bool {
@@ -225,9 +249,20 @@ impl PrinterDevice {
                     self.state.last_error = None;
                 }
                 Err(native::PrintFailure::Failed(error)) => {
+                    self.shutdown_error
+                        .get_or_insert_with(|| DeviceError::Io(error.clone()));
                     self.state.status = DeviceStatus::Error(error.clone());
                     self.state.last_error = Some(error);
                 }
+            }
+        }
+        for result in super::workers::completed(&mut self.workers) {
+            if let Err(error) = result {
+                changed = true;
+                self.shutdown_error
+                    .get_or_insert_with(|| DeviceError::Io(error.to_string()));
+                self.state.status = DeviceStatus::Error(error.to_string());
+                self.state.last_error = Some(error.to_string());
             }
         }
         changed

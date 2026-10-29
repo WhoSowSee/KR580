@@ -7,6 +7,7 @@ pub mod printer;
 mod queue;
 pub mod status;
 pub mod storage;
+mod workers;
 
 pub use error::DeviceError;
 pub use iobus::{DeviceSnapshot, IoBus};

@@ -79,10 +79,7 @@ impl DesktopApp {
                 .main_window_id
                 .map_or_else(Task::none, |id| window::minimize(id, true)),
             Message::WindowToggleMaximize => self.toggle_main_window_maximized(),
-            Message::WindowClose => self
-                .shell
-                .main_window_id
-                .map_or_else(Task::none, window::close),
+            Message::WindowClose => self.request_shutdown(),
             Message::WindowMaximizedChanged(maximized) => {
                 self.shell.window_maximized = *maximized;
                 Task::none()

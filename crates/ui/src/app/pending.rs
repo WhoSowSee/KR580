@@ -11,6 +11,7 @@ pub(crate) enum UndoPolicy {
 
 pub(crate) enum BackendAction {
     None,
+    Shutdown,
     Instruction,
     KeepCursor,
     Tact,

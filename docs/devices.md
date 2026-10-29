@@ -80,6 +80,27 @@ Both modes share the meta strip (phase, text cursor, pixel count, last command) 
 
 ## Storage inspection windows
 
+### Confirmed shutdown
+
+`StorageDevice::close()` closes admission without waiting. Call the additive
+`shutdown().await` API while its Tokio runtime is alive to wait for every accepted
+write and the final flush. Devices retain ownership of current and retired
+writers across close/reattach. Completed handles are collected during polling;
+writer failures remain available to shutdown rather than disappearing with a
+finished task. Shutdown reports the first failure after all writers have joined.
+Flush completion confirms host-file writes, not resilience to a power failure.
+
+Backend `Shutdown` drains preceding persistence jobs before closing devices. It
+waits for both storage devices and accepted printer exports/native print jobs,
+even when one device fails, and only then completes the matching request. A
+failure is returned through `ErrorRaised` and `CommandFinished(Err)`; the actor
+stays available. A later explicit close can acknowledge that reported failure.
+Cancelling a native print dialog remains a successful cancellation.
+
+Dropping a device or its runtime is not a substitute for confirmed shutdown.
+The desktop waits for this protocol before exiting; library callers must also
+keep the runtime alive until their explicit shutdown completes.
+
 `StorageKind::{Floppy,Hdd}` selects an inspection device explicitly in UI image
 operations; callers no longer encode the device with a positional boolean.
 

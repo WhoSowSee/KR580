@@ -89,7 +89,6 @@ impl FileWorker {
         Some(completion)
     }
 
-    #[cfg(test)]
     pub(crate) fn pending(&self) -> usize {
         self.pending
     }
