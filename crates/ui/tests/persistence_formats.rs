@@ -100,11 +100,14 @@ fn program_load_rejects_oversized_file() {
     let dir = std::env::temp_dir().join(format!("k580-prg-big-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("big.580");
-    let big = vec![0u8; LEGACY_LENGTH + 1];
-    std::fs::write(&path, big).unwrap();
-
-    let err = ProgramSerializer::load_file(&path).unwrap_err();
-    assert!(matches!(err, ProgramError::WrongSize { .. }));
+    for length in [LEGACY_LENGTH + 1, 8 * 1024 * 1024] {
+        std::fs::File::create(&path)
+            .unwrap()
+            .set_len(length as u64)
+            .unwrap();
+        let err = ProgramSerializer::load_file(&path).unwrap_err();
+        assert!(matches!(err, ProgramError::WrongSize { size } if size == length));
+    }
 
     std::fs::remove_file(&path).ok();
     std::fs::remove_dir(dir).ok();

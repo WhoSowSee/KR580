@@ -1,4 +1,4 @@
-use k580_core::Cpu8080State;
+use k580_core::{Cpu8080State, Memory64K};
 use std::path::Path;
 use thiserror::Error;
 
@@ -28,6 +28,7 @@ impl SubprogramSerializer {
             .is_some_and(|extension| extension.eq_ignore_ascii_case("krs"))
     }
 
+    /// Loads a raw slice at `start`, returning its inclusive end without partial CPU changes on error.
     pub fn load_into_state(
         path: impl AsRef<Path>,
         start: u16,
@@ -45,7 +46,13 @@ impl SubprogramSerializer {
 
     pub(crate) fn read_block(path: &Path, start: u16) -> Result<(Vec<u8>, u16), SubprogramError> {
         validate_path(path)?;
-        let bytes = std::fs::read(path)?;
+        let file = std::fs::File::open(path)?;
+        let max_length = Memory64K::SIZE - usize::from(start);
+        let length = file.metadata()?.len();
+        if length > max_length as u64 {
+            return Err(SubprogramError::MemoryOverflow { start, length });
+        }
+        let bytes = super::bounded_read::read(file, max_length)?;
         let end = checked_load_end(start, bytes.len() as u64)?;
         Ok((bytes, end))
     }
@@ -87,7 +94,7 @@ fn validate_path(path: &Path) -> Result<(), SubprogramError> {
 #[cfg(test)]
 mod tests {
     use super::{SubprogramError, SubprogramSerializer};
-    use k580_core::Cpu8080State;
+    use k580_core::{Cpu8080State, Memory64K};
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -102,34 +109,38 @@ mod tests {
     #[test]
     fn loads_raw_bytes_at_requested_address() {
         let path = temp_path("subprogram-load", "krs");
-        fs::write(&path, [0x3E, 0x42, 0x76]).unwrap();
-        let mut state = Cpu8080State::default();
-
-        let end = SubprogramSerializer::load_into_state(&path, 0x0100, &mut state).unwrap();
-        assert_eq!(end, 0x0102);
-
-        assert_eq!(
-            &state.memory.as_slice()[0x0100..=0x0102],
-            &[0x3E, 0x42, 0x76]
-        );
+        for (start, bytes) in [
+            (0x0100, vec![0x3E, 0x42, 0x76]),
+            (0xFFFF, vec![0x76]),
+            (0, vec![0xA5; Memory64K::SIZE]),
+        ] {
+            fs::write(&path, &bytes).unwrap();
+            let mut state = Cpu8080State::default();
+            let end = SubprogramSerializer::load_into_state(&path, start, &mut state).unwrap();
+            assert_eq!(usize::from(end), usize::from(start) + bytes.len() - 1);
+            assert_eq!(
+                &state.memory.as_slice()[usize::from(start)..=usize::from(end)],
+                bytes
+            );
+        }
         fs::remove_file(path).unwrap();
     }
 
     #[test]
     fn rejects_subprogram_that_overflows_memory() {
         let path = temp_path("subprogram-overflow", "krs");
-        fs::write(&path, [0x00, 0x01]).unwrap();
-        let mut state = Cpu8080State::default();
-
-        let error = SubprogramSerializer::load_into_state(&path, 0xFFFF, &mut state).unwrap_err();
-
-        assert!(matches!(
-            error,
-            SubprogramError::MemoryOverflow {
-                start: 0xFFFF,
-                length: 2
-            }
-        ));
+        for (start, length) in [(0xFFFF, 2), (0, 65_537), (0x0100, 8 * 1024 * 1024)] {
+            fs::File::create(&path).unwrap().set_len(length).unwrap();
+            let mut state = Cpu8080State::default();
+            state.memory.as_mut_slice().fill(0xAA);
+            let before = state.clone();
+            let error =
+                SubprogramSerializer::load_into_state(&path, start, &mut state).unwrap_err();
+            assert!(
+                matches!(error, SubprogramError::MemoryOverflow { start: error_start, length: error_length } if error_start == start && error_length == length)
+            );
+            assert_eq!(state, before);
+        }
         fs::remove_file(path).unwrap();
     }
 

@@ -27,6 +27,14 @@ it has no magic header or version field and must remain exactly 65,549 bytes.
 provide the case-insensitive extension checks used by persistence and desktop
 file routing.
 
+Both loaders share the private `bounded_read` helper. A snapshot reads at most
+65,550 bytes; a subprogram reads at most `65,536 - start + 1` bytes, including
+one extra byte to detect overflow. File metadata rejects known oversized inputs
+before reading and preserves their size in existing errors. Every read remains
+bounded even if the file grows after that check; the bytes actually read are
+validated again before any CPU changes. Empty, short, and I/O error handling
+retains the existing error types.
+
 ## `.krs`
 
 `load_into_state` returns the inclusive end address (`Result<u16, SubprogramError>`)

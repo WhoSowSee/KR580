@@ -72,9 +72,17 @@ impl ProgramSerializer {
         Ok(())
     }
 
+    /// Reads at most `LEGACY_LENGTH + 1` bytes and validates them before decoding the CPU.
     pub fn load_file(path: impl AsRef<std::path::Path>) -> Result<Cpu8080State, ProgramError> {
         validate_path(path.as_ref())?;
-        let bytes = std::fs::read(path)?;
+        let file = std::fs::File::open(path)?;
+        let size = file.metadata()?.len();
+        if size > LEGACY_LENGTH as u64 {
+            return Err(ProgramError::WrongSize {
+                size: usize::try_from(size).unwrap_or(usize::MAX),
+            });
+        }
+        let bytes = super::bounded_read::read(file, LEGACY_LENGTH)?;
         if bytes.is_empty() {
             return Err(ProgramError::EmptyFile);
         }
