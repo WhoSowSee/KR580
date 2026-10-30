@@ -1,4 +1,4 @@
-use k580_core::{CoreError, Cpu8080State, DecodeError, NullBus};
+use k580_core::{CoreError, Cpu8080State, DecodeError, Flags, NullBus};
 
 fn put_program(cpu: &mut Cpu8080State, bytes: &[u8]) {
     for (offset, byte) in bytes.iter().copied().enumerate() {
@@ -9,6 +9,35 @@ fn put_program(cpu: &mut Cpu8080State, bytes: &[u8]) {
 fn step_tacts(cpu: &mut Cpu8080State, bus: &mut NullBus, count: u8) {
     for _ in 0..count {
         cpu.step_tact(bus).unwrap();
+    }
+}
+
+#[test]
+fn reset_restores_initial_cpu_state_and_preserves_ram() {
+    for partial_walk in [false, true] {
+        let mut cpu = Cpu8080State::default();
+        assert_eq!(cpu.sp, 0);
+        cpu.memory.write(0x1234, 0x76);
+        let expected = cpu.clone();
+        cpu.pc = 0x1234;
+        cpu.sp = 0x9000;
+        cpu.registers.a = 0xA5;
+        cpu.registers.w = 0x12;
+        cpu.registers.z = 0x34;
+        cpu.flags = Flags::from_psw(0xD5);
+        let mut bus = NullBus::default();
+        if partial_walk {
+            cpu.step_tact(&mut bus).unwrap();
+        } else {
+            cpu.step_instruction(&mut bus).unwrap();
+        }
+        cpu.interrupt_enable = true;
+        cpu.interrupt_enable_pending = true;
+        cpu.request_interrupt(0xCF);
+
+        cpu.reset_cpu();
+
+        assert_eq!(cpu, expected, "partial_walk={partial_walk}");
     }
 }
 

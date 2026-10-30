@@ -2,6 +2,13 @@
 
 `Cpu8080State` owns registers, flags, `PC`, `SP`, 64 KiB RAM, interrupt state, halt state, total T-state count, and optional tact phase. The UI never mutates these fields directly.
 
+Both `Cpu8080State::default()` and `reset_cpu()` start with `PC=0` and `SP=0`,
+cleared registers and flags, no pending or enabled interrupts, no halt, zero
+cycles and bus latches, and no active or completed T-phase. CPU reset preserves
+RAM, including when cancelling an active tact walk; `reset_ram()` clears RAM
+separately. Loading a `.580` file still restores its stored SP verbatim,
+including `FFFFh`.
+
 Implemented behavior follows standard Intel 8080/KR580 semantics:
 
 - all documented opcodes decode and execute;

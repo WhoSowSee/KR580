@@ -146,14 +146,13 @@ impl Cpu8080State {
         self.last_address_bus = metadata.last_address_bus;
     }
 
-    /// Reset chooses SP=0xFFFF; physical 8080 hardware leaves SP unspecified.
-    pub const RESET_SP: u16 = 0xFFFF;
+    /// Stack pointer used for a fresh CPU and CPU-only reset.
+    pub const RESET_SP: u16 = 0;
 
     pub fn reset_cpu(&mut self) {
         let memory = core::mem::take(&mut self.memory);
         *self = Self {
             memory,
-            sp: Self::RESET_SP,
             ..Self::default()
         };
     }

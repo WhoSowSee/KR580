@@ -66,13 +66,16 @@ fn actor_paced_run_progresses_when_step_interval_exceeds_device_poll() {
 /// timer-quantum effects.
 #[test]
 fn reset_cpu_during_run_emits_stopped() {
-    let mut emulator = Emulator::default();
+    let mut initial = Cpu8080State::default();
+    initial.sp = 0x9000;
+    let mut emulator = Emulator::new(initial, Default::default());
     // Fill memory with NOPs so `Run` doesn't immediately hit HLT.
     emulator.handle_command(AppCommand::SetMemory(0, 0x00));
     emulator.handle_command(AppCommand::Run);
     assert!(emulator.is_running());
 
     let events = emulator.handle_command(AppCommand::ResetCpu);
+    assert_eq!(emulator.cpu().sp, 0);
     assert!(
         !emulator.is_running(),
         "ResetCpu must clear the running flag"
