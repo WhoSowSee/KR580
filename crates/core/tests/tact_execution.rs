@@ -1,4 +1,4 @@
-use k580_core::{Cpu8080State, NullBus};
+use k580_core::{CoreError, Cpu8080State, DecodeError, NullBus};
 
 fn put_program(cpu: &mut Cpu8080State, bytes: &[u8]) {
     for (offset, byte) in bytes.iter().copied().enumerate() {
@@ -103,6 +103,58 @@ fn interrupt_during_tact_walk_waits_for_the_next_instruction_boundary() {
                 (cpu.pc, cpu.cycle_count, cpu.memory.read_word(cpu.sp)),
                 (8, 16, 1),
             );
+        }
+    }
+}
+
+#[test]
+fn invalid_interrupt_preserves_state_until_replaced() {
+    for tact_steps in [false, true] {
+        for halted in [false, true] {
+            for vector in [0x00, 0x08, 0x76, 0xCD] {
+                let mut cpu = Cpu8080State::default();
+                cpu.pc = 0x1234;
+                cpu.sp = 0x9000;
+                cpu.halted = halted;
+                cpu.cycle_count = 23;
+                cpu.interrupt_enable = true;
+                cpu.request_interrupt(vector);
+                let before = cpu.clone();
+                let mut bus = NullBus::default();
+
+                for _ in 0..2 {
+                    let result = if tact_steps {
+                        cpu.step_tact(&mut bus).map(|_| ())
+                    } else {
+                        cpu.step_instruction(&mut bus).map(|_| ())
+                    };
+                    assert_eq!(
+                        result,
+                        Err(CoreError::Decode(DecodeError::InvalidInterruptVector(
+                            vector
+                        )))
+                    );
+                    assert_eq!(
+                        cpu, before,
+                        "vector={vector:02X}, tact_steps={tact_steps}, halted={halted}"
+                    );
+                }
+
+                cpu.request_interrupt(0xCF);
+                if tact_steps {
+                    step_tacts(&mut cpu, &mut bus, 11);
+                } else {
+                    let outcome = cpu.step_instruction_metadata(&mut bus).unwrap();
+                    assert!(outcome.interrupt_accepted);
+                    assert_eq!(outcome.t_states, 11);
+                }
+                assert_eq!((cpu.pc, cpu.sp, cpu.cycle_count), (8, 0x8FFE, 34));
+                assert_eq!(cpu.memory.read_word(cpu.sp), 0x1234);
+                assert!(!cpu.interrupt_request_pending);
+                assert_eq!(cpu.interrupt_vector_byte, None);
+                assert!(!cpu.interrupt_enable);
+                assert!(!cpu.halted);
+            }
         }
     }
 }

@@ -162,6 +162,8 @@ impl Cpu8080State {
         self.memory.clear();
     }
 
+    /// Queues a vector for the next eligible instruction boundary, replacing any pending request.
+    /// Eligible non-RST vectors are rejected without consuming the request or changing CPU state.
     pub fn request_interrupt(&mut self, vector_byte: u8) {
         self.interrupt_request_pending = true;
         self.interrupt_vector_byte = Some(vector_byte);

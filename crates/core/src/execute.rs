@@ -1,6 +1,13 @@
 use crate::ops::{alu, control, data, misc, stack};
 use crate::{CoreError, Cpu8080State, DecodeError, InstructionStep, PortBus, decode_metadata};
 
+pub(crate) fn validate_interrupt_vector(vector: u8) -> Result<(), DecodeError> {
+    if vector & 0xC7 != 0xC7 {
+        return Err(DecodeError::InvalidInterruptVector(vector));
+    }
+    Ok(())
+}
+
 impl Cpu8080State {
     pub(crate) fn can_accept_interrupt(&self) -> bool {
         self.interrupt_request_pending
@@ -15,7 +22,6 @@ impl Cpu8080State {
         if self.can_accept_interrupt() {
             let vector = self
                 .interrupt_vector_byte
-                .take()
                 .expect("checked by can_accept_interrupt");
             return self.execute_interrupt(vector);
         }
@@ -30,7 +36,6 @@ impl Cpu8080State {
             let vector = self
                 .active_opcode
                 .expect("interrupt tact walks latch their vector");
-            self.interrupt_vector_byte = None;
             self.execute_interrupt(vector)
         } else {
             self.execute_program_instruction(bus)
@@ -57,9 +62,9 @@ impl Cpu8080State {
     }
 
     fn execute_interrupt(&mut self, vector: u8) -> Result<InstructionStep, CoreError> {
-        if vector & 0xC7 != 0xC7 {
-            return Err(DecodeError::InvalidInterruptVector(vector).into());
-        }
+        validate_interrupt_vector(vector)?;
+        let mnemonic = decode_metadata(vector)?.mnemonic;
+        self.interrupt_vector_byte = None;
         self.last_fetched_opcode = vector;
         self.interrupt_enable = false;
         self.interrupt_enable_pending = false;
@@ -72,7 +77,7 @@ impl Cpu8080State {
         self.pc = u16::from(rst) * 8;
         Ok(InstructionStep {
             opcode: Some(vector),
-            mnemonic: decode_metadata(vector)?.mnemonic,
+            mnemonic,
             pc_before,
             pc_after: self.pc,
             t_states: 11,

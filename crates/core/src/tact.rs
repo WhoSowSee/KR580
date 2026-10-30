@@ -1,3 +1,4 @@
+use crate::execute::validate_interrupt_vector;
 use crate::{CoreError, Cpu8080State, PortBus, TactOutcome, decode_metadata};
 
 struct TactSetup {
@@ -54,8 +55,12 @@ impl Cpu8080State {
 
     fn tact_setup(&self) -> Result<TactSetup, CoreError> {
         if self.can_accept_interrupt() {
+            let vector = self
+                .interrupt_vector_byte
+                .expect("checked by can_accept_interrupt");
+            validate_interrupt_vector(vector)?;
             return Ok(TactSetup {
-                opcode: self.interrupt_vector_byte,
+                opcode: Some(vector),
                 t_states: 11,
                 branch_taken: true,
             });

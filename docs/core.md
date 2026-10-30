@@ -15,6 +15,14 @@ Implemented behavior follows standard Intel 8080/KR580 semantics:
   instruction-register mirror is identical after `StepInstruction` and
   after an 11T interrupt-ack tact walk.
 
+An eligible pending IRQ with a non-`RST n` vector returns
+`DecodeError::InvalidInterruptVector` before any CPU state, RAM, bus latch,
+or timing change. This applies to instruction stepping and to the first
+T-state of an interrupt-ack walk. The request and its vector remain pending;
+retrying returns the same error until the caller replaces the request through
+`request_interrupt` or resets the CPU. `request_interrupt` keeps its infallible
+queueing API; validation occurs when an eligible IRQ reaches its boundary.
+
 `tact.rs` owns the debug T-state walk. It prepares the active opcode,
 branch choice, and total T-state count without committing architectural
 effects; registers, memory, PC, and device I/O are committed by the same
