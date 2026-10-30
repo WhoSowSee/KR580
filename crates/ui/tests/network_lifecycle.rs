@@ -4,6 +4,85 @@ use std::net::{Shutdown, TcpListener};
 use std::time::{Duration, Instant};
 
 #[test]
+fn dropping_device_releases_a_waiting_listener_with_runtime_alive() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let reservation = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = reservation.local_addr().unwrap();
+    drop(reservation);
+    let mut device = NetworkDevice::default();
+    device.configure(NetworkMode::Server, "127.0.0.1", address.port());
+    device.start_worker(runtime.handle());
+    runtime.block_on(async {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            tokio::task::yield_now().await;
+            match TcpListener::bind(address) {
+                Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => break,
+                Ok(probe) => drop(probe),
+                Err(error) => panic!("listener readiness probe failed: {error}"),
+            }
+            assert!(Instant::now() < deadline, "network listener did not bind");
+        }
+    });
+    drop(device);
+    runtime.block_on(async {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            tokio::task::yield_now().await;
+            match TcpListener::bind(address) {
+                Ok(_) => break,
+                Err(error) => {
+                    assert_eq!(error.kind(), std::io::ErrorKind::AddrInUse);
+                    assert!(Instant::now() < deadline, "listener survived device drop");
+                }
+            }
+        }
+    });
+}
+
+#[test]
+fn network_worker_lives_until_the_last_device_clone_is_dropped() {
+    use tokio::io::AsyncReadExt;
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    runtime.block_on(async {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut device = NetworkDevice::default();
+        device.configure(
+            NetworkMode::Client,
+            "127.0.0.1",
+            listener.local_addr().unwrap().port(),
+        );
+        device.start_worker(runtime.handle());
+        let (mut peer, _) = tokio::time::timeout(Duration::from_secs(2), listener.accept())
+            .await
+            .unwrap()
+            .unwrap();
+        let mut surviving = device.clone();
+        drop(device);
+        surviving.output_byte(0xA5).unwrap();
+        let mut byte = [0];
+        tokio::time::timeout(Duration::from_secs(2), peer.read_exact(&mut byte))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(byte, [0xA5]);
+        drop(surviving);
+        let read = tokio::time::timeout(Duration::from_secs(2), peer.read(&mut byte))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(read, 0);
+    });
+}
+
+#[test]
 fn saturated_rx_delivers_every_byte_in_order_after_cpu_reads() {
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

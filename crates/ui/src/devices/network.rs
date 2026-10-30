@@ -47,15 +47,27 @@ pub struct NetworkState {
     pub status: DeviceStatus,
 }
 
+/// Clones share the worker; dropping its last owner schedules cancellation on the runtime.
 #[derive(Clone, Debug)]
 pub struct NetworkDevice {
     state: NetworkState,
     tx: Option<mpsc::Sender<u8>>,
     worker_rx: Arc<Mutex<VecDeque<u8>>>,
     worker_status: Arc<Mutex<NetworkWorkerStatus>>,
-    worker_abort: Option<AbortHandle>,
+    worker_abort: Option<Arc<WorkerAbort>>,
     rx_space: Arc<Notify>,
     generation: u64,
+}
+
+#[derive(Debug)]
+struct WorkerAbort {
+    handle: AbortHandle,
+}
+
+impl Drop for WorkerAbort {
+    fn drop(&mut self) {
+        self.handle.abort();
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -158,7 +170,9 @@ impl NetworkDevice {
         let task = handle.spawn(async move {
             run_worker(mode, host, port, rx_out, rx_in, status, rx_space).await;
         });
-        self.worker_abort = Some(task.abort_handle());
+        self.worker_abort = Some(Arc::new(WorkerAbort {
+            handle: task.abort_handle(),
+        }));
         self.state.connection = self.worker_status.lock().unwrap().connection.clone();
         self.state.status = self.worker_status.lock().unwrap().status.clone();
         self.state.last_error = None;
@@ -249,7 +263,7 @@ impl NetworkDevice {
 
     fn stop_worker(&mut self) {
         if let Some(worker) = self.worker_abort.take() {
-            worker.abort();
+            worker.handle.abort();
         }
         self.tx = None;
     }

@@ -29,6 +29,13 @@ read and write futures. Reconfiguration aborts that owner, so no detached reader
 survives it. Each configured worker receives fresh RX and status storage; an old
 generation cannot publish bytes or status into the new device. EOF or a terminal
 failure ends both halves of the connection.
+Cloned `NetworkDevice` values share an RAII cancellation owner. Dropping one
+copy keeps the worker alive; dropping its last owner schedules task cancellation,
+including while a server waits for its first client. Once the runtime processes
+that cancellation, the listener or socket is released. Drop does not wait for
+completion, so a current-thread runtime must keep being driven for cleanup.
+Reconfiguration or restarting through any copy still explicitly cancels the
+shared old worker, independently of how many copies remain.
 Snapshots publish every status of the current worker, including clean EOF as
 `Disconnected`; the absence of a worker is tracked separately from that status.
 RX retains at most 64 KiB. The reader requests only the available capacity and
