@@ -3,6 +3,23 @@ use std::path::{Path, PathBuf};
 
 pub const MANIFEST_FILENAME: &str = "install.json";
 
+/// Failures resolving an installation or reading and writing its manifest.
+#[derive(Debug, thiserror::Error)]
+pub enum InstallModeError {
+    #[error("manifest json: {0}")]
+    SerializeManifest(#[source] serde_json::Error),
+    #[error("write manifest: {0}")]
+    WriteManifest(#[source] std::io::Error),
+    #[error("read manifest: {0}")]
+    ReadManifest(#[source] std::io::Error),
+    #[error("parse manifest: {0}")]
+    ParseManifest(#[source] serde_json::Error),
+    #[error("KR580_GUI_EXECUTABLE does not name an absolute executable file")]
+    InvalidExecutableOverride,
+    #[error("current_exe: {0}")]
+    CurrentExecutable(#[source] std::io::Error),
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum InstallMode {
@@ -43,19 +60,28 @@ impl InstallManifest {
     }
 }
 
-pub fn write_manifest(root: &Path, manifest: &InstallManifest) -> Result<(), String> {
-    let json = serde_json::to_string_pretty(manifest).map_err(|e| format!("manifest json: {e}"))?;
+/// # Errors
+/// Preserves serialization and atomic file-write failures as `InstallModeError` causes.
+pub fn write_manifest(root: &Path, manifest: &InstallManifest) -> Result<(), InstallModeError> {
+    let json =
+        serde_json::to_string_pretty(manifest).map_err(InstallModeError::SerializeManifest)?;
     crate::persistence::write_file_atomic(&root.join(MANIFEST_FILENAME), json.as_bytes())
-        .map_err(|e| format!("write manifest: {e}"))
+        .map_err(InstallModeError::WriteManifest)
 }
 
-pub fn manifest_for_executable(exe: &Path) -> Result<Option<(PathBuf, InstallManifest)>, String> {
+/// Unmanaged executable layouts return `Ok(None)`.
+///
+/// # Errors
+/// Preserves file-read and JSON-parse failures from an existing installation manifest.
+pub fn manifest_for_executable(
+    exe: &Path,
+) -> Result<Option<(PathBuf, InstallManifest)>, InstallModeError> {
     let Some(root) = install_root_from_executable(exe) else {
         return Ok(None);
     };
     let json = std::fs::read_to_string(root.join(MANIFEST_FILENAME))
-        .map_err(|e| format!("read manifest: {e}"))?;
-    let manifest = serde_json::from_str(&json).map_err(|e| format!("parse manifest: {e}"))?;
+        .map_err(InstallModeError::ReadManifest)?;
+    let manifest = serde_json::from_str(&json).map_err(InstallModeError::ParseManifest)?;
     Ok(Some((root, manifest)))
 }
 
@@ -99,15 +125,17 @@ pub fn companion_executable_from_launcher(
         .unwrap_or_else(|| executable.with_file_name(companion_name))
 }
 
-pub fn current_integration_executable() -> Result<PathBuf, String> {
+/// # Errors
+/// Rejects invalid overrides and preserves failure to resolve the current executable.
+pub fn current_integration_executable() -> Result<PathBuf, InstallModeError> {
     if let Some(path) = std::env::var_os("KR580_GUI_EXECUTABLE") {
         let path = PathBuf::from(path);
         if path.is_absolute() && path.is_file() {
             return Ok(path);
         }
-        return Err("KR580_GUI_EXECUTABLE does not name an absolute executable file".to_owned());
+        return Err(InstallModeError::InvalidExecutableOverride);
     }
-    std::env::current_exe().map_err(|error| format!("current_exe: {error}"))
+    std::env::current_exe().map_err(InstallModeError::CurrentExecutable)
 }
 
 fn path_component_matches(left: &std::ffi::OsStr, right: &str) -> bool {
@@ -126,6 +154,49 @@ fn matches_ci(left: &str, right: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
+
+    #[test]
+    fn manifest_failures_preserve_io_and_json_causes() {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join(binary_name("kr580"));
+        let path = directory.path().join(MANIFEST_FILENAME);
+        std::fs::write(&path, b"{}").unwrap();
+        let error = manifest_for_executable(&executable).unwrap_err();
+        assert!(matches!(error, InstallModeError::ParseManifest(_)));
+        assert!(
+            error
+                .source()
+                .unwrap()
+                .downcast_ref::<serde_json::Error>()
+                .is_some()
+        );
+        std::fs::write(&path, [0xFF]).unwrap();
+        let error = manifest_for_executable(&executable).unwrap_err();
+        assert!(matches!(error, InstallModeError::ReadManifest(_)));
+        assert_eq!(
+            error
+                .source()
+                .unwrap()
+                .downcast_ref::<std::io::Error>()
+                .unwrap()
+                .kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        let error = write_manifest(
+            &directory.path().join("missing"),
+            &InstallManifest::new(InstallMode::Portable, InstallScope::User),
+        )
+        .unwrap_err();
+        assert!(matches!(error, InstallModeError::WriteManifest(_)));
+        assert!(
+            error
+                .source()
+                .unwrap()
+                .downcast_ref::<std::io::Error>()
+                .is_some()
+        );
+    }
 
     #[test]
     fn detects_split_app_layout() {

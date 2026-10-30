@@ -149,6 +149,7 @@ pub(super) fn run(
             .with_file_association(request.associate_program_files);
         files.change(std::slice::from_ref(&manifest_path), || {
             k580_ui::install_mode::write_manifest(&request.install_dir, &manifest)
+                .map_err(|error| error.to_string())
         })?;
         checkpoint(InstallStep::Manifest)?;
         Ok(InstallReport {

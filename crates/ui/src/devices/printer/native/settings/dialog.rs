@@ -1,3 +1,4 @@
+use crate::devices::printer::PrinterError;
 mod global;
 
 use super::super::last_os_error;
@@ -9,7 +10,7 @@ use windows_sys::Win32::UI::Controls::Dialogs::{
     PrintDlgW,
 };
 
-pub(super) fn configure() -> Result<Option<(String, Vec<u8>)>, String> {
+pub(super) fn configure() -> Result<Option<(String, Vec<u8>)>, PrinterError> {
     let _com = ComApartment::init()?;
     let mut dialog = DialogHandles(print_dialog());
     // SAFETY: The initialized structure has the correct size and no borrowed hook/template pointers.
@@ -20,7 +21,7 @@ pub(super) fn configure() -> Result<Option<(String, Vec<u8>)>, String> {
         return if code == 0 {
             Ok(None)
         } else {
-            Err(format!("printer setup failed: 0x{code:04X}"))
+            Err(PrinterError::dialog(code))
         };
     }
     let printer_name = device_name(dialog.0.hDevNames)?;
@@ -52,22 +53,24 @@ fn print_dialog() -> PRINTDLGW {
     }
 }
 
-fn device_name(handle: HGLOBAL) -> Result<String, String> {
+fn device_name(handle: HGLOBAL) -> Result<String, PrinterError> {
     let memory = global::LockedGlobal::lock(handle)?;
     let bytes = memory.bytes();
     if bytes.len() < std::mem::size_of::<DEVNAMES>() {
-        return Err("printer dialog DEVNAMES header is truncated".to_owned());
+        return Err(PrinterError::invalid(
+            "printer dialog DEVNAMES header is truncated",
+        ));
     }
     // SAFETY: The byte view contains the complete POD header; no alignment is assumed.
     let names = unsafe { bytes.as_ptr().cast::<DEVNAMES>().read_unaligned() };
     super::super::buffer::wide_string(bytes, names.wDeviceOffset as usize * 2)
 }
 
-fn devmode(handle: HGLOBAL) -> Result<Vec<u8>, String> {
+fn devmode(handle: HGLOBAL) -> Result<Vec<u8>, PrinterError> {
     let memory = global::LockedGlobal::lock(handle)?;
     let bytes = memory.bytes();
     let mode = super::read_devmode(bytes)
-        .ok_or_else(|| "printer dialog DEVMODE buffer is invalid".to_owned())?;
+        .ok_or_else(|| PrinterError::invalid("printer dialog DEVMODE buffer is invalid"))?;
     Ok(bytes[..mode.dmSize as usize + mode.dmDriverExtra as usize].to_vec())
 }
 
@@ -94,13 +97,16 @@ impl Drop for DialogHandles {
 struct ComApartment(std::marker::PhantomData<std::rc::Rc<()>>);
 
 impl ComApartment {
-    fn init() -> Result<Self, String> {
+    fn init() -> Result<Self, PrinterError> {
         // SAFETY: The reserved pointer is null; a successful initialization is paired on this thread with Drop.
         let result = unsafe { CoInitializeEx(null_mut(), COINIT_APARTMENTTHREADED as u32) };
         if result < 0 {
-            return Err(format!(
-                "printer setup COM initialization failed: 0x{:08X}",
-                result as u32
+            return Err(PrinterError::native(
+                format!(
+                    "printer setup COM initialization failed: 0x{:08X}",
+                    result as u32
+                ),
+                windows::core::Error::from_hresult(windows::core::HRESULT(result)),
             ));
         }
         Ok(Self(std::marker::PhantomData))

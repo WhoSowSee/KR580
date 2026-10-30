@@ -1,3 +1,4 @@
+use crate::devices::printer::PrinterError;
 use crate::devices::printer::{
     PrinterFeature, PrinterFeatureGroup, PrinterFeatureOption, PrinterParameter,
 };
@@ -7,13 +8,15 @@ use std::collections::{HashMap, HashSet};
 pub(super) fn parse(
     capabilities: &[u8],
     ticket: &[u8],
-) -> Result<(Vec<PrinterFeature>, Vec<PrinterParameter>), String> {
+) -> Result<(Vec<PrinterFeature>, Vec<PrinterParameter>), PrinterError> {
     let capabilities = decode_xml(capabilities)?;
     let ticket = decode_xml(ticket)?;
-    let capabilities = Document::parse(&capabilities)
-        .map_err(|error| format!("PrintCapabilities XML is invalid: {error}"))?;
-    let ticket =
-        Document::parse(&ticket).map_err(|error| format!("PrintTicket XML is invalid: {error}"))?;
+    let capabilities = Document::parse(&capabilities).map_err(|error| {
+        PrinterError::invalid_source(format!("PrintCapabilities XML is invalid: {error}"), error)
+    })?;
+    let ticket = Document::parse(&ticket).map_err(|error| {
+        PrinterError::invalid_source(format!("PrintTicket XML is invalid: {error}"), error)
+    })?;
     let selected_features = selected_features(&ticket);
     let selected_parameters = selected_parameters(&ticket);
     let mut seen_features = HashSet::new();
@@ -215,15 +218,19 @@ fn is_element(node: Node<'_, '_>, name: &str) -> bool {
     node.is_element() && node.tag_name().name() == name
 }
 
-fn decode_xml(bytes: &[u8]) -> Result<String, String> {
+fn decode_xml(bytes: &[u8]) -> Result<String, PrinterError> {
     if bytes.starts_with(&[0xFF, 0xFE]) {
         let (pairs, _) = bytes[2..].as_chunks::<2>();
         let words = pairs
             .iter()
             .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
             .collect::<Vec<_>>();
-        return String::from_utf16(&words)
-            .map_err(|error| format!("Print Schema XML is not UTF-16LE: {error}"));
+        return String::from_utf16(&words).map_err(|error| {
+            PrinterError::invalid_source(
+                format!("Print Schema XML is not UTF-16LE: {error}"),
+                error,
+            )
+        });
     }
     if bytes.starts_with(&[0xFE, 0xFF]) {
         let (pairs, _) = bytes[2..].as_chunks::<2>();
@@ -231,17 +238,47 @@ fn decode_xml(bytes: &[u8]) -> Result<String, String> {
             .iter()
             .map(|pair| u16::from_be_bytes([pair[0], pair[1]]))
             .collect::<Vec<_>>();
-        return String::from_utf16(&words)
-            .map_err(|error| format!("Print Schema XML is not UTF-16BE: {error}"));
+        return String::from_utf16(&words).map_err(|error| {
+            PrinterError::invalid_source(
+                format!("Print Schema XML is not UTF-16BE: {error}"),
+                error,
+            )
+        });
     }
     std::str::from_utf8(bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes))
         .map(str::to_owned)
-        .map_err(|error| format!("Print Schema XML is not UTF-8: {error}"))
+        .map_err(|error| {
+            PrinterError::invalid_source(format!("Print Schema XML is not UTF-8: {error}"), error)
+        })
 }
 
 #[cfg(test)]
 mod tests {
     use super::parse;
+    use crate::devices::printer::PrinterErrorKind;
+    use std::error::Error;
+
+    #[test]
+    fn invalid_schema_preserves_encoding_and_xml_causes() {
+        let error = parse(&[0xFF], b"<ticket/>").unwrap_err();
+        assert_eq!(error.kind(), PrinterErrorKind::InvalidData);
+        assert!(
+            error
+                .source()
+                .unwrap()
+                .downcast_ref::<std::str::Utf8Error>()
+                .is_some()
+        );
+        let error = parse(b"<broken", b"<ticket/>").unwrap_err();
+        assert_eq!(error.kind(), PrinterErrorKind::InvalidData);
+        assert!(
+            error
+                .source()
+                .unwrap()
+                .downcast_ref::<roxmltree::Error>()
+                .is_some()
+        );
+    }
 
     #[test]
     fn parses_features_parameters_and_current_values() {

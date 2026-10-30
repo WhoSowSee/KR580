@@ -1,3 +1,4 @@
+use crate::devices::printer::PrinterError;
 mod capabilities;
 mod dialog;
 mod print_ticket;
@@ -19,7 +20,7 @@ use windows_sys::Win32::Graphics::Printing::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::IDOK;
 
-pub(super) fn configure() -> Result<Option<PrinterSettings>, String> {
+pub(super) fn configure() -> Result<Option<PrinterSettings>, PrinterError> {
     let Some((printer_name, devmode)) = dialog::configure()? else {
         return Ok(None);
     };
@@ -34,7 +35,7 @@ pub(super) fn configure() -> Result<Option<PrinterSettings>, String> {
     }
 }
 
-pub(super) fn configuration(printer: &PrinterInfo) -> Result<PrinterConfiguration, String> {
+pub(super) fn configuration(printer: &PrinterInfo) -> Result<PrinterConfiguration, PrinterError> {
     let devmode = default_devmode(&printer.name)?;
     configuration_from_devmode(printer, devmode)
 }
@@ -42,7 +43,7 @@ pub(super) fn configuration(printer: &PrinterInfo) -> Result<PrinterConfiguratio
 pub(super) fn load_properties(
     printer: &PrinterInfo,
     settings: &PrinterSettings,
-) -> Result<PrinterPropertySheet, String> {
+) -> Result<PrinterPropertySheet, PrinterError> {
     print_ticket::load(printer, settings)
 }
 
@@ -50,11 +51,11 @@ pub(super) fn apply_property(
     printer: &PrinterInfo,
     settings: &PrinterSettings,
     change: &PrinterPropertyChange,
-) -> Result<PrinterPropertySheet, String> {
+) -> Result<PrinterPropertySheet, PrinterError> {
     print_ticket::apply(printer, settings, change)
 }
 
-pub(super) fn print_devmode(settings: &PrinterSettings) -> Result<AlignedDevMode, String> {
+pub(super) fn print_devmode(settings: &PrinterSettings) -> Result<AlignedDevMode, PrinterError> {
     let handle = PrinterHandle::open(&settings.printer_name)?;
     let mut devmode = default_devmode_with_handle(&settings.printer_name, handle.0)?;
     if settings.devmode.is_empty() && settings.paper_id.is_none() && settings.source_id.is_none() {
@@ -76,9 +77,9 @@ pub(super) fn print_devmode(settings: &PrinterSettings) -> Result<AlignedDevMode
 pub(super) fn configuration_from_devmode(
     printer: &PrinterInfo,
     devmode: Vec<u8>,
-) -> Result<PrinterConfiguration, String> {
+) -> Result<PrinterConfiguration, PrinterError> {
     if read_devmode(&devmode).is_none() {
-        return Err("printer DEVMODE buffer is invalid".to_owned());
+        return Err(PrinterError::invalid("printer DEVMODE buffer is invalid"));
     }
     let aligned = AlignedDevMode::from_bytes(&devmode);
     let (papers, sources) = capabilities::load(printer, aligned.as_ptr())?;
@@ -152,7 +153,7 @@ fn apply_standard_settings(devmode: &mut AlignedDevMode, settings: &PrinterSetti
     mode.Anonymous1.Anonymous1 = printer;
 }
 
-fn default_devmode(printer_name: &str) -> Result<Vec<u8>, String> {
+fn default_devmode(printer_name: &str) -> Result<Vec<u8>, PrinterError> {
     let handle = PrinterHandle::open(printer_name)?;
     Ok(default_devmode_with_handle(printer_name, handle.0)?.into_bytes())
 }
@@ -160,7 +161,7 @@ fn default_devmode(printer_name: &str) -> Result<Vec<u8>, String> {
 fn default_devmode_with_handle(
     printer_name: &str,
     handle: PRINTER_HANDLE,
-) -> Result<AlignedDevMode, String> {
+) -> Result<AlignedDevMode, PrinterError> {
     let name = wide_null(printer_name);
     let size =
         // SAFETY: The opened printer handle and terminated name remain live; null outputs request the byte size.
@@ -184,7 +185,9 @@ fn default_devmode_with_handle(
         return Err(last_os_error("DocumentPropertiesW"));
     }
     if read_devmode(devmode.as_bytes()).is_none() {
-        return Err("printer driver returned an invalid DEVMODE".to_owned());
+        return Err(PrinterError::invalid(
+            "printer driver returned an invalid DEVMODE",
+        ));
     }
     Ok(devmode)
 }
@@ -193,9 +196,9 @@ fn normalize_devmode(
     printer_name: &str,
     handle: PRINTER_HANDLE,
     input: &[u8],
-) -> Result<AlignedDevMode, String> {
+) -> Result<AlignedDevMode, PrinterError> {
     if read_devmode(input).is_none() {
-        return Err("saved printer settings are invalid".to_owned());
+        return Err(PrinterError::invalid("saved printer settings are invalid"));
     }
     let input = AlignedDevMode::from_bytes(input);
     let mut output = default_devmode_with_handle(printer_name, handle)?;
@@ -231,7 +234,7 @@ fn read_devmode(bytes: &[u8]) -> Option<DEVMODEW> {
 struct PrinterHandle(PRINTER_HANDLE);
 
 impl PrinterHandle {
-    fn open(name: &str) -> Result<Self, String> {
+    fn open(name: &str) -> Result<Self, PrinterError> {
         let name = wide_null(name);
         let mut handle = PRINTER_HANDLE::default();
         // SAFETY: The name is terminated UTF-16 and the live output receives the newly owned printer handle.

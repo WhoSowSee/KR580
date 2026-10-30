@@ -2,6 +2,7 @@ use super::super::{
     PrinterConfiguration, PrinterInfo, PrinterPropertyChange, PrinterPropertySheet, PrinterSettings,
 };
 use super::{PrintFailure, list as printer_list, settings, wide_null};
+use crate::devices::printer::PrinterError;
 use crate::devices::printer::text;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::{ERROR_CANCELLED, GetLastError};
@@ -15,22 +16,22 @@ use windows_sys::Win32::Storage::Xps::{AbortDoc, DOCINFOW, EndDoc, EndPage, Star
 
 const MARGIN_MM: f32 = 18.0;
 
-pub(super) fn configure() -> Result<Option<PrinterSettings>, String> {
+pub(super) fn configure() -> Result<Option<PrinterSettings>, PrinterError> {
     settings::configure()
 }
 
-pub(super) fn list() -> Result<Vec<PrinterInfo>, String> {
+pub(super) fn list() -> Result<Vec<PrinterInfo>, PrinterError> {
     printer_list::printers()
 }
 
-pub(super) fn configuration(printer: &PrinterInfo) -> Result<PrinterConfiguration, String> {
+pub(super) fn configuration(printer: &PrinterInfo) -> Result<PrinterConfiguration, PrinterError> {
     settings::configuration(printer)
 }
 
 pub(super) fn load_properties(
     printer: &PrinterInfo,
     print_settings: &PrinterSettings,
-) -> Result<PrinterPropertySheet, String> {
+) -> Result<PrinterPropertySheet, PrinterError> {
     settings::load_properties(printer, print_settings)
 }
 
@@ -38,7 +39,7 @@ pub(super) fn apply_property(
     printer: &PrinterInfo,
     print_settings: &PrinterSettings,
     change: &PrinterPropertyChange,
-) -> Result<PrinterPropertySheet, String> {
+) -> Result<PrinterPropertySheet, PrinterError> {
     settings::apply_property(printer, print_settings, change)
 }
 
@@ -50,12 +51,13 @@ pub(super) fn print(
         Some(settings) if !settings.printer_name.trim().is_empty() => {
             settings.printer_name.trim().to_owned()
         }
-        _ => printer_list::default_printer_name().map_err(PrintFailure::Failed)?,
+        _ => printer_list::default_printer_name()
+            .map_err(|error| PrintFailure::Failed(error.to_string()))?,
     };
     let devmode = print_settings
         .map(settings::print_devmode)
         .transpose()
-        .map_err(PrintFailure::Failed)?;
+        .map_err(|error| PrintFailure::Failed(error.to_string()))?;
     let driver = wide_null("WINSPOOL");
     let device = wide_null(&printer_name);
     let devmode_ptr = devmode.as_ref().map_or(null(), |buffer| buffer.as_ptr());

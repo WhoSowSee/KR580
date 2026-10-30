@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 pub(super) const HANDLER_DESKTOP_FILE: &str = "kr580-file-handler.desktop";
 
 pub fn register() -> Result<(), String> {
-    let exe = crate::install_mode::current_integration_executable()?;
+    let exe =
+        crate::install_mode::current_integration_executable().map_err(|error| error.to_string())?;
     register_for_executable(&exe, crate::install_mode::InstallScope::User)
 }
 
@@ -57,7 +58,8 @@ fn write_registration(paths: &IntegrationPaths, exe: &Path) -> Result<(), String
 }
 
 pub fn unregister() -> Result<(), String> {
-    let exe = crate::install_mode::current_integration_executable()?;
+    let exe =
+        crate::install_mode::current_integration_executable().map_err(|error| error.to_string())?;
     unregister_for_executable(&exe, crate::install_mode::InstallScope::User)
 }
 

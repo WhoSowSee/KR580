@@ -1,4 +1,5 @@
 use super::last_os_error;
+use crate::devices::printer::PrinterError;
 use windows_sys::Win32::Foundation::HGLOBAL;
 use windows_sys::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
 
@@ -9,11 +10,13 @@ pub(super) struct LockedGlobal {
 }
 
 impl LockedGlobal {
-    pub(super) fn lock(handle: HGLOBAL) -> Result<Self, String> {
+    pub(super) fn lock(handle: HGLOBAL) -> Result<Self, PrinterError> {
         // SAFETY: The private caller supplies a global block owned by the live PRINTDLGW.
         let len = unsafe { GlobalSize(handle) };
         if len == 0 || len > isize::MAX as usize {
-            return Err("printer dialog memory size is invalid".to_owned());
+            return Err(PrinterError::invalid(
+                "printer dialog memory size is invalid",
+            ));
         }
         // SAFETY: The live dialog owns handle; the successful lock is paired with Drop's unlock.
         let ptr = unsafe { GlobalLock(handle) }.cast::<u8>();

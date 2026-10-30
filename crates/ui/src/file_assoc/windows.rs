@@ -13,7 +13,8 @@ const EXTENSION_KEYS: [&str; 2] = ["Software\\Classes\\.580", "Software\\Classes
 const OPEN_COMMAND_KEY: &str = "Software\\Classes\\K580.Snapshot\\shell\\open\\command";
 
 pub fn register() -> Result<(), String> {
-    let exe = crate::install_mode::current_integration_executable()?;
+    let exe =
+        crate::install_mode::current_integration_executable().map_err(|error| error.to_string())?;
     register_for_executable(&exe, InstallScope::User)
 }
 
@@ -77,7 +78,8 @@ pub fn registry_values_for_executable(exe: &Path) -> Result<Vec<RegistryAssociat
 }
 
 pub fn unregister() -> Result<(), String> {
-    let exe = crate::install_mode::current_integration_executable()?;
+    let exe =
+        crate::install_mode::current_integration_executable().map_err(|error| error.to_string())?;
     unregister_for_executable(&exe, InstallScope::User)
 }
 
@@ -143,7 +145,8 @@ fn command_matches(root: HKEY, open_command: &str) -> bool {
 }
 
 fn association_executable() -> Result<PathBuf, String> {
-    let exe = crate::install_mode::current_integration_executable()?;
+    let exe =
+        crate::install_mode::current_integration_executable().map_err(|error| error.to_string())?;
     Ok(crate::install_mode::companion_executable_from_launcher(
         exe,
         "kr.exe",

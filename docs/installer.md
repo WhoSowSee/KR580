@@ -523,3 +523,14 @@ KR580 block to `~/.profile` on Linux/Unix and `~/.zprofile` on macOS.
 
 The PATH checkbox adds only `<install root>/bin`, which contains `kr`. The GUI
 binary lives under `<install root>/app`, so PATH does not expose `kr580`.
+
+## Installation API errors
+
+`install_mode::write_manifest`, `manifest_for_executable`, and
+`current_integration_executable` return `InstallModeError`. Its variants identify
+serialization, file read/write, JSON parsing, invalid executable overrides, and
+executable-resolution failures; `Error::source()` retains the original I/O or
+JSON error. `Display` keeps the existing diagnostic wording. Rust callers that
+need a text error now convert it explicitly with `error.to_string()`; installer
+and file-association display boundaries do this without changing their public
+text results. The manifest JSON schema and launcher fallback behavior are unchanged.

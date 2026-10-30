@@ -1,3 +1,4 @@
+use crate::devices::printer::PrinterError;
 use crate::devices::printer::PrinterPropertyChange;
 use roxmltree::Document;
 use std::fmt::Write;
@@ -7,11 +8,16 @@ const PSF_NAMESPACE: &str =
 const XSI_NAMESPACE: &str = "http://www.w3.org/2001/XMLSchema-instance";
 const XSD_NAMESPACE: &str = "http://www.w3.org/2001/XMLSchema";
 
-pub(super) fn build(base_ticket: &[u8], change: &PrinterPropertyChange) -> Result<String, String> {
-    let base = std::str::from_utf8(base_ticket)
-        .map_err(|error| format!("PrintTicket is not UTF-8: {error}"))?;
-    let document =
-        Document::parse(base).map_err(|error| format!("PrintTicket XML is invalid: {error}"))?;
+pub(super) fn build(
+    base_ticket: &[u8],
+    change: &PrinterPropertyChange,
+) -> Result<String, PrinterError> {
+    let base = std::str::from_utf8(base_ticket).map_err(|error| {
+        PrinterError::invalid_source(format!("PrintTicket is not UTF-8: {error}"), error)
+    })?;
+    let document = Document::parse(base).map_err(|error| {
+        PrinterError::invalid_source(format!("PrintTicket XML is invalid: {error}"), error)
+    })?;
     let root = document.root_element();
     let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
     xml.push_str("<psf:PrintTicket");

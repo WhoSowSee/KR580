@@ -1,5 +1,6 @@
 use super::super::{PrinterInfo, PrinterStatus};
 use super::last_os_error;
+use crate::devices::printer::PrinterError;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Graphics::Printing::{
     EnumPrintersW, GetDefaultPrinterW, PRINTER_ATTRIBUTE_DEFAULT, PRINTER_ENUM_CONNECTIONS,
@@ -13,7 +14,7 @@ use windows_sys::Win32::Graphics::Printing::{
     PRINTER_STATUS_WARMING_UP,
 };
 
-pub(super) fn printers() -> Result<Vec<PrinterInfo>, String> {
+pub(super) fn printers() -> Result<Vec<PrinterInfo>, PrinterError> {
     let flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
     let mut needed = 0;
     let mut returned = 0;
@@ -48,7 +49,9 @@ pub(super) fn printers() -> Result<Vec<PrinterInfo>, String> {
     let item_size = std::mem::size_of::<PRINTER_INFO_2W>();
     let size = buffer.len() * std::mem::size_of::<usize>();
     if returned as usize > size / item_size {
-        return Err("printer enumeration count exceeds its buffer".to_owned());
+        return Err(PrinterError::invalid(
+            "printer enumeration count exceeds its buffer",
+        ));
     }
     // SAFETY: The initialized word allocation covers size bytes and outlives the borrowed view.
     let bytes = unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), size) };
@@ -63,7 +66,7 @@ pub(super) fn printers() -> Result<Vec<PrinterInfo>, String> {
         .collect())
 }
 
-pub(super) fn default_printer_name() -> Result<String, String> {
+pub(super) fn default_printer_name() -> Result<String, PrinterError> {
     let mut len = 0;
     // SAFETY: Null output queries the required UTF-16 length into a live output.
     unsafe {
@@ -81,7 +84,8 @@ pub(super) fn default_printer_name() -> Result<String, String> {
     while buffer.last() == Some(&0) {
         buffer.pop();
     }
-    String::from_utf16(&buffer).map_err(|error| error.to_string())
+    String::from_utf16(&buffer)
+        .map_err(|error| PrinterError::invalid_source(error.to_string(), error))
 }
 
 fn printer_info(
@@ -143,12 +147,12 @@ fn printer_status(status: u32) -> PrinterStatus {
     PrinterStatus::Unknown
 }
 
-fn read_wide_ptr(bytes: &[u8], ptr: *const u16) -> Result<String, String> {
+fn read_wide_ptr(bytes: &[u8], ptr: *const u16) -> Result<String, PrinterError> {
     if ptr.is_null() {
         return Ok(String::new());
     }
     let offset = (ptr as usize)
         .checked_sub(bytes.as_ptr() as usize)
-        .ok_or_else(|| "printer string precedes its buffer".to_owned())?;
+        .ok_or_else(|| PrinterError::invalid("printer string precedes its buffer"))?;
     super::buffer::wide_string(bytes, offset)
 }

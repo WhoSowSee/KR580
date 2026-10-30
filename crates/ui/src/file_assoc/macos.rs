@@ -2,7 +2,8 @@ use crate::install_mode::InstallScope;
 use std::path::Path;
 
 pub fn register() -> Result<(), String> {
-    let executable = crate::install_mode::current_integration_executable()?;
+    let executable =
+        crate::install_mode::current_integration_executable().map_err(|error| error.to_string())?;
     register_for_executable(&executable, InstallScope::User)
 }
 

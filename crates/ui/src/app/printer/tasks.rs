@@ -6,12 +6,14 @@ pub(super) async fn configure_native_printer_blocking() -> Result<Option<Printer
     tokio::task::spawn_blocking(k580_ui::devices::printer::configure_native_printer)
         .await
         .map_err(|error| format!("printer setup task failed: {error}"))?
+        .map_err(|error| error.to_string())
 }
 
 pub(super) async fn list_native_printers_blocking() -> Result<Vec<PrinterInfo>, String> {
     tokio::task::spawn_blocking(k580_ui::devices::printer::list_native_printers)
         .await
         .map_err(|error| format!("printer list task failed: {error}"))?
+        .map_err(|error| error.to_string())
 }
 
 pub(super) async fn load_native_printer_configuration_blocking(
@@ -22,6 +24,7 @@ pub(super) async fn load_native_printer_configuration_blocking(
     })
     .await
     .map_err(|error| format!("printer capabilities task failed: {error}"))?
+    .map_err(|error| error.to_string())
 }
 
 pub(super) async fn load_native_printer_properties_blocking(
@@ -33,6 +36,7 @@ pub(super) async fn load_native_printer_properties_blocking(
     })
     .await
     .map_err(|error| format!("printer properties task failed: {error}"))?
+    .map_err(|error| error.to_string())
 }
 
 pub(super) async fn apply_native_printer_property_blocking(
@@ -45,4 +49,5 @@ pub(super) async fn apply_native_printer_property_blocking(
     })
     .await
     .map_err(|error| format!("printer property task failed: {error}"))?
+    .map_err(|error| error.to_string())
 }

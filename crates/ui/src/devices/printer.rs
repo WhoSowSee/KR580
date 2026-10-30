@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 
+mod error;
 mod export;
 mod native;
 mod properties;
@@ -11,6 +12,7 @@ mod text;
 
 const SPOOL_CAP: usize = 1_048_576;
 
+pub use error::{PrinterDialogError, PrinterError, PrinterErrorKind};
 pub use status::PrinterStatus;
 
 pub use properties::{
@@ -283,32 +285,48 @@ impl PrinterDevice {
     }
 }
 
-pub fn configure_native_printer() -> Result<Option<PrinterSettings>, String> {
+/// Cancelling the system setup dialog returns `Ok(None)`.
+///
+/// # Errors
+/// Returns a typed platform, driver, or data failure with its original cause when available.
+pub fn configure_native_printer() -> Result<Option<PrinterSettings>, PrinterError> {
     native::configure()
 }
 
-pub fn list_native_printers() -> Result<Vec<PrinterInfo>, String> {
+/// Malformed individual native entries are skipped rather than exposed as printer records.
+///
+/// # Errors
+/// Returns a typed failure if printer enumeration cannot complete.
+pub fn list_native_printers() -> Result<Vec<PrinterInfo>, PrinterError> {
     native::list()
 }
 
+/// # Errors
+/// Returns a typed failure when driver access or configuration validation fails.
 pub fn load_native_printer_configuration(
     printer: &PrinterInfo,
-) -> Result<PrinterConfiguration, String> {
+) -> Result<PrinterConfiguration, PrinterError> {
     native::configuration(printer)
 }
 
+/// A failed PrintTicket provider is reported in the successful sheet's `provider_error` text.
+///
+/// # Errors
+/// Returns a typed failure if the underlying printer configuration cannot be loaded.
 pub fn load_native_printer_properties(
     printer: &PrinterInfo,
     settings: &PrinterSettings,
-) -> Result<PrinterPropertySheet, String> {
+) -> Result<PrinterPropertySheet, PrinterError> {
     native::load_properties(printer, settings)
 }
 
+/// # Errors
+/// Returns a typed failure when a property cannot be validated or applied by the driver.
 pub fn apply_native_printer_property(
     printer: &PrinterInfo,
     settings: &PrinterSettings,
     change: &PrinterPropertyChange,
-) -> Result<PrinterPropertySheet, String> {
+) -> Result<PrinterPropertySheet, PrinterError> {
     native::apply_property(printer, settings, change)
 }
 

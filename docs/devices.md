@@ -46,6 +46,22 @@ empty, even though the `IN` return value for an empty queue is also zero.
 
 `NetworkDevice::start_worker` spawns a Tokio task for client or server mode. The worker connects or binds explicitly from settings, splits the socket into read/write halves, queues received bytes into the device RX queue, drains outgoing bytes from a channel, and updates visible status/counters. The old manual `queue_received` test hook remains available for deterministic unit tests.
 
+## Printer API errors
+
+The five native printer setup/list/configuration/property functions return
+`Result<_, PrinterError>`. `PrinterErrorKind` distinguishes unsupported platforms,
+native API failures, and invalid driver data. `Display` retains the diagnostic
+text, while `Error::source()` preserves Win32 I/O, HRESULT, XML, and encoding
+causes where one exists. Common print-dialog codes are retained by
+`PrinterDialogError`, separately from Win32 I/O codes, following the
+[CommDlgExtendedError contract](https://learn.microsoft.com/en-us/windows/win32/api/commdlg/nf-commdlg-commdlgextendederror).
+The private `printer/error.rs` module owns this contract.
+Rust callers that previously required a `String` error must handle the typed
+error or convert it explicitly with `error.to_string()` at their display boundary.
+The app's blocking-task adapters perform that conversion before creating UI
+messages. A partial PrintTicket fallback still returns a successful property
+sheet with a textual `provider_error`; cancelling printer setup remains `Ok(None)`.
+
 ## Printer spool and printing
 
 The printer on port `04h` accepts every `OUT` byte into `PrinterState::spool` and increments `bytes_buffered`. The spool is independent from export: printing does not consume or clear it.

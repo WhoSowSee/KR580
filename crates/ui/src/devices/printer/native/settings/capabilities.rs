@@ -1,5 +1,6 @@
 use super::super::super::{PrinterInfo, PrinterPaper, PrinterSource};
 use super::super::wide_null;
+use crate::devices::printer::PrinterError;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Graphics::Gdi::DEVMODEW;
 use windows_sys::Win32::Storage::Xps::{
@@ -12,7 +13,7 @@ const SOURCE_NAME_LEN: usize = 24;
 pub(super) fn load(
     printer: &PrinterInfo,
     devmode: *const DEVMODEW,
-) -> Result<(Vec<PrinterPaper>, Vec<PrinterSource>), String> {
+) -> Result<(Vec<PrinterPaper>, Vec<PrinterSource>), PrinterError> {
     let device = wide_null(&printer.name);
     let port = (!printer.port.is_empty()).then(|| wide_null(&printer.port));
     let port_ptr = port.as_ref().map_or(null(), |port| port.as_ptr());
@@ -48,7 +49,7 @@ fn query_pairs(
     ids_capability: u16,
     names_capability: u16,
     name_len: usize,
-) -> Result<Vec<(i16, String)>, String> {
+) -> Result<Vec<(i16, String)>, PrinterError> {
     // SAFETY: The private caller retains terminated names and a validated aligned DEVMODE during queries.
     let count = unsafe { DeviceCapabilitiesW(device, port, ids_capability, null_mut(), devmode) };
     if count < 0 {
@@ -58,24 +59,32 @@ fn query_pairs(
         return Ok(Vec::new());
     }
     if count > 65_536 {
-        return Err("printer capability count exceeds the buffer limit".to_owned());
+        return Err(PrinterError::invalid(
+            "printer capability count exceeds the buffer limit",
+        ));
     }
     let mut ids = vec![0u16; count as usize];
     let ids_count =
         // SAFETY: Windows' count query sizes this initialized output for the same capability/DEVMODE.
         unsafe { DeviceCapabilitiesW(device, port, ids_capability, ids.as_mut_ptr(), devmode) };
     if ids_count < 0 {
-        return Err("DeviceCapabilitiesW failed while reading identifiers".to_owned());
+        return Err(PrinterError::native_message(
+            "DeviceCapabilitiesW failed while reading identifiers",
+        ));
     }
     if ids_count as usize > ids.len() {
-        return Err("printer identifier count changed during enumeration".to_owned());
+        return Err(PrinterError::invalid(
+            "printer identifier count changed during enumeration",
+        ));
     }
     ids.truncate(ids_count as usize);
 
     // SAFETY: Live terminated names and aligned DEVMODE are retained; null output queries name count.
     let count = unsafe { DeviceCapabilitiesW(device, port, names_capability, null_mut(), devmode) };
     if count > 65_536 {
-        return Err("printer name count exceeds the buffer limit".to_owned());
+        return Err(PrinterError::invalid(
+            "printer name count exceeds the buffer limit",
+        ));
     }
     let mut names = vec![0u16; count.max(0) as usize * name_len];
     if count > 0 {
@@ -84,7 +93,9 @@ fn query_pairs(
             DeviceCapabilitiesW(device, port, names_capability, names.as_mut_ptr(), devmode)
         };
         if names_count > count {
-            return Err("printer name count changed during enumeration".to_owned());
+            return Err(PrinterError::invalid(
+                "printer name count changed during enumeration",
+            ));
         }
         names.truncate(names_count.max(0) as usize * name_len);
     }
