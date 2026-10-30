@@ -71,7 +71,7 @@ impl RegistryJournal {
     ) -> Result<(), String> {
         for (subkey, name, planned) in targets {
             let original = read(scope, &subkey, &name)?;
-            let expected = copy_value(&original);
+            let expected = copy_value(original.as_ref());
             self.values.push(SavedValue {
                 scope,
                 phase,
@@ -234,8 +234,8 @@ fn read(
     }
 }
 
-fn copy_value(value: &Option<RegValue<'static>>) -> Option<RegValue<'static>> {
-    value.as_ref().map(|value| RegValue {
+fn copy_value(value: Option<&RegValue<'static>>) -> Option<RegValue<'static>> {
+    value.map(|value| RegValue {
         bytes: value.bytes.clone(),
         vtype: value.vtype.clone(),
     })
