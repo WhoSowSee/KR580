@@ -3,7 +3,7 @@ use k580_ui::devices::{
     DeviceStatus, IoBus, MonitorPhase, NetworkDevice, NetworkMode, TextCell, decode_oem_text,
 };
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[test]
 fn monitor_text_command_writes_char_with_colour() {
@@ -282,18 +282,48 @@ fn reconfiguring_network_aborts_the_previous_worker() {
 
 #[test]
 fn printer_buffers_then_exports_as_separate_action() {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let path = unique_temp_path("printer.txt");
-    let mut bus = IoBus::default();
-    bus.printer.attach_export_path(&path, runtime.handle());
-    bus.output(IoBus::PRINTER_PORT, b'P').unwrap();
-    let printer = bus.snapshot().printer;
-    assert_eq!(printer.spool, vec![b'P']);
-    assert_eq!(printer.bytes_buffered, 1);
-    bus.printer.print_spool().unwrap();
-    runtime.block_on(async { tokio::time::sleep(Duration::from_millis(50)).await });
-    assert_eq!(std::fs::read(&path).unwrap(), vec![b'P']);
-    std::fs::remove_file(path).ok();
+    for fail_export in [false, true] {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let path = if fail_export {
+            directory.path().to_path_buf()
+        } else {
+            directory.path().join("printer.txt")
+        };
+        let mut bus = IoBus::default();
+        bus.printer.attach_export_path(&path, runtime.handle());
+        bus.output(IoBus::PRINTER_PORT, b'P').unwrap();
+        let printer = bus.snapshot().printer;
+        assert_eq!(printer.spool, vec![b'P']);
+        assert_eq!(printer.bytes_buffered, 1);
+        bus.printer.print_spool().unwrap();
+        assert_eq!(bus.printer.state().status, DeviceStatus::Busy);
+        assert!(!bus.printer.poll());
+        runtime.block_on(async {
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while !bus.printer.poll() {
+                assert!(
+                    Instant::now() < deadline,
+                    "printer export did not complete, fail_export={fail_export}"
+                );
+                tokio::task::yield_now().await;
+            }
+        });
+        let printer = bus.snapshot().printer;
+        assert_eq!(printer.spool, vec![b'P']);
+        assert_eq!(printer.bytes_buffered, 1);
+        if fail_export {
+            assert!(matches!(printer.status, DeviceStatus::Error(_)));
+            assert!(printer.last_error.is_some());
+        } else {
+            assert_eq!(printer.status, DeviceStatus::Ready);
+            assert_eq!(printer.last_error, None);
+            assert_eq!(std::fs::read(&path).unwrap(), vec![b'P']);
+        }
+    }
 }
 
 #[test]

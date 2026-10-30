@@ -206,6 +206,12 @@ file/flush errors. Success and file failure share one parameterized UI test;
 backend flush failure remains a separate case. These tests use completion
 signals rather than fixed sleeps.
 
+The printer export regression in `device_bus` queues work on a current-thread
+runtime, verifies it is initially pending, then waits for `PrinterDevice::poll()`
+with a five-second deadline. It checks exact file bytes only after successful
+completion, and also covers a failed export to a directory. Both outcomes must
+preserve the spool and buffered-byte count.
+
 ```sh
 cargo test --locked -p kr580 --lib shutdown -j 1
 cargo test --locked -p kr580 --bin kr580 app::shutdown::tests -j 1
