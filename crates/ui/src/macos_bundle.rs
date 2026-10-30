@@ -140,7 +140,8 @@ fn bundle_executable(bundle: &Path) -> Option<String> {
 }
 
 fn managed_bundle_path(executable: &Path) -> Result<PathBuf, String> {
-    if let Some((root, manifest)) = crate::install_mode::manifest_for_executable(executable)?
+    if let Some((root, manifest)) = crate::install_mode::manifest_for_executable(executable)
+        .map_err(|error| error.to_string())?
         && manifest.mode == crate::install_mode::InstallMode::Portable
     {
         return Ok(root.join(APP_BUNDLE_NAME));
@@ -292,6 +293,22 @@ mod tests {
         assert_eq!(bundle, root.join(APP_BUNDLE_NAME));
         assert_eq!(super::ensure_for_executable(&executable).unwrap(), bundle);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn invalid_install_manifest_prevents_bundle_resolution() {
+        let root = tempfile::tempdir().unwrap();
+        let executable = root.path().join("app/kr580");
+        std::fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        std::fs::write(
+            root.path().join(crate::install_mode::MANIFEST_FILENAME),
+            b"{",
+        )
+        .unwrap();
+
+        let error = super::managed_bundle_path(&executable).unwrap_err();
+
+        assert!(error.starts_with("parse manifest:"), "{error}");
     }
 
     #[test]

@@ -108,6 +108,7 @@ iteration without replacing the workspace gate:
 | UI shutdown | `cargo test --locked -p kr580 --bin kr580 app::shutdown::tests` | Dirty gate, accepted work, failed close and completion ordering |
 | UI | `cargo test --locked -p kr580 --bin kr580` | Editing, navigation, drafts, worker completions, Help and updates |
 | Linux associations | `cargo test --locked -p kr580 --test linux_associations` | Ownership, previous defaults and ordinary-error rollback |
+| macOS bundle fixtures | `cargo test --locked -p kr580 --lib macos_bundle` | Bundle ownership, portable paths and malformed-manifest error propagation on Unix |
 | Installer | `cargo test --locked -p kr580 --bin k580-installer --bin k580-uninstaller` | Staging, ownership, rollback and native adapters |
 
 CPU tests classify all opcode slots and smoke-run documented instructions.
@@ -123,6 +124,8 @@ rather than assume sending a command already changed the snapshot.
 
 Native registry, installation and association fixtures use isolated roots and
 adapters. They must preserve the current user's real PATH, desktop and defaults.
+The macOS bundle module is also compiled by Linux library tests through
+`cfg(all(test, unix))`; its fixtures use temporary paths without calling Launch Services.
 Performance regressions check zero allocation during metadata execution and
 unchanged paused-device polls; the relevant test names are discoverable with
 `cargo test --locked --workspace -- --list`.
