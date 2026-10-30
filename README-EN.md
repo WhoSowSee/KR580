@@ -224,17 +224,8 @@ See [Contributing](https://github.com/WhoSowSee/KR580/blob/main/CONTRIBUTING.md)
 for participation and issue/PR guidelines. AI-assisted contributions follow the
 [AI Policy](https://github.com/WhoSowSee/KR580/blob/main/AI_POLICY.md).
 
-Useful reference docs:
-
-- [Architecture](https://github.com/WhoSowSee/KR580/blob/main/docs/architecture.md)
-- [CPU core](https://github.com/WhoSowSee/KR580/blob/main/docs/core.md)
-- [Devices and IoBus](https://github.com/WhoSowSee/KR580/blob/main/docs/devices.md)
-- [Persistence](https://github.com/WhoSowSee/KR580/blob/main/docs/persistence.md)
-- [App and UI](https://github.com/WhoSowSee/KR580/blob/main/docs/ui_app.md)
-- [Installer](https://github.com/WhoSowSee/KR580/blob/main/docs/installer.md)
-- [RPM and Arch Linux](https://github.com/WhoSowSee/KR580/blob/main/docs/linux_packages.md)
-- [Testing](https://github.com/WhoSowSee/KR580/blob/main/docs/testing.md)
-- [Assets](https://github.com/WhoSowSee/KR580/blob/main/docs/assets.md)
+The [documentation index](https://github.com/WhoSowSee/KR580/blob/main/docs/README.md)
+links architecture, CPU/device contracts, UI, file formats, builds and verification.
 
 ## Star History
 

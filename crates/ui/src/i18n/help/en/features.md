@@ -1,6 +1,6 @@
 **Execution**
 • Run one T-state, one instruction, or continuously
-• Select 5, 20, 120, or 1000 instructions per second
+• Paced execution at 5, 20, or 120 instructions per second and a Max burst mode
 • Optionally keep the RAM list following PC
 
 **Editing and navigation**

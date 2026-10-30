@@ -3,7 +3,9 @@
 • Ctrl+T – execute one instruction
 • Ctrl+Y – execute one T-state of the current instruction
 
-Choose 5, 20, 120, or 1000 instructions per second on the left. When Follow PC is enabled, the RAM list follows the next instruction at execution boundaries.
+Choose paced execution at 5, 20, or 120 instructions per second, or Max. Max runs instruction batches with a 16 ms time budget; the displayed 1000 is a nominal tier label, not a throughput limit.
+
+With Follow PC enabled, the RAM list shows the current execution position. At higher speeds, intermediate states may be coalesced.
 
 **Reset**
 • Ctrl+Shift+R – fill RAM with zeroes

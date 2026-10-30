@@ -33,9 +33,9 @@ queueing API; validation occurs when an eligible IRQ reaches its boundary.
 `tact.rs` owns the debug T-state walk. It prepares the active opcode,
 branch choice, and total T-state count without committing architectural
 effects; registers, memory, PC, and device I/O are committed by the same
-instruction-boundary executor on the final T-state. This keeps
-`StepTact` faithful to the original emulator's one-tact control flow
-while preserving the stable `StepInstruction` / `Run` execution path.
+instruction-boundary executor on the final T-state. Instruction stepping and
+running use that same boundary executor; this is a deterministic debug model,
+not a transistor-level decomposition of the processor.
 
 The walk latches whether it is executing a program instruction or an interrupt
 acknowledge, including the interrupt vector. An IRQ arriving between its T-states
@@ -77,7 +77,7 @@ The internal UI backend owns `AppCommand` and `AppEvent`.
 
 ## Executor layout
 
-`execute.rs` now owns instruction-boundary orchestration only. Family-specific execution lives in:
+`execute.rs` owns instruction-boundary orchestration. Family-specific execution lives in:
 
 - `ops/data.rs` for MOV/MVI/register-pair/memory transfer instructions;
 - `ops/alu.rs` for arithmetic, logic, INR/DCR, and immediate ALU instructions;
@@ -87,19 +87,18 @@ The internal UI backend owns `AppCommand` and `AppEvent`.
 
 ## Machine-cycle layout
 
-`machine_cycle/` ships the schoolbook M-cycle / T-phase tables that the UI uses to mirror the reference KR-580 panel. Split into focused submodules to stay under the 400-line per-file budget:
+`machine_cycle/` defines opcode M-cycle lengths and kinds, position lookup and
+status-byte helpers. Conditional layouts contain taken and not-taken paths.
+The school-convention HLT layout is `[4]`, while CPU timing counts its full 7T.
+Other layout sums are checked against decoder timing.
 
-- `machine_cycle/mod.rs` – public types: `MachineCycleLengths`, `MachineCycleLayout`, `MachineCyclePosition`, `MachineCycleKind`, `MachineCycleKinds`, plus `position_for` and the `status_byte()` / `label_ru()` helpers on `MachineCycleKind`.
-- `machine_cycle/tables.rs` – opcode → M-cycle layout (`layout_for`) and opcode → M-cycle types (`kinds_for` / `kind_at`). For conditional instructions both `taken` and `not_taken` branches are covered; HLT layout is `[4]` (only the visible M1, school convention) while `decode.rs` keeps the datasheet 7T total.
-- `machine_cycle/tests.rs` – invariants pinning the tables to `decode.rs` timing for all 244 documented opcodes and to the Intel 8080A datasheet status-byte raster.
-- `tests/tact_execution.rs` – regression tests proving that partial
-  tact walks do not advance PC or fire I/O early, while a complete tact
-  walk reaches the same CPU/device result as `step_instruction`,
-  including interrupt-acknowledge vectors.
+The [schematic timing guide](ui_execution.md#timing-panels) defines presentation
+of these layouts. [Focused checks](testing.md#focused-regression-checks) cover
+partial-step boundary effects and agreement with instruction stepping, including IRQ.
 
 ## Tested opcode areas
 
-The semantic test suite now covers:
+The semantic test suite covers:
 
 - full opcode classification for all 256 byte values;
 - smoke execution for every documented opcode from a controlled CPU state;
@@ -108,4 +107,4 @@ The semantic test suite now covers:
 - `SHLD`, `LHLD`, `XCHG`, `XTHL`, `CALL`, `RET`, conditional branch/call timing;
 - `IN`/`OUT` bus routing and EI/DI/HLT interrupt acceptance behavior.
 
-External Intel 8080 binary suites are still a recommended next gate when the binaries are available.
+External binary-suite limitations are recorded in [Assumptions](assumptions.md).

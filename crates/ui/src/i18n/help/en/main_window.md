@@ -7,5 +7,5 @@ The left side shows registers, flags, buses, the decoder, machine cycles, and T-
 **RAM and controls**
 The right side contains the RAM list, memory and register editors, and execution/reset buttons. The selected cell, PC, SP, and instruction operands have distinct highlight states.
 
-**Status bar**
-The bottom line reports the latest action, current file path, HLT state, input errors, and device errors.
+**Application state**
+The structural diagram header reports the latest action or file path. HLT has its own indicator; errors and blocked execution appear in notices.

@@ -3,233 +3,173 @@
 `IoBus` routes the low byte of I/O port addresses:
 
 | Port | Device |
-|---:|---|
+|---|---|
 | `00h` | Monitor |
 | `01h` | Floppy storage |
 | `02h` | HDD storage |
-| `03h` | Network adapter |
-| `04h` | Printer |
+| `03h` | TCP network adapter |
+| `04h` | Printer spool |
 
-Device operations return typed status or errors. They do not mutate CPU state behind the core API.
-
-- Monitor keeps a 64×20 text-cell framebuffer (`ch` + 7-bit `color`), a sparse 256×256 graphics layer (`Vec<(x, y, intensity)>`), a phase tracker for the in-flight 2/3-byte command, last command byte, and the raw byte stream (`hex_buffer`).
-- Storage devices append accepted bytes to visible buffers, maintain a bounded tail buffer, count queued file-backed bytes, expose last enqueue error, and can attach async file-backed workers. A `NotReady`/`Disconnected` enqueue failure reports an error but does not add the rejected byte to the visible buffers. `debug_buffer` is an explicit buffer-only mode for manual program checks: with no attached file it makes `OUT 01h` accept bytes into `visible_buffer`/`tail_buffer`, report `Ready`, and leave `bytes_queued` unchanged.
-- Network exposes explicit mode, connection state, RX buffer, last transmitted byte, byte counters, last error, and an optional Tokio-backed TCP worker. No-data reads are non-fatal.
-- Printer accumulates bytes in a spool first, tracks buffered byte count and last enqueue error, and exports/prints through a separate queued action.
-
-## Port behavior
-
-Invalid ports return `PortError::InvalidPort`. Device-specific enqueue failures are converted into typed `PortError` variants such as `NotReady` and `Disconnected`, so the application can surface failures through events instead of panics or ad hoc strings.
+Invalid ports return `PortError::InvalidPort`; device failures become typed port
+errors. Devices do not mutate CPU state behind the core API. Inspection, native
+windows and setup workflows are described once in [Device windows](ui_devices.md).
 
 ## Network worker
 
-The workspace enables Tokio's `macros` feature for concurrent owner-task dispatch.
-One Tokio owner task holds both borrowed socket halves and selects between its
-read and write futures. Reconfiguration aborts that owner, so no detached reader
-survives it. Each configured worker receives fresh RX and status storage; an old
-generation cannot publish bytes or status into the new device. EOF or a terminal
-failure ends both halves of the connection.
-Cloned `NetworkDevice` values share an RAII cancellation owner. Dropping one
-copy keeps the worker alive; dropping its last owner schedules task cancellation,
-including while a server waits for its first client. Once the runtime processes
-that cancellation, the listener or socket is released. Drop does not wait for
-completion, so a current-thread runtime must keep being driven for cleanup.
-Reconfiguration or restarting through any copy still explicitly cancels the
-shared old worker, independently of how many copies remain.
-Snapshots publish every status of the current worker, including clean EOF as
-`Disconnected`; the absence of a worker is tracked separately from that status.
-RX retains at most 64 KiB. The reader requests only the available capacity and
-waits for an `IN` read or Clear when full, applying TCP backpressure instead of
-discarding an already-read chunk. `rx_total` counts the bytes actually retained.
-A received `00h` byte is data. `NoData` is set only when both input queues are
-empty, even though the `IN` return value for an empty queue is also zero.
+Client mode connects to a remote endpoint; server mode waits for a client.
+Reconfiguration explicitly cancels the old worker before starting another.
+RX/TX and connection revisions let the actor publish changes while CPU execution
+is paused without copying unchanged buffers every poll.
 
-`NetworkDevice::start_worker` spawns a Tokio task for client or server mode. The worker connects or binds explicitly from settings, splits the socket into read/write halves, queues received bytes into the device RX queue, drains outgoing bytes from a channel, and updates visible status/counters. The old manual `queue_received` test hook remains available for deterministic unit tests.
+RX storage is bounded. A full receive buffer pauses socket reads rather than
+silently dropping bytes; CPU reads or clear notify the worker that room exists.
+`queue_received` is fallible and respects the same capacity. Empty `IN 03h`
+returns zero without an error. TX admission uses nonblocking FIFO enqueue.
 
-## Printer API errors
+Cloned `NetworkDevice` values share the worker-abort owner. Dropping the final
+owner requests cancellation, including a server waiting for its first client.
+Resource release follows runtime processing of that cancellation: Drop does not
+block, and destroying the runtime is not a confirmed asynchronous close.
 
-The five native printer setup/list/configuration/property functions return
-`Result<_, PrinterError>`. `PrinterErrorKind` distinguishes unsupported platforms,
-native API failures, and invalid driver data. `Display` retains the diagnostic
-text, while `Error::source()` preserves Win32 I/O, HRESULT, XML, and encoding
-causes where one exists. Common print-dialog codes are retained by
-`PrinterDialogError`, separately from Win32 I/O codes, following the
-[CommDlgExtendedError contract](https://learn.microsoft.com/en-us/windows/win32/api/commdlg/nf-commdlg-commdlgextendederror).
-The private `printer/error.rs` module owns this contract.
-Rust callers that previously required a `String` error must handle the typed
-error or convert it explicitly with `error.to_string()` at their display boundary.
-The app's blocking-task adapters perform that conversion before creating UI
-messages. A partial PrintTicket fallback still returns a successful property
-sheet with a textual `provider_error`; cancelling printer setup remains `Ok(None)`.
-
-## Printer spool and printing
-
-The printer on port `04h` accepts every `OUT` byte into `PrinterState::spool` and increments `bytes_buffered`. The spool is independent from export: printing does not consume or clear it.
-
-`AppCommand::PrintPrinterNative(settings)` copies the current spool and starts a blocking system-printer job on the emulator's Tokio runtime. `None` targets the OS default printer; `Some(PrinterSettings)` carries the persisted global configuration or the session override selected from the printer buffer window. The device enters `Busy` immediately, and the actor polls the completion channel every 50 ms so a long printer job does not block the UI or CPU actor. Win32 `ERROR_CANCELLED` is a normal completion outcome: cancelling a driver or output-file prompt returns the printer to `Ready` and does not populate `last_error`.
-
-On Windows, `EnumPrintersW` supplies the custom setup modal with printer name, driver, port, status, location, comment, job count, and default marker. The spooler's status word is decoded into the `PrinterStatus` enum rather than an English label, so `PrinterInfo` carries no display text and the view renders every one of the 23 states in the application language. `DocumentPropertiesW` loads and validates the driver's complete public and private `DEVMODEW`, while `DeviceCapabilitiesW` supplies the supported paper and input-bin identifiers and labels. The custom modal exposes the same top-level structure as the system print setup: printer selection and details, Properties, paper size, paper source, and portrait/landscape orientation. The alternate system mode uses `PrintDlgW`.
-
-Embedded Properties converts the active `DEVMODEW` to PrintTicket XML, parses PrintCapabilities with `roxmltree`, and exposes both standard and vendor-defined features, constrained options, and typed parameters. Each edit is validated by `PTMergeAndValidatePrintTicket` and converted back through `PTConvertPrintTicketToDevMode`, preserving driver-private settings for the eventual GDI print job. The PrintTicket provider is opened, used, and closed on one MTA thread. Every blocking Win32 dialog or driver call runs in a Tokio blocking task.
-
-Native printing creates the GDI device context with the validated `DEVMODEW`, so the selected paper, source, orientation, and driver-private options reach the spooler. Printer bytes are decoded as CP866, CR/LF and blank lines are preserved, tabs expand to four spaces, unsupported control bytes render as `·`, and long lines wrap at 80 columns. `AppCommand::ClearPrinterBuffer` clears only the spool and byte counter; it leaves the active printer settings and device status intact.
+Clear removes inspection data without replacing the endpoint, connection/error
+state or worker. Changing a session endpoint does not persist startup defaults.
 
 ## Monitor command protocol
 
-The monitor on port `00h` consumes 2- or 3-byte commands. The first byte's bit 7 selects the destination layer; bits 0..6 carry a 7-bit colour intensity (`rgb = 0xFFFFFF / 127 * intensity`).
+The monitor consumes these command sequences:
 
+```text
+text:     [0 ccccccc] [CP866 byte]
+graphics: [1 ccccccc] [x] [y]
 ```
-text command (2 bytes):     [0 ccccccc] [char_oem]
-graphics command (3 bytes): [1 ccccccc] [x] [y]
-```
 
-- Text commands write `(ch, color)` into the next text cell (cursor wraps at `64 * 20`).
-- Graphics commands write `(x, y, intensity)` into the pixel layer; rewriting the same coordinate replaces the previous intensity rather than appending.
-- The two layers coexist independently – a graphics command never touches the text buffer and vice versa.
-- `IN 00h` returns the device status byte (`Ready` → 0).
+The first byte's low seven bits are colour intensity. The renderer uses
+`0xFFFFFF / 127 * intensity` with low-byte-red packed-colour ordering; this is
+not independent linear interpolation of the three RGB channels.
 
-`MonitorPhase` (`Idle | AwaitingTextChar | AwaitingGraphicsX | AwaitingGraphicsY`) is part of `MonitorState` so the inspection window can show whether the device is mid-command.
+Text writes `(character, colour)` into the next cell of the 64×20 framebuffer
+and wraps at its end. Graphics writes one of 256×256 coordinates; rewriting it
+replaces its intensity. Layers are independent. `IN 00h` returns status
+(`Ready` is zero). The in-flight phase is retained in `MonitorState`.
 
 ## Monitor inspection window
 
-`MonitorState`, `MonitorPhase`, `TextCell` and the geometry constants (`TEXT_COLS`, `TEXT_ROWS`, `GRAPHICS_WIDTH`, `GRAPHICS_HEIGHT`) are re-exported from the internal `kr580` backend module. The Монитор chip in the bottom «Быстрый доступ» strip dispatches `Message::OpenMonitor`; the resulting modal renders pure views over the live `AppSnapshot.devices.monitor`.
+Unified mode composites graphics with byte-indexed CP866 bitmap glyphs; split
+mode presents the layers separately. Glyphs use 8×12 cells, so the text raster
+is wider than the graphics raster. Split text decoding wraps at panel width
+without inserting line breaks at framebuffer row boundaries.
 
-The window has two visual modes, toggled from the header button:
-
-- **unified** (default) – one 256×256 canvas with the pixel layer and the rasterised text layer composited on top, mirroring the original KP580 emulator's single-display behaviour. The text renderer indexes a bundled 8×8 bold CP866 bitmap directly by the original byte and places each glyph in an 8×12 cell, so Cyrillic, box drawing, blocks, and OEM symbols render identically on every platform.
-- **split** – separate graphics and text blocks, each 1:1 with its source buffer. Text bytes are decoded as CP866 for the Unicode text view. Useful when debugging a program that mixes layers and you need to see exactly which command wrote what.
-
-Both modes share the meta strip (phase, text cursor, pixel count, last command) and the raw byte stream (`hex_buffer`). The window never writes back to the device. The raw stream is a debug view; the text and graphics buffers remain authoritative. See [UI App](ui_app.md) for the rendering details.
+The raw stream is bounded diagnostic history; text/pixel buffers remain
+authoritative. Protocol filtering and image export are described in
+[the monitor UI](ui_devices.md#monitor). Font source and geometry are documented
+in [Assets](assets.md#monitor-bitmap-font).
 
 ## Storage inspection windows
 
-### Confirmed shutdown
+Floppy and HDD share `StorageDevice`: accepted bytes update inspection buffers
+and enqueue append writes to the attached file. Rejected NotReady/Disconnected/
+Busy writes do not update accepted counters or visible data.
 
-`StorageDevice::close()` closes admission without waiting. Call the additive
-`shutdown().await` API while its Tokio runtime is alive to wait for every accepted
-write and the final flush. Devices retain ownership of current and retired
-writers across close/reattach. Completed handles are collected during polling;
-writer failures remain available to shutdown rather than disappearing with a
-finished task. Shutdown reports the first failure after all writers have joined.
-Flush completion confirms host-file writes, not resilience to a power failure.
+`attach_file` returns a typed result; open/create failure sets error state and
+cannot publish a successful attachment or saved path. Actor requests instead
+prepare an owned file on the persistence worker, then use `attach_open_file`.
 
-Backend `Shutdown` drains preceding persistence jobs before closing devices. It
-waits for both storage devices and accepted printer exports/native print jobs,
-even when one device fails, and only then completes the matching request. A
-failure is returned through `ErrorRaised` and `CommandFinished(Err)`; the actor
-stays available. A later explicit close can acknowledge that reported failure.
-Cancelling a native print dialog remains a successful cancellation.
+Reattachment reuses a writer. FIFO file-switch/detach commands flush preceding
+accepted bytes before replacing the backing file. Reserved control capacity
+keeps these operations separate from byte admission. A full control queue makes
+detach fail explicitly.
 
-Dropping a device or its runtime is not a substitute for confirmed shutdown.
-The desktop waits for this protocol before exiting; library callers must also
-keep the runtime alive until their explicit shutdown completes.
+Detach clears the file path but preserves received inspection data and counters.
+Subsequent writes are NotReady unless buffer-only debug is enabled. Attaching
+a file disables debug. Debug accepts unsaved inspection bytes without file I/O.
 
-`StorageKind::{Floppy,Hdd}` selects an inspection device explicitly in UI image
-operations; callers no longer encode the device with a positional boolean.
+Clear removes visible/tail buffers without changing worker, file, status or
+accepted-byte counter. Buffer export writes retained inspection data; it is
+distinct from truncating or saving the backing file.
 
-Device admission and history have separate budgets. Network TX and storage
-command queues hold at most 64 KiB of byte writes. `try_send` refuses a full
-queue with `DeviceError::Busy` before changing accepted counters or buffers;
-closed workers report `Disconnected`. Network socket writes and storage file
-writes drain FIFO batches of up to 4096 bytes. Storage close/detach closes
-admission and lets accepted bytes drain and flush through `storage/worker.rs`.
+HDD uses `hdd.kpd` in the selected/default directory, creating/appending as
+needed. The initial fallback is the home directory. Persistent directory
+selection is under Settings → External Devices; window selection is session-only.
+The [storage UI](ui_devices.md#floppy-and-hdd) owns previews and create/delete
+confirmation.
 
-Monitor hex history and attached storage inspection retain the latest 64 KiB
-in deques. The storage file still receives every accepted byte; its queued-byte
-counter covers the complete stream. Storage's separate tail remains 4096 bytes.
-Unsaved storage debug data and printer spool each have a 1 MiB cap and refuse
-further bytes with `Busy`; accepted user data is retained until explicit clear.
-Buffer export saves the currently retained inspection data. Printer file export
-admits one spool at a time and publishes completion/errors through the same
-bounded completion path as native printing. `NetworkDevice::queue_received`
-also returns `Result` and obeys the RX capacity.
+## Admission and retained data
 
-Windows printer FFI uses owned DC/font/job guards and same-thread COM/provider
-guards. Dialog global memory is pinned by a lock guard and checked against
-`GlobalSize` before reading DEVNAMES/DEVMODE. Enumeration strings are decoded
-inside the owned returned buffer; saved DEVMODE headers and driver-extra sizes
-are validated before aligned native access. Capability lists reject counts over
-65536, and PrintTicket streams reject sizes over 16 MiB. Conversion memory is
-released on success and every early error. `native/printing.rs` owns GDI job
-lifecycle; `native/buffer.rs` provides the bounded UTF-16 decoder.
+| Resource | Budget/behavior |
+|---|---|
+| Storage byte writes and network TX queue | 64 KiB; full admission returns Busy |
+| Storage control reserve | 16 slots for switching/detaching files |
+| Network RX | 64 KiB, with backpressure |
+| Monitor raw history and attached-storage inspection | Latest 64 KiB |
+| Storage tail | Latest 4096 bytes |
+| Unsaved storage debug data and printer spool | 1 MiB; refuse more bytes until explicit clear |
+| Printer export admission | One captured spool at a time |
 
-Storage retains its 4096-byte tail as a deque, so each accepted byte evicts at
-most one old byte without shifting the entire tail. Snapshots keep the existing
-ordered `Vec<u8>` representation for inspection.
+Socket/file writers drain FIFO batches up to 4096 bytes. Attached storage keeps
+writing every accepted byte even when older inspection history is evicted.
+Unsaved user buffers refuse overflow rather than silently evicting accepted data.
+Snapshots expose retained deques as ordered byte vectors.
 
-`StorageDevice::attach_file` returns a typed `Result`. Open/create failures set
-the device's error state and fail the matching backend command, so an attachment
-cannot publish a successful completion or update the saved path after an error.
+## Printer spool and printing
 
-Actor requests open/create on the bounded persistence worker, then call
-`StorageDevice::attach_open_file` with the prepared file. Successful reattachment
-uses the existing writer, flushing preceding accepted bytes before switching
-files. Sixteen reserved queue slots admit file-switch/detach control commands;
-byte admission remains capped at 64 KiB. `detach_file` now returns a typed
-`Result` when its control queue is full. Dropping the sender still drains writes
-and flushes before closing.
+`OUT 04h` accumulates bytes; a separate action exports or prints a captured
+spool. The device enters Busy immediately and delivers completion through a
+bounded channel, which the actor polls every 50 ms. Clear retains target
+settings and does not alter a captured in-flight job.
 
-Disk inspection reads metadata and at most the first 64 KiB on the UI file
-worker. The stored image itself is unchanged.
-Each device has one pending preview check and a generation. Changing the path
-or switching the preview rejects an older completion, including one from the
-same path. Metadata caching skips unchanged byte reads.
+Native target precedence is session configuration, global configuration, then
+the OS default. Windows printing uses the validated complete DEVMODE, including
+driver-private bytes. CP866 conversion preserves CR/LF and blank lines, expands
+tabs to four spaces, marks unsupported controls with `·` and wraps long lines
+at 80 columns. Native cancellation returns Ready without recording a failure.
 
-`StorageState` is re-exported from the internal `kr580` backend module for UI rendering. The
-Дисковод quick-access chip opens a modal over
-`AppSnapshot.devices.floppy`; it renders accepted `visible_buffer`
-bytes as terminal text and displays the configured file path, status,
-queued-byte count, and last error. Rejected writes such as `NotReady`
-leave the visible buffer unchanged.
+Printer discovery returns metadata and a typed spooler status for localization.
+`DocumentPropertiesW` normalizes driver configuration; `DeviceCapabilitiesW`
+supplies paper/source choices. PrintTicket exposes features, constrained options
+and typed parameters, and validates edits before converting them back to DEVMODE.
+The provider opens, operates and closes on one blocking MTA thread.
 
-`AppCommand::AttachFloppyImage(path)` attaches the floppy to a
-file-backed worker and stores future `OUT 01h` bytes in that image.
-Attaching a file disables `debug_buffer`, matching the normal
-file-backed device path.
+### Native safety limits
 
-`AppCommand::DetachFloppyImage` disconnects the file-backed worker and
-clears the attached image path. It leaves `visible_buffer`,
-`tail_buffer`, and `bytes_queued` intact, so the inspection window keeps
-showing bytes that were accepted before the image was detached. Future
-writes are rejected as `NotReady` unless `debug_buffer` is enabled.
+GDI DC/font/job handles and dialog global memory use ownership guards. Dialog
+buffers are checked against GlobalSize, enumeration strings stay within their
+returned buffer, and DEVMODE headers/driver-extra lengths are validated before
+aligned access. Capability counts above 65,536 and PrintTicket streams above
+16 MiB are rejected. Early errors release conversion resources.
 
-`AppCommand::SetFloppyDebugBuffer(true)` switches the floppy into
-buffer-only debug mode. This is deliberately not original-emulator
-storage behavior: it is a local inspection aid for testing programs
-without choosing an image file.
+## Printer API errors
 
-`AppCommand::ClearFloppyBuffer` calls
-`StorageDevice::clear_visible_buffer()`. That clears `visible_buffer`
-and `tail_buffer` only. It deliberately leaves the worker, attached
-path, status, queued-byte counter, and already-written file contents
-untouched.
+The five native setup/list/configuration/property functions return `PrinterError`.
+`PrinterErrorKind` distinguishes unsupported platform, native API and invalid
+data. Display supplies diagnostic context; `Error::source()` retains available
+Win32 I/O, HRESULT, XML and encoding causes.
 
-## HDD storage
+`PrinterDialogError` preserves common-dialog codes separately from Win32 I/O
+codes, following [CommDlgExtendedError](https://learn.microsoft.com/en-us/windows/win32/api/commdlg/nf-commdlg-commdlgextendederror).
+Cancelled setup returns `Ok(None)`. Partial PrintTicket provider failure may
+still produce a usable property sheet with textual `provider_error` feedback.
 
-HDD is on port `02h`. It shares the `StorageDevice` implementation
-with the floppy (same buffer, worker, and debug-buffer semantics).
+Rust callers that require a String convert explicitly at a display boundary.
+Application blocking-task adapters do that before producing UI messages; the
+typed printer API retains its cause chain.
 
-`AppCommand::AttachHddFile(path)` attaches the HDD to a file-backed
-worker. The default path on startup is `<home>/hdd.kpd`; the
-default directory can be changed in Settings → General → HDD
-directory. The path opens with `.create(true).append(true)` so the
-file is created if it does not exist.
+## Confirmed shutdown
 
-`AppCommand::SetHddDebugBuffer(true)` switches the HDD into
-buffer-only debug mode — writes go to `visible_buffer` without
-touching the file.
+`StorageDevice::close()` closes admission without awaiting accepted work.
+`shutdown().await` waits for all current/retired writers and final host-file
+flushes while the supplied Tokio runtime remains alive. Polling retains writer
+failures so completed handles cannot hide an error. The first failure is
+reported after all writers have joined.
 
-`AppCommand::DetachHddFile` disconnects the file-backed worker.
-`AppCommand::ClearHddBuffer` clears only the visible and tail
-buffers, leaving the file contents intact.
+Backend Shutdown first drains preceding persistence jobs, then joins both
+storage devices and accepted printer exports/native tasks, even if one fails.
+Only afterward does it finish the matching request. Native task completion is
+separate from the physical printer finishing paper output.
 
-The HDD window header includes:
-- Choose directory — opens a folder picker; constructs `<folder>/hdd.kpd` and attaches it (session-only, not persisted)
-- Show file contents — toggles between the write buffer and the on-disk file contents (disabled when no file exists)
-- Debug buffer mode — routes writes to the visible buffer without a file
-- Clear buffer — clears only the visible/tail buffers
-- Delete file — shows a confirmation dialog, then deletes `hdd.kpd` from disk and detaches
-- Create file — attaches/creates `hdd.kpd` in the current or default directory
+Failure produces ErrorRaised and a failed CommandFinished while leaving the
+actor available. A subsequent close can acknowledge the reported failure.
+Native print cancellation is successful cancellation.
 
-When debug buffer is enabled, the footer shows "debug mode" instead
-of the file path, for both floppy and HDD windows.
+Device/runtime Drop is not a substitute for this protocol. The desktop's
+[confirmed exit](ui_app.md#confirmed-application-exit) waits for it. Flush confirms
+host writes, not resilience to power failure.

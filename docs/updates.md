@@ -45,17 +45,10 @@ Downloads have a 15-second connection timeout and a 30-second read timeout.
 checks its exact size and digest, then prepares the replacement off the UI
 thread. A completed progress ring alone does not imply installation readiness.
 
-The updater uses direct `zip` 9.0 support alongside the XLSX dependency's
-transitive `zip` 8.6 entry. Its direct ZIP dependency is limited to non-macOS
-builds and the flate2/zlib-rs Deflate codec; macOS uses DMG utilities.
-`reqwest` 0.13 enables `rustls-no-provider`; the direct `rustls` 0.23 dependency
-selects its `ring` provider and installs it before constructing clients, avoiding
-the default `aws-lc-rs` build. Streaming SHA-256 reuses the same `ring` 0.17
-package, with no extra direct features.
-`semver` disables optional `std` integration; `tempfile` retains random-name
-generation. Cargo may still enable shared ZIP features needed by XLSX, and
-lockfile entries can include optional packages that are not compiled for the
-current target.
+Non-macOS updates extract Deflate ZIP payloads; macOS uses DMG utilities.
+TLS and streaming SHA-256 share the ring provider, selected before clients are
+constructed. Dependency versions/features live in Cargo; inspect the resolved
+graph as described in [Dependency inspection](maintenance.md#dependency-inspection).
 
 Snap, Nix/RPM/Arch package wrappers, Nix-store executables, source/Cargo builds
 without `install.json`, and targets without a matching package expose `Open release page` when a

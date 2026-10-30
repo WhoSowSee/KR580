@@ -2,129 +2,130 @@
 
 ## `.580`
 
-Snapshot and settings saves use the same staged replacement as `.krs`. A write,
-flush or replacement failure preserves the previous destination. Existing
-permissions and symbolic links follow the shared `atomic_save` contract below.
+Snapshots use an exact 65,549-byte layout without magic or version fields:
 
-`persistence::write_file_atomic(path, bytes)` exposes that contract for raw-byte
-outputs. Monitor image and floppy-buffer exports use it from the UI file worker;
-their success messages follow completed replacement. Encoded image bytes never
-return through the UI completion channel.
+| Offset | Length | Value |
+|---|---|---|
+| 0–65,535 | 65,536 | RAM |
+| 65,536–65,544 | 9 | A, B, C, D, E, H, L, W, Z |
+| 65,545–65,546 | 2 | Little-endian PC |
+| 65,547–65,548 | 2 | Little-endian SP |
 
-The desktop `ProgramSerializer` reads and writes the 65,549-byte original
-format: 65,536 RAM bytes, nine register bytes, little-endian PC at offsets
-65,545–65,546, and little-endian SP at offsets 65,547–65,548. The last two
-bytes are SP, not an `FF FF` signature; every 16-bit SP value is accepted and
-preserved on save. Extension, empty-file, and exact-size checks still apply.
-The nine bytes at offsets 65,536–65,544 contain `A, B, C, D, E, H, L, W, Z`
-in that order. Loading restores all nine registers; saving writes their current
-values, including the internal W/Z pair. Flags, interrupt state, halt state,
-and timing are absent from this original format and retain their defaults on
-load. This is the compatibility format used by the reference KP580 emulator;
-it has no magic header or version field and must remain exactly 65,549 bytes.
+All SP values are valid, including `FFFFh`; the last bytes are not a signature.
+Loading creates a default CPU and restores only these fields. Flags, IRQ, halt
+and timing retain their CPU defaults. Devices and application preferences are
+not serialized by this format.
 
-`ProgramSerializer::supports_path` and `SubprogramSerializer::supports_path`
-provide the case-insensitive extension checks used by persistence and desktop
-file routing.
+Snapshot/subprogram path checks are case-insensitive. Empty, short or wrong-size
+inputs report the format's typed error. Loaders share a bounded reader: at most
+65,550 bytes for snapshots and `65,536 - start + 1` for subprograms. The extra
+byte detects overflow.
 
-Both loaders share the private `bounded_read` helper. A snapshot reads at most
-65,550 bytes; a subprogram reads at most `65,536 - start + 1` bytes, including
-one extra byte to detect overflow. File metadata rejects known oversized inputs
-before reading and preserves their size in existing errors. Every read remains
-bounded even if the file grows after that check; the bytes actually read are
-validated again before any CPU changes. Empty, short, and I/O error handling
-retains the existing error types.
+Metadata rejects known oversized files before reading, but validation still
+uses actual bytes because a file can grow after metadata. A failed input never
+partially changes CPU state.
 
 ## `.krs`
 
-`load_into_state` returns the inclusive end address (`Result<u16, SubprogramError>`)
-calculated from the bytes it actually reads and installs. The obsolete
-metadata-only `file_end` API has been removed; callers should use the load result. Desktop
-loading records the range from the matching `CommandFinished` event, so a file
-size change cannot leave ordinary Save using a stale range.
+Subprograms contain raw RAM bytes without an embedded base address. Open supplies
+a start address; Save supplies an inclusive start/end range.
+`load_into_state` returns the actual inclusive installed end address and rejects
+overflow before mutating RAM. The UI records that result from its matching
+completion rather than estimating from metadata.
 
-Saves stage the complete range in a uniquely created sibling temporary file,
-flush it with `sync_all`, close it, and replace the destination with a rename.
-Write, flush, or replacement failures leave the previous destination intact
-and attempt to remove the temporary file. Existing symbolic links are resolved
-before staging; dangling symbolic links are rejected without replacing the link.
-Existing file permissions are copied and read-only targets are
-rejected. Replacement changes file identity (hard links keep the old content).
-This protects against ordinary save failures, not every filesystem or power-loss
-scenario; an abrupt process exit may leave a temporary file behind.
+A successful `.krs` save updates the dirty baseline only for the saved range.
+Register edits and RAM outside it remain unsaved. See
+[document flows](ui_app.md#unsaved-changes-modal).
 
-For partial-save tracking, see [Unsaved-changes modal](ui_app.md#unsaved-changes-modal).
+## Atomic saves
 
-Subprograms are raw byte slices. The base address is supplied by the caller and is not hidden in the file.
+Snapshots, subprograms and settings share staged replacement. The writer creates
+a unique sibling temporary file, writes and synchronizes it, closes it and
+replaces the destination. Write/flush/replacement failure preserves the previous
+destination and attempts temporary-file cleanup.
 
-The UI's Open and Save dialogs expose a start address and, when saving, an
-inclusive end address. `SubprogramSerializer::load_into_state` rejects memory
-overflows before mutating RAM, while `save_file` writes exactly the selected
-inclusive range. This keeps `.krs` deterministic and avoids adding a second
-headered format.
+Existing symbolic links are resolved before staging; dangling links are rejected.
+Existing permissions are copied and read-only targets are rejected. Replacement
+changes file identity, so hard links retain the previous content.
+
+This protects against ordinary save failures, not every filesystem/power-loss
+scenario. Abrupt process exit can leave a temporary file.
+
+`persistence::write_file_atomic(path, bytes)` exposes the same contract for raw
+outputs. Monitor image and storage-buffer exports run it on the UI file worker
+and report Saved after successful replacement. Encoded images do not return
+through the completion channel.
 
 ## Settings
 
-The application settings writer returns `SettingsError`; callers must handle a
-failed directory creation or atomic replacement before reporting success.
+Settings are UTF-8 JSON with `settingsVersion: 11` and top-level `network`,
+`storage`, `export`, `ui`, `general`, `shortcuts` and `recentFiles` fields.
+Filesystem locations depend on [installation mode](installer.md#modes).
 
-Desktop event handlers use cached confirmed settings. Background changes read
-the current file, apply only their owned change, then save in FIFO order, so a
-path update and a printer-profile update cannot overwrite each other's fields.
-Dialog Save captures its submitted draft; confirmation advances Cancel's
-baseline to those values while preserving edits made after submission. A
-failed write leaves the previous baseline intact.
+The loader migrates supported versions 1–10; other versions return
+`SettingsError::UnsupportedVersion`. Compatibility rules include:
 
-Settings are UTF-8 JSON with `settingsVersion: 11` and top-level `network`, `storage`, `export`, `ui`, `general`, `shortcuts`, and `recentFiles` fields. Loading version 1 preserves non-network preferences but resets the legacy runtime-written client/server endpoints to `127.0.0.1:5800`; version 2 adds the default shortcut map; version 3 migrates the old `ui.theme: "dark"` value to `tokyoNight`; version 4 stores the selected `ColorScheme`; version 5 adds the printer dialog mode; version 6 adds the selected printer name. Version 7 adds `general.printerSettings`, containing the printer name, paper/source identifiers and labels, orientation, and the validated driver `DEVMODEW` bytes. Version 8 adds `general.printerPresets`; each `{ name, settings }` entry stores a complete validated configuration for one printer, including its driver-private `DEVMODEW`. Version 9 adds `general.showFileName`, which defaults to `false` and controls the optional file name in the custom title bar. Version 10 adds `general.monitorSplit`: `false` (the default) initialises the monitor in unified mode, while `true` starts with separate graphics and text layers. Version 11 adds the customizable memory-address pattern-search and memory-cell replacement actions; both default to `Ctrl+Enter` but are scoped to their respective editor contexts, and migration preserves older custom bindings. A version 6 printer name is migrated to a name-only configuration and resolved against the current driver defaults when setup is opened, while version 7 migrates with an empty profile list. `general.printerSettings` is the runtime source of truth; `general.printerName` remains a synchronized compatibility mirror for older settings files. `tokyoNight` is the default theme, and the retired `monokai` value also falls back to `tokyoNight`. Customizable keyboard shortcut overrides live under `shortcuts.bindings`; an empty list means the built-in Ctrl/Shift/Alt layout is active, including `Ctrl+Enter` for memory-address pattern search and memory-cell replacement, `Alt+Enter` for the selected-cell action, and `Shift+Alt+Enter` for returning to the operand cell.
+- Version 1 network endpoints reset to defaults, preserving non-network settings.
+- Versions 1–4 discard the obsolete printer name; versions 1–5 use the default
+  custom setup-dialog mode.
+- A remaining name-only printer becomes a configuration resolved against current
+  driver defaults when setup opens. Full configurations retain validated DEVMODE
+  bytes; presets retain complete named configurations.
+- `general.printerSettings` is authoritative; `printerName` is a synchronized
+  compatibility mirror.
+- Legacy `dark` and `monokai` themes resolve to Tokyo Night.
+- Older shortcut maps preserve custom bindings rather than enabling new default
+  RAM chords over conflicting actions. Overrides are normalized after migration.
+
+Absent file-name and monitor-split preferences default to false. An empty
+`shortcuts.bindings` uses built-in defaults, including context-specific RAM
+search/replacement. User-facing preference behavior belongs to
+[Settings](ui_settings.md).
+
+Settings writes return `SettingsError`. Directory creation or replacement
+failure must be handled before reporting success. Background operations read
+the current file and apply their owned change in FIFO order. Confirmed cache
+and draft/cancel semantics are defined in
+[live preview and saving](ui_settings.md#live-preview-and-saving).
 
 ## Exports
 
-Exporters use direct generators and never scrape UI widgets:
+Exporters consume an `ExportModel`, independent of UI widgets. Each target
+selects registers, flags and an inclusive RAM range. Every selected address is
+included, even when its byte is zero.
 
-- `.txt`: stable plain-text blocks; a single export keeps the
-  `[Registers]`, `[Flags]`, and `[Memory]` sections, while text exports
-  with several UI sections write one named block per section;
-- `.xlsx`: a `rust_xlsxwriter` workbook whose worksheets contain the
-  register table, flag table, and memory table for each selected page. Columns
-  are autofitted from at most the first 512 worksheet rows and capped at 300
-  pixels, so full-memory exports remain fast and long command/comment
-  values cannot make a sheet impractically wide.
+| Format | Representation |
+|---|---|
+| TXT | `[Registers]`, `[Flags]` and `[Memory]`; memory uses `address=value` lines |
+| Multi-section TXT | A named header followed by each target's three data blocks |
+| XLSX | One worksheet per page, with selected register/flag/memory tables |
 
-`ExportOptions` lets the UI pass a worksheet name, memory address range,
-memory-table column toggles, register selection, flag selection, and
-optional XLSX pages or text-export named sections. The memory
-range, register selection, and flag selection are applied while building
-`ExportModel`, so both TXT and XLSX exports use them. XLSX additionally
-uses the page name and optional comment column and, when page entries
-are present, writes each entry as a worksheet in one workbook. TXT
-ignores the comment column and, when section entries are present, writes
-each entry as `[Section name]` followed by its own `[Registers]`,
-`[Flags]`, and `[Memory]` block.
+XLSX column options control address, value, command and comment columns. TXT
+keeps its fixed text representation and does not use those column switches.
+XLSX autofit samples at most the first 512 rows and caps width at 300 pixels,
+preventing long tables or strings from producing impractical worksheets.
 
-The UI and TXT exporter share `persistence::export::text_section_names`: names are trimmed,
-each CR/LF character becomes a space, and the reserved names `Memory`,
-`Registers`, and `Flags` gain ` (section)`. Blank names use `Section N`.
-Names that coincide after normalization gain numeric suffixes starting at
-` (2)`, so every section remains selectable on import. Ordinary names and
-the TXT header syntax stay compatible with existing files.
+UI and TXT export share `text_section_names`: trim outer whitespace, replace
+each CR/LF with a space, use `Section N` for blank names and append ` (section)`
+to reserved `Memory`, `Registers` or `Flags`. Collisions after normalization gain
+numeric suffixes from ` (2)`. Existing ordinary names and header syntax remain
+compatible.
 
-Every address in the selected inclusive RAM range is exported, including `00`
-cells. With address and value columns included, importing that data into an
-existing session restores the complete range and preserves memory outside it.
-This applies to each XLSX page and TXT section. Older sparse files remain
-readable; addresses omitted from any imported file keep their current values.
-
-The UI exposes both export actions, and the internal `kr580` backend routes them through the same `ExportModel` built from core state.
+With address/value data present, reimport restores the complete selected range
+and leaves outside RAM unchanged. Older sparse files remain readable; omitted
+addresses retain their current values.
 
 ## Imports
 
-Imports validate every register name, numeric value and flag before changing CPU
-state. `ExportModel::apply_to` either applies the complete model or returns an
-error with the CPU unchanged. The internal `import/patch.rs` converts display
-strings to a typed CPU patch; applying that validated patch cannot fail.
-Background import carries an owned patch, and subprogram loading carries only
-the bytes actually read. Both apply to the current actor state rather than a
-CPU copy captured before disk access. A document generation change rejects the
-older completion, including its error, before any mutation.
+Importers produce an `ExportModel` from TXT or XLSX. The default XLSX path reads
+the first worksheet; sheet-name and per-sheet APIs support explicit selection.
+TXT supports one plain model or named blocks through section-name/per-section
+APIs.
 
-`persistence::Importers` round-trips the same two formats back into an `ExportModel`, and `ExportModel::apply_to(&mut Cpu8080State)` writes the parsed registers, flags, and memory cells into a CPU state. The XLSX reader uses `calamine`; by default it imports the first worksheet, while `xlsx_sheet_names()` and `read_xlsx_sheet()` let the UI present and import a specific worksheet from a multi-page export. The TXT reader parses the same `[Registers]`, `[Flags]`, and `[Memory]` sections that the exporter emits. Plain TXT files still import as one model; multi-section text exports expose their named blocks through `txt_section_names()` and `read_txt_section()`.
+Before CPU mutation, import validates register names, values and flags into an
+owned typed patch. Applying a valid patch cannot fail; invalid models leave CPU
+unchanged. Subprogram loads likewise validate their actual byte range first.
+
+Workers return the patch/block to the actor, which applies it to the current
+CPU rather than an old pre-read copy. A changed document generation rejects an
+older completion and its error before it can change data or document state.

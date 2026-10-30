@@ -225,17 +225,8 @@ cargo test --workspace
 Для изменений с помощью AI действует
 [AI Policy](https://github.com/WhoSowSee/KR580/blob/main/AI_POLICY.md).
 
-Полезные документы:
-
-- [Архитектура](https://github.com/WhoSowSee/KR580/blob/main/docs/architecture.md)
-- [Ядро CPU](https://github.com/WhoSowSee/KR580/blob/main/docs/core.md)
-- [Устройства и IoBus](https://github.com/WhoSowSee/KR580/blob/main/docs/devices.md)
-- [Сохранение данных](https://github.com/WhoSowSee/KR580/blob/main/docs/persistence.md)
-- [Приложение и UI](https://github.com/WhoSowSee/KR580/blob/main/docs/ui_app.md)
-- [Установщик](https://github.com/WhoSowSee/KR580/blob/main/docs/installer.md)
-- [RPM и Arch Linux](https://github.com/WhoSowSee/KR580/blob/main/docs/linux_packages.md)
-- [Тестирование](https://github.com/WhoSowSee/KR580/blob/main/docs/testing.md)
-- [Ассеты](https://github.com/WhoSowSee/KR580/blob/main/docs/assets.md)
+Техническая справка по архитектуре, CPU, устройствам, UI, форматам файлов,
+сборке и проверкам собрана в [указателе документации](https://github.com/WhoSowSee/KR580/blob/main/docs/README.md).
 
 ## История звёзд
 

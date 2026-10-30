@@ -1,368 +1,13 @@
 # Installer
 
-Windows PATH registry reads validate the string type and even UTF-16 byte count
-before filling the native buffer, including a second validation after the read.
-Malformed registry data fails the operation without changing PATH.
+`kr580` builds the GUI, the `kr` terminal launcher, a standalone
+`k580-installer`, and a `k580-uninstaller` payload. New users run the standalone
+setup artifact; `kr --install` is a maintenance entry point, not a prerequisite.
+macOS releases instead distribute a drag-installable `KR580.app` in a DMG.
 
-`kr580` builds four desktop-facing binaries:
+## Installed layout
 
-- `kr580` - the GUI emulator.
-- `kr` - the terminal launcher and file-association helper.
-- `k580-installer` - the graphical installer.
-- `k580-uninstaller` - the graphical uninstaller payload installed as
-  `app/uninstaller`.
-
-The user-facing setup artifact is built by `scripts/build_installer.ps1`
-on Windows or `scripts/build_installer.sh` on Linux/Unix. The scripts first
-build `kr580` and `kr`, then build `k580-uninstaller` with the uninstall icon,
-then rebuild `k580-installer` with the setup icon and those binaries embedded.
-All three stages use `--locked`. The Unix `cross` branch first validates native
-Cargo metadata with `--locked`, because cross's metadata probe may otherwise
-resolve the lockfile before forwarding build arguments. A stale lockfile fails
-before any payload build; native/cross targets, icons and embedding paths keep
-the same contracts. Snap and macOS DMG build commands retain their own existing
-locking behavior.
-The resulting file under `dist/` is the installer a new user runs before `kr`
-exists.
-
-macOS releases use `scripts/build_macos_dmg.sh` instead. It packages the native
-`kr580` executable directly as `KR580.app`, copies the canonical plist and both
-ICNS resources, and creates an unsigned compressed DMG with an `/Applications`
-link. The user drags the complete app into Applications; no setup executable or
-uninstaller is nested in the image.
-
-`kr --install` remains a maintenance entry point for developer builds. In an
-installed layout it launches the installed uninstaller binary with `--setup`,
-so the setup UI is explicit and the installed file still reads as an
-uninstaller.
-
-## Upgrading to 3.0.0
-
-The GUI executable is now `kr580` (`kr580.exe` on Windows), replacing `k580`.
-Update scripts and manually created shortcuts that use the old name, including
-`cargo run --bin k580`; use `cargo run --bin kr580` instead. The `kr` launcher
-keeps its name. Rust consumers on Linux and macOS must stop calling
-`file_assoc::is_registered`, which is now exported only on Windows. On macOS,
-`kr -u` returns an unsupported-operation error; choose a replacement default
-application through Finder instead.
-
-## Installer Window
-
-The graphical setup uses an undecorated iced window with its own Tokyo Night
-title bar. The custom chrome owns drag, minimize, maximize/restore, and close
-actions instead of relying on the native OS title bar. The caption buttons use
-the same `window-minimize`, `window-maximize`, `window-restore`, and
-`window-close` SVG assets and `32x24` button metrics as the emulator chrome.
-The setup and uninstall windows also subscribe to native close requests, so
-platform close shortcuts such as Windows Alt+F4 route through the same close
-path as the custom caption button.
-On Windows, the installer also applies the same DWM rounded-corner preference
-as the emulator window when the window opens.
-
-Setup and uninstall choose their UI language from the operating system at
-startup: Russian system UI uses Russian strings, while English and every other
-system language use English strings. The Russian mode choices are `Системный`
-and `Портативный`, matching the masculine `Режим` heading, and the installation
-location section is labeled `Путь` (`Path` in English).
-
-The installer is a two-column instrument surface. A fixed `164px` rail carries
-a `116x94` KR580 DIP outline below a deliberate top spacer, the centered package
-version and title-cased platform/architecture metadata such as `Windows · x64`,
-and four compact signal-group rows.
-The title bar uses the separate square CPU glyph and the same canvas color as
-the setup body. The rail and form share that canvas, while a thin divider
-separates only their working areas. The rail uses a `32px` top spacer so the
-visible DIP-to-top and bus-table-to-bottom intervals are balanced without
-changing the window height. The
-form occupies the remaining width as a flat sequence of mode, scope, path,
-and integration sections; thin rules and spacing replace the previous nested
-panel and option card hierarchy.
-Mode and scope use joined `44px` segmented controls with one neutral outer frame
-and a square internal seam. Idle and selected segments inherit the canvas;
-selection uses only the blue left rail and radio dot. The rail replaces the
-underlying gray edge and follows its outer corner radius. Hover uses the darker
-panel token, pressing uses the stronger surface token, and neither state hides or
-doubles the outer frame.
-The fixed `12px` radio ring contains a `6px` selected dot, preserving an inset
-between dot and outline. The path and compact `96x44` Browse action form
-one framed control with a square seam and only external corner rounding. Its
-input surface is transparent, keeping the left and lower outer rules visually
-even. The path uses the emulator blue value color; Browse keeps its folder glyph.
-Every setup checkbox uses one shared `14px` control size, including Integration
-and the post-install Open-folder/Launch action. Integration retains its `12px`
-vertical rhythm. Unchecked boxes inherit the canvas and retain only their outline.
-The four signal rows form one transparent two-column table with a single rounded
-outer frame and horizontal row rules. The first fixed column holds only the
-number; the second holds a static green marker and the compact `ADDR`, `DATA`,
-`CTRL`, or `INT` label. These labels identify KR580 signal groups rather than
-reporting live installer telemetry. Individual rows have no fill or rounded
-corners.
-The bottom command bar spans the complete window width, so the rail/form divider
-ends above it. It contains only the compact Install/Done action aligned to the
-right; install state is communicated by the form, progress panel, result report,
-and action label instead of a redundant left badge. An Installing progress panel
-appears above the bar only while work is active and inherits the setup canvas,
-retaining only its frame. The unfilled progress track uses the same canvas; only
-its outline and blue completed range remain visible.
-While files are being copied, the result area switches to an Installing state
-with a blue progress bar that advances on an installer-only timer tick.
-Success replaces the form with an installed report followed by a checked "Open
-installation folder" action for Portable mode or "Launch KR580" for System mode.
-Report lines omit terminal periods; completed operations use `TEXT`, while
-skipped or unchanged operations use `MUTED`. The pinned `Done` button runs the
-selected action and closes the installer; failures keep the window open and
-appear below the checkbox.
-Integration options are ordered as PATH, file associations, then the optional
-desktop shortcut. Both modes show the first two; System mode adds the desktop
-shortcut as the final option.
-On Windows, the association option maps both `.580` and `.krs` through the
-same KR580 ProgID, icon, and open command. Its user-facing ProgID name is
-`KR580`, matching the executable's Windows file description.
-On Linux, system integration owns the visible `kr580.desktop` launcher, while
-file associations use a separate `NoDisplay` `kr580-file-handler.desktop`.
-Toggling associations therefore cannot remove KR580 from the application menu.
-Both entries expose the user-facing name `KR580`, including file-manager
-Open With lists.
-The hidden handler records its exact executable; a target build, portable copy,
-or older installation cannot remove a handler owned by another path.
-User-level integration follows `XDG_DATA_HOME`; when it is unset or relative,
-KR580 uses `$HOME/.local/share`. Registration fails instead of writing into the
-working directory when no absolute home location is available.
-Generated Desktop Entry commands quote paths according to the freedesktop
-rules, including reserved characters and literal percent signs.
-Executable paths containing control characters are rejected before metadata
-is written. Launcher resolution is shared with the CLI: a valid version-1
-install manifest identifies `bin/kr` → `app/kr580`; an ordinary Cargo `bin`
-directory uses the adjacent GUI binary.
-Paths containing `%` use `/usr/bin/env --` before the quoted executable so
-GLib can validate the command before expanding literal percent escapes.
-Runtime registration, the Unix installer, and declarative packages render the
-tracked templates under `crates/ui/assets/linux` instead of maintaining
-independent Desktop Entry or shared-MIME copies.
-Linux integration returns an error when `update-mime-database` or
-`update-desktop-database` is missing or exits unsuccessfully, so the installer
-and Settings cannot report a cache update as completed when it failed.
-After updating those databases, Linux assigns `application/x-kr580` to the
-hidden KR580 handler through `xdg-mime`.
-Linux saves the previous default and owning executable under
-`$XDG_DATA_HOME/kr580/file-association.json`. An advisory lock serializes KR580
-registration changes across processes. Failures restore the previous metadata,
-MIME preference files and saved state; rollback failures are reported too.
-Unregister removes only the matching executable's registration, removes stale
-KR580 IDs from user MIME preferences, and restores the previous default only
-if KR580 was still selected. A later user choice is preserved. File-removal
-errors are returned instead of silently reporting success.
-Strict Snap confinement suppresses this in-app action because it cannot mutate
-the host shared-MIME database; snapd owns the package's exported handler.
-Portable mode hides Windows scope because it always installs to the selected
-folder for the current user.
-Installed-state messages use user-facing wording and do not expose the internal
-`app/`, `bin/`, or portable data folders.
-macOS integration uses one `KR580.app` contract: bundle identifier
-`dev.kr580.emulator`, executable name `kr580`, and the canonical
-`crates/ui/assets/macos/Info.plist` template. The installer and association
-layer no longer generate different bundle names or metadata.
-The bundle exports `dev.kr580.snapshot` for `.580` and
-`dev.kr580.subprogram` for `.krs`, with distinct Finder type names and a shared
-document icon. `KR580.icns` supplies the application icon.
-Registration calls the public Core Services `LSRegisterURL` API and reports its
-`OSStatus`; it does not invoke the private `lsregister` executable.
-The in-app association action locates the `KR580.app` containing the running
-executable. For an unpackaged developer build or System installation it can
-create an owned launcher bundle in `~/Applications`; Portable installations
-keep their launcher bundle at `<install root>/KR580.app`. Existing bundles are
-only rewritten when their plist executable and launcher belong to the same
-installation (including its former `app/k580` path). Foreign wrappers and
-standalone bundles are preserved. Setup checks bundle ownership before copying
-its payload, and uninstall only removes its own System launcher bundle.
-The same action makes `dev.kr580.snapshot` and `dev.kr580.subprogram` default to
-the stable KR580 bundle identifier through the public Launch Services role API.
-The public macOS unregister functions return an unsupported-operation error;
-`file_assoc::is_registered` is Windows-only, where Settings consumes it.
-`kr -u` is omitted from macOS help and returns an error instead of claiming
-that a default handler was removed. macOS uninstall removes owned launcher
-files, leaving selection of a replacement default to Finder/Launch Services.
-The default window is `720x600` logical pixels with a `680x560` minimum. The
-fixed command bar uses the same canvas as the setup body and keeps the compact
-`176x40` primary action visible at the minimum size and at high DPI. Hover uses
-a slightly lighter blue from the same color family instead of switching to cyan.
-
-## Uninstaller Window
-
-The installed `app/uninstaller` is also an iced GUI binary. Running it directly
-from an installed layout or through `uninstaller --uninstall <install root>`
-opens a `760x500` undecorated Tokyo Night window (`700x460` minimum) with the
-same CPU title glyph, minimize/maximize/restore/close controls, and Windows DWM
-corner preference as setup. Its centered product header stacks the outlined DIP
-mark above `КР580` and version/platform metadata; the separate removal-copy block
-from the initial concept is intentionally absent. The read-only install path
-occupies one border-only field below the header.
-
-One joined border-only instrument block exposes three real cleanup stages:
-`01 СИСТЕМА` removes Start Menu/desktop shortcuts and the uninstall entry,
-`02 СВЯЗИ` removes the managed PATH entry and recorded `.580` / `.krs`
-associations, and `03 ФАЙЛЫ` schedules removal of the install directory. A green
-marker means complete, blue with a left rail means active, muted means pending,
-and red means the active stage failed. The status line and progress bar below
-the stage strip use the same outer frame and canvas.
-
-Cleanup starts only after the native window opens. All three stages run
-automatically while the bottom action is disabled and reads `Removing...` /
-`Удаление...`. Real stage changes confirm milestones at 12%, 40%, 68%, and 100%.
-A presentation timer catches up to each confirmed milestone by two percentage
-points every 30 milliseconds. While the current system operation is still
-running, it continues at 0.1 percentage point per tick but reserves the final
-point before the next milestone. The 40% Links milestone therefore keeps moving
-toward 67% while Windows broadcasts PATH and association changes, without
-claiming that the 68% Files milestone has completed. The file stage starts a
-platform helper that waits for the uninstaller process to exit before deleting
-its directory. If all operations finish before the animation, the Files stage
-remains active until the displayed progress reaches 100%. Only then does the
-localized Close/`Закрыть` action become available, and it merely exits the
-already-completed workflow. A failed stage stops the animation at its current
-value and stays visible in red with its error text.
-
-## Build Distribution Packages
-
-`just package` selects the native builder: Windows setup executable, Linux
-setup executable, or macOS DMG. Extra arguments use the selected script's
-existing syntax:
-
-```powershell
-just package -Profile debug -Target x86_64-pc-windows-msvc
-```
-
-```sh
-just package release --target x86_64-unknown-linux-gnu
-just package release --target aarch64-apple-darwin
-```
-
-The two Unix examples require Linux and macOS respectively. The direct script
-commands remain available:
-
-Windows:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1 -Target x86_64-pc-windows-msvc
-```
-
-Linux/Unix:
-
-```sh
-bash scripts/build_installer.sh
-bash scripts/build_installer.sh release --target x86_64-unknown-linux-gnu
-```
-
-macOS:
-
-```sh
-bash scripts/build_macos_dmg.sh
-bash scripts/build_macos_dmg.sh release --target aarch64-apple-darwin
-```
-
-The packaging scripts produce:
-
-- Windows host builds: `dist/KR580-Setup-<version>-windows-<arch>.exe`
-- Targeted Windows builds: `dist/KR580-Setup-<version>-<target>.exe`
-- Linux/Unix host builds: `dist/KR580-Setup-<version>-<os>-<arch>`
-- Targeted Linux/Unix builds: `dist/KR580-Setup-<version>-<target>`
-- macOS host images: `dist/KR580-<version>-macos-<arch>.dmg`
-- Targeted macOS images: `dist/KR580-<version>-<target>.dmg`
-
-The macOS builder runs only on macOS. Before returning it validates the plist,
-Mach-O architecture, disk image, mounted app layout, icons, bundle identity,
-document UTIs, and Applications link through `verify_macos_dmg.sh`. The app and
-DMG are intentionally unsigned and not
-notarized, so Gatekeeper may require the normal explicit first-open approval.
-
-`KR580_CARGO=cross` makes the Unix script invoke `cross build` for Linux target
-matrices. `scripts/package_installer_deb.sh` wraps a built Linux setup
-executable in a Debian package. `snap/snapcraft.yaml` builds the ready-to-run
-GUI package used by CI on native `ubuntu-24.04` and `ubuntu-24.04-arm` runners;
-the workflow installs Snapcraft from `9.x/stable`, filters the core24
-`platforms` build plan with `snapcraft pack --build-for`, and builds through
-LXD instead of destructive mode. The core24 build uses Ubuntu Noble package
-names, stages the dynamically loaded X11/Wayland/font/dialog libraries, and
-uses the GPU extension for driver-compatible graphics. Build dependencies stay
-minimal because the graphics crates load those libraries at runtime.
-The Rust plugin uses the workspace's tested Rust 1.88.0 MSRV and builds only
-`crates/ui`'s `kr580` binary. `rust-ignore-toolchain-file: true` preserves the
-configured Rust 1.88.0 compiler when the root development toolchain selects
-`stable`; the plugin supplies `RUSTUP_TOOLCHAIN=1.88.0` for the build.
-Its override calls the
-plugin's default build before installing the application icon and rendering the
-canonical package Desktop Entry. The Snap-specific rendering uses the staged
-256 px PNG's absolute path, so Snapcraft does not resolve the icon through the
-desktop theme. Snapcraft adds `${SNAP}` when copying the entry into `meta/gui`.
-CI checks that the referenced PNG exists in the unpacked package and validates
-a temporary copy of the entry with `${SNAP}` resolved to that unpacked root.
-The packaged entry keeps its Snap path. There are no setup/uninstall commands or
-nested installation directories: snapd owns installation, refresh, removal,
-command wrapping, interfaces, and desktop export.
-The exported Desktop Entry advertises `application/x-kr580`, but strict Snap
-cannot add the new `.580`/`.krs` glob definition to the host shared-MIME
-database. File-manager association therefore works where that MIME type is
-already known (for example from a native package); otherwise the user may still
-select KR580 through Open With, while opening from KR580's own dialog works.
-On Linux, rfd 0.17 loads `libdbus` for XDG dialogs and falls back to `zenity`.
-The Debian setup package provides both plus `shared-mime-info`,
-`desktop-file-utils`, and `xdg-utils`, which supply the cache update and
-default-handler commands used by file-type registration. The desktop supplies
-its portal backend.
-If the Windows target artifact is locked by a running installer, the PowerShell
-script writes the same setup under a numbered suffix such as
-`KR580-Setup-<version>-windows-<arch>-1.exe` instead of failing after the
-release build has already completed.
-
-## NixOS Package
-
-`flake.nix` exposes a Nix package for `x86_64-linux` and `aarch64-linux`.
-That package installs the ready-to-run `kr580` and `kr` binaries, desktop entry,
-icons, and `.580` / `.krs` MIME metadata into the Nix store. It does not run the
-graphical setup flow because NixOS owns PATH, desktop integration, and package
-activation declaratively.
-Its desktop entry launches `kr580` directly; `kr` remains available as the
-optional terminal launcher.
-Both wrappers include `desktop-file-utils`, `shared-mime-info`, and `xdg-utils`
-in PATH. `KR580_GUI_EXECUTABLE` identifies the absolute GUI wrapper used by
-associations, preserving its library and configuration environment. The GUI
-sets `KR580_PACKAGE_KIND=nix` so settings use the writable XDG config directory
-instead of the Nix store.
-
-The release workflow runs `nix flake check --no-build` and builds
-`.#packages.x86_64-linux.default`; tagged releases wait for that job before the
-GitHub release is published. The derivation installs from Cargo's
-target-specific output directory because the nixpkgs Cargo hook passes
-`--target` even for native Linux builds.
-
-## RPM and Arch Linux packages
-
-The reusable Linux release workflow also builds native application RPMs for
-x86_64/aarch64 and an Arch Linux package for x86_64. They install `kr580`, `kr`,
-desktop/MIME metadata and icons through the package manager, with no nested
-setup executable or installer manifest. See [RPM and Arch Linux packages](linux_packages.md)
-for installation commands, layout, dependencies, build recipes and CI checks.
-The seven existing setup ZIP/DEB targets remain available separately.
-
-## GitHub Release Notes
-
-`scripts/version_release_artifacts.sh` adds the tag version only to setup
-ZIP/DEB names that still need it. Already-versioned RPM, Arch, DMG and Snap names remain
-unchanged and their package version must match the tag. A repeated invocation
-is harmless; an existing destination is rejected. The mixed-artifact test
-`scripts/verify_release_artifact_names.sh` runs before publication.
-
-Tagged builds publish a GitHub release after every platform packaging job
-completes. The release job extracts the matching version section from the
-Russian `CHANGELOG.md`, appends GitHub's generated notes and `Full Changelog`
-comparison, then adds an `English Changelog: [CHANGELOG-EN.md](...)` link to
-the same tag. The link points at the exact release source so the English
-archive stays available alongside the localized notes.
-
-## Installed Layout
-
-The setup writes a split layout under the selected root:
+Standalone setup owns this layout under its selected root:
 
 ```text
 <install root>/
@@ -372,165 +17,266 @@ The setup writes a split layout under the selected root:
     uninstaller
   bin/
     kr
-  data/              # portable mode only
+  data/              # portable settings
 ```
 
-On Windows the file names include `.exe`.
-When setup reuses an older manifest-owned install root, the managed legacy
-`app/k580` is retired through the same transaction. If associations are selected,
-the new registration replaces its owned values; otherwise legacy association
-cleanup uses the old manifest's scope. A folder without a valid `install.json`
-never authorizes legacy-file cleanup or overwriting existing binary paths.
+Windows executable names include `.exe`. Only `bin/` is added to PATH.
+In this layout `kr --install` starts `app/uninstaller --setup`; running the
+installed uninstaller directly or with `--uninstall <root>` opens removal.
 
-## Installation transaction
-
-The setup executable also accepts the internal headless
-`--apply-update <root> <pid> <restart.json>` command. It stages its embedded
-payload under an existing installation lease, reports readiness, waits for
-the emulator to exit, and uses the file journal to replace the GUI, launcher
-and uninstaller with rollback on ordinary errors. The restart marker is
-optional: ordinary exit updates without relaunching, while the Help menu's
-restart action requests a new instance. User data and system integration are
-preserved. See [Application updates](updates.md) for downloads, platform
-limitations and temporary-file cleanup.
-
-`operations/source.rs` discovers the embedded or adjacent payloads.
-`operations/transaction.rs` validates ownership/layout, captures rollback data,
-and prepares all three executables in unique sibling staging files before
-replacing any installed executable. Symbolic links at managed installation
-paths and unknown manifest versions are rejected. A per-root installation lock
-prevents overlapping commits. Settings and other user files under `data/` are
-never part of the replacement set.
-
-`operations/journal.rs` backs up existing target files beside their destinations,
-streams fingerprints without loading executables into RAM, and records the
-actual post-step state. Each stage observes only its own target set. Registry observations accept only
-the planned write/delete or the unchanged prior value, preserving foreign
-changes to other stages and rejecting unexpected writes.
-Rollback restores bytes and permissions, removes new files and only empty
-directories created by this attempt. A later foreign file
-change is retained and reported as a rollback conflict, with the recovery
-backup's path. Existing profile and metadata symlinks keep their target/link
-relationship. PATH, integration and associations finish before the final
-atomic `install.json` replacement; there is no intermediate manifest.
-
-`operations/native/` owns platform rollback. Windows preserves the original
-raw bytes and registry type of PATH, uninstall values and the seven association
-values. Only changed values are restored or removed; unrelated values,
-subkeys and existing key permissions survive. Empty newly created keys can
-remain inert. `winreg` 0.56.0 supplies owned registry handles and raw-value
-operations; it was already present in Cargo.lock and is also a Windows runtime
-dependency. Registry rollback conflicts retain an original-value recovery JSON.
-
-Linux captures the managed profile, desktop launchers, association metadata,
-default-handler state and relevant MIME preference files; metadata caches are
-rebuilt after restoration. Shared association lock files remain coordination
-objects. On macOS the transaction chooses the Portable/System bundle path
-directly, so registration does not depend on an intermediate manifest. It
-preserves defaults separately for Viewer, Editor and Shell. Roles without a
-prior handler use the bundle's document claims without writing an unrestorable
-explicit preference. Rollback refreshes a restored owned bundle and restores
-only matching defaults; conflicts retain handler recovery JSON.
-
-An error combines the original stage failure with any rollback failures and
-recovery paths. Completed changes are rolled back on ordinary errors; this is
-not a multi-filesystem power-loss transaction. An abrupt process exit may leave
-the installation lock and recovery files for inspection. Tests inject stage
-failures with temporary roots and isolated integration adapters, without real
-installation, PATH or association changes.
+A supported manifest identifies managed files. Upgrading such a root can retire
+the owned legacy `app/k580`; a folder without a valid manifest does not authorize
+overwriting colliding binary paths or deleting an unrelated legacy executable.
 
 ## Modes
 
-System mode is an OS-integrated install, not just copied files in a default
-folder. It still uses the same split layout on disk, but the installer also
-registers the app with the desktop environment:
+| Mode | Integration | Settings |
+|---|---|---|
+| System | OS launcher/search and uninstall integration where supported; optional desktop shortcut | Platform configuration directory |
+| Portable | Selected folder; no Start Menu, desktop or uninstall registration | `<root>/data/settings.json` |
 
-- Windows current-user installs create a Start Menu shortcut under the user's
-  Start Menu, optionally create a desktop shortcut, and register
-  `uninstaller --uninstall <install root>` under the current user's
-  Apps & Features uninstall list.
-- Windows all-users installs use the shared Start Menu/Desktop locations and
-  the machine uninstall registry key. These writes require the normal Windows
-  rights for those locations.
-- Linux/Unix installs create a user `.desktop` launcher under
-  `$XDG_DATA_HOME/applications` (default `~/.local/share/applications`), optionally create a desktop launcher, and
-  remove those entries during uninstall.
-- macOS installs are user-scoped, use `~/Applications/KR580` as their default
-  root, and create a small `~/Applications/KR580.app` launcher wrapper for
-  application search. The optional desktop action creates `KR580.command`.
+Both modes can optionally add `bin/` to PATH and associate `.580`/`.krs` files.
+Portable is current-user scoped and hides the Windows scope selector. Its
+default root is `%USERPROFILE%\KR580` or `$HOME/KR580` on Unix.
 
-Windows shortcut creation uses a hidden PowerShell child process with
-`CREATE_NO_WINDOW`, so System installs do not flash a terminal while creating
-Start Menu or desktop shortcuts.
-
-On Windows, the standalone setup artifact uses
-`crates/ui/assets/icons/installer-setup.ico` as its main PE icon. The installed
-`app/uninstaller.exe` is a separate payload binary built from the same entry
-logic with `crates/ui/assets/icons/installer-uninstall.ico`, so Explorer and Apps &
-Features show the uninstall badge instead of the setup badge.
-
-System mode stores application settings in the platform config directory:
+System settings locations:
 
 - Windows: `%APPDATA%\KR580\settings.json`, falling back to `%LOCALAPPDATA%`.
 - macOS: `~/Library/Application Support/KR580/settings.json`.
-- Linux/Unix: `$XDG_CONFIG_HOME/kr580/settings.json`, falling back to `~/.config/kr580`.
+- Linux: absolute `$XDG_CONFIG_HOME/kr580/settings.json`, otherwise
+  `~/.config/kr580/settings.json`.
 
-A standalone macOS application bundle follows the same Application Support
-path even though it has no `install.json`. A confined Snap stores settings in
-`$SNAP_USER_COMMON/settings.json`, so refreshes share one writable settings
-file instead of attempting to modify the read-only mounted package.
-The Nix, RPM and Arch GUI wrappers use `$XDG_CONFIG_HOME/kr580/settings.json`, falling back
-to `~/.config/kr580/settings.json` for unset, empty, or relative XDG paths.
+A standalone macOS bundle also uses Application Support. Snap uses
+`$SNAP_USER_COMMON/settings.json`. Nix/RPM/Arch wrappers select writable XDG
+configuration rather than a package-owned directory. Unpacked developer builds
+without a manifest use adjacent `settings.json`, unless a bundle/package policy
+selects another location. Temporary storage images use the OS temporary directory.
 
-Portable mode defaults to `%USERPROFILE%\KR580` on Windows and `$HOME/KR580`
-on Unix/macOS. It stores settings in `<install root>/data/settings.json`.
-Temporary floppy-buffer and image files still use `std::env::temp_dir()`, so
-throwaway files stay in the OS temp area instead of the portable data folder.
-Portable mode does not create Start Menu/search entries, desktop shortcuts,
-or uninstall registry/application entries. If its file-association checkbox is selected,
-the `.580` and `.krs` associations point to that portable `app/kr580` binary
-(through `<install root>/KR580.app` on macOS).
-On Windows/Linux, running the portable `app/uninstaller` removes the recorded associations,
-removes the exact `<install root>/bin` PATH entry if it exists, and then removes
-the portable folder after the final Close/`Закрыть` action. Manual folder
-deletion removes only the files; use `uninstaller` or `kr --unregister-file-type`
-first if portable file associations were created and must be removed.
-On macOS the owned portable bundle is removed with the portable folder;
-choose a replacement default through Finder when needed.
+Windows System installs can target current user or all users. All-users writes
+under Program Files and the machine environment need the corresponding rights;
+the application does not silently elevate. Linux/macOS setup is user-scoped.
 
-Uninstall is integrated into System mode. Windows registers `KR580` in Apps &
-Features with an uninstall command that runs the installed `uninstaller
---uninstall <install root>`. That command opens the graphical uninstaller, shows
-cleanup progress, removes the exact KR580 PATH entry, Start Menu/search
-launcher, optional desktop shortcut, optional `.580` / `.krs` associations recorded in
-`install.json`, uninstall registry entry, and then schedules the install root
-for deletion after the user presses `Закрыть`. Linux/Unix and macOS remove their
-user launcher entries and the managed PATH block through the same GUI flow
-before deleting the install root.
+## Setup and uninstall UI
 
-Unpacked developer builds without `install.json` keep the legacy behavior and
-write `settings.json` beside the executable unless they run inside a macOS app
-bundle or Snap confinement.
+Setup is an undecorated iced window with shared caption controls, drag handling
+and localized System/Portable, scope, path and integration choices. Language
+follows the OS: Russian uses RU; other locales use EN. System mode adds the
+desktop-shortcut option. Installing, completion and failure are explicit states.
+The final action closes only after its selected finish action succeeds.
 
-## Scope And PATH
+Uninstall uses the same chrome and three actual stages: system integration,
+PATH/associations, then post-exit file removal. It begins after window opening.
+Close is disabled during cleanup; a failure remains visible with its error.
 
-Windows system installs can target either the current user or all users. The
-all-users option writes under `Program Files` by default and uses the machine
-environment key for PATH, so it requires the normal Windows elevation rights.
+A presentation timer approaches milestones confirmed by real task completions.
+It stays below an unconfirmed next stage and reaches 100% only after the file
+stage succeeds. The final Close exits; the already-started platform helper waits
+for that process exit before removing the managed root.
 
-Linux and macOS installs are user-scoped. Their PATH checkbox writes a managed
-KR580 block to `~/.profile` on Linux/Unix and `~/.zprofile` on macOS.
+Native close requests use the same routing as caption buttons. Windows applies
+DWM corners and creates shortcuts with a hidden child process. Setup and
+installed uninstaller have separate role-specific PE icons, defined in
+[Assets](assets.md#where-the-assets-are-consumed).
 
-The PATH checkbox adds only `<install root>/bin`, which contains `kr`. The GUI
-binary lives under `<install root>/app`, so PATH does not expose `kr580`.
+## Desktop integration
+
+### Windows
+
+System mode writes a scoped Start Menu shortcut, optional desktop shortcut and
+Apps & Features entry. Its uninstall command points to
+`app/uninstaller.exe --uninstall <root>`. Associations use the installed GUI,
+KR580 ProgID and embedded document icon for both extensions.
+
+PATH reads validate the registry string type and UTF-16 byte length before
+and after reading. Malformed values fail without changing PATH. Current-user
+and machine scopes use their corresponding environment/uninstall locations.
+
+### Linux
+
+System integration owns the visible `kr580.desktop`; file association owns the
+separate NoDisplay `kr580-file-handler.desktop`. Both expose KR580 as the
+user-facing name. Toggling association cannot remove the application launcher.
+
+User metadata follows absolute `XDG_DATA_HOME`, otherwise `$HOME/.local/share`.
+Without an absolute home location registration fails rather than using the
+working directory. Desktop Entry/MIME output comes from canonical templates
+under `crates/ui/assets/linux/`.
+
+Commands quote reserved characters and literal percent signs. Paths containing
+`%` use `/usr/bin/env --` before the quoted executable for GLib command validation.
+Control characters are rejected. Launcher resolution uses a valid manifest for
+`bin/kr` to `app/kr580`, or an adjacent GUI in ordinary Cargo layouts.
+
+`update-mime-database`, `update-desktop-database` and `xdg-mime` must succeed.
+The previous default and owning executable are saved in
+`$XDG_DATA_HOME/kr580/file-association.json`; an advisory lock serializes changes.
+Registration failures restore metadata, preferences and saved state.
+
+Unregister removes only the matching executable's registration. It restores the
+previous default only while KR580 is still selected, preserving a later user
+choice. Removal and rollback failures are reported. Strict Snap hides the
+in-app action because snapd owns host integration.
+
+### macOS
+
+The canonical bundle is `KR580.app`, identifier `dev.kr580.emulator`, executable
+`kr580`, with `dev.kr580.snapshot` and `dev.kr580.subprogram` document types.
+Metadata comes from `crates/ui/assets/macos/Info.plist`; both application and
+document ICNS resources are embedded.
+
+Registration uses public Launch Services APIs and reports their OSStatus.
+For a real bundle it registers that bundle. Developer/System layouts can create
+an owned `~/Applications/KR580.app` wrapper; Portable keeps its wrapper inside
+the install root. Existing foreign bundles are preserved. Legacy owned wrappers
+can migrate from `app/k580`.
+
+Default handlers are assigned by document role. Public unregister is unsupported;
+choose a replacement default through Finder. `kr -u` reports an error and is
+omitted from macOS help. Removing an owned launcher is separate from choosing
+the replacement handler.
+
+### PATH and cleanup
+
+Unix PATH choices write a managed block to `~/.profile` or macOS `~/.zprofile`.
+Cleanup removes that block or the exact Windows `<root>/bin` entry, rather than
+rewriting unrelated PATH content.
+
+Use the installed uninstaller before deleting a portable folder if it registered
+PATH or associations. Manual folder deletion removes files alone. On macOS,
+portable bundle removal still leaves replacement-default selection to Finder.
+
+## Installation transaction
+
+Setup discovers embedded/adjacent payloads, validates manifest ownership and
+layout, acquires a per-root lease and stages all three installed executables
+before replacing any. Unknown manifest versions and managed-path symbolic links
+are rejected. Portable user data is outside the replacement set.
+
+The file journal retains bytes, permissions and fingerprints beside targets.
+Each stage observes only its own writes. Ordinary-error rollback restores owned
+changes and removes only new files/empty directories. A later foreign edit is
+preserved and reported with its recovery backup. Existing profile/metadata
+symbolic links retain their link/target relationship.
+
+Native rollback follows the same ownership rule:
+
+- Windows restores original registry bytes and types for PATH, uninstall and
+  association values. Unrelated values, subkeys and permissions survive; inert
+  empty new keys may remain. Conflicts retain original-value recovery JSON.
+- Linux restores launcher/profile/MIME/default-state files and rebuilds caches.
+  Shared association lock files remain coordination objects.
+- macOS snapshots Viewer/Editor/Shell defaults separately. Roles with no prior
+  handler use bundle claims rather than an unrestorable explicit preference.
+  Rollback restores matching defaults and retains recovery JSON on conflict.
+
+PATH and desktop/file integration complete before atomic `install.json`
+replacement. A failure combines the original error with rollback failures and
+recovery paths. This is not a power-loss transaction; abrupt exit can leave a
+lease or recovery files requiring inspection.
+
+The internal `--apply-update <root> <pid> <restart.json>` mode uses embedded
+payloads and an existing supported installation. It stages under the lease,
+signals readiness, waits for application exit and replaces only executables.
+An existing restart marker requests relaunch; ordinary exit updates without it.
+See [Updates](updates.md) for downloads, readiness, recovery and platform limits.
+
+## Build distribution packages
+
+`just package` chooses Windows setup, Linux setup or macOS DMG. Extra arguments
+use the native script's syntax:
+
+```powershell
+just package -Profile debug -Target x86_64-pc-windows-msvc
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1
+```
+
+```sh
+just package release --target x86_64-unknown-linux-gnu
+bash scripts/build_installer.sh release --target x86_64-unknown-linux-gnu
+```
+
+On macOS:
+
+```sh
+just package release --target aarch64-apple-darwin
+bash scripts/build_macos_dmg.sh release --target aarch64-apple-darwin
+```
+
+Setup scripts build GUI/launcher, then the uninstaller payload and finally the
+installer with embedded binaries. Each build uses `--locked`. The Unix
+`KR580_CARGO=cross` path first validates locked native metadata, so stale locks
+fail before cross can resolve a different dependency set.
+
+| Artifact | Native host name | Explicit target name |
+|---|---|---|
+| Windows setup | `dist/KR580-Setup-<version>-windows-<arch>.exe` | `dist/KR580-Setup-<version>-<target>.exe` |
+| Unix setup | `dist/KR580-Setup-<version>-<os>-<arch>` | `dist/KR580-Setup-<version>-<target>` |
+| macOS image | `dist/KR580-<version>-macos-<arch>.dmg` | `dist/KR580-<version>-<target>.dmg` |
+
+A running Windows installer that locks its output causes the next build to use
+a numbered suffix. The macOS builder runs natively and verifies plist, Mach-O
+architecture, image contents/icons and Applications link. DMGs are unsigned and
+not notarized; normal Gatekeeper first-open approval may be required.
+
+Unix cross builds use `KR580_CARGO=cross`. `scripts/package_installer_deb.sh` wraps
+the setup executable; its desktop runtime supplies D-Bus, a Zenity fallback and
+desktop/MIME tools. The desktop environment supplies its portal backend.
+
+### Snap
+
+From Linux, build the ready-to-run app with:
+
+```sh
+snapcraft pack --use-lxd
+```
+
+The core24 definition builds only the GUI with its configured MSRV toolchain,
+stages dynamically loaded desktop libraries and uses the GPU extension.
+`rust-ignore-toolchain-file` keeps that compiler selection independent of
+development stable. CI builds native amd64/arm64 with LXD and filters the
+platform plan using `--build-for`.
+
+snapd owns commands, installation, refresh, desktop export and removal. The
+package contains no nested setup/uninstaller. Its Desktop Entry references the
+staged PNG through the Snap path; validation resolves that prefix in a temporary
+copy without changing the packaged entry.
+
+Strict confinement cannot add host `.580`/`.krs` globs. Open With integration
+depends on the host already knowing the MIME type; in-app opening still works.
+
+### NixOS
+
+`flake.nix` provides native x86_64/aarch64 Linux packages containing GUI/launcher
+wrappers, desktop/MIME metadata and icons. Nix owns activation and updates;
+standalone setup is not used. Wrappers provide desktop tools and the absolute
+GUI wrapper path for associations, while a package marker selects XDG settings.
+
+Release CI checks the flake and builds the x86_64 default package. Cargo output
+is read from its target-specific directory, including native Nix builds.
+
+### RPM and Arch
+
+Native packages install application payloads and metadata directly through the
+package manager. Architecture/glibc requirements, commands and container checks
+are in [RPM and Arch packages](linux_packages.md).
+
+### Release publication
+
+`version_release_artifacts.sh` versions setup ZIP/DEB names and verifies already
+versioned RPM/Arch/DMG/Snap names against the tag. Existing destinations are
+rejected; repeated processing of valid names is harmless.
+
+Tagged publication waits for the platform/package jobs and uses the matching
+Russian changelog section, generated GitHub notes and Full Changelog comparison.
+It links the English changelog at the same tag. See
+[release checks](maintenance.md#release-checks).
 
 ## Installation API errors
 
-`install_mode::write_manifest`, `manifest_for_executable`, and
-`current_integration_executable` return `InstallModeError`. Its variants identify
-serialization, file read/write, JSON parsing, invalid executable overrides, and
-executable-resolution failures; `Error::source()` retains the original I/O or
-JSON error. `Display` keeps the existing diagnostic wording. Rust callers that
-need a text error now convert it explicitly with `error.to_string()`; installer
-and file-association display boundaries do this without changing their public
-text results. The manifest JSON schema and launcher fallback behavior are unchanged.
+`write_manifest`, `manifest_for_executable` and `current_integration_executable`
+return `InstallModeError`. Variants distinguish serialization, read/write, JSON
+parse, executable-override validation and current-executable resolution.
+`Error::source()` retains original I/O/JSON causes; Display is diagnostic text.
+
+Installer and file-association text results convert explicitly at their display
+boundary. The manifest remains versioned independently of these Rust error types.

@@ -1,11 +1,11 @@
 Open Settings with Ctrl+,. The dialog searches across every setting.
 
 **General**
-Language, default speed, Follow PC, operand-type highlighting, and system .580/.krs file associations.
+Language, default speed, Follow PC, operand-type highlighting, title-bar file name, and system .580/.krs file associations.
 The association action is hidden in a confined Snap because snapd owns host desktop integration.
 
 **External Devices**
-Default floppy image, HDD directory, printer and properties-dialog mode, plus TCP client/server endpoints.
+Default floppy image, HDD directory, printer and setup-dialog mode, initial monitor layout, and TCP client/server endpoints.
 
 **Appearance and Shortcuts**
 Interface theme and assignments for 29 actions. Reusing a binding unassigns it from its previous action, except for the two RAM actions: pattern search applies in the address/value fields, while replacement applies to the selected cell.

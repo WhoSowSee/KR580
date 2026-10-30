@@ -1,202 +1,118 @@
 # Assets
 
-Documentation assets live under `assets/`. Application icons live inside the
-UI crate under `crates/ui/assets/icons/`.
+Documentation artwork lives under `assets/`; build/runtime assets live under
+`crates/ui/assets/`. Source images and derived files have separate roles.
 
 ## README star history
 
-`.github/assets/star-history-{light,dark}.svg` contains the English charts;
-`star-history-{light,dark}-ru.svg` contains the Russian charts. Both READMEs
-select the matching language and color scheme through absolute raw GitHub URLs,
-including when displayed on crates.io. The charts link to the repository's
-stargazers page.
+Four SVGs under `.github/assets/` cover Russian/English and light/dark READMEs.
+The READMEs select absolute raw GitHub URLs so charts also work on crates.io.
+They link to the repository's stargazers.
 
-`.github/scripts/gen_star_history.py` fetches GitHub's weekly star history,
-orders the daily counts chronologically, and renders the cumulative series.
-It uses Python's standard library and deterministic SVG output without a
-generation timestamp. Unchanged history produces no new commit. Empty history
-and a single day are supported; long series retain their first and last points.
-The chart heading aligns with the left edge of the vertical-axis numbers.
-
-Regenerate all four charts from the repository root:
+Regenerate from the repository root:
 
 ```sh
 python3 .github/scripts/gen_star_history.py --repo WhoSowSee/KR580
 python3 -B .github/scripts/test_gen_star_history.py
 ```
 
-`GITHUB_TOKEN` is optional for local public-repository requests. The scheduled
-[workflow](../.github/workflows/star-history.yml) refreshes the charts every
-Monday and Thursday at 06:17 UTC (09:17 Moscow), or by manual dispatch on a
-branch. It fetches history with a read-only token and publishes changed SVGs
-with a dedicated GitHub App. See [publisher setup](testing.md#star-history-publisher)
-for repository configuration and protected-branch permissions.
+The standard-library generator orders daily counts and renders a deterministic
+cumulative series without timestamps. Empty/single-day series are supported;
+unchanged data yields unchanged SVGs. `GITHUB_TOKEN` is optional for public
+local requests.
 
-## `assets/brand/`
+The scheduled workflow refreshes Monday/Thursday at 06:17 UTC and supports
+manual dispatch. Repository/App permissions and publishing are documented in
+[Star-history publisher](maintenance.md#star-history-publisher).
 
-| File | Purpose |
-|---|---|
-| `logo.svg` | Vector KR580 wordmark used by `README.md` and `README-EN.md`. |
+## Documentation artwork
 
-The brand SVG is documentation-facing and is not embedded into the application binary.
-
-`kr580` keeps the platform font routing: `Segoe UI Variable` for
-chrome and labels on Windows, and iced's generic monospace selector for
-register, memory, command, and input readouts. Windows renders a covered
-startup-only warmup layer for both paths while the main window is still
-cloaked, so the renderer pays the cold glyph cost before the first
-visible run.
+`assets/brand/logo.svg` is the README wordmark. Localized screenshots under
+`assets/screenshots/{ru,en}/` show the main app and five device windows.
+These files are documentation inputs and are not embedded in the application.
 
 ## Monitor bitmap font
 
-`crates/ui/src/view/monitor_font/cp866.rs` contains the complete 256-slot
-CP866 glyph table used by the monitor Canvas and image exporter. Its 8×8 bold
-glyphs are mapped from Alex Frush's public-domain
-[`512_8`](https://github.com/alexfru/512_8/tree/726f6fa1d09775f9962a47fe78ce1aeacaa4cf34)
-font. The checked-in table removes any
-runtime dependency on a platform font, ANSI/OEM code page, or font rasterizer.
+`crates/ui/src/view/monitor_font/cp866.rs` contains all 256 CP866 glyph slots.
+The 8×8 bold glyphs are mapped from Alex Frush's public-domain
+[512_8 font](https://github.com/alexfru/512_8/tree/726f6fa1d09775f9962a47fe78ce1aeacaa4cf34).
+Byte indexing keeps Canvas and image export independent of OS code pages,
+installed fonts and rasterizers.
 
-`monitor_font/mod.rs` defines the 8×12 cell geometry and byte-indexed lookup.
-The table needs no generated asset or build-time step. Tests cover every byte
-slot and the text-layer `MICROPROCESSOR` sequence.
+`monitor_font/mod.rs` defines 8×12 cell geometry and lookup. The checked-in table
+needs no asset-generation/build step; tests cover byte slots and text sequencing.
+Application chrome uses platform UI fonts and monospace readouts separately.
 
-## `assets/screenshots/`
+## Icon sources
 
-| File | Purpose |
-|---|---|
-| `ru/emulator.png`, `en/emulator.png` | Full-emulator screenshots used by the default Russian `README.md` and English `README-EN.md`. |
-| `ru/monitor.png`, `ru/floppy.png`, `ru/hdd.png`, `ru/network.png`, `ru/printer.png` | Russian external-device screenshots used by `README.md`. |
-| `en/monitor.png`, `en/floppy.png`, `en/hdd.png`, `en/network.png`, `en/printer.png` | English external-device screenshots used by `README-EN.md`. |
+All masters and derivatives are under `crates/ui/assets/icons/`.
 
-These files are documentation screenshots. They are not embedded into the application binary.
+| Master | Derived output | Consumers |
+|---|---|---|
+| `icon.png` | `icon-*.png`, `icon.ico`, `KR580.icns` | Runtime window, Windows executable, Linux desktop/package and macOS app icons |
+| `file-580.png` | `file-580-256.png`, `file-580.ico`, `KR580Document.icns` | `.580`/`.krs` document integration |
+| `installer-setup.png` | `installer-setup.ico` | Standalone Windows setup |
+| `installer-uninstall.png` | `installer-uninstall.ico` | Installed Windows uninstaller |
 
-## `crates/ui/assets/icons/`
+`icon-64.png` is embedded for runtime windows. `icon-256.png` is used by Linux
+integration and packages. ICOs are
+multi-resolution; keep the largest frame first for Windows image previewers.
 
-| File | Purpose |
-|---|---|
-| `icon.png` | Application icon master. Treated as the source of truth; every `icon-*.png` and `icon.ico` is regenerated from it. |
-| `icon-16.png`, `icon-32.png`, `icon-48.png`, `icon-64.png`, `icon-128.png`, `icon-256.png` | Standalone PNGs used at runtime (currently `icon-64.png` is embedded as the iced window icon) and reserved for future installer/desktop-entry packaging. |
-| `icon.ico` | Multi-resolution Windows application icon containing `256, 96, 64, 48, 40, 32, 24, 20, 16` frames in that order so default Windows previewers (Photos, Paint, IconViewer) display the 256×256 layer when the file is opened directly. Embedded into the `.exe` PE resource via `winresource`. |
-| `file-580.png` | `.580` / `.krs` file-type icon master. Treated as the source of truth for the derived PNG, ICO, and ICNS files. |
-| `file-580-256.png` | 256×256 Linux MIME icon generated from `file-580.png`. |
-| `file-580.ico` | Multi-resolution Windows `.580` / `.krs` file-type icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded into the `.exe` PE resource as resource id `2` via `winresource`, so Explorer can show it for files associated with the application. |
-| `KR580.icns`, `KR580Document.icns` | Multi-resolution macOS application and document icons generated from the two master PNGs. |
-| `installer-setup.png` | Standalone setup icon master. Treated as the source of truth for `installer-setup.ico`. |
-| `installer-setup.ico` | Multi-resolution Windows setup icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded as the main PE icon when `KR580_WINDOWS_ICON_KIND=setup`. |
-| `installer-uninstall.png` | Installed uninstaller icon master. Treated as the source of truth for `installer-uninstall.ico`. |
-| `installer-uninstall.ico` | Multi-resolution Windows uninstaller icon containing `256, 128, 96, 64, 48, 40, 32, 24, 20, 16` frames. Embedded as the main PE icon when `KR580_WINDOWS_ICON_KIND=uninstaller`. |
-
-The pre-rendered files are checked into the repository so the binary
-does not have to decode or resize the master image at build or run time.
-
-The icon tree lives inside the `kr580` crate because compile-time
-`include_bytes!` calls, the Windows resource build script, and the published
-crates.io package must all resolve the same crate-local files. The four large
-master PNGs stay in this tree for regeneration but are excluded from the
-published crate. Workspace-level Debian, Snap, and Nix packaging reads the same
-files directly, so no synchronized repository mirror is required.
+Derived PNG/ICO/ICNS files are committed so ordinary builds need no master-image
+resize step. Masters remain available for regeneration but are excluded from
+the published crate. Keeping build inputs inside the UI crate also lets packaged
+include_bytes paths and resources resolve without a workspace-level mirror.
 
 ## Regenerating the icon set
 
-The scripts read `crates/ui/assets/icons/icon.png`,
-`crates/ui/assets/icons/file-580.png`,
-`crates/ui/assets/icons/installer-setup.png`, and
-`crates/ui/assets/icons/installer-uninstall.png`, then rewrite every derived
-PNG/ICO/ICNS in one go.
+After changing a master, regenerate all derivatives and rebuild:
 
-`just icons` runs the appropriate generator on Windows or Unix/macOS.
+```sh
+just icons
+```
 
-### PowerShell (Windows)
+Direct commands:
 
 ```powershell
 powershell -File scripts/generate_icons.ps1
 ```
 
-Uses `System.Drawing` (built into .NET on Windows) – no external
-dependency required.
-
-### Bash (Linux/macOS/WSL)
-
-```bash
-./scripts/generate_icons.sh
+```sh
+bash scripts/generate_icons.sh
 ```
 
-Uses ImageMagick: prefers `magick` (v7+), falls back to `convert` (v6).
-ICNS conversion uses Apple's `iconutil` when available, or Python 3's standard
-library to assemble the PNG layers into an ICNS container on Linux/WSL.
-The required encoder is checked before regenerating assets. ICNS output is
-staged, checked for its signature and declared length, and only then installed.
-ImageMagick is never asked to encode an unsupported ICNS format.
-Install via your package manager:
+PowerShell uses Windows System.Drawing. Bash uses ImageMagick (`magick`, falling
+back to `convert`); install it through the platform package manager. The scripts
+read all four masters. Raster sizes and frame sets are defined in the generators.
 
-- macOS: `brew install imagemagick`
-- Debian/Ubuntu: `sudo apt install imagemagick`
-- Arch: `sudo pacman -S imagemagick`
-
-The Bash script uses Lanczos resampling and strips metadata. The PowerShell
-script uses System.Drawing's high-quality bicubic resampling.
-The native DMG verifier also decodes both ICNS resources with `iconutil`
-and checks the smallest and largest image representations.
+ICNS conversion uses Apple's iconutil where available, otherwise Python's
+standard library assembles PNG layers. The encoder is checked before rewriting
+outputs; ICNS staging validates its signature and length before replacement.
+Native DMG verification additionally decodes both ICNS files with iconutil.
 
 ## Where the assets are consumed
 
-Linux integration embeds `icon-256.png` and `file-580-256.png` through
-`integration_assets`. Registration writes these bytes into the XDG hicolor
-`256x256/apps/kr580.png` and `256x256/mimetypes/application-x-kr580.png` paths.
-The icon generator produces the document PNG from the existing master; no
-external artwork is needed alongside the installer or executable.
+- Runtime windows embed the 64 px PNG and create an iced icon from RGBA pixels.
+- Windows build resources assign product names/icons per binary: KR for the
+  launcher, KR580 for the GUI, and the setup/uninstall roles for their payloads.
+  `KR580_WINDOWS_ICON_KIND` selects those build roles.
+- The document ICO is embedded as PE resource 2 for Explorer associations.
+- Linux `integration_assets` embeds the application/document 256 px PNGs for
+  XDG hicolor paths. Native package builders use the same canonical files.
+- macOS bundles install application/document ICNS files referenced by the
+  canonical Info.plist.
 
-The same generator produces `KR580.icns` from `icon.png` and
-`KR580Document.icns` from `file-580.png`. The macOS bundle embeds both under
-`Contents/Resources`; its plist uses the first as the application icon and the
-second for `.580` and `.krs` documents.
-
-- `crates/ui/src/app/windows.rs` embeds `crates/ui/assets/icons/icon-64.png` via
-  `include_bytes!`, decodes that PNG through the restricted `image` codec set,
-  and hands its RGBA buffer to `iced::window::icon::from_rgba`. This drives the title-bar /
-  Alt-Tab / taskbar icon for the running application.
-- `crates/ui/build.rs` (Windows only) embeds `crates/ui/assets/icons/icon.ico`
-  and the product/file description into the PE resource section: `KR` for
-  `kr.exe`, `KR580` for the GUI. `winresource` generates the resources and
-  `embed-resource` compiles and links them to the matching binaries.
-  These drive the name and `.exe` icon shown by
-  Explorer, the Start menu, pinned taskbar shortcuts, and the file picker.
-- `crates/ui/build.rs` switches the main PE icon when
-  `KR580_WINDOWS_ICON_KIND` is set: `setup` embeds
-  `crates/ui/assets/icons/installer-setup.ico`, and `uninstaller` embeds
-  `crates/ui/assets/icons/installer-uninstall.ico`; the same selector assigns
-  their `KR580 Setup` and `KR580 Uninstaller` file descriptions.
-- `crates/ui/build.rs` (Windows only) also embeds
-  `crates/ui/assets/icons/file-580.ico` as PE resource id `2`. This drives the
-  Explorer icon shown for `.580` and `.krs` files once the file associations point at the
-  built `.exe`.
-
-When you replace any master PNG, run the appropriate script and rebuild.
-`cargo` re-embeds `icon-64.png` automatically because it is an
-`include_bytes!` source. The build script triggers a Windows-resource rebuild
-via the selected main ICO and `cargo:rerun-if-changed=…/file-580.ico`.
+The Windows build script generates/links resources for each binary separately.
+A combined build must not apply the launcher's description to the GUI.
+Changing the selected ICO/document ICO triggers its resource rebuild; changes
+to embedded PNG/SVG files trigger ordinary recompilation.
 
 ## SVG icon sets
 
-Two SVG icon families live alongside the PNG set:
+`actions/` contains toolbar/menu/window glyphs and `devices/` contains the five
+peripheral glyphs. They are embedded at build time and share currentColor-based
+tinting. SVG changes require rebuilding, not PNG/ICO regeneration.
 
-| Directory | Purpose |
-|---|---|
-| `crates/ui/assets/icons/actions/` | Toolbar / menu / titlebar glyphs (`play`, `pause`, `step-forward`, `redo-dot`, `refresh-ccw`, `reset-ram`, `reset-registers`, `chevrons-right`, `cpu`, `installer-chip`, `clear-halt`, `binary`, `hard-drive-download`, `hard-drive-x`, `hard-drive-upload`, `bug`, `bug-off`, file/window/save/save-as/file-up/file-down, window caption buttons). Consumed by `crates/ui/src/view/icons.rs` and the installer `action_icon_bytes!` macro. |
-| `crates/ui/assets/icons/devices/` | Peripheral chips on the bottom row of the schematic plate: `monitor.svg`, `floppy.svg`, `hdd.svg`, `network.svg`, `printer.svg`. Consumed through the `device_icon_bytes!` macro and exposed as `icons::device_monitor()` / `device_floppy()` / `device_hdd()` / `device_network()` / `device_printer()` getters. The chips are rendered by `view::schematic::device_chip` inside the `schematic_block_style` chassis with a hover tooltip wired the same way the action-panel buttons wire theirs. |
-
-All SVGs are authored with `stroke="currentColor"` or `fill="currentColor"`
-for solid glyphs such as the HDD and installer chip, so iced's
-`svg::Style { color: Some(...) }`
-callback can tint a single source file at any accent at runtime – no
-per-colour duplicates. Files are embedded with `include_bytes!` at build
-time via the macros in `icons.rs` and `bin/installer/mod.rs`; replacing a
-glyph is a recompile, not a runtime asset reload.
-
-The update menu embeds `actions/download.svg` directly through
-`view/update_menu/icon.rs`, using the [Lucide Download glyph](https://github.com/lucide-icons/lucide/blob/main/icons/download.svg).
-Its checking animation wraps the canonical `actions/refresh-ccw.svg` in cached
-rotation frames, so the idle and checking states share the same artwork.
-These vector assets require no PNG/ICO regeneration.
-The update error glyph uses a filled dot with a clear gap below the exclamation
-stem so it remains visible at the menu's 16 px icon size.
+The update menu uses the [Lucide Download glyph](https://github.com/lucide-icons/lucide/blob/main/icons/download.svg)
+and cached rotation frames of the shared refresh glyph. Keep the filled error
+glyph's dot separated from its stem so it remains legible at menu size.

@@ -1,263 +1,135 @@
 # Architecture
 
-This workspace implements a layered KR580/Intel 8080 desktop emulator. The documents under `docs/` describe the CPU, device, file-format, and application contracts covered by the workspace tests.
+The workspace separates deterministic CPU execution from the desktop application.
+Start with the [documentation index](README.md) for task-specific guides.
 
 ## Crates
 
-Both workspace crates share release `4.1.0` through `[workspace.package]`.
-The UI's versioned path dependency on `k580-core` and the two local Cargo.lock
-entries use the same release. CLI/About and native executable metadata derive
-their version from `CARGO_PKG_VERSION`; installer, Debian, RPM, Arch, DMG and Nix packaging
-read Cargo.toml. Snap derives its package version from Git release metadata.
-The major version reflects incompatible public backend/device Rust APIs; the
-`.580`, `.krs`, TXT/XLSX and settings formats remain compatible.
+| Crate | Responsibility |
+|---|---|
+| `k580-core` | CPU state/RAM, registers/flags, decoding, execution, interrupts, timing and `PortBus` |
+| `kr580` | Iced application, backend actor, devices, persistence, launcher, installer and platform integration |
 
-- `k580-core`: public deterministic CPU state, memory, flags, opcode decode/execute, timing, interrupts, and the `PortBus` trait. Applications own their command/event contracts and compose them from these processor primitives. Opcode execution is split by instruction family under `ops/`.
-- `kr580`: public installable desktop package. It contains the iced multi-window daemon, launcher, installer, uninstaller, platform shims, and internal `backend`, `devices`, and `persistence` modules. The internal modules own the emulator actor, `IoBus`, monitor, floppy, HDD, network, printer, snapshots, settings, and direct `.txt`/`.xlsx` import/export paths.
+`crates/core` is the public processor library and has no Tokio/iced dependency
+or unsafe code. `crates/ui` contains the binary-side `app`/`view` and library
+modules used for desktop integration; some public modules are hidden in rustdoc.
+Public error and integration APIs are documented in their corresponding guides.
 
-## Repository layout
-
-- `crates/core/`: public `k580-core` library crate.
-- `crates/ui/`: public `kr580` package with a private binary-side app and view, plus public library modules for backend, devices, persistence, launcher, and installer integration. The library modules are hidden from generated rustdoc where appropriate. Its `desktop_entry` helper centralizes freedesktop command quoting and XDG data-home resolution, `install_mode` resolves adjacent versus manifest-owned binaries, and `shell_quote` supplies the shared Unix single-argument encoder.
-- `crates/ui/src/file_assoc/linux_default.rs`: owns the saved Linux default-handler state, `mimeapps.list` cleanup, and restoration of the handler that preceded KR580. `linux_files.rs` supplies process locking, atomic writes, and file backups used for rollback.
-- `crates/ui/assets/linux/`: canonical freedesktop launcher, file-handler, package, and shared-MIME templates consumed by runtime registration and native packages.
-- `crates/ui/assets/macos/Info.plist`: canonical macOS application metadata used by runtime integration and release packaging.
-- `crates/ui/src/runtime/updates/`: GitHub release discovery, verified downloads and platform-specific staging. `ShellState.updates` owns UI state; the setup executable applies staged files after application exit. See [Application updates](updates.md).
-- `macos_launch_services`: narrow Core Services bridge for registering the installed application bundle and managing its document handlers.
-- `platform/macos_open_documents`: Foundation event bridge that forwards Finder document activation into the normal application file-loading path.
-- `docs/`: reference documentation (this directory).
-- `CONTRIBUTING.md` and `AI_POLICY.md`: contributor workflow, verification requirements, and AI-assistance disclosure policy.
-- `.github/ISSUE_TEMPLATE/` and `.github/pull_request_template.md`: GitHub bug/feature forms and the pull request template, aligned with the contributor guides.
-- `.github/workflows/quality.yml`: cached native checks on Linux, Windows, and macOS, plus Linux MSRV/release/metadata checks. The three `Workspace` statuses are required by the repository's `main` ruleset. See [Pull request CI](testing.md#pull-request-ci).
-- `.github/workflows/star-history.yml`, `.github/scripts/`, and `.github/assets/`: scheduled README chart generation and publication through a dedicated GitHub App. Four SVGs cover both languages and color schemes. See [Assets](assets.md#readme-star-history).
-- `.github/workflows/build-linux.yml`: reusable release jobs for the seven Linux setup targets plus native RPM and Arch packages; called by `build.yml` before release publication.
-- `scripts/linux_packages.py`, `scripts/linux_packaging/`, and `scripts/packaging/`: native distribution payload rendering, ELF/metadata/content verification, and RPM/PKGBUILD templates. See [RPM and Arch Linux packages](linux_packages.md).
-- `.gitattributes`: LF text checkouts, Rust-aware diffs, and byte-preserving binary asset/program-image rules.
-- `.editorconfig`: editor defaults for UTF-8, LF, spaces, and final newlines; format-specific indentation plus Markdown and binary exceptions. See [Repository configuration](testing.md#repository-configuration).
-- `rustfmt.toml`: shared Rust 2024 formatting with 100-column width, field initialization shorthand, and LF output.
-- `rust-toolchain.toml`: rustup's stable development toolchain with the minimal profile, rustfmt, and Clippy. Explicit Rust 1.88 overrides keep integration and Snap builds on their configured compiler. See [Repository configuration](testing.md#repository-configuration).
-- `justfile`: cross-platform developer entry points for workspace checks, GUI/launcher builds and runs, native packaging, icon generation, and metadata smoke checks. See [Testing](testing.md#just-recipes).
-- `crates/ui/assets/icons/`: canonical pre-rendered icon set consumed at build, run, and package time. The master `icon.png` lives next to the generated PNG fan-out and the multi-resolution `icon.ico`. See `docs/assets.md`.
-- `scripts/`: developer helpers. `generate_icons.ps1` (Windows) and `generate_icons.sh` (Unix/macOS) regenerate `crates/ui/assets/icons/` from the master image. `build_installer.ps1` and `build_installer.sh` build standalone setup artifacts, while `build_macos_dmg.sh` packages the native GUI as a drag-and-drop application image under `dist/`. The verification scripts exercise Linux metadata, macOS images, and release artifact names; `version_release_artifacts.sh` adds the release tag only to unversioned setup packages.
-- `target/`: cargo build artefacts (gitignored).
-
-## Installation Layout
-
-`kr580` builds `kr580`, `kr`, `k580-installer`, and `k580-uninstaller`. The
-setup builder first builds `kr580` and `kr`, then builds `k580-uninstaller` with
-the uninstall icon, then rebuilds `k580-installer` with the setup icon and
-those binaries embedded so a new user can run the setup before any KR580 files
-exist on the machine. The installer writes `install.json` at the install root,
-keeps `kr580` under `app/`, keeps the installed maintenance binary as
-`app/uninstaller`, keeps `kr` under `bin/`, and only adds `bin/` to PATH when
-requested.
-`bin/installer/operations/` separates source discovery, the installation
-transaction, file journal and native rollback adapters. It stages all payloads
-before replacement, preserves user data and previous owned files/values on
-failure, and atomically publishes the final manifest after integration succeeds.
-Windows raw registry snapshots use the locked `winreg` 0.56.0 package
-as a runtime dependency; no release build commands or artifact roles change.
-macOS releases instead contain the GUI executable directly in
-`KR580.app/Contents/MacOS/kr580`; the surrounding DMG supplies an Applications
-link and relies on normal drag-and-drop installation rather than the setup
-state machine.
-Portable installs default to the user's `KR580` folder and store settings under
-`<install root>/data`; both install modes can optionally associate `.580`
-snapshots and `.krs` subprograms with `app/kr580`. System installs use the platform config directory and
-add OS integration: Start Menu/search launchers, optional desktop launchers,
-and uninstall cleanup where the platform supports them. See
-`docs/installer.md`.
-Executables inside a macOS application bundle use Application Support even
-without an installer manifest. Strict Snap executions use the writable,
-revision-independent `SNAP_USER_COMMON` directory.
-Nix, RPM and Arch wrappers mark the packaged GUI so it uses the writable XDG
-config directory and expose the wrapped GUI path to file-association code.
-`crates/ui/src/package_kind.rs` recognizes the shared package markers for
-settings storage and updater policy. RPM and Arch install public wrappers
-under `/usr/bin`, executables under `/usr/lib/kr580`, and desktop/MIME/icon
-metadata under `/usr/share`; their package managers own updates and removal.
-The Snap exposes `kr580` itself as its only app command; snapd owns its lifecycle
-and exported desktop entry, so no nested installer, uninstaller, PATH writer,
-or private desktop database is involved.
-
-The graphical uninstaller drives cleanup as three explicit tasks instead of a
-timer-simulated monolith: system integration removal returns an uninstall plan,
-link cleanup consumes that plan, and the file stage automatically starts a
-platform helper that waits for the uninstaller PID to exit before deleting the
-install root. `uninstaller.rs` owns this state machine; `uninstaller_view.rs`
-renders it. Real task completion advances target milestones, while a separate
-presentation-only timer moves the displayed progress toward those targets. The
-final Close action does not initiate cleanup and becomes available only after
-the successful animation reaches 100%.
+Both packages inherit the workspace release version. Cargo manifests/lockfiles
+are authoritative for versions, dependencies and feature flags; publishing
+checks are in [Repository maintenance](maintenance.md#release-checks).
 
 ## Data flow
 
-UI messages become `AppCommand` values. The internal backend actor owns `Cpu8080State` and `IoBus`, applies commands, and publishes typed `AppEvent` values. The UI stores only display/input state and can always re-render from `AppSnapshot`.
+```mermaid
+flowchart LR
+    UI[DesktopApp] -->|commands and RequestId| Actor[Backend actor]
+    Actor --> Core[k580-core]
+    Core -->|PortBus| Devices[IoBus and devices]
+    Actor -->|captured file jobs| Persistence[Persistence worker]
+    Persistence -->|completion| Actor
+    Actor -->|events and latest snapshot| UI
+    UI -->|preferences and previews| FileWork[UI file worker]
+    FileWork -->|generation-checked completion| UI
+```
 
-After `.krs` loading, the actor applies the bytes, publishes `StateChanged`,
-and completes the matching request with the installed end address. The UI uses
-that completion range for subsequent subprogram saves.
+The actor owns CPU and device state. UI widgets render snapshots and keep local
+drafts; all CPU/device mutation is submitted through typed commands.
 
-## Invariants
+Snapshots use a latest-state mailbox. Critical events preserve errors and
+request-correlated completions separately, so dropping an intermediate RAM
+snapshot cannot drop confirmation of a save or edit.
 
-Backend failures carry `ErrorData`: a typed `AppErrorKind` and an Arc-owned
-original error with its `source()` chain. Cloning an event preserves the cause;
-`Display` is diagnostic only. Persistence conversions classify the concrete
-variant and `io::ErrorKind`, so OS codes with different meanings cannot change
-UI localization. `backend/error/` separates data, categories and conversions.
+Backend errors retain their category, localization key and original cause.
+Cloning an event preserves the source chain; Display text is diagnostic rather
+than a dispatch key. Concrete persistence variants and `io::ErrorKind` determine
+categories rather than platform-dependent numeric error codes.
 
-- Behavior and file-format changes keep the relevant documentation and regression tests aligned.
-- CPU state is owned by `k580-core` and the internal backend actor, never by UI widgets.
-- Device state is owned by the internal `devices` module; `IN`/`OUT` route through `PortBus`.
-- The internal `persistence` module reads from `Cpu8080State` or explicit export view models, never from UI labels or grids.
-- `.krs` remains a raw byte slice with caller-provided base address; no secondary subprogram format is introduced.
-- `persistence/atomic_save.rs` stages `.580`, `.krs` and settings writes beside the destination and replaces it only after the complete file has been flushed and closed.
+## Workers and completions
 
-## Runtime shape
+| Owner | Work | Admission |
+|---|---|---|
+| CPU actor | Commands, paced/burst execution and device reconciliation | 256 queued commands; 1024 critical events with backpressure |
+| Backend persistence worker | Snapshot/subprogram/import/export and storage opening | FIFO, at most eight waiting jobs |
+| UI file worker | Settings read-modify-write, previews, image encoding and buffer exports | Eight active/queued/unconsumed jobs in total |
+| Device runtime | Storage writers, TCP and native printing | Device-specific budgets in [Devices](devices.md) |
 
-Application exit is coordinated by `app/shutdown.rs` through
-`ShellState.shutdown`. UI-owned file work and request completions finish before
-the shell sends `Shutdown`. `backend/actor/shutdown.rs` places a FIFO barrier on
-the persistence worker and applies its preceding completions;
-`backend/emulator/shutdown.rs` then joins storage and printer work before
-acknowledging exit. A successful explicit shutdown returns immediately after its
-receipt; the post-loop drain is reserved for channel disconnection. Device
-workers remain owned until completion, with finished
-handles harvested by `devices/workers.rs`. Main-window destruction and
-`iced::exit()` follow the successful receipt. A final write error leaves the UI
-and actor available instead of reporting a successful close.
+Frontend pending backend requests have their own 128-request limit. Full queues
+return Busy without blocking admission or creating unbounded threads.
+File-work panics are converted to failed completions rather than leaving a
+request unresolved.
 
-`DesktopApp` composes document, memory/register editor, interaction, execution,
-export/import dialog, preferences, printer setup, device panels, shell and
-backend-request states from `app/state/`. It coordinates their effects while
-each state retains one concern. Export targets pair names/settings; window,
-dropdown and memory-view modes encode their related data in enums. CPU flags
-and independent export selections remain booleans.
+Every asynchronous effect carries its ownership context. Document generations
+invalidate old loads/imports; per-device generations invalidate old storage opens
+and previews. A superseded result cannot change CPU, paths, dirty markers or
+notices, including through a late error.
 
-CPU edit requests carry an owned `CpuChange` completion from
-`backend/command/change.rs`. `emulator/changes.rs` captures register/control
-metadata and only affected cells for byte/block/register edits; instruction and
-dense replacements use a full checkpoint when needed. Snapshots carry a monotonic
-actor revision, advanced by commands, execution and changed-device polls. The
-UI captures the latest mailbox after draining critical events, then reconciles
-state before processing completions. Initial snapshots start no worker runtime.
+Imports return validated patches and subprogram reads return owned byte blocks.
+The actor applies those to its current CPU, retaining unrelated edits made
+during I/O. Saves/exporters operate on their independently captured state.
 
-The CPU actor accepts at most 256 queued commands through nonblocking admission;
-full admission returns a typed Busy error. Its 1024-entry critical event queue
-preserves command completions by applying backpressure to the actor. The UI can
-drain events without waiting for command acceptance. Device queue and retained
-data budgets are documented in `devices.md`.
+UI CPU edits reserve an undo entry and fill it with the actor's actual change.
+Metadata and sparse cells avoid unnecessary full RAM copies; dense changes can
+retain checkpoints. Only a matching completion advances saved document state.
+See [UI event handling](ui_app.md#event-handling).
 
-Paused device polling drains storage/printer completions and compares a cheap
-network generation/revision before constructing an owned snapshot. Unchanged
-polls copy neither RAM nor device buffers and do not retain duplicate published
-device states. Network worker revisions advance on connect, RX/TX, EOF and
-errors; the publication baseline is captured before snapshot creation so a
-concurrent worker update is noticed by the next poll.
+Settings operations read the latest file and apply their owned change in FIFO
+order. Event handlers use a confirmed settings cache; external file edits are
+picked up on the next background read-modify-write or startup.
 
-`backend/emulator/apply.rs` owns command mutations. Undo sends `ApplyCpuDelta`
-with core control metadata and sparse cells or a full RAM replacement. The CPU
-actor owns that application and invalidates older document completions.
+Storage opening occurs on the persistence worker, then the actor installs the
+owned open file. Reattachment reuses a writer and flushes accepted bytes before
+switching files. File-association work uses a blocking task and one pending flag
+that outlives its settings dialog.
 
-Persistence dispatch and execution live in `backend/emulator/io/{dispatch,jobs}.rs`;
-`io/mod.rs` owns completion reconciliation. Every job carries the document
-generation. New CPU documents and subsequent program/subprogram loads supersede
-older completions, which finish as `CommandResult::Superseded` without changing
-paths, notices or CPU state. Imports return validated patches and `.krs` loads
-return their actual byte blocks; the actor applies them to its current CPU so
-unrelated edits made while reading remain intact. Save/export workers retain an
-independent captured state or export model.
-One named persistence worker executes accepted jobs in FIFO order, including
-multiple writes to the same destination. Its queue holds at most eight waiting
-jobs; full-queue admission fails immediately through the matching request rather
-than blocking the actor or creating another OS thread. Panics in file work become
-failed completions, so pending UI operations do not remain unresolved.
+## Actor pacing
 
-`runtime/file_work/` owns a second, lazily started FIFO worker for UI file jobs.
-Its budget includes eight running, queued or unconsumed completions. Target
-enumeration, disk metadata/preview reads, monitor encoding, buffer saves,
-directory validation and settings read-modify-write run entirely there. An iced
-`Task` wakes the UI; completions drain before modal routing and on Tick. Import
-and preview generations reject old results even for the same path. Settings
-reads during event handling use the last confirmed cache; initial preferences
-load before the first window is constructed. External settings-file edits are
-picked up at the next background write or application start.
+`backend/actor.rs` selects among commands, the run deadline, a 50 ms device timer
+and file completions.
 
-Storage opening also uses the actor's persistence worker. Per-device generations
-invalidate older opens after reattachment or detach independently of CPU document
-replacement. The actor installs an owned open file without filesystem work.
-Each storage device reuses one writer across successful reattachments; file
-switch/detach commands flush preceding accepted bytes in FIFO order.
+- Paused: only the run deadline is disabled. Device polling and I/O completion
+  handling continue, including while no command is submitted.
+- Paced: the run deadline advances one instruction at the selected interval.
+- Burst: one tick runs an instruction batch bounded by a wall-time slice,
+  HLT/error or the per-arming instruction budget, then publishes its final state.
 
-File-association changes use an iced task backed by Tokio's blocking pool.
-`DesktopApp.preferences.file_association_pending` survives closing Settings and prevents
-overlapping operations; completion messages bypass modal routing. Only Windows
-polls handler registration, while Settings is open and no operation is pending.
-The dialog keeps that Windows status for both rendering and keyboard actions;
-the pending flag has a single owner in `DesktopApp`. Unix has no unused
-registration-status polling. Installer rollback uses a scoped Launch Services
-default-handler snapshot for each macOS document role.
+The run deadline is an absolute Instant and is preserved across device polls.
+Polling therefore does not repeatedly restart a slow execution interval.
+Commands are reconsidered between batches; this provides responsiveness without
+promising a strict real-time bound under queueing or OS scheduling.
 
-`kr580` sends commands through a crossbeam channel to its internal backend emulator actor. The actor owns CPU and device state and emits typed events. Persistence requests capture actor state and run file work on a dedicated worker, then return a matching `RequestId` completion before the UI changes paths or dirty state. The event path coalesces full snapshots into a latest-state mailbox while keeping completion and error events separate. `Emulator` owns a Tokio runtime for storage, network, and native printer workers, so file, TCP, GDI printing, and printer-driver calls stay outside the UI thread. The printer settings layer keeps the Windows PrintTicket provider lifecycle inside one blocking MTA task, while the iced state stores only parsed capabilities and the validated `DEVMODEW`. The actor polls network, storage, and printer completion every 50 ms and publishes a snapshot only when device state differs from the last published one. `AppCommand::ConfigureNetwork` cancels the previous TCP worker before starting the selected client connection or server listener; `AppCommand::ClearNetworkBuffers` clears only the visible RX buffer and last transmitted value while preserving the active endpoint, connection state, status, and error. When both are already empty, the command is a no-op and publishes no state event.
+Device polling drains storage/printer results and compares network revision
+before constructing a snapshot. Unchanged polls copy neither RAM nor retained
+device buffers. Publication captures its baseline before snapshot construction,
+so concurrent network changes are detected on the next poll.
 
-## Actor pacing loop
+The UI initializes the actor's mode/interval from the saved speed.
+UI refresh cadence is independent and can coalesce intermediate states.
+See [run modes](ui_execution.md#run-modes-and-speed).
 
-The worker thread in `backend::actor::run_worker` does not block on
-`recv()`. Instead it uses `crossbeam_channel::select!` to wait
-simultaneously on the command channel and a timer:
+## Confirmed shutdown
 
-- **Paused (`!emulator.is_running()`)** – the timer arm is wired to
-  `crossbeam_channel::never()`, so the `select!` degenerates to a plain
-  command-channel `recv()`. The worker is fully idle until the UI sends
-  the next command.
-- **Running (`emulator.is_running()`)** – the timer arm is wired to
-  `crossbeam_channel::after(deadline)`, where `deadline` depends on
-  the active `RunMode`:
-  - `RunMode::Paced` (Slow / Medium / High speed tiers in the UI) –
-    the deadline is `emulator.step_interval()`. Each timer fire calls
-    `emulator.tick()`, which advances exactly one instruction and
-    emits `InstructionBoundaryReached`, `HaltStateChanged` (on halt),
-    `Stopped` (on budget exhaustion or error), and a fresh
-    `StateChanged`; the UI consumes the latest available snapshot.
-  - `RunMode::Burst { slice }` (Max speed tier in the UI) – the
-    deadline is `slice` (16 ms by default). Each timer fire calls
-    `emulator.tick()`, which now runs an inner loop that keeps
-    stepping the CPU until `slice` wall-time elapses, the per-session
-    budget is exhausted, the CPU halts, or an instruction errors.
-    Only the **final** snapshot is published; per-instruction
-    boundary events are deliberately suppressed so the UI side
-    stops paying the per-step redraw cost. The slice doubles as
-    the responsiveness floor for `Stop`: a press lands within at
-    most one slice because the actor still re-checks the command
-    channel between bursts.
-  The run timer is scheduled as an absolute `Instant` and is not rebuilt
-  from scratch when the 50 ms device poll arm fires. That keeps Slow
-  (200 ms) and Medium (50 ms) execution from being starved or jittered by
-  printer/network polling. Whichever `select!` arm fires first wins: a
-  command interrupts the wait immediately and is applied without skipping
-  a beat.
+UI close/restart waits for accepted frontend work, then submits backend Shutdown.
+The actor places a FIFO barrier on persistence and reconciles earlier completions.
+It then joins all accepted storage and printer writes before acknowledging.
+A device failure is reported after the other writers are also drained.
 
-`AppCommand::Run` only flips `Emulator::running = true` and resets the
-per-arming `instructions_since_run` counter. `AppCommand::Stop` clears
-the flag. `AppCommand::SetStepInterval(duration)` overwrites
-`Emulator::step_interval` (clamped to `MIN_STEP_INTERVAL = 1ms`);
-`AppCommand::SetRunMode(mode)` overwrites `Emulator::run_mode`
-(`slice` is clamped to a 1 ms floor too). The next `select!` iteration
-re-arms the timer at the new pace and with the new dispatch shape.
-Defaults: `DEFAULT_STEP_INTERVAL = 100ms` (10 instructions/sec),
-`RunMode::Paced`, and `MAX_INSTRUCTIONS_PER_RUN = 100_000` instructions
-per arming before the worker auto-pauses with `Stopped`.
+Successful explicit shutdown ends the actor after its receipt. Channel
+disconnection uses the fallback post-loop drain. The main window and iced daemon
+exit after confirmation; failure leaves inspection and retry available.
+See [UI exit](ui_app.md#confirmed-application-exit) and
+[device shutdown](devices.md#confirmed-shutdown) for the respective contracts.
 
-This decoupling is what makes the UI animation visible at the paced
-tiers: the previous `Run` implementation called
-`cpu.run_until_halt(&mut bus, 100_000)` synchronously inside the
-worker, which produced exactly one `StateChanged` after the whole
-burst – the user only ever saw the final state. With the selector
-loop and `RunMode::Paced` the UI receives one snapshot per
-instruction, so the selected PC fields, registers, and status step
-through the program live. `RunMode::Burst` is the explicit opt-out: the user
-asks for "доведи программу до конца", and the worker collapses
-thousands of instructions into a single snapshot per slice – *fewer*
-snapshots than Paced, but each one is *farther apart* in program
-state, which is what makes Burst measurably faster than the highest
-paced tier even though both use a 1 ms-class deadline.
+## Native boundaries and distribution
+
+Blocking filesystem, socket and driver work stays outside the UI thread.
+Printer COM/provider guards remain on their owning thread; registry/dialog
+buffers are validated before native access. Platform helpers isolate Windows
+presentation and macOS document activation.
+
+Filesystem formats and atomic-write guarantees belong to
+[Persistence](persistence.md). Installation layout, native ownership/rollback and
+distribution commands belong to [Installer](installer.md), with
+[Linux packages](linux_packages.md) for RPM/Arch. Artwork source and embedding
+belong to [Assets](assets.md); update policy and staging belong to
+[Updates](updates.md).

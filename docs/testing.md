@@ -1,1038 +1,198 @@
 # Testing
 
-## Contributor validation
-
-See [Contributing](../CONTRIBUTING.md) for the issue and pull request workflow,
-and [AI Policy](../AI_POLICY.md) for review and disclosure requirements.
-Code contributions use `just check-all` plus the applicable platform or manual
-checks described here. Report only commands actually run and identify the
-tested OS and architecture.
-
-For documentation-only changes, verify links, examples, and consistency with
-the implementation and tests. Changes to `.github/ISSUE_TEMPLATE/*.yml`
-also require YAML parsing and checking the
-[GitHub issue-form syntax](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms)
-and [field schema](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema):
-unique form names and field IDs, supported field types, and correctly typed
-attributes and validations. The chooser's `config.yml` controls blank issues
-separately. Keep the PR template's links and instructions aligned with the
-contributor guides. Rust checks are unnecessary when only documentation or
-issue/PR templates change.
-
-## Pull request CI
-
-[Workspace quality](../.github/workflows/quality.yml) runs on branch pushes,
-pull requests, and manual dispatch. It keeps three stable check names:
-
-| Required check | Coverage |
-|---|---|
-| `Workspace ubuntu-latest` | Formatting, strict all-target Clippy, workspace tests, Linux desktop/MIME metadata, native package and star-history tests, release artifact naming, release GUI/launcher build, `kr --version`, and Rust 1.88.0 compatibility. |
-| `Workspace windows-latest` | Formatting, strict all-target Clippy, and workspace tests on Windows. |
-| `Workspace macos-latest` | Formatting, strict all-target Clippy, and workspace tests on macOS. |
-
-Each matrix job has a 45-minute timeout. New runs cancel older runs for the
-same pull request or branch. Cargo caches are restored on all events and saved
-on pushes. Checkout does not persist credentials. The existing three-OS matrix
-continues to compile each platform's conditional code natively.
-
-The Linux row installs the minimal Rust 1.88.0 toolchain without changing the
-default, then runs `cargo +1.88.0 check --locked --workspace --all-targets`.
-The explicit selector takes precedence over the development toolchain file.
-Metadata and artifact-name checks use disposable directories. The launcher
-smoke check prints its version without opening the GUI.
-
-The repository's [GitHub rules](https://github.com/WhoSowSee/KR580/rules)
-include the active `CI checks for main` ruleset. It requires all three statuses
-from GitHub Actions for ordinary updates to `main`; administrators retain a
-maintenance bypass. Required contexts are configured in GitHub separately from
-the workflow. Keep their names synchronized when changing job names or the OS
-matrix. Release packaging remains in its separate tag/manual workflow.
-
-## Star-history publisher
-
-[Update star history](../.github/workflows/star-history.yml) runs on a schedule
-and by manual dispatch on a branch. It tests the generator, fetches history with
-the read-only `GITHUB_TOKEN`, and stages only the four chart SVGs. A changed
-chart is committed by a dedicated GitHub App using a token limited to this
-repository with `Contents: write`. The App's own bot name and noreply address
-identify the commit. Its push triggers the existing workspace quality checks.
-
-Configure the publisher in GitHub:
-
-1. Create a dedicated GitHub App for KR580 with repository `Contents: read and
-   write`, then install it only on `WhoSowSee/KR580`.
-2. Set repository Actions variable `STAR_HISTORY_APP_CLIENT_ID` to its client ID
-   and Actions secret `STAR_HISTORY_APP_PRIVATE_KEY` to its PEM private key.
-3. Add this App as an `Always allow` bypass actor in the existing
-   [CI checks for main ruleset](https://github.com/WhoSowSee/KR580/rules).
-   Keep all three required `Workspace` checks for ordinary updates.
-
-This repository uses the dedicated `kr580-star-history-whosowsee` App, installed
-only on KR580. Its repository permissions are `Contents: write` and the mandatory
-`Metadata: read`.
-
-The regular `GITHUB_TOKEN` does not publish chart commits: its pushes do not
-trigger the push-based checks, and it has no publisher bypass. GitHub App
-authentication follows the same approach as mdv. The workflow creates an App
-token only after finding changed charts and revokes it at job completion.
-
-Chart tests run in Linux branch/PR quality CI and before every scheduled refresh:
-
-```sh
-python3 -B .github/scripts/test_gen_star_history.py
-```
-
-They cover pagination, chronological cumulative counts, sampling endpoints,
-empty/single-day SVGs, XML escaping, deterministic output, and matching
-English/Russian geometry. Generated assets and the regeneration command are
-documented in [Assets](assets.md#readme-star-history). Verify the first publisher
-run in GitHub Actions after the App and repository settings are configured.
-
-## Repository configuration
-
-The root configuration files apply to the workspace and are included in Git:
-
-| File | Purpose |
-|---|---|
-| [.editorconfig](../.editorconfig) | Set editor encoding, LF, indentation, and save-time whitespace rules with Markdown and binary exceptions. |
-| [.gitattributes](../.gitattributes) | Normalize text to LF, use Rust-aware diffs, and preserve binary bytes. |
-| [.gitignore](../.gitignore) | Exclude build/package outputs, tool caches, editor files, logs, and OS metadata. |
-| [rustfmt.toml](../rustfmt.toml) | Use Rust/style edition 2024, 100-column width, field initialization shorthand, and Unix line endings. |
-| [rust-toolchain.toml](../rust-toolchain.toml) | Select the rustup `stable` channel with the `minimal` profile plus `rustfmt` and `clippy`. |
-
-The Git binary rules cover PNG/ICO/ICNS assets, `.580` snapshots, `.krs`
-subprograms, `.kpd`/`.img`/`.bin` storage images, and `.xlsx` workbooks. They
-disable text conversion, text diffs, and text merges, including for small
-program or CP866 storage samples that Git might otherwise classify as text.
-SVG, Rust, documentation, shell scripts, and PowerShell scripts use LF.
-
-Ignore rules cover Cargo outputs, release artifacts, Snapcraft work directories,
-and Nix `result` links. Package filename patterns apply at the repository root;
-program samples, test sources, Cargo.lock, and flake.lock remain eligible for Git.
-
-Editors with EditorConfig support use UTF-8, spaces, a final newline, and
-trailing-whitespace removal for text files. YAML, Bash, Nix, XML, and SVG use
-two-space indentation; Rust, TOML, PowerShell, and justfile use four spaces.
-Markdown retains trailing spaces so hard line breaks survive saving. Binary
-extensions matching the Git rules unset the text properties, including encoding
-for CP866 `.kpd` samples. The editor settings complement `rustfmt.toml`; Rust
-formatting is still verified with `just fmt-check`.
-
-Use `just fmt` to apply both justfile and Rust formatting, then
-`just check-all` to verify it. For Git rules, inspect representative paths:
-
-```sh
-git check-attr text eol diff merge -- crates/core/src/flags.rs examples/floppy_sample.kpd crates/ui/assets/icons/icon.png
-git ls-files --eol
-```
-
-`stable` is a moving development channel; it does not change the workspace's
-Rust 1.88.0 minimum. Check the selected compiler with `rustup show active-toolchain`.
-Explicit `cargo +1.88.0` commands override the root file.
-The release workflow's Linux integration job sets `RUSTUP_TOOLCHAIN=1.88.0`.
-Snap's Rust part uses `rust-ignore-toolchain-file: true` so its existing
-`rust-channel: "1.88.0"` remains effective for both native architectures.
-Nix uses the compiler provided by its package set rather than rustup.
-
-## Just recipes
-
-The root `justfile` provides the developer commands. Install
-[just](https://github.com/casey/just#installation) 1.56.0 or newer, for example
-with `cargo install just --locked`. Windows recipes require PowerShell 7.4 or
-newer (`pwsh.exe` on `PATH`); Unix recipes use `sh`, and the existing asset and
-packaging scripts use Bash. The platform-specific shell settings require
-just 1.56.0, and PowerShell's `-CommandWithArgs` preserves positional arguments.
-
-Run `just` to list the available recipes. Recipes run from the repository root
-even when invoked from a subdirectory. Relative program paths and script
-arguments are therefore resolved from the repository root.
-
-| Command | What it does |
-|---|---|
-| `just check-all` | Check the justfile, then run `just check`. |
-| `just check` | Check Rust formatting, Clippy, workspace tests, then build the release GUI and launcher. |
-| `just fmt` | Format the justfile and all Rust crates. |
-| `just fmt-just` / `just check-just` | Format the justfile or check its syntax and formatting without edits. |
-| `just fmt-check` | Check Rust formatting without edits. |
-| `just lint` | Run Clippy on every workspace target with warnings treated as errors. |
-| `just test [args...]` | Run workspace tests, forwarding Cargo options and a test filter. |
-| `just build` | Build `kr580` and `kr` in the release profile. |
-| `just run [args...]` | Run the `kr` launcher, forwarding application arguments after Cargo's `--`. |
-| `just run-gui` | Run `kr580` directly with debug logs in the terminal. |
-| `just package [args...]` | Build Windows setup, Linux setup, or a macOS DMG with the existing native script. |
-| `just icons` | Regenerate the derived PNG/ICO/ICNS assets from the master artwork. |
-| `just test-packaging` | Run native package validation tests with Python 3.11+, then check release artifact naming on Unix. |
-| `just test-linux-metadata` | Check desktop and MIME metadata on Linux with the tools listed below. |
-
-Cargo build, lint, test, and run recipes use `--locked`. The aggregate checks
-stop on the first failing command; native metadata and packaging smoke checks
-remain separate because they have platform-specific prerequisites.
-
-```sh
-just check-all
-just test -p k580-core
-just test -p kr580 --test persistence_formats
-just run --help
-just run "path/to/program with spaces.580"
-```
-
-The Windows variadic recipes forward arguments as an array and propagate the
-native command's exit code. Unix recipes forward `"$@"`; paths with spaces and
-shell metacharacters must be quoted by the calling shell. Packaging options
-follow the selected script's native syntax; see [Installer](installer.md).
+Run checks from the repository root. [Contributing](../CONTRIBUTING.md) defines
+the change/PR workflow; [Manual testing](manual_testing.md) covers native UI,
+drivers and installation. Record commands actually run, results and tested OS.
 
 ## Workspace checks
 
-Run the same checks from the repository root:
-
-The `loaded_range_and_next_save_follow_the_bytes_read` UI regression test covers
-successive loads with different lengths and replaces the file before delivering
-the real backend completion events; ordinary Save must retain exactly the loaded
-range. Event delivery is explicit, without sleeps or timing-dependent file changes.
+`just check-all` checks justfile/Rust formatting, runs strict Clippy and workspace
+tests, and builds the release GUI and launcher. Cargo equivalents:
 
 ```sh
 cargo fmt --all -- --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
+cargo build --locked --release -p kr580 --bin kr580 --bin kr
 ```
 
-Confirmed-shutdown regressions park device tasks on a current-thread runtime,
-enqueue a full 64 KiB for both storage devices plus a printer export, and assert
-exact file contents after their shared `Shutdown` receipt. They also cover close/reattach,
-write failure without skipping other devices, preceding persistence jobs and
-actor termination. UI tests hold a real file job behind a channel and verify
-that close waits, rejects new work, preserves the dirty gate, and stays open on
-file/flush errors. Success and file failure share one parameterized UI test;
-backend flush failure remains a separate case. These tests use completion
-signals rather than fixed sleeps.
-
-The printer export regression in `device_bus` queues work on a current-thread
-runtime, verifies it is initially pending, then waits for `PrinterDevice::poll()`
-with a five-second deadline. It checks exact file bytes only after successful
-completion, and also covers a failed export to a directory. Both outcomes must
-preserve the spool and buffered-byte count.
+The development toolchain selects stable; the workspace MSRV is Rust 1.88.
+Install that toolchain and check the locked dependency set explicitly:
 
 ```sh
-cargo test --locked -p kr580 --lib shutdown -j 1
-cargo test --locked -p kr580 --bin kr580 app::shutdown::tests -j 1
+rustup toolchain install 1.88.0 --profile minimal
+cargo +1.88.0 check --locked --workspace --all-targets
 ```
 
-`cargo test -p kr580 --test persistence_formats` checks desktop `.580`
-save/load byte layout, independent PC/SP fixtures, and invalid file rejection.
-`cargo test -p kr580 --test program_registers` checks all nine register slots
-against an independent byte fixture and byte-for-byte re-saving.
-
-`cargo test -p kr580 --lib persistence::subprogram` verifies raw-range saves.
-`cargo test -p kr580 --lib persistence::atomic_save` checks the shared `.580`,
-`.krs` and settings replacement mechanism: preservation of the previous file after an injected partial write failure,
-temporary-file cleanup, replacement, Windows destination-lock failures, and
-dangling-symbolic-link preservation on Unix.
-
-The workspace MSRV is Rust 1.88.0. Verify it against the locked dependency set:
+For public API/rustdoc changes, also run:
 
 ```sh
-cargo +1.88.0 check --workspace --all-targets --locked
-cargo +1.88.0 clippy --workspace --all-targets --locked -- -D warnings
+cargo doc --locked --workspace --no-deps
+cargo test --locked --workspace --doc
 ```
 
-The root `CHANGELOG.md` and `CHANGELOG-EN.md` files feed release automation.
-Their package-local `crates/ui/CHANGELOG.md` and
-`crates/ui/CHANGELOG-EN.md` copies are embedded by the application. The
-Russian pair and English pair must remain byte-for-byte identical. Whenever
-one changelog changes, update all four, keep their release version/date
-indexes aligned, and verify the publishable workspace archive:
+`--all-targets` covers Cargo targets on the host OS, not another OS's `cfg` paths.
+Run platform checks natively. Windows error 1455 indicates memory/pagefile
+pressure; reduce build parallelism, for example `-j 1`, and rerun the failed
+command. A resource failure is not a passing check.
+
+Documentation-only changes require link, example, line-budget and implementation
+checks. Issue-form edits also require YAML/schema validation. Rust tests are
+needed when edited Markdown is embedded by the application, as with in-app Help.
+
+Changelog synchronization, publishable archive checks and dependency inspection
+are in [Repository maintenance](maintenance.md).
+
+## Just recipes
+
+Install [just](https://github.com/casey/just#installation) 1.56.0 or newer:
 
 ```sh
-cargo package --workspace --locked
+cargo install just --locked
 ```
 
-The workspace inherits the root Russian `README.md` as the registry README.
-Inspect the normalized `Cargo.toml` and README inside each `.crate` archive to
-confirm the selected language. Language switches and documentation links in
-both root READMEs use absolute GitHub URLs: crates.io resolves relative links
-from the package's repository directory (`crates/ui` or `crates/core`), while
-these documents live at the repository root. An already published version
-cannot be overwritten; registry README corrections require a new version.
+Windows recipes require PowerShell 7.4+ with `pwsh.exe` on PATH. Running `just`
+lists commands. Recipes forward arguments as separate shell arguments and retain
+the command's exit code; quote paths in the calling shell.
 
-For a release, every non-release commit since the previous tag must have
-exactly one bullet in each language. Keep all changes from a mixed commit
-in that single bullet. The `chore(release)` version-bump commit is excluded.
-Avoid dash punctuation in the bullet text; retain the Markdown list markers
-and the version/date heading format required by the embedded reader.
+| Recipe | Purpose |
+|---|---|
+| `just check-all` | Justfile and complete workspace checks |
+| `just fmt` | Apply justfile and Rust formatting |
+| `just fmt-check` | Check Rust formatting |
+| `just check-just` | Check justfile syntax and formatting |
+| `just lint` / `just test` | Clippy/workspace tests |
+| `just test -p kr580 --lib shutdown` | Forward a focused Cargo test selection |
+| `just build` | Release GUI and launcher |
+| `just run --help` / `just run-gui` | Launcher with arguments / direct debug GUI |
+| `just package` | Native setup builder on Windows/Linux; DMG on macOS |
+| `just icons` | Regenerate derived PNG/ICO/ICNS assets |
+| `just test-packaging` | Unix package-validator and artifact-name checks |
+| `just test-linux-metadata` | Native Linux Desktop Entry and MIME checks |
 
-Dependency audits use `cargo machete --with-metadata --skip-target-dir .`.
-The Windows-only `winresource` and `embed-resource` build dependencies are
-explicitly ignored by that scanner because `crates/ui/build.rs` consumes them
-behind a target `cfg`.
-Linux metadata changes must validate the canonical files under
-`crates/ui/assets/linux`; runtime and package outputs are rendered from those
-same inputs and must not add independent copies.
+Platform prerequisites and packaging arguments are described in
+[Installer](installer.md#build-distribution-packages) and [Assets](assets.md).
 
-Snap CI checks the packaged PNG and `${SNAP}` icon reference before validating
-a temporary Desktop Entry copy with that prefix resolved to the unpacked root.
-The original entry remains unchanged, and the unpacked files are removed on
-success or failure. Both native `amd64` and `arm64` package jobs use this check.
+## Pull request CI
 
-Desktop Entry renderer tests compare the complete `Exec` entry as a logical line.
-They accept LF and CRLF checkouts while still checking the executable and
-unresolved placeholders.
+[Workspace quality](../.github/workflows/quality.yml) runs on branch pushes,
+pull requests and manual dispatch.
 
-On Windows, build `cargo build -p kr580 --bin kr --bin kr580` and inspect
-`(Get-Item target/debug/kr.exe).VersionInfo` and the corresponding `kr580.exe`
-property. Both `FileDescription` and `ProductName` must be `KR` for the launcher
-and `KR580` for the GUI. Repeat with `--release` and `target/release` when
-checking release artifacts. The build-script output must contain one
-`cargo:rustc-link-arg-bin` resource per binary, without a shared
-`cargo:rustc-link-arg` resource. The setup/uninstaller stages must retain their
-`KR580 Setup` / `KR580 Uninstaller` descriptions and role-specific icons.
+| Check | Coverage |
+|---|---|
+| `Workspace ubuntu-latest` | Formatting, all-target Clippy/tests, desktop metadata, package/chart tests, artifact names, release GUI/launcher, CLI version and MSRV |
+| `Workspace windows-latest` | Native formatting, all-target Clippy and workspace tests |
+| `Workspace macos-latest` | Native formatting, all-target Clippy and workspace tests |
 
-Native metadata smoke checks use disposable roots and never change the current
-user's desktop or association databases:
+Each matrix job has a 45-minute timeout. New runs cancel older runs for the
+same branch/PR. Cargo caches are restored for all events and saved on pushes.
+Checkout does not persist credentials.
+
+Keep these status names aligned with the repository's required checks when
+changing the matrix. Branch protection is configured separately in GitHub.
+Release packaging uses its tag/manual workflow and native/cross build matrix.
+
+## Focused regression checks
+
+Use the complete suite for integration changes. These entry points shorten
+iteration without replacing the workspace gate:
+
+| Area | Command | Main contract |
+|---|---|---|
+| CPU | `cargo test --locked -p k580-core` | Decode/execute, flags, I/O, IRQ, reset and T-state accounting |
+| Snapshots | `cargo test --locked -p kr580 --test persistence_formats --test program_registers` | Exact `.580` layout, independent PC/SP/register fixtures, malformed sizes |
+| Subprograms/atomic saves | `cargo test --locked -p kr580 --lib persistence::` | Bounded reads, inclusive ranges, no partial mutation and replacement failures |
+| TXT/XLSX | `cargo test --locked -p kr580 --test export_options` | Full-range zero-byte round trips, target selection and TXT naming |
+| Devices | `cargo test --locked -p kr580 --test device_bus --test device_budgets --test network_lifecycle` | Port routing, admission/buffer limits and network lifetime |
+| Backend shutdown | `cargo test --locked -p kr580 --lib shutdown` | Accepted writes finish before receipt; failures do not skip other devices |
+| UI shutdown | `cargo test --locked -p kr580 --bin kr580 app::shutdown::tests` | Dirty gate, accepted work, failed close and completion ordering |
+| UI | `cargo test --locked -p kr580 --bin kr580` | Editing, navigation, drafts, worker completions, Help and updates |
+| Linux associations | `cargo test --locked -p kr580 --test linux_associations` | Ownership, previous defaults and ordinary-error rollback |
+| Installer | `cargo test --locked -p kr580 --bin k580-installer --bin k580-uninstaller` | Staging, ownership, rollback and native adapters |
+
+CPU tests classify all opcode slots and smoke-run documented instructions.
+Semantic cases cover flags, branches, stack and device/timing effects; they are
+not a substitute for the external binary suites listed in
+[Assumptions](assumptions.md).
+
+Concurrency regressions wait for actual completion with bounded deadlines.
+Shutdown tests park runtimes to fill queues before draining; printer export
+checks completion before reading output. Generation tests inject completions
+explicitly. Tests of asynchronous actor changes must await acknowledgement
+rather than assume sending a command already changed the snapshot.
+
+Native registry, installation and association fixtures use isolated roots and
+adapters. They must preserve the current user's real PATH, desktop and defaults.
+Performance regressions check zero allocation during metadata execution and
+unchanged paused-device polls; the relevant test names are discoverable with
+`cargo test --locked --workspace -- --list`.
+
+## Native metadata and packages
+
+Linux checks require the desktop/MIME tools used by the application:
 
 ```sh
 bash scripts/verify_linux_metadata.sh
 bash scripts/verify_release_artifact_names.sh
-bash scripts/verify_macos_dmg.sh --dmg <image> --architecture <arm64|x86_64> --version <version>
+python3 -B -m unittest discover -s scripts -p test_linux_packages.py -v
+python3 -B .github/scripts/test_gen_star_history.py
 ```
 
-The Linux script requires `desktop-file-utils` and `shared-mime-info`. The
-macOS script requires the built-in `hdiutil`, `plutil`, `iconutil`, and `lipo`; it attaches
-the image read-only and always detaches it. Release CI runs the Linux ownership
-tests and metadata script natively, while each macOS image build invokes the
-DMG verifier before upload.
-Both DMG staging and mounted-image checks put the binary before `-verify_arch`:
-`lipo "$binary" -verify_arch "$architecture"`. All arguments after the flag
-are architecture names. Validate both `arm64` and `x86_64` on macOS.
-The DMG check expands both ICNS files with `iconutil`. The release-name test
-covers a mixed ZIP/DEB/RPM/Arch/DMG/Snap set, repeated execution, and mismatched versions.
-RPM and Arch release jobs additionally verify ELF/glibc requirements, exact
-payload bytes and permissions, package metadata and runtime dependencies.
-Disposable Fedora/Arch containers test installation, the launcher, GUI startup
-under Xvfb, desktop/MIME caches, removal and user-data preservation. See
-[RPM and Arch Linux packages](linux_packages.md#verification-and-release-wiring)
-for commands and platform coverage. These native package jobs run in the
-tag/manual release workflow; branch/PR quality CI runs the portable validator
-unit tests, without publishing or installing a package on the runner host.
-Linux association lifecycle tests launch the real CLI in isolated child
-environments with deterministic desktop-tool fixtures. They cover foreign
-ownership, changed external defaults, repeated registration, errors before
-and after default changes, and rollback of new/existing metadata:
+Windows can run the Python unit tests with `python` in place of `python3`.
+The Linux integration suite uses deterministic command fixtures; an optional
+real consumer check additionally requires `gio`:
 
 ```sh
-cargo test --locked -p kr580 --test linux_associations
 cargo test --locked -p kr580 --lib file_assoc::linux::tests::desktop_entry_consumer_preserves_executable_and_file_arguments -- --ignored --exact
 ```
 
-The second command requires `gio` (`libglib2.0-bin` on Ubuntu) and launches a
-temporary script through the rendered Desktop Entry to check paths containing
-spaces, dollars, backticks and percent signs. Windows registry regression tests
-use a private temporary HKCU subtree as their root and never modify the real
-`Software/Classes` association tree. macOS bundle tests verify foreign-bundle
-preservation, legacy launcher upgrades, and owned portable bundle creation
-using temporary directories.
-
-Installer transaction tests use temporary install roots and isolated integration
-adapters. They inject failure after every payload/integration/manifest stage,
-verify restoration of the previous bytes and Unix permissions, preserve user
-data and unmanaged legacy files, and reject unmanaged binary collisions. Fresh
-failure removes only newly created files; a foreign later edit keeps its data
-and retains a recovery backup. Windows raw-value rollback tests use only
-`Software/KR580/Tests/InstallerRollback-*`, preserve registry type and foreign
-values/subkeys, and verify conflict recovery JSON. They do not call real
-installation, PATH mutation, shortcut creation or association registration.
-macOS role-default tests inject query/set adapters and preserve distinct Viewer,
-Editor and Shell defaults without calling Launch Services.
-The association button test sends mouse events through the same iced widget
-tree across registered/pending changes. CLI lifecycle tests cover Linux file
-creation, ownership and rollback; duplicate unit tests of those operations are
-not maintained separately. Unix registration-status queries were removed with
-their unused tests. The Windows open-command assertion runs inside the actual
-isolated registry roundtrip.
-Run Clippy natively on Linux/macOS as well as Windows; `--all-targets` alone
-does not enable another operating system's `cfg` branches.
-`Workspace quality` runs on branch pushes, pull requests and manual dispatch.
-Its native Windows, Linux and macOS rows check formatting, strict all-target
-workspace Clippy and the complete workspace suite with the checked-in lockfile.
-The Linux row also runs the checks described in [Pull request CI](#pull-request-ci).
-The toolchain action records the resolved compiler version. Release packaging
-keeps its separate tag/manual workflow and its existing target matrix.
-CPU conditional return/call regressions build short programs directly in
-memory; they need no external fixture directory. Export/import UI tests set
-their language explicitly. Attach tests expect Windows to retain a hidden
-window ID and Unix to close it. Parallel Windows association tests reserve
-different private registry roots with a process-local counter.
-The device polling allocation regression prepares long monitor/printer/storage
-buffers and requires zero allocations across 2000 unchanged paused polls.
-Device budget regressions park worker execution to fill queues deterministically,
-verify that refused bytes do not change accepted data, then drain storage and
-compare every byte. Separate buffer checks verify diagnostic suffix order and
-explicit overflow/recovery for unsaved storage and printer data.
-The delayed actor regression holds worker execution for 80 ms and checks each
-request's actual register transition. UI undo also waits 80 ms before receiving
-confirmation and then restores the byte and dirty baseline. Timeline coverage
-keeps confirmed CPU edits before text edits made while the reply was pending.
-UI CPU tests use `app/test_support.rs` to await acknowledgements with a deadline;
-they never assume sending a command has already changed the snapshot.
-If Windows rejects compiler mappings with error 1455, cap Cargo build jobs
-with `CARGO_BUILD_JOBS=2` and rerun the same checks; do not treat that resource
-failure as a passing test run.
-FFI buffer regressions reject unterminated/out-of-range UTF-16 strings without
-native calls. Windows tests also validate DEVMODE alignment/declared lengths
-and malformed registry strings in the isolated HKCU fixture. Run the native
-Clippy gate with `-D clippy::undocumented_unsafe_blocks`; physical GDI/driver
-and macOS AppKit execution still require their native smoke checks.
-Hosted macOS and release packaging remain native CI checks; a Windows or WSL
-run alone does not verify them.
-Installer script changes must capture all three effective commands for debug
-and release, with and without a target, including `KR580_CARGO=cross`.
-Each build contains exactly one `--locked`; verify the icon role and embedded
-payload directory as well as the final artifact name. A deliberately stale
-temporary lockfile must fail locked metadata validation. Command capture does
-not replace hosted cross/container, Snap or native macOS packaging checks.
-Feature audits inspect the effective all-target graph and invert any dependency
-whose defaults are expected to stay off:
+On macOS, build an image and run its native verifier:
 
 ```sh
-cargo tree -p kr580 --target all -f "{p} features=[{f}]"
-cargo tree -p kr580 --target all -e features -i roxmltree@0.21.1
-cargo tree -p kr580 --target all -e features -i windows@0.62.2
+bash scripts/verify_macos_dmg.sh --dmg <image> --architecture <arm64|x86_64> --version <version>
 ```
 
-The direct dependency declarations disable broad defaults where the app uses a
-narrower codec, executor, or build-time feature set. Cargo feature
-unification may still re-enable a feature when another dependency requests it;
-the resolved tree, not the direct declaration alone, is the verification source.
+The verifier uses `hdiutil`, `plutil`, `iconutil` and `lipo`, mounts read-only,
+checks bundle metadata/icons/architecture and detaches afterward. Package
+contents, ELF/glibc checks and disposable Fedora/Arch smoke installations are
+defined in [Linux packages](linux_packages.md#verification-and-release-wiring).
 
-On Windows, the installed-driver PrintTicket roundtrip has an explicit ignored
-smoke test:
+Installer build-script changes should capture effective commands for debug and
+release, native/explicit targets and `KR580_CARGO=cross`: exactly one `--locked`
+per build, correct icon roles and payload paths. A stale lockfile must fail
+before building payloads. Command capture cannot replace native package builds.
+
+## Opt-in external checks
+
+Ordinary tests avoid live GitHub, official downloads and installed drivers.
+Run these only with the corresponding environment:
 
 ```sh
-cargo test -p kr580 --test native_printer_properties -- --ignored --nocapture
+cargo test --locked -p kr580 --test native_printer_properties -- --ignored --nocapture
+cargo test --locked -p kr580 --bin kr580 runtime::updates::release::tests::live_release_check_completes_with_a_valid_result -- --ignored --exact
 ```
 
-It loads a real installed printer, parses its capabilities, and reapplies its
-current selected option without submitting a physical print job.
+The printer test reapplies an installed driver's current option without sending
+a physical job. The GitHub test performs a live release request.
 
-## Current coverage
-
-Update regressions cover SemVer precedence, exact target/URL/digest selection,
-three-second menu feedback and close/reopen persistence, stale completions,
-HTTP streaming with size/digest rejection, Deflate installer extraction with
-escaping/ambiguous entry rejection, fixed row dimensions/click routing
-in both languages and visible icons at 100%, 125% and 200% display scaling.
-Installer fixtures verify waiting for process exit,
-preserving user data and rolling back preceding replacements after an injected
-failure. They use temporary roots and a local HTTP fixture, never a live
-installation or GitHub download. New update dependencies are `reqwest` 0.13 with
-`rustls-no-provider`, direct `rustls` 0.23 configured for the `ring` provider,
-`semver`, `tempfile` and direct `zip` 9.0. The same `ring` 0.17 package handles
-hashing.
-XLSX retains a separate transitive `zip` 8.6 dependency.
-The updater enables only the flate2/zlib-rs Deflate codec, with no ZIP default
-features, and declares its direct ZIP dependency only outside macOS. SemVer
-uses no optional `std` integration; the direct `ring` dependency enables no
-additional features. The download fixture streams HTTP chunks and compares
-against a fixed SHA-256 reference rather than computing the expected value
-with the implementation under test. TLS and temporary-name randomness remain
-enabled. Windows process waiting enables the `windows-sys` threading API.
-
-Two opt-in checks exercise real external inputs without adding network access
-to the default suite:
+For official ZIP extraction on Windows, download and verify the release archive
+first, then provide its version without the optional `v` prefix:
 
 ```powershell
-cargo test -p kr580 --bin kr580 runtime::updates::release::tests::live_release_check_completes_with_a_valid_result -- --ignored --exact
 $env:KR580_UPDATE_TEST_ARCHIVE = 'C:\path\KR580-Setup-v4.1.0-x86_64-pc-windows-msvc.zip'
 $env:KR580_UPDATE_TEST_VERSION = '4.1.0'
-cargo test -p kr580 --bin kr580 runtime::updates::install::tests::official_release_zip_extracts_installer -- --ignored --exact
+cargo test --locked -p kr580 --bin kr580 runtime::updates::install::tests::official_release_zip_extracts_installer -- --ignored --exact
 ```
 
-The archive must be downloaded from the official release and its size/digest
-verified first. The second test checks the real inner executable name rather
-than assuming the unversioned staging name. The ordinary Deflate fixture uses
-the same version/target naming and rejects escaping or ambiguous entries.
-On 2026-10-14, the Windows v4.0.0 ZIP passed extraction after reproducing and
-correcting the unversioned-name mismatch. A separate temporary process harness
-ran the current helper with the Windows GUI subsystem and small embedded PE
-payloads: both normal exit and explicit restart preserved user files, replaced
-all three binaries after exit, removed the lease/cache, and reopened the saved
-document path for restart. This verifies the helper with controlled payloads;
-it does not constitute a full GUI update against a newer published release or
-native Linux/macOS validation.
+Actual GUI replacement, printer dialogs/jobs and native integration still require
+[manual smoke checks](manual_testing.md). Report those separately from fixtures.
 
-`k580-core`'s `metadata_execution` regression counts allocations on the executing
-test thread and verifies a 20,000-instruction INR/JMP loop has zero allocations,
-the expected register result and exact T-state total.
+## Samples and assets
 
-Backend persistence regressions check ordered writes through one FIFO worker;
-completion reconciliation tests inject results directly to keep import/document
-generation races deterministic without oversized files or sleeps.
+Tests synthesize small programs and temporary files; the `square_program` case
+loads a generated `.580` and verifies the monitor outline. Repository examples
+are also available for manual device checks.
 
-- `k580-core`: opcode classification, documented-opcode smoke execution,
-  modular executor families, flags, conditionals, stack, interrupts, I/O
-  routing, exact `RunForTStates` accounting, and `tact_execution`
-  regressions proving that partial T-state walks do not commit PC,
-  memory, or device I/O before the instruction boundary.
-- `kr580` internal modules: port routing, invalid-port typed errors,
-  monitor framebuffer/attribute state, complete CP866 byte-to-glyph coverage,
-  split-view text sequencing, storage worker queueing, storage
-  visible-buffer clearing, storage debug-buffer acceptance without an
-  attached file, network no-data handling, Tokio TCP worker roundtrip,
-  CP866 decoding and 80-column native printer line wrapping, PrintTicket
-  capability parsing, delta generation, feature de-duplication, and property
-  localization,
-  `.580` roundtrip/determinism/fixed-layout validation, raw `.krs` behavior,
-  settings JSON versioning, `.txt`/`.xlsx` direct exporters/importers,
-  request-correlated command completion, coalesced actor snapshots,
-  command-mediated state mutation, floppy image attachment and worker error
-  propagation, non-blocking external image refresh, printer
-  clearing/raw export, and actor publication of completed printer jobs. Native
-  printer discovery, capability loading, PrintTicket validation, fallback
-  Properties pages, and printing are a Windows smoke-test path because they
-  depend on installed OS printers and drivers. The `square_program` integration
-  test synthesizes a
-  temporary `square.580` snapshot, loads it, runs it to HLT through the
-  `Emulator`, and asserts the monitor pixel layer contains exactly
-  the 28-pixel outline of an 8×8 square (corners included, interior
-  untouched, every pixel at colour `0x7F`) – a smoke check that
-  `OUT 00h` round-trips through `IoBus` into `MonitorDevice` using
-  the [documented 3-byte graphics command](devices.md#monitor-command-protocol).
-- `kr580` UI and installer: pure view helpers, printer HEX and CP866 text formatting,
-  printer view-mode toggling, printer target/settings updates, memory-cell action and return shortcut
-  rebinding, main-window file drag/drop hover routing, supported-extension
-  validation, dropped-path dirty confirmation, full-width detached-window
-  drag routing, fixed user-resize settings, detachable tool-window lifecycle,
-  native-dialog parent selection, installer layout helpers, install-mode
-  detection, embedded/fallback installer payload selection, and launcher-to-app
-  path resolution.
-
-`view/widgets/compact_scrollbar/tests.rs` uses headless `tiny-skia` with real iced
-`Stack`, button and `Scrollable` fixtures. It checks geometry, grab/click
-protection, rail recentering and continued dragging, native line/pixel wheel
-behavior for direct and `responsive` layers, hover-cursor restoration and
-covering-overlay isolation, without an OS window or system clipboard.
-
-`view/memory_list/colors/tests.rs` checks monochrome role ordering, shade
-separation and opaque palette contrast against the memory panel's board color
-using iced's `Color::relative_contrast`. It verifies the brighter selected/halted
-dark palette, colored-theme compatibility and disabling highlighting. It does
-not simulate renderer compositing or claim to verify selected-text rendering.
-
-`runtime/memory/editor/tests.rs` checks minimal scrolling and wrapping for
-arrows and Tab, search/cell-change scroll resets, and Enter selection.
-
-The opcode picker view test applies native scroll and focus operations to the
-real picker, then sends a drag whose press and movement share a frame's final
-cursor position. It verifies dragging and wheel scrolling after search focus,
-both at the top and after keyboard scrolling.
-
-External Intel 8080 binary suites are not included in this workspace.
-When available, add them as an additional compatibility gate instead of
-replacing the local semantic tests.
-
-## Sample programs
-
-- `counter_loop.580` – pre-existing demo snapshot.
-- `test_program.580` – pre-existing demo snapshot.
-- `square_program` synthesizes its `.580` fixture during the test. The
-  encoded program walks the four edges of an 8×8 square at the origin
-  of the graphics layer, emitting one 3-byte graphics command per
-  pixel. Command form is `[FF][X][Y]` (`FF` = bit7=1 for graphics + max
-  colour `0x7F`).
-- `printer_demo_program_writes_test_line_to_port_four` loads a compact
-  null-terminated 8080 loop at `0000h`, writes `TEST PRINTER\r\n` through
-  `OUT 04h`, and verifies the CPU reaches `HLT` with the expected spool.
-
-## Asset prerequisites
-
-The build pipeline embeds `crates/ui/assets/icons/icon-64.png` (runtime window
-icon) and, on Windows, one of the checked-in PE resources under
-`crates/ui/assets/icons/*.ico`. If you replace
-`crates/ui/assets/icons/icon.png`, `file-580.png`,
-`installer-setup.png`, or `installer-uninstall.png`, run the matching script
-before rebuilding so the embedded artefacts stay in sync with the source
-artwork:
-
-- Windows: `powershell -File scripts/generate_icons.ps1`
-- Unix/macOS: `./scripts/generate_icons.sh` (requires ImageMagick and either
-  Apple `iconutil` or Python 3 for ICNS encoding)
-
-`just icons` selects the matching script for the host platform.
-
-The Windows build script does not regenerate `icon.ico` automatically –
-it only embeds it. A stale `icon.ico` will be silently shipped if you
-forget to rerun the generator.
-When a Windows host cross-checks Linux or macOS, the build script skips PE
-resource compilation for the non-Windows target.
-
-## Manual smoke checks for the UI
-
-- In Help, check for updates in both languages; confirm the spinner stays in
-  the menu and `Up to date` lasts three seconds. Close Help before/during that
-  result and confirm reopening starts idle. Use a disposable installed build
-  with an older version to check the separate download action, progress while
-  Help is reopened, preparation and the check-mark restart action. Cancel the
-  unsaved-change confirmation and confirm readiness persists. Then test both
-  restart and ordinary exit: the former relaunches the updated app, the latter
-  updates without reopening it. Repeat on Windows, Linux installer layouts
-  and macOS bundles; check that manager/source builds offer the release page.
-
-- In each external device (Monitor, Floppy, HDD, Network, Printer), use Tab and
-  Shift+Tab to traverse the toolbar in each direction, including wrapping at both
-  ends. Check the thin one-pixel blue outline, first/last entry, and Enter/Space activation. After activation,
-  the selected button must retain the same background fill as the default button
-  in file confirmation dialogs, including after repeated Enter/Space presses.
-  Tab/Shift+Tab must remove that focus fill and outline the next target. Repeat after
-  detaching; Attach and Pin must be included, and Tab in the main window must
-  still use the main editor's navigation. Click a toolbar button and check that
-  the next Tab continues after it. In Monitor's HEX popup, traversal must stay
-  on Filter and Close. Check that disabled HDD Create/Delete and busy-printer
-  Print actions are skipped. Repeat navigation while the emulator is running.
-
-The two tests in `app/device_keyboard/tests.rs` cover repeated activation,
-selection after pointer actions, HEX wrapping, window/modal ownership, and
-disabled HDD/printer commands. They drive the runtime event handler and actual
-actions. `cargo test -p kr580 --bin kr580 device_` also runs the shared capture
-test, which checks that these keys cannot edit a focused input underneath the
-device while Ctrl+Tab remains outside the device ring.
-
-`cargo test -p kr580 --bin kr580 wheel_step` checks that one wheel step in the
-Export and Printer selectors reveals the next option and preserves its full
-selection value. The import popup tests cover both directions, boundaries,
-outside input, and fractional touchpad deltas. The opcode picker's
-`scrollbar_drag_and_wheel_work_after_search_focus` test checks row-sized wheel
-steps and pixel scrolling after focus changes and thumb dragging.
-
-The import popup geometry test gives its baseline an explicit collection type.
-On macOS, `objc2` adds a recursive `IntoIterator` implementation for references
-to `Retained<T>`; leaving the baseline as an untyped `None` can overflow trait
-resolution before its later assignment supplies the concrete types. Native
-macOS all-target Clippy and workspace tests cover this compilation path.
-
-Some UI behavior cannot be unit-tested directly with iced 0.14, so it is
-worth eyeballing after touching `crates/ui`:
-
-- at the default `1180×720` window size, confirm the left CPU stack and the
-  mux/status column retain their original wide separation; maximize the window
-  and confirm the two columns remain centred as a compact group with a 72 px gap;
-
-- launch the `kr580` binary and confirm there is no white flash on
-  Windows (cloak/uncloak via DWM, see `docs/ui_app.md`);
-- run `cargo build --release -p kr580` and double-click
-  `target/release/kr580.exe`: no console window should pop up;
-- run `cargo run -p kr580 --bin kr -- <path/to/file.580>` and confirm
-  the GUI loads the snapshot and the terminal prompt returns immediately;
-- drag a `.580` file over the main emulator and confirm the surface darkens
-  slightly, the localized `Open in emulator` label follows the cursor without
-  clipping at any window edge, the surface returns to normal when the drag
-  leaves, and the file opens on drop; repeat with `.krs` and confirm the
-  RAM-range dialog appears;
-- drag an unsupported file and confirm the emulator state remains unchanged
-  while a localized pink-border format error appears; with unsaved changes,
-  drop a supported file and confirm the modal names the dropped-file action,
-  Cancel preserves the current state, and Open uses the same dropped path;
-- open a `.krs` file and confirm Cancel has a light fill and its normal border,
-  matching the confirmation dialogs; a white focus border appears only after Tab/Shift+Tab;
-  Enter must cancel. Reopen and traverse Tab/Shift+Tab in both directions:
-  Cancel, Open, and Start address must each show a light border. The address
-  field must accept typing only while focused; moving to a button must remove
-  its caret. Repeat after clicking inside the address field, including without
-  editing it, and in Save as with both Start and End address fields;
-- in the `.krs` address fields, enter `1a2f` and confirm `1A2F`; try a fifth
-  digit, `G`, Cyrillic letters, punctuation, and an overlong paste, and confirm
-  the previous value remains intact. Verify Backspace can clear the field and
-  both Start and End use the same validation;
-- open a `.krs` file from File → Open, enter a start address, and confirm its
-  bytes appear at that RAM address; use Save as with `.krs` to verify the
-  selected inclusive RAM range is written without a header;
-- open native dialogs from the main window, detached Monitor/Floppy/HDD,
-  Settings, Import/Export, and the installer; confirm each dialog belongs to its
-  owning window and cancellation leaves state unchanged;
-- on Windows, detach Monitor, Floppy, HDD, Network, and Printer; confirm their
-  title bands still move the windows, borders and corners cannot resize them,
-  and dragging them into top, side, or corner Snap zones does not maximize or
-  tile them;
-- export the full memory range to XLSX and confirm Field/Value/Address/Command
-  columns open at readable widths and long values do not stretch the worksheet;
-- run `cargo run -p kr580 --bin kr -- --help` and confirm usage prints
-  to stdout;
-- run `cargo run -p kr580 --bin kr -- --install` and confirm the
-  graphical installer opens for developer or already-installed layouts;
-- run `cargo run -p kr580 --bin k580-installer` and confirm the shared custom
-  title bar drags and exposes working caption actions; the rail keeps balanced
-  spacing, `Windows · x64` metadata, and a two-column `ADDR` / `DATA` / `CTRL` /
-  `INT` table; joined mode, scope, and path/Browse controls retain one outer frame,
-  square seams, rounded selected rails, blue path text, and non-cyan hover states;
-  all checkboxes use the same compact size and unchecked controls have no fill;
-  Russian copy reads `Системный`, `Портативный`, and `Путь`; System mode orders
-  PATH, file associations, then desktop shortcut, while Portable hides scope and
-  desktop shortcut and defaults to `%USERPROFILE%\KR580`; verify Installing,
-  success, and failure states without duplicate status blocks, and confirm the
-  finish action follows the report above the pinned `Done` button;
-- after a System-mode smoke install on Windows, confirm `KR580.lnk` exists in
-  the selected Start Menu scope, the optional desktop shortcut follows the
-  checkbox, no terminal window flashes while shortcuts are created, the `.580`
-  and `.krs` associations follow their checkbox, the install root contains `app/kr580.exe`,
-  `app/uninstaller.exe`, and `bin/kr.exe`, no installed `app/k580-installer.exe`,
-  and upgrading a manifest-owned legacy root removes `app/k580.exe` plus any
-  association owned by that exact executable, while the same path in a folder
-  without `install.json` is preserved;
-  the setup file shows the setup icon, the installed `app/uninstaller.exe`
-  shows the uninstall icon, and Apps & Features receives a `KR580` uninstall
-  entry whose command points at `uninstaller.exe --uninstall <install root>`;
-  run that uninstall entry and confirm the shared title bar, centered product
-  header, border-only path, and joined `СИСТЕМА → СВЯЗИ → ФАЙЛЫ` block render
-  correctly; verify real stage ordering, disabled action during cleanup, automatic
-  post-exit removal scheduling, and percentage/progress movement in small
-  monotonic steps rather than a direct 40% → 100% jump or a pause at 40% while
-  Windows broadcasts environment changes; confirm the displayed value remains
-  below the next unconfirmed milestone, the Files stage stays active, and Close
-  stays disabled until the animation reaches exactly 100%, while a failure stops
-  the animation and leaves the failed stage red; after a
-  portable smoke install, confirm none of those OS entries are created and that
-  `.580` and `.krs` are associated only when their checkbox was selected; run the portable
-  `app/uninstaller` and confirm it removes the portable file associations and
-  the `<install root>/bin` PATH entry when those checkboxes were selected;
-- run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build_installer.ps1`
-  on Windows or `bash scripts/build_installer.sh` on Linux/Unix and confirm
-  a standalone `KR580-Setup-*` artifact appears under `dist/`; on macOS run
-  `bash scripts/build_macos_dmg.sh` and confirm its self-validation mounts a DMG
-  containing the executable `KR580.app`, both ICNS resources, the canonical
-  bundle identifier, and an `/Applications` link; for release
-  packaging, also smoke-check `--target` builds and `scripts/package_installer_deb.sh` for one Linux target, confirm the
-  Debian control metadata contains `desktop-file-utils`, `libdbus-1-3`,
-  `shared-mime-info`, `xdg-utils`, and `zenity`, and open a file dialog in the
-  Debian, Snap, and Nix artifacts;
-- inspect the built Snap and confirm `bin/kr580` and `meta/gui/kr580.desktop`
-  exist, the app command is `bin/kr580`, and neither `k580-installer` nor
-  `k580-uninstaller` is present; launch it, persist a setting across refresh,
-  open `.580`/`.krs` through the app, and verify the association action is
-  absent under confinement;
-- run `cargo run -p kr580 --bin kr -- nonexistent.580` and confirm
-  the GUI launches with a localized "Файл не найден" error notice;
-- on Linux, run `cargo run -p kr580 --bin kr -- -r`, then confirm
-  `$XDG_DATA_HOME/mime/packages/application-x-kr580.xml` and
-  `$XDG_DATA_HOME/applications/kr580-file-handler.desktop` were created (using
-  `$HOME/.local/share` when `XDG_DATA_HOME` is unset), the
-  handler does not appear as a second application-menu entry, and `.580` and
-  `.krs` files open with `kr` from the file manager; confirm
-  `xdg-mime query default application/x-kr580` returns
-  `kr580-file-handler.desktop`;
-  register twice, remove the association and confirm the preceding default is
-  restored; choose another default externally and confirm removal preserves it;
-- on macOS, run `cargo run -p kr580 --bin kr -- -r`, then confirm
-  `~/Applications/KR580.app` uses bundle identifier `dev.kr580.emulator`,
-  executable name `kr580`, the generated version from the canonical plist,
-  separate snapshot/subprogram UTIs, valid application/document ICNS files,
-  and successful registration through `LSRegisterURL`; double-click one file
-  of each type in Finder and confirm the existing app receives the document,
-  including the load-address dialog for `.krs`; change one setting and confirm
-  it is written under `~/Library/Application Support/KR580`, not inside the app;
-  in a Portable installation verify `<install root>/KR580.app` is created and
-  settings remain under `<install root>/data`; with a foreign
-  `~/Applications/KR580.app`, System setup must stop before copying its payload;
-  `kr -u` must report unsupported instead of claiming success;
-- open each top-menu dropdown and verify Up/Down wraps through enabled rows
-  without moving the selected RAM address, paints the current row with the
-  pointer-hover fill and no blue border; verify Left/Right cyclically opens the
-  previous/next dropdown category, skips Settings, and does not draw a blue
-  category border or move RAM;
-- with one top-menu dropdown open, hover File, MP-System, View, and Help and
-  confirm the dropdown switches without another click; close it and confirm
-  hovering those categories alone does not open anything;
-  use Tab/Shift+Tab to walk the blue-outlined category and rows through
-  File → MP-System → View → Settings → Help in both directions, confirm
-  Settings receives the category outline without opening a dropdown, category
-  outlines include comfortable padding around their labels, disabled Clear
-  Halt and separators are skipped, and Enter activates the outlined row or
-  opens Settings from its category stop;
-- open the in-app Settings dialog (`,`), confirm logical focus starts on the
-  language control without a white outline, and use Tab/Shift+Tab to visit both
-  On and Off segments for Follow PC, memory-operand highlighting, and Show file
-  name; open a `.580` or `.krs` file and confirm that enabling the option centres
-  only its base name in the top title bar, disabling it clears the title, and a
-  long name keeps its extension after middle shortening; confirm a soft lower
-  fade and small down chevron reveal that General has more content without
-  drawing a scrollbar; verify the smaller wheel step and smooth touchpad pixels,
-  then scroll to the `.580` / `.krs` association row. The lower hint must vanish
-  at the bottom, the mirrored upper hint must vanish at the top, and both must be
-  visible between them without jumps. At 100% and 125% display scaling, verify
-  the right dialog frame stays continuous beneath both fades. Repeat in Russian
-  and English; in Appearance, continued wheel-down at the bottom must remain stationary. Verify
-  the association row plus Reset, Cancel, and Save show a white
-  border without a fill change, and that Enter or a mouse click clears the border before
-  activation; open the language dropdown and confirm its anchor gains the same
-  active fill as an opened printer selector; open the Reset confirmation and
-  confirm Cancel starts filled without a white border, then Tab/Shift+Tab removes
-  the focus fill and draws only the white border; in the Sidebar, verify
-  Tab/Shift+Tab moves the category cursor
-  without changing the page until Enter; finally confirm the `.580 and .krs file
-  associations` row shows `Add` when either association is missing and `Remove`
-  when it is present, then click it and verify the button label flips and the
-  OS association is created/removed;
-- in Settings → External Devices, confirm Monitor layout follows the printer
-  settings, Unified is the default, and Tab/Shift+Tab visits both layout choices
-  before the network settings. Preview Split and Cancel to restore the previous monitor
-  view; Save and restart to retain Split, then Reset to restore Unified. A
-  temporary split/merge toggle inside the monitor must not change the saved
-  default when an unrelated preference is saved;
-- make the current file dirty and invoke Open, New, Import, Close, and HDD
-  deletion confirmations; in each shared confirmation overlay verify Cancel is
-  initially filled without a white border, the first Tab/Shift+Tab changes the
-  indication to a white border without focus fill, and Enter or pointer input
-  hides the border before activating the chosen button;
-- with the attached Monitor open, open and cancel Export; reopen Monitor, then
-  open and cancel Import; confirm each modal replaces the Monitor panel and
-  cancellation returns to the main app instead of restoring it; while Export
-  is open invoke Import, then invoke Export from Import, and confirm each
-  command replaces the current modal;
-- overflow the Import, Export, printer setup, printer properties, and opcode
-  dropdowns; confirm each wheel line moves one option in either direction
-  (34, 28, 32, 32, and 27 logical pixels respectively), touchpad scrolling stays
-  smooth, and the first and last options remain reachable; confirm the opcode
-  thumb and keyboard navigation still work after wheel scrolling, with a
-  visible fragment of the next opcode when the list overflows;
-- in printer setup, confirm the printer list shows at most four options and
-  paper sizes at most five; in Properties, every selector including profiles
-  shows at most four. Short lists fit their contents, longer lists show a
-  readable fragment of the next option and scroll, and
-  panels near window edges stay inside the window, opening above or shrinking
-  when necessary;
-- open Export and Import and use Tab/Shift+Tab from their native text inputs and
-  buttons; confirm captured keyboard events still traverse each custom wrapping
-  focus ring in both directions, draw a white outline on the active tab,
-  target add/delete button, field, checkbox, or footer control without replacing
-  its selected fill/check,
-  skip the unavailable Import target selector and disabled Import action, move
-  directly from Export's Text file tab to its target selector without an
-  invisible intermediate stop, confirm the opened Export target panel keeps a
-  six-logical-pixel gap below its anchor like the language and printer selectors,
-  and let Enter or pointer input clear the
-  keyboard-only outline before activating the current control; confirm Import
-  opens at a fixed size without a title bar or close action, with a large source
-  drop zone, `.txt`/`.xlsx` format hint inside the zone below Choose file, and
-  adjacent neutral Cancel/Import actions on the right; verify the empty drop zone
-  is taller, selecting a file contracts it without changing the dialog height,
-  removes the format badge and repeated drop instruction, and leaves the icon,
-  shortened path, Choose file action, and format hint with a slightly larger gap
-  between the path and action; verify the target label sits close to its field
-  while the source-to-target gap is visibly larger, the taller empty source zone
-  leaves less space above the footer, and neither state has an oversized footer
-  spacer; confirm the gap between Choose file and the format hint is identical
-  before and after selecting a file; drag a file over the modal
-  and verify only the source zone gains the accent border, then verify leaving
-  clears it and dropping a supported `.txt` or `.xlsx` file selects it and
-  enables Import without changing its neutral color; drop an unsupported
-  extension and confirm the modal remains open with a localized inline error;
-  load an import file with enough long target names to overflow the two-row
-  dropdown, confirm the dialog height stays fixed, the wheel/touchpad still
-  scrolls the list without painting a scrollbar; each wheel line moves exactly
-  one 34-logical-pixel row in either direction, the first and last rows stay
-  reachable, and touchpad pixel scrolling remains smooth; the options keep the same
-  four-pixel inner panel spacing as the language dropdown, the popup keeps a
-  separate eight-pixel gap below its closed selector, both visible options are
-  fully rendered and vertically centred in their 34-logical-pixel highlight,
-  matching the closed selector's height, with a readable fragment of the next
-  option visible when more targets exist, and every target
-  stays on one clipped, middle-shortened row; toggle the selector repeatedly
-  and verify neither the footer geometry nor the anchor highlight changes;
-  with the popup closed, confirm the footer stays close to the selector;
-  with it open, confirm the panel floats over the following controls without
-  reserving blank space or resizing the dialog, and opens above the selector
-  when the window has insufficient room below;
-- in the memory cell editor, confirm `Enter`, `Ctrl+Enter`, `Alt+Enter`,
-  and `Tab`/`Shift+Tab` follow the table in `docs/ui_app.md`; assign different
-  shortcuts to pattern search and cell replacement and confirm each remains
-  limited to its own editor context; assign a printable chord such as `Alt+F`
-  and confirm it does not append `F` to the active field; select an
-  `IN`/`OUT` port operand below the first visible page, open its device with
-  `Alt+Enter`, and confirm the selected address and scroll position do not
-  reset to `0000`;
-- paste `3E 41 D3 03 76` into a memory value field and confirm the five
-  consecutive cells update immediately without first deleting the
-  existing two-digit value; malformed or overflowing input must not
-  write a partial sequence and must show a short localized status
-  without repeating the pasted text;
-- in the memory list, select a row without entering its editor and confirm Tab
-  walks down through addresses while Shift+Tab walks back up without activating
-  edit mode; then focus the inline editor and confirm the same traversal leaves
-  each destination empty with its stored byte shown as the placeholder;
-- in the inline memory list, confirm the scrollbar thumb is compact, does not
-  jump when grabbed off-centre, appears when hovering either the thumb or an empty
-  part of its rail, moves by only a few addresses for a minimal drag, catches the
-  pointer within 12 px, stays under it for a fast drag, reaches both track ends
-  without stutter, and leaves wheel/touchpad sensitivity unchanged;
-- in the RAM list, opcode picker, and Monitor byte stream, grab the unpainted
-  left portion of the 8 px target and confirm dragging starts without a jump;
-  click the empty rail,
-  confirm the thumb centres on the pointer and follows a continued drag without
-  selecting underlying content, then click just outside the rail and confirm the
-  scrollbar does not capture it and RAM/opcode row actions still work;
-- in all three lists, scroll with the wheel or touchpad directly over the painted
-  thumb and its unpainted grab area, confirm sensitivity matches scrolling over
-  the content, and confirm hovering, dragging, and a covering popup still work;
-- in the opcode picker, type part of an opcode or mnemonic, confirm
-  ArrowDown/Tab and ArrowUp/Shift+Tab move the highlighted filtered row
-  with wrapping and keep it fully visible without moving already visible rows;
-  after Tab scrolls the list, immediately quick-drag the thumb and use the
-  wheel, and confirm both keep working;
-  scroll down manually, change or clear the search, and confirm the first result
-  is shown at the top even after a short or empty result list; open the picker
-  for another RAM cell and confirm it starts at the top; confirm Enter writes
-  the highlighted opcode to the selected memory cell;
-- in the opcode picker, confirm the thumb has the same 28 px length as the RAM
-  viewer's thumb, reveals on rail hover, keeps its grab point, and reaches both
-  ends of the full and filtered lists; confirm wheel/touchpad scrolling still
-  works over the list and rail, filtering to a few or no matches hides the
-  thumb, and clearing the filter or reopening the picker keeps the thumb in
-  sync with the visible options;
-- switch to the Russian layout and confirm the same physical shortcuts
-  still resolve: `У` opens the opcode picker, `Ctrl+Ы` saves, `Ctrl+У`
-  exports, `Ctrl+Ь` opens the monitor, and `Ctrl+А` opens the floppy
-  buffer;
-- open Settings → Shortcuts, confirm `Memory cell action` / `Действие с ячейкой ОЗУ` shows `Alt+Enter` and `Return to memory operand cell` / `Вернуться к ячейке операнда ОЗУ` shows `Shift+Alt+Enter`, click the current shortcut for Monitor,
-  press `Ctrl+Shift+Alt+M`, save, and confirm that chord opens the monitor
-  while the Quick Access tooltip and View menu row show `Ctrl+Shift+Alt+M`;
-- reopen Settings → Shortcuts, press `Reset shortcuts`, save, and confirm the
-  Monitor shortcut returns to `Ctrl+M`, the memory cell action returns to
-  `Alt+Enter`, and the memory return action returns to `Shift+Alt+Enter`;
-- hover the execution buttons and Quick Access chips and confirm
-  shortcuts render as muted same-line tooltip text (`Ctrl+R`, `Ctrl+T`,
-  `Ctrl+Y`, `Ctrl+M`, `Ctrl+F`) where the action actually has one, and
-  tooltips near window edges keep visible breathing room instead of
-  snapping flush to the border without moving farther away from the
-  hovered button;
-- hover the address buffer, instruction register, decoder, multiplexer rows,
-  cycle rows, control-signal lamps, and status register; confirm their tooltip
-  body text uses the same readable size as button tooltip labels while shortcut
-  suffixes remain smaller;
-- on the schematic, enter inline editing for «Буферный регистр 1» and
-  «Буферный регистр 2» and confirm the hex value stays vertically stable
-  instead of jumping upward; double-click must clear the editor while
-  retaining the current value as its placeholder; while replacement is
-  active, Left/Right must carry the empty editor across `A/B/C`, and all
-  four arrows must carry it through the multiplexer grid; with either a selected
-  register or its inline editor active, Tab/Shift+Tab must walk one wrapping ring
-  through `A/B/C` and multiplexer `B/C/D/E/H/L`; Up/Down on `A/B/C` must do
-  nothing, while Left/Right remains confined to that trio; selected `A/B/C`
-  blocks must use the standard selection-blue token without an alpha override,
-  matching RAM and mux cells; Up/Down in the
-  inline RAM editor must do the same for adjacent memory cells; entering
-  replacement again on an already empty field must keep its visible
-  `00`, `0000`, or `A` placeholder without materializing it after Esc or
-  repeated Tab/Shift+Tab focus cycles;
-- click the status-strip `HLT` indicator on and off and confirm the
-  selected RAM row does not move; then execute a `76` byte and confirm
-  the highlight stays on that HLT row without briefly flashing the next
-  address; after manually clearing HLT, reset registers and confirm the
-  selected RAM row still returns to PC `0000`;
-- focus the address spinner with the mouse and Tab through the panel:
-  hover and focus rings should match the standalone byte-value field.
-- clear the address or register-name field and type a valid value in its
-  paired value field; the empty field must become `0000` or `A`
-  respectively, while invalid value input must leave it empty;
-- click the Дисковод quick-access chip, confirm the buffer modal opens,
-  Esc and backdrop-click close it, the open-image button attaches an
-  existing `.kpd`/`.img`/`.bin` file, the save button writes the visible
-  buffer to `.kpd`/`.img`/`.bin` through three separate export filters
-  with `.kpd` selected first, the detach-image button clears the file
-  path while leaving the visible buffer text intact, the binary button
-  switches the body to the image file contents, the debug button toggles
-  between `bug-off` and active blue `bug`, the empty buffer state has no
-  cursor glyph, and the clear button empties the visible buffer without
-  changing the device footer state.
-- while file-content mode is active, modify or atomically replace the
-  attached floppy image and `hdd.kpd` from another process; both open
-  windows must refresh without toggling file-content mode, while unchanged
-  files must not be read again on every UI tick;
-- switch between Russian and English and inspect the Floppy, HDD, Network, and
-  Printer footers; every localized status or mode value after a colon must begin
-  with a lowercase letter (`Статус: готов`, `Status: refused`, `Mode: client`),
-  while paths, endpoints, and printer names must preserve their original case;
-- on Windows, open Settings → External Devices, choose a printer with the
-  custom Printer row setup modal, confirm its status/driver/port details,
-  paper sizes, paper sources, and orientation are populated; with the
-  application in Russian confirm the Status row is Russian for whatever the
-  spooler reports, including states past the common ones - pause the printer,
-  open its cover, or unload paper to see `Приостановлен`, `Открыта крышка`,
-  `Нет бумаги` rather than English; confirm the modal
-  appears at its final size before the asynchronous printer details arrive,
-  the Name and Comment text have balanced outer margins, the compact dialog
-  does not clip long printer, paper, or source values, the orientation content
-  has balanced top and bottom spacing, and the close
-  glyph uses the standard framed `34x34` modal button, section labels interrupt
-  the top-left border, no
-  header/footer separators are drawn, and the paper preview rotates when
-  landscape is selected; open Properties,
-  check that the Paper tab's Size, Source, and Orientation rows have no shared
-  frame, and their selectors and first radio align with the driver fields below;
-  check this for multiple printers and both app languages, including a driver
-  with no additional Paper features; keep the Profiles and Preview frames intact;
-  visit Favorites, General, Paper, Graphics, and Advanced, and confirm feature,
-  option, and parameter labels follow the selected app language without exposing
-  raw QName prefixes or `PageDevmodeSnapshot`; with Windows and the printer
-  driver using Russian, switch the application to English and confirm those
-  rows contain no Cyrillic, including altitude correction, print quality,
-  duplex mode, and automatic paper-source selection; also inspect the paper
-  and source selectors in both Setup and the Properties Paper tab and confirm
-  standard bins such as `Автовыбор` / `Лоток 1` render as `Auto select` /
-  `Tray 1` identically in both dialogs; with an English driver and the
-  application in Russian, confirm `Automatically Select`, `Tray 1`, and
-  `DL envelope` render as `Автовыбор`, `Лоток 1`, and `Конверт DL`, while
-  unknown foreign names use `Подача <id>` or `Бумага <id>`; both directions
-  share one table in `view/printer_setup/driver_locale.rs`; focused direction
-  and fallback regressions live in `view/printer_setup/labels/tests.rs`;
-  change a driver option, close it,
-  and confirm the emulator remains responsive and refreshes the top-level
-  controls; confirm dropdown panels keep a gap below their anchors, retain
-  the bottom border under the final option in both setup windows, and close
-  after clicking elsewhere inside the same modal; confirm an opened property
-  selector overlays the following rows instead of moving them;
-  use `Tab` and `Shift+Tab` to traverse the enabled top-level controls and the
-  complete Properties ring in both directions, including tabs, active feature
-  controls, parameter fields, profiles, and footer actions; confirm the blue
-  outline appears only after keyboard traversal and disappears on Enter or a
-  mouse click while the activated selector/tab/radio keeps only its normal
-  active fill, bottom indicator, or selected dot; then use
-  `ArrowUp`/`ArrowDown` in each kind of open selector and
-  confirm the highlight moves without committing until `Enter`; confirm `Esc`
-  closes the selector before the modal; confirm Properties opens on Favorites
-  without a focus outline, a mouse-selected tab shows only its bottom indicator,
-  and keyboard traversal then enables the control focus outline; confirm the property
-  lists remain scrollable without a visible scrollbar, the compact paper preview
-  fits without a side-panel scroll, and the top-level Paper and Orientation
-  groups have equal height; on Advanced, confirm every parameter input starts on
-  the same left edge as the selectors while its Apply button only reduces the
-  input width; save and reload a named profile,
-  restart the emulator, and confirm
-  the printer footer uses that global target and configuration for every file;
-  switch the Printer setup window row to System, reopen setup, confirm the OS
-  dialog appears, then switch back to the emulator window; with a long printer
-  name, confirm the clear icon stays fixed at the right edge of the row; clear
-  the row and confirm it returns to the OS default target;
-- detach the Printer device window, open Print Setup from its header, and confirm
-  setup plus nested Properties render over the detached printer instead of the
-  main emulator; verify each native dialog hugs its panel with no empty backdrop,
-  stays centred over the Printer, and uses a separate `1040×680` Properties
-  window above the unchanged `720×500` Setup window; neither dialog may resize
-  the Printer from its original `760×340` bounds, and Properties must appear at
-  its final text scale immediately without stretching the Setup window; drag the
-  Printer, Setup, and Properties from the blank inset above their header controls
-  and confirm the exact grabbed window moves, then confirm every header button
-  still activates without starting a drag; while
-  Properties is open, confirm Setup's close glyph, Cancel, and OK buttons stay
-  muted with unchanged borders; try each control and a native Setup close request,
-  confirm Properties receives focus plus a clearly visible but restrained 520 ms
-  surface-and-border pulse that rises and fades once, then close Properties and
-  confirm the parent controls become active;
-- send bytes to port `04h`, open the Принтер quick-access chip, and confirm
-  the buffer renders as uppercase HEX with four-digit offsets and 16 bytes
-  per line; toggle the `type` button and confirm CP866 text appears without
-  changing the byte count, then toggle back to HEX; click the settings gear,
-  select a different printer and paper/orientation, and confirm the footer shows
-  its name without changing `settings.json`; confirm the header contains one
-  Print action and no separate PDF action; print and
-  verify the UI returns from `Busy` to `Ready` and the selected printer
-  receives the CP866-decoded text; cancel a native printer or output-file prompt
-  and confirm the UI also returns to `Ready`, shows no raw Win32 error, and keeps
-  all three footer fields within the window; clear the buffer and confirm the active
-  printer target remains unchanged; detach, pin, attach, and close the window.
+When master artwork changes, run `just icons`, include derived assets, then
+rebuild. The checked-in PNG/ICO/ICNS files are build inputs; source artwork
+changes alone do not update them. See [Assets](assets.md#regenerating-the-icon-set).

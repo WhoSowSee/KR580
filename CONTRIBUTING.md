@@ -46,7 +46,7 @@ MSRV verification.
 and whitespace, with exceptions for Markdown and binary files.
 [rustfmt.toml](rustfmt.toml) defines the shared formatter settings, and
 [.gitattributes](.gitattributes) defines LF and binary-file handling. See
-[Repository configuration](docs/testing.md#repository-configuration) for their
+[Repository configuration](docs/maintenance.md#repository-configuration) for their
 validation and explicit compiler overrides used by packaging.
 
 Fork [KR580](https://github.com/WhoSowSee/KR580), then:
@@ -71,8 +71,8 @@ requirements.
 
 ## Making a change
 
-Read the [architecture overview](docs/architecture.md) and the relevant files
-under `docs/`.
+Start with the [documentation index](docs/README.md), then read the architecture
+overview and the guide for the component you are changing.
 Check behavior changes against the documented CPU, device, and file-format
 contracts and the existing tests. Discuss changes to those contracts before
 implementation, and add regression coverage for the agreed behavior.
@@ -99,11 +99,15 @@ implementation. Use one-line comments only for 8080/KR580 hardware quirks,
 deliberate iced 0.14 or OS workarounds, `// SAFETY:` justifications, or subtle
 invariants. Public doc comments may describe API contracts.
 
+Keep each maintained documentation file at or below 500 lines, including blank
+lines and code fences. Shorten repetition before splitting by topic; link to the
+primary description of a contract rather than maintaining another copy.
+
 Update the relevant `docs/` reference in the same change when behavior, public
 APIs, dependencies, build scripts, file layout, assets, or platform integration
 change. Keep [architecture.md](docs/architecture.md) aligned with crate
-responsibilities and [ui_app.md](docs/ui_app.md) aligned with UI state, messages,
-shortcuts, and platform behavior.
+responsibilities and [ui_app.md](docs/ui_app.md) with its linked UI guides aligned
+with state, messages, shortcuts, and platform behavior.
 
 Keep the Russian [README.md](README.md) and English [README-EN.md](README-EN.md)
 aligned. If a changelog changes, update all four files together:
@@ -112,7 +116,7 @@ aligned. If a changelog changes, update all four files together:
 - `CHANGELOG-EN.md` and `crates/ui/CHANGELOG-EN.md` must be byte-for-byte identical.
 - All four must expose the same release version/date index.
 
-See [Testing](docs/testing.md#workspace-checks) for release changelog and package
+See [Repository maintenance](docs/maintenance.md#release-checks) for release changelog and package
 archive checks.
 
 ## Checking your work
@@ -141,7 +145,8 @@ derived assets before rebuilding. See [Assets](docs/assets.md).
 For documentation and template changes, check links, examples, and accuracy
 against the implementation. Parse issue-form YAML and check its field structure
 against the [GitHub form schema](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema).
-Rust tests are not required for documentation-only changes.
+Markdown embedded by the application, such as Help articles, also requires the
+relevant application tests. Other documentation-only changes do not require Rust tests.
 
 Report the commands you actually ran, their results, and any checks you skipped
 with the reason. Passing on one OS does not verify another platform's behavior.
