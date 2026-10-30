@@ -104,9 +104,8 @@ impl DesktopApp {
         let Some(pending) = self.requests.pending_requests.remove(&id) else {
             return;
         };
-        let Err(error) = result else {
-            let result = result.unwrap();
-            match (pending, result) {
+        match result {
+            Ok(result) => match (pending, result) {
                 (
                     PendingRequest::CpuEdit {
                         undo,
@@ -218,26 +217,27 @@ impl DesktopApp {
                     self.set_status(StatusKind::ImportFrom { display });
                 }
                 _ => {}
+            },
+            Err(error) => {
+                match pending {
+                    PendingRequest::Command {
+                        action: crate::app::BackendAction::Shutdown,
+                    } => self.shell.shutdown = crate::app::shutdown::ShutdownState::Idle,
+                    PendingRequest::LoadSubprogram { dialog, .. } => {
+                        self.shell.error_notice_dismiss_at = None;
+                        self.restore_subprogram_error_text(dialog, error.to_string());
+                    }
+                    PendingRequest::Command {
+                        action: crate::app::BackendAction::HddAttached(path),
+                    } if self.snapshot.devices.hdd.path.as_ref() == Some(&path) => {
+                        self.panels.hdd_file_exists = false
+                    }
+                    _ => {}
+                }
+                self.document.undo_stack.complete_cpu(id, None, None);
+                self.recompute_dirty();
             }
-            return;
-        };
-        match pending {
-            PendingRequest::Command {
-                action: crate::app::BackendAction::Shutdown,
-            } => self.shell.shutdown = crate::app::shutdown::ShutdownState::Idle,
-            PendingRequest::LoadSubprogram { dialog, .. } => {
-                self.shell.error_notice_dismiss_at = None;
-                self.restore_subprogram_error_text(dialog, error.to_string());
-            }
-            PendingRequest::Command {
-                action: crate::app::BackendAction::HddAttached(path),
-            } if self.snapshot.devices.hdd.path.as_ref() == Some(&path) => {
-                self.panels.hdd_file_exists = false
-            }
-            _ => {}
         }
-        self.document.undo_stack.complete_cpu(id, None, None);
-        self.recompute_dirty();
     }
 
     fn apply_snapshot(&mut self, snapshot: AppSnapshot) {

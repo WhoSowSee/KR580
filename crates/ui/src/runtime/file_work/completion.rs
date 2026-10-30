@@ -78,17 +78,15 @@ impl DesktopApp {
             } => {
                 if self.preferences.dialog_generation != dialog_generation
                     || self.preferences.directory_generation != generation
-                    || self.preferences.settings_dialog.is_none()
                 {
                     return;
                 }
+                let Some(dialog) = self.preferences.settings_dialog.as_mut() else {
+                    return;
+                };
                 match completion.result {
                     Ok(FileResult::DirectoryValidated(true)) => {
-                        self.preferences
-                            .settings_dialog
-                            .as_mut()
-                            .unwrap()
-                            .draft_hdd_directory = Some(path);
+                        dialog.draft_hdd_directory = Some(path);
                     }
                     Ok(FileResult::DirectoryValidated(false)) => self.show_error_notice(
                         self.preferences.lang.t(Key::ErrHddDirectoryNotWritable),

@@ -13,9 +13,10 @@ impl DesktopApp {
         request: FileRequest,
         work: impl FnOnce() -> Result<FileResult, AppError> + Send + 'static,
     ) {
-        if self.requests.file_worker.is_none() {
-            match FileWorker::new() {
-                Ok(worker) => self.requests.file_worker = Some(worker),
+        let worker = match &mut self.requests.file_worker {
+            Some(worker) => worker,
+            slot @ None => match FileWorker::new() {
+                Ok(worker) => slot.insert(worker),
                 Err(error) => {
                     self.apply_file_completion(FileCompletion {
                         request,
@@ -23,15 +24,9 @@ impl DesktopApp {
                     });
                     return;
                 }
-            }
-        }
-        match self
-            .requests
-            .file_worker
-            .as_mut()
-            .unwrap()
-            .enqueue(request, work)
-        {
+            },
+        };
+        match worker.enqueue(request, work) {
             Ok(task) => self.requests.tasks.push(task),
             Err(completion) => self.apply_file_completion(*completion),
         }
