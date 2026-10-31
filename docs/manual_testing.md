@@ -42,6 +42,9 @@ scenarios. Keep pass/fail evidence separate from automated test results.
    Arrow movement should preview a highlight; Enter commits and Esc dismisses.
 5. Check both pointer and keyboard activation after input focus changes and thumb
    dragging. A hidden input must not retain a caret or receive typed characters.
+6. After Windows clipboard dependency updates, copy and paste Cyrillic, Unicode
+   and a hex byte sequence between KR580 and another application. Check retries
+   while the clipboard is briefly busy in another process.
 
 ## Memory, registers and execution
 
