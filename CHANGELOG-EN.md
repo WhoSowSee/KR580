@@ -1,5 +1,40 @@
 # Changelog
 
+## [5.0.0] - 2026-10-31
+
+### Breaking Changes
+
+- Changed: installation and native printer configuration APIs return `InstallModeError` and `PrinterError` instead of `String`, preserve original causes through `Error::source()` and require callers to adapt error handling
+
+### Bug Fixes
+
+- Fixed: application exit waits for accepted file jobs, storage writes and printer tasks; a write failure cancels exit and allows retry
+- Fixed: an interrupt arriving during a partial tact walk waits for the current instruction to finish and is accepted at the next boundary with its own timing budget
+- Fixed: bus latches after `IN` and `OUT` retain the port on both address halves and the byte actually transferred
+- Fixed: TXT and XLSX exports retain zero RAM bytes so reimport restores the complete selected range without changing outside memory
+- Fixed: TXT section names handle reserved headers, line breaks and collisions so every exported section remains selectable on import
+- Fixed: invalid IRQ vectors are rejected before CPU, RAM, bus or timing changes, retaining the pending request for retry or replacement
+- Fixed: dropping the last `NetworkDevice` owner cancels its TCP worker, including a listener waiting for its first client
+- Fixed: `.580` and `.krs` reads are bounded by the payload limit plus one byte for overflow detection, with validation before changing CPU state
+- Fixed: a new CPU and `ResetCpu` set SP to zero; reset preserves RAM and `.580` loading restores the stored SP
+
+### Code Structure
+
+- Updated: request and file completion handlers extract `Option` and `Result` through pattern matching without subsequent checked `unwrap` calls
+- Updated: the Windows installer registry copy helper accepts an optional reference while preserving `None` and owned rollback data
+
+### Documentation
+
+- Updated: repository star history charts (9528531)
+- Updated: repository star history charts (7aab27d)
+- Updated: project documentation and Russian/English help reflect current behavior, remove repetition and use topic guides capped at 500 lines per file
+
+### Build and Verification
+
+- Fixed: the printer export regression waits for completion with a deadline and checks successful and failed writes instead of relying on a fixed delay
+- Fixed: macOS and Unix test builds after the typed manifest error change, with a regression for malformed manifests
+- Updated: Windows clipboard dependency `clipboard-win` to 5.4.3 with HTML bounds validation and adjusted retry timing; documented native copy and paste smoke checks
+
 ## [4.1.0] - 2026-10-15
 
 ### Features

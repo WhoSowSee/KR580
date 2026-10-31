@@ -182,8 +182,8 @@ For official ZIP extraction on Windows, download and verify the release archive
 first, then provide its version without the optional `v` prefix:
 
 ```powershell
-$env:KR580_UPDATE_TEST_ARCHIVE = 'C:\path\KR580-Setup-v4.1.0-x86_64-pc-windows-msvc.zip'
-$env:KR580_UPDATE_TEST_VERSION = '4.1.0'
+$env:KR580_UPDATE_TEST_ARCHIVE = 'C:\path\KR580-Setup-v5.0.0-x86_64-pc-windows-msvc.zip'
+$env:KR580_UPDATE_TEST_VERSION = '5.0.0'
 cargo test --locked -p kr580 --bin kr580 runtime::updates::install::tests::official_release_zip_extracts_installer -- --ignored --exact
 ```
 

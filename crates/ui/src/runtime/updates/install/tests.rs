@@ -6,7 +6,7 @@ use zip::write::SimpleFileOptions;
 fn installer_archive_reads_deflate_and_rejects_escaping_or_ambiguous_entries() {
     let directory = tempfile::tempdir().unwrap();
     let filename = format!(
-        "KR580-Setup-4.1.0-{}{}",
+        "KR580-Setup-5.0.0-{}{}",
         env!("KR580_BUILD_TARGET"),
         if cfg!(windows) { ".exe" } else { "" }
     );
@@ -36,7 +36,7 @@ fn installer_archive_reads_deflate_and_rejects_escaping_or_ambiguous_entries() {
             writer.write_all(&payload).unwrap();
         }
         writer.finish().unwrap();
-        let result = extract_installer(&archive, &root, "4.1.0");
+        let result = extract_installer(&archive, &root, "5.0.0");
         assert_eq!(result.is_ok(), expected);
         if expected {
             assert_eq!(std::fs::read(result.unwrap()).unwrap(), payload);

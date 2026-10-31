@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 
 fn release() -> Release {
     Release {
-        version: "4.1.0".into(),
-        page: "https://github.com/WhoSowSee/KR580/releases/tag/v4.1.0".into(),
+        version: "5.1.0".into(),
+        page: "https://github.com/WhoSowSee/KR580/releases/tag/v5.1.0".into(),
         asset: None,
     }
 }
@@ -46,7 +46,7 @@ fn closing_menu_preserves_check_release_download_and_prepared_update() {
     state.downloaded(
         generation,
         Ok(PreparedUpdate {
-            version: "4.1.0".into(),
+            version: "5.1.0".into(),
             restart_flag: "restart.json".into(),
         }),
     );
@@ -85,7 +85,7 @@ fn cancelling_dirty_restart_preserves_prepared_update_without_requesting_relaunc
     let marker = directory.path().join("restart.json");
     let (mut app, _) = DesktopApp::with_initial_path(None);
     app.shell.updates.phase = UpdatePhase::Ready(PreparedUpdate {
-        version: "4.1.0".into(),
+        version: "5.1.0".into(),
         restart_flag: marker.clone(),
     });
     app.document.dirty = true;

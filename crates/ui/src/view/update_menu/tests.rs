@@ -19,8 +19,8 @@ fn update_row_keeps_dimensions_visible_icons_and_expected_click_messages() {
         ))
         .unwrap();
     let release = Release {
-        version: "4.1.0".into(),
-        page: "https://github.com/WhoSowSee/KR580/releases/tag/v4.1.0".into(),
+        version: "5.1.0".into(),
+        page: "https://github.com/WhoSowSee/KR580/releases/tag/v5.1.0".into(),
         asset: Some(Asset {
             name: "fixture.zip".into(),
             url: String::new(),
@@ -38,7 +38,7 @@ fn update_row_keeps_dimensions_visible_icons_and_expected_click_messages() {
             started: std::time::Instant::now(),
         },
         UpdatePhase::Ready(PreparedUpdate {
-            version: "4.1.0".into(),
+            version: "5.1.0".into(),
             restart_flag: "restart.json".into(),
         }),
         UpdatePhase::Current(std::time::Instant::now()),
