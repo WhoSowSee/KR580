@@ -81,8 +81,9 @@ and verification method in prose.
 
 [The workflow](../.github/workflows/star-history.yml) tests the generator,
 fetches history with read-only `GITHUB_TOKEN`, and stages only the four chart
-SVGs. Unchanged output produces no commit. Artwork and regeneration commands
-are documented in [Assets](assets.md#readme-star-history).
+SVGs. When the charts change, the workflow commits them with the message
+`docs(readme): update star history charts`. Unchanged output produces no commit.
+See [Assets](assets.md#readme-star-history) for artwork and regeneration commands.
 
 Publisher setup in GitHub:
 

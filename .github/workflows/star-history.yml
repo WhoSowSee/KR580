@@ -74,6 +74,6 @@ jobs:
           bot_id=$(gh api "/users/${bot_login}" --jq .id)
           git config user.name "$bot_login"
           git config user.email "${bot_id}+${bot_login}@users.noreply.github.com"
-          git commit -m 'Updated star history chart'
+          git commit -m 'docs(readme): update star history charts'
           gh auth setup-git
           git push origin "HEAD:${GITHUB_REF}"
