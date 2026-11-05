@@ -27,6 +27,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::UpdateCurrent => "Обновлений нет",
         Key::UpdateRetry => "Повторить обновление",
         Key::UpdateReleasePage => "Открыть страницу версии",
+        Key::UpdateRateLimited => "Лимит запросов. Попробуйте позже",
         Key::HelpDialogTitle => "Справка",
         Key::HelpSearchPlaceholder => "Поиск по справке…",
         Key::HnAbout => "О программе",

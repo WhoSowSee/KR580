@@ -46,7 +46,6 @@ fn closing_menu_preserves_check_release_download_and_prepared_update() {
     state.downloaded(
         generation,
         Ok(PreparedUpdate {
-            version: "5.1.0".into(),
             restart_flag: "restart.json".into(),
         }),
     );
@@ -85,7 +84,6 @@ fn cancelling_dirty_restart_preserves_prepared_update_without_requesting_relaunc
     let marker = directory.path().join("restart.json");
     let (mut app, _) = DesktopApp::with_initial_path(None);
     app.shell.updates.phase = UpdatePhase::Ready(PreparedUpdate {
-        version: "5.1.0".into(),
         restart_flag: marker.clone(),
     });
     app.document.dirty = true;

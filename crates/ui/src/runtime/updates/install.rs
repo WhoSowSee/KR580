@@ -10,7 +10,6 @@ mod tests;
 #[derive(Clone, Debug)]
 pub(crate) struct PreparedUpdate {
     pub(crate) restart_flag: PathBuf,
-    pub(crate) version: String,
 }
 
 pub(super) fn prepare(
@@ -48,10 +47,7 @@ pub(super) fn prepare(
         }
         let mut child = command.spawn().map_err(|error| error.to_string())?;
         wait_for_ready(&mut child, directory)?;
-        Ok(PreparedUpdate {
-            restart_flag,
-            version,
-        })
+        Ok(PreparedUpdate { restart_flag })
     }
 }
 

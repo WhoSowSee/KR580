@@ -2,14 +2,14 @@ mod icon;
 #[cfg(test)]
 mod tests;
 
-use iced::widget::{button, container, row, svg, tooltip};
+use iced::widget::{Space, button, container, row, svg, tooltip};
 use iced::{Element, Length, alignment};
 
 use super::styles::{menu_button_style, status_tooltip_style};
-use super::theme::{tokyo_text, ui_text};
+use super::theme::{tokyo_muted, tokyo_text, ui_text};
 use crate::app::updates::UpdatePhase;
 use crate::app::{Message, TopMenuIndicator};
-use crate::i18n::Lang;
+use crate::i18n::{Key, Lang};
 
 pub(super) fn update_menu_item(
     phase: &UpdatePhase,
@@ -46,14 +46,30 @@ pub(super) fn update_menu_item(
         UpdatePhase::Current(_) | UpdatePhase::Ready(_) => icon::symbol(icon::Kind::Check, color),
         UpdatePhase::Failed { .. } => icon::symbol(icon::Kind::Error, color),
     };
-    let body = container(
-        row![glyph, ui_text(lang.t(phase.label()), 13, color)]
-            .spacing(10)
-            .align_y(alignment::Vertical::Center),
-    )
-    .padding([6, 10])
-    .width(Length::Fill)
-    .height(Length::Fixed(30.0));
+    let detail = match phase {
+        UpdatePhase::Available(release) => Some(release.version.clone()),
+        UpdatePhase::Downloading {
+            release, progress, ..
+        } => Some(format!(
+            "{:.0}%",
+            progress.fraction(release.asset.as_ref().map_or(0, |asset| asset.size)) * 100.0
+        )),
+        _ => None,
+    };
+    let mut content = row![
+        glyph,
+        ui_text(lang.t(phase.label()), 13, color),
+        Space::new().width(Length::Fill),
+    ]
+    .spacing(10)
+    .align_y(alignment::Vertical::Center);
+    if let Some(detail) = detail {
+        content = content.push(ui_text(detail, 12, tokyo_muted()));
+    }
+    let body = container(content)
+        .padding([6, 10])
+        .width(Length::Fill)
+        .height(Length::Fixed(30.0));
     let item = button(body)
         .padding(0)
         .width(Length::Fill)
@@ -62,27 +78,23 @@ pub(super) fn update_menu_item(
                 .then_some(Message::UpdateActivated),
         )
         .style(move |_, status| menu_button_style(status, indicator));
-    let hint = match phase {
-        UpdatePhase::Available(release) => Some(release.version.clone()),
-        UpdatePhase::Ready(prepared) => Some(prepared.version.clone()),
-        UpdatePhase::Downloading {
-            release, progress, ..
-        } => Some(format!(
-            "{} · {:.0}%",
-            release.version,
-            progress.fraction(release.asset.as_ref().map_or(0, |asset| asset.size)) * 100.0
-        )),
-        UpdatePhase::Failed { error, .. } => Some(error.clone()),
-        _ => None,
-    };
-    match hint {
-        Some(hint) => tooltip(
-            item,
-            container(ui_text(hint, 12, color)).padding(8),
-            tooltip::Position::Bottom,
-        )
-        .style(status_tooltip_style)
-        .into(),
-        None => item.into(),
+    match phase {
+        UpdatePhase::Failed { error, .. } => {
+            let normalized = error.to_ascii_lowercase();
+            let hint =
+                if normalized.contains("rate limit") || normalized.contains("too many requests") {
+                    lang.t(Key::UpdateRateLimited)
+                } else {
+                    error.as_str()
+                };
+            tooltip(
+                item,
+                container(ui_text(hint, 12, color)).padding(8),
+                tooltip::Position::Bottom,
+            )
+            .style(status_tooltip_style)
+            .into()
+        }
+        _ => item.into(),
     }
 }

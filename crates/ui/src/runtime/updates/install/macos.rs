@@ -91,10 +91,7 @@ pub(super) fn prepare(
         .map_err(|error| error.to_string())?;
     super::wait_for_ready(&mut child, directory)?;
     let _ = stage.keep();
-    Ok(PreparedUpdate {
-        restart_flag,
-        version,
-    })
+    Ok(PreparedUpdate { restart_flag })
 }
 
 fn run(command: &mut Command) -> Result<(), String> {

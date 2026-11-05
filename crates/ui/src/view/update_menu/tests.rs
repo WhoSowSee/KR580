@@ -38,7 +38,6 @@ fn update_row_keeps_dimensions_visible_icons_and_expected_click_messages() {
             started: std::time::Instant::now(),
         },
         UpdatePhase::Ready(PreparedUpdate {
-            version: "5.1.0".into(),
             restart_flag: "restart.json".into(),
         }),
         UpdatePhase::Current(std::time::Instant::now()),

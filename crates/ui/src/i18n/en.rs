@@ -27,6 +27,7 @@ pub(super) fn translate(key: Key) -> &'static str {
         Key::UpdateCurrent => "Up to date",
         Key::UpdateRetry => "Retry update",
         Key::UpdateReleasePage => "Open release page",
+        Key::UpdateRateLimited => "Rate limit reached. Try again later",
         Key::HelpDialogTitle => "Help",
         Key::HelpSearchPlaceholder => "Search help…",
         Key::HnAbout => "About",

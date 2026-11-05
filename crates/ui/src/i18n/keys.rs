@@ -65,7 +65,7 @@ scalar_keys! {
 
     SpeedTitle, SpeedUnit,
     UpdateCheck, UpdateChecking, UpdateDownload, UpdateDownloading, UpdatePreparing,
-    UpdateRestart, UpdateCurrent, UpdateRetry, UpdateReleasePage,
+    UpdateRestart, UpdateCurrent, UpdateRetry, UpdateReleasePage, UpdateRateLimited,
     SettingsTitle, SettingsSavedNotice, SettingsResetNotice, SettingsShortcutsResetNotice,
     SettingsSearchPlaceholder, SettingsCategoryGeneral,
     SettingsCategoryExternalDevices, SettingsCategoryAppearance, SettingsCategoryShortcuts,

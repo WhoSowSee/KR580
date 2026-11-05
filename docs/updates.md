@@ -8,9 +8,9 @@ There is no separate update dialog.
 | --- | --- |
 | Idle | `Check for updates` starts an asynchronous version request. |
 | Checking | The idle refresh arrows rotate counterclockwise beside `Checking for updates`; repeated activation is ignored. |
-| Available | A Download arrow-and-tray icon and `Download update`; a separate click starts the download. |
-| Downloading | A circular progress indicator shows received bytes against the release asset size. |
-| Preparing | `Preparing update` and a rotating ring while the verified payload is staged. |
+| Available | A Download arrow-and-tray icon and `Download update` with the available version in muted text beside the label; a separate click starts the download. |
+| Downloading | A circular progress indicator and a muted percentage beside the label show received bytes against the release asset size; the version is hidden. |
+| Preparing | `Preparing update`, the completed download percentage and a rotating ring while the verified payload is staged. |
 | Ready | A circle with a check and `Restart to update`; clicking closes and relaunches the application after replacement. |
 | Current | A circle with a check and `Up to date` for three seconds, then the idle row. |
 | Failed | An error icon and `Retry update`; the tooltip contains the error. Retrying a failed download retains its selected release. |
@@ -18,6 +18,11 @@ There is no separate update dialog.
 Russian labels use the same states, including `Проверить обновления`,
 `Скачать обновление`, `Перезапустить и обновить` and `Обновлений нет`.
 The row and menu retain their dimensions throughout these transitions.
+Version and progress are visible inline without hovering, right-aligned with
+the menu's shortcut hints; only errors use a tooltip.
+Rate-limit errors use a short localized message (`Лимит запросов. Попробуйте
+позже` / `Rate limit reached. Try again later`) without status codes or URLs;
+the original error remains in update state.
 
 Closing or switching away from Help preserves checks, available releases,
 downloads and prepared updates. It immediately clears `Up to date`; a check
