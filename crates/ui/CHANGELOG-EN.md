@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.0.1] - 2026-11-05
+
+### Bug Fixes
+
+- Fixed: the Help menu shows the available update version and download percentage as muted text aligned to the right edge, and rate limit errors use short localized messages without technical codes or URLs
+
+### Documentation
+
+- Updated: repository star history charts (2810669)
+- Updated: repository star history charts (e8883b3)
+
 ## [5.0.0] - 2026-10-31
 
 ### Breaking Changes
